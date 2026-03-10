@@ -333,6 +333,24 @@ function ensureHeaderIcons() {
     });
 }
 
+async function loadEnvironmentBadge() {
+    const badge = document.getElementById('header-env-badge');
+    if (!badge) return;
+    try {
+        const res = await fetch('/api/meta/environment');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data && data.is_development === true) {
+            badge.style.display = 'inline-flex';
+            badge.textContent = '개발';
+        } else {
+            badge.style.display = 'none';
+        }
+    } catch (e) {
+        badge.style.display = 'none';
+    }
+}
+
 function buildWowheadItemUrl(entry) {
     const itemEntry = Number(entry) || 0;
     if (itemEntry <= 0) return '';
@@ -4107,6 +4125,7 @@ document.addEventListener('DOMContentLoaded', () => {
     LoadingUX.init();
     normalizeKoreanLabels();
     ensureHeaderIcons();
+    loadEnvironmentBadge();
     // Initial Load
     checkAdminAccess(); // Check User Status & Permissions
     updatePointsHeader(); // Initial Points Load
