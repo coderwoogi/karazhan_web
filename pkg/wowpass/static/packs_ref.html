@@ -1,0 +1,417 @@
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="../favicon/1.ico" type="image/x-icon"/>
+<title>Hearthstone Pack Opening Simulator | Rise of Shadows</title>
+
+<style>
+.cclass {
+  background: url("images/0.png");
+  width: 165px;
+  height: 62px;
+  position: relative;
+  left: 0px;
+  top: 0px;
+  margin-left: -13px;
+  margin-top: -42px;
+z-index: 5;
+
+}
+.radioImageSelect {
+    position: absolute;
+margin-left: 46px;
+margin-top: 60px;
+
+}
+label {
+padding-left: 30px;
+}
+#deck_open_sequence {
+position: absolute;
+  display: none;
+}
+@font-face {
+        font-family: "Belwe";
+        src: url("fonts/Belwe.ttf");
+}
+.classname {
+      font-size: 26px;
+  color: white;
+  text-shadow:
+   -1px 0px 0 #000, 
+   0px -1px 0 #000, 
+   -1px -1px 0 #000,  
+    1px -1px 0 #000,
+    -1px 1px 0 #000,
+     1px 1px 0 #000,
+     1px 0px 0 #000,
+   -2px 0px 0 #000, 
+   0px -2px 0 #000, 
+   -2px -2px 0 #000,  
+    2px -2px 0 #000,
+    -2px 2px 0 #000,
+     2px 2px 0 #000,
+     2px 0px 0 #000;
+}
+
+* {
+    font-family: "Belwe";
+  color: black;
+}
+canvas {
+    position:absolute;
+
+}
+</style>
+<body>
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-17798836-7', 'auto');
+  ga('require', 'linker');
+  ga('linker:autoLink', ['hearthcards.net']);
+  ga('send', 'pageview');
+
+</script>
+<link rel="stylesheet" href="jquery-ui.css">
+<link rel="stylesheet" href="style.css?version=8">
+<script type="text/javascript" src="js/jquery-2.1.0.min.js"></script>
+
+<script src="//code.jquery.com/ui/1.10.4/jquery-ui.js"></script>
+<script type="text/javascript" src="js/jquery.linkedsliders.js"></script>
+<script type="text/javascript" src="js/main_json.js?version=27"></script>
+
+<script type="text/javascript">
+	    //<![CDATA[
+	        $(window).load(function() { 
+
+	        	var backgroundImages = { 
+	        		bg_frame: 'images/base-bg.jpg',
+	        		bg_glow: 'images/base-bg-glow.jpg',
+	        		bg_blured: 'images/base-bg-blured.jpg',
+	        		blast: 'images/blast.png',
+	        		glow: 'video/glow_sequence.mp4',
+	        		open: 'video/deck_open_sequence_0.mp4'
+	        	},
+				function preloadImages() {
+					for (var key in backgroundImages) {
+						if (backgroundImages.hasOwnProperty(key)) {
+							loadImage(backgroundImages[key]);
+						}
+					}
+				}
+				function loadImage(uri) {
+					var img = new Image();
+					img.onload = isFileLoaded;
+					img.src = uri;
+				}
+				
+				preloadImages();
+
+	        });
+	    //]]>
+</script>
+<script>
+(function ($) {
+    // Detect touch support
+    $.support.touch = 'ontouchend' in document;
+    // Ignore browsers without touch support
+    if (!$.support.touch) {
+    return;
+    }
+    var mouseProto = $.ui.mouse.prototype,
+        _mouseInit = mouseProto._mouseInit,
+        touchHandled;
+
+    function simulateMouseEvent (event, simulatedType) { //use this function to simulate mouse event
+    // Ignore multi-touch events
+        if (event.originalEvent.touches.length > 1) {
+        return;
+        }
+    event.preventDefault(); //use this to prevent scrolling during ui use
+
+    var touch = event.originalEvent.changedTouches[0],
+        simulatedEvent = document.createEvent('MouseEvents');
+    // Initialize the simulated mouse event using the touch event's coordinates
+    simulatedEvent.initMouseEvent(
+        simulatedType,    // type
+        true,             // bubbles                    
+        true,             // cancelable                 
+        window,           // view                       
+        1,                // detail                     
+        touch.screenX,    // screenX                    
+        touch.screenY,    // screenY                    
+        touch.clientX,    // clientX                    
+        touch.clientY,    // clientY                    
+        false,            // ctrlKey                    
+        false,            // altKey                     
+        false,            // shiftKey                   
+        false,            // metaKey                    
+        0,                // button                     
+        null              // relatedTarget              
+        );
+
+    // Dispatch the simulated event to the target element
+    event.target.dispatchEvent(simulatedEvent);
+    }
+    mouseProto._touchStart = function (event) {
+    var self = this;
+    // Ignore the event if another widget is already being handled
+    if (touchHandled || !self._mouseCapture(event.originalEvent.changedTouches[0])) {
+        return;
+        }
+    // Set the flag to prevent other widgets from inheriting the touch event
+    touchHandled = true;
+    // Track movement to determine if interaction was a click
+    self._touchMoved = false;
+    // Simulate the mouseover event
+    simulateMouseEvent(event, 'mouseover');
+    // Simulate the mousemove event
+    simulateMouseEvent(event, 'mousemove');
+    // Simulate the mousedown event
+    simulateMouseEvent(event, 'mousedown');
+    };
+
+    mouseProto._touchMove = function (event) {
+    // Ignore event if not handled
+    if (!touchHandled) {
+        return;
+        }
+    // Interaction was not a click
+    this._touchMoved = true;
+    // Simulate the mousemove event
+    simulateMouseEvent(event, 'mousemove');
+    };
+    mouseProto._touchEnd = function (event) {
+    // Ignore event if not handled
+    if (!touchHandled) {
+        return;
+    }
+    // Simulate the mouseup event
+    simulateMouseEvent(event, 'mouseup');
+    // Simulate the mouseout event
+    simulateMouseEvent(event, 'mouseout');
+    // If the touch interaction did not move, it should trigger a click
+    if (!this._touchMoved) {
+      // Simulate the click event
+      simulateMouseEvent(event, 'click');
+    }
+    // Unset the flag to allow other widgets to inherit the touch event
+    touchHandled = false;
+    };
+    mouseProto._mouseInit = function () {
+    var self = this;
+    // Delegate the touch handlers to the widget's element
+    self.element
+        .on('touchstart', $.proxy(self, '_touchStart'))
+        .on('touchmove', $.proxy(self, '_touchMove'))
+        .on('touchend', $.proxy(self, '_touchEnd'));
+
+    // Call the original $.ui.mouse init method
+    _mouseInit.call(self);
+    };
+})(jQuery);
+</script>
+
+
+<div id="frame"></div>
+<div id="wrapper">
+
+
+
+      <div  style=" position: absolute;    right: 5px;    top: 70px; z-index: 1000; width: 160px; height: 600px;  text-align:center;">
+        <div style="background: url('../images/unad_en.png') no-repeat;min-height: 600px;">
+          <div class="banner-ad" id="gadd" style="background: #eeeeee;">
+<script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+<!-- 333345 -->
+<ins class="adsbygoogle"
+     style="display:inline-block;width:160px;height:600px"
+     data-ad-client="ca-pub-4691502056920875"
+     data-ad-slot="7198190572"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+          </div>
+        </div>
+      </div>  
+
+
+
+
+<video id="deck_open_sequence" preload="auto">
+<source src="video/deck_open_sequence_0.mp4" type="video/mp4" />
+</video>
+<script>var deck_open = document.getElementById('deck_open_sequence');</script>
+<div id="sidepack">
+<div id="packwrapper">
+
+<div id="pack"></div>
+<div id="packgvg"></div>
+<div id="packtgt"></div>
+<div id="packwotog"></div>
+<div id="packmsog"></div>
+<div id="packungoro"></div>
+<div id="packkotft"></div>
+<div id="packshadows"></div>
+
+<div id="packsbought"></div></div>
+</div>
+
+<div id="packtray">
+
+
+
+<div id="cont1" class="containers" rarity="" golden="">
+<div id="card1" class="cards">
+<div class="front face">
+<img class="reveal" /><div class="cclass"></div>
+</div>
+<div class="back face">
+<img class="hidden" src="images/card_back.png" />
+</div>
+</div>
+</div>
+<div id="cont2" class="containers" rarity="" golden="">
+<div id="card2" class="cards">
+<div class="front face">
+<img class="reveal" /><div class="cclass"></div>
+</div>
+<div class="back face">
+<img class="hidden" src="images/card_back.png" />
+</div>
+</div>
+</div>
+<div id="cont3" class="containers" rarity="" golden="">
+<div id="card3" class="cards">
+<div class="front face">
+<img class="reveal" /><div class="cclass"></div>
+</div>
+<div class="back face">
+<img class="hidden" src="images/card_back.png" />
+</div>
+</div>
+</div>
+<div id="cont4" class="containers" rarity="" golden="">
+<div id="card4" class="cards">
+<div class="front face">
+<img class="reveal" /><div class="cclass"></div>
+</div>
+<div class="back face">
+<img class="hidden" src="images/card_back.png" />
+</div>
+</div>
+</div>
+<div id="cont5" class="containers" rarity="" golden="">
+<div id="card5" class="cards">
+<div class="front face">
+<img class="reveal" /><div class="cclass"></div>
+</div>
+<div class="back face">
+<img class="hidden" src="images/card_back.png" />
+</div>
+</div>
+</div>
+
+
+
+<script>
+
+function updateClock ( )
+    {
+    var currentTime = new Date ( );
+    var currentHours = currentTime.getHours ( );
+    var currentMinutes = currentTime.getMinutes ( );
+    var currentSeconds = currentTime.getSeconds ( );
+ 
+    // Pad the minutes and seconds with leading zeros, if required
+    currentMinutes = ( currentMinutes < 10 ? "0" : "" ) + currentMinutes;
+    currentSeconds = ( currentSeconds < 10 ? "0" : "" ) + currentSeconds;
+ 
+    // Choose either "AM" or "PM" as appropriate
+    var timeOfDay = ( currentHours < 12 ) ? "AM" : "PM";
+ 
+    // Convert the hours component to 12-hour format if needed
+    currentHours = ( currentHours > 12 ) ? currentHours - 12 : currentHours;
+ 
+    // Convert an hours component of "0" to "12"
+    currentHours = ( currentHours == 0 ) ? 12 : currentHours;
+ 
+    // Compose the string for display
+    var currentTimeString = currentHours + ":" + currentMinutes + " " + timeOfDay;
+     
+     
+    $("#clock").html(currentTimeString);
+         
+ }
+ 
+$(document).ready(function()
+{
+   setInterval('updateClock()', 1000);
+});
+
+
+
+
+
+</script>
+
+
+
+
+<div id="circleglow">
+<video id="glow_sequence" preload="auto" loop>
+<source src="video/glow_sequence.mp4" type="video/mp4" />
+</video>
+</div>
+
+<div id="hole"></div>
+<div id="blured"></div>
+
+<div id="donebutton" style="position: absolute; top: 354px; left: 732px; z-index:19; display: none;"><img src="images/done-button_en.png" width=170></div>";
+
+<div id="blast"></div>
+
+
+<div id="shop"></div>
+<div id="options">
+
+<div>
+<img src="../cards_template/gem_legendary.png"><span id="c0" class="cclass"></span><div class="basicLinked"></div>
+<img src="../cards_template/gem_epic.png"><span id="c1" class="cclass"></span><div class="basicLinked"></div>
+<img src="../cards_template/gem_rare.png"><span id="c2" class="cclass"></span><span class="cclass">&nbsp;&nbsp;&nbsp;+20</span><div class="basicLinked"></div>
+<img src="../cards_template/gem_common.png"><span id="c3" class="cclass"></span><span class="cclass">&nbsp;&nbsp;&nbsp;-20</span><div class="basicLinked"></div>
+</div>
+
+<div>
+
+<img src="../cards_template/gem_legendary.png">&nbsp;&nbsp;<span id="o5" class="cclass"></span>
+<img src="../cards_template/gem_epic.png">&nbsp;&nbsp;<span id="o4" class="cclass"></span>
+<img src="../cards_template/gem_rare.png">&nbsp;&nbsp;<span id="o3" class="cclass"></span>
+<img src="../cards_template/gem_common.png">&nbsp;&nbsp;<span id="o1" class="cclass"></span>
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img src="images/pack.png" height="45">:&nbsp;&nbsp;<span id="packsopened" class="cclass"></span>
+
+
+
+<div style="float: right; margin-top: -280px; margin-left: -25px;">
+<button id="defaultdrop">Reset</button> <button id="hide">Close</button></div>
+
+
+<div style="float: right; margin-top: -3px; margin-left: -15px;">
+</div>
+
+</div>
+</div>
+
+</div>
+
+<a href="http://www.hearthcards.net/"><div id="back">
+</div></a>
+
+
+</div>
+
+</div>
+</body>

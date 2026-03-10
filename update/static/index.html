@@ -1,0 +1,86 @@
+﻿<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>업데이트 파일 관리</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <div class="card-body">
+                <div class="update-tabs">
+                    <button type="button" id="tab-update" class="update-tab-btn active" data-type="update">
+                        <i class="fas fa-cloud-upload-alt"></i> 업데이트 파일
+                    </button>
+                    <button type="button" id="tab-launcher" class="update-tab-btn" data-type="launcher">
+                        <i class="fas fa-rocket"></i> 접속기 관리
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h2 id="upload-card-title"><i class="fas fa-cloud-upload-alt"></i> 업데이트 파일 등록 / 수정</h2>
+            </div>
+            <div class="card-body">
+                <form id="uploadForm" novalidate>
+                    <input type="hidden" id="edit-no" name="no">
+                    <div class="filter-bar">
+                        <div class="filter-group file-select">
+                            <label id="upload-file-label"><i class="fas fa-file-upload"></i> 업데이트 파일</label>
+                            <div class="file-input-wrapper">
+                                <input type="file" id="fileInput" name="file">
+                                <label for="fileInput" class="file-label">파일 선택</label>
+                                <span id="fileName" class="file-name">선택된 파일 없음</span>
+                            </div>
+                        </div>
+                        <button type="submit" id="submitBtn" class="search-btn"><i class="fas fa-save"></i> 등록하기</button>
+                        <button type="button" id="cancelBtn" class="refresh-btn" style="display:none;"><i class="fas fa-times"></i> 취소</button>
+                    </div>
+                    <div id="uploadProgressWrap" class="upload-progress-wrap" style="display:none;">
+                        <div class="upload-progress-head">
+                            <span>업로드 진행률</span>
+                            <span id="uploadProgressText">0%</span>
+                        </div>
+                        <div class="upload-progress-track">
+                            <div id="uploadProgressBar" class="upload-progress-bar"></div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h2 id="list-card-title"><i class="fas fa-list"></i> 업데이트 파일 목록</h2>
+            </div>
+            <div class="card-body">
+                <div class="scroll-table premium-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width:10%;">No</th>
+                                <th style="width:35%;">파일명</th>
+                                <th style="width:30%;">MD5 Hash</th>
+                                <th style="width:15%;">등록일</th>
+                                <th style="width:10%; text-align:center;">관리</th>
+                            </tr>
+                        </thead>
+                        <tbody id="fileList"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="script.js"></script>
+</body>
+</html>

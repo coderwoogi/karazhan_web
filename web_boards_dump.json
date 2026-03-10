@@ -1,0 +1,20 @@
+[
+  {
+    "id": "free",
+    "name": "자유게시판",
+    "min_web_read": 0,
+    "min_web_write": 0
+  },
+  {
+    "id": "notice",
+    "name": "공지사항",
+    "min_web_read": 0,
+    "min_web_write": 2
+  },
+  {
+    "id": "update",
+    "name": "업데이트",
+    "min_web_read": 0,
+    "min_web_write": 2
+  }
+]

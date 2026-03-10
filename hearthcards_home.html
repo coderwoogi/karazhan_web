@@ -1,0 +1,1086 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="HearthCards | Custom Hearthstone Cards Maker Generator">
+    <meta name="author" content="">
+    <meta name="viewport" content="width=1120">
+    <meta name="viewport" content='width=device-width, initial-scale=1.0,text/html,charset=utf-8'>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <link rel="icon" href="/gallery/favicon.ico"/>
+    <link rel="apple-touch-icon" href="/gallery/logo192.png"/>
+    <title>HearthCards | Custom Hearthstone Cards Maker</title>
+
+</head>
+<body>
+<style>
+#hcScreenshotButton {
+cursor: pointer;
+position: absolute;
+    top: 649px;
+    left: 980px;
+    width: 38px;
+    height: 42px;
+    background-image: url(images/screenshotButtonA.webp);
+    z-index: 10;
+display: none;
+}
+#hcScreenshotButton:hover {
+  background-position: 38px 0;
+}
+#hcratingpanel {
+position: absolute;
+    top: 647px;
+    left: 780px;
+    width: 200px;
+    height: 44px;
+    background-image: url(images/hcRatingPanel_gallery5.png);
+    z-index: 10;
+}
+.ratings_stars {
+    float:      left;
+    height:     22px;
+    padding:    2px;
+    width:      21px;
+}
+.ratings_vote {
+    background: url('../images/star.png') no-repeat;
+}
+.ratings_over {
+    background: url('../images/star.png') no-repeat;
+}
+.rate_widget {
+  position: absolute; top: 13px; left: 44px;  
+}
+.star_1 { position: absolute; top: 13px; left: 44px; }
+.star_2 { position: absolute; top: 13px; left: 67px; }
+.star_3 { position: absolute; top: 13px; left: 91px; }
+.star_4 { position: absolute; top: 13px; left: 114px; }
+.star_5 { position: absolute; top: 13px; left: 137px; }
+#slider { display: none; }
+#card {
+position: absolute;
+    filter: url(shadow.svg#drop-shadow);
+    -webkit-filter: drop-shadow(0px 0px 15px rgba(0,0,0,0.7));
+    -ms-filter: "progid:DXImageTransform.Microsoft.Dropshadow(OffX=12, OffY=12, Color='#444')";
+    filter: "progid:DXImageTransform.Microsoft.Dropshadow(OffX=12, OffY=12, Color='#444')";
+}
+#more_card_icon {
+background:url(../images/more_cards_icon.png);
+width: 76px;
+height: 73px;
+position: absolute;
+z-index: 15;
+top: 140px;
+left: 1013px;
+color: #ffffff;
+font-size: 45px;
+font-family: 'Belwe';
+text-align: center;
+line-height: 52px;
+display: none;
+  text-shadow:
+   -2px -2px 0 #000,  
+    2px -2px 0 #000,
+    -2px 2px 0 #000,
+     2px 2px 0 #000; cursor: pointer;
+-webkit-user-select: none;
+-khtml-user-select: none;
+-moz-user-select: none;
+-ms-user-select: none;
+-o-user-select: none;
+user-select: none;
+}
+.minion {
+width: 411px !important; top: 16px !important;
+}
+.minion-Legendary {
+width: 411px !important; top: 16px !important;
+}
+.spell {
+width: 411px !important; top: 16px !important;
+}
+.spell-Legendary {
+    width: 433px !important;
+    top: 16px !important;
+}
+.weapon { width: 412px !important; top: 32px !important; }
+.weapon-Legendary { width: 412px !important; top: 32px !important; }
+.gg_legend {
+width: 45px;
+opacity: 0.25;
+}
+    .adjustmentControls {
+color: black;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      margin-top: 10px;
+    }
+
+    .adjustmentLabel {
+      margin-bottom: 5px;
+    }
+
+    .adjustmentSlider {
+      width: 100%;
+      margin-bottom: 5px;
+    }
+
+    .adjustmentValue {
+      width: 100%;
+    }
+#flipButton { margin-top: 5px; margin-bottom: 5px; width: 100%; }
+    #gallery {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-around;
+      align-items: flex-start;
+    }
+
+    .gallery-item {
+      margin: 5px;
+      overflow: hidden;
+      width: 170px; /* Set a fixed width for the square container */
+      height: 170px; /* Set a fixed height for the square container */
+      border: 1px solid #ddd; /* Optional: Add a border for styling */
+      box-sizing: border-box;
+    }
+    .gallery-item img {
+      width: 100%; /* Make the image fill the container */
+      height: 100%; /* Make the image fill the container */
+      object-fit: cover; /* Ensure the entire image is covered, preserving aspect ratio */
+    }
+        #video-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 998; /* Place the overlay below the video container */
+        }
+
+        #video-container {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 1400px;
+            height: auto;
+            padding: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            z-index: 999;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 0px;
+            right: 15px;
+            cursor: pointer;
+            color: #fff;
+            font-size: 60px;
+            z-index: 9999;
+        }
+
+        .overlay-dragdrop {
+            position: fixed;
+top: 5%;
+    left: 5%;
+    width: 90%;
+    height: 90%;
+            background-color: rgb(0 0 0 / 90%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2em;
+font-family: 'Belwe';
+            color: #fff;
+            border: 2px dashed #ccc;
+            z-index: 1000;
+border-radius: 15px;
+            display: none;
+        }
+
+
+
+
+
+        .highlight {
+display: flex;
+            border-color: #fff;
+        }
+
+.unselectable {
+  user-drag: none; 
+  user-select: none;
+  -moz-user-select: none;
+  -webkit-user-drag: none;
+  -webkit-user-select: none;
+  -ms-user-select: none;
+}
+
+</style>
+  <script type="text/javascript" src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="js/downscale.js"></script>
+  <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.js"></script>
+  <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui-touch-punch/0.2.3/jquery.ui.touch-punch.min.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="css/hearthcards.css?v=67">
+  <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-17798836-7', 'auto');
+  ga('require', 'linker');
+  ga('linker:autoLink', ['hearthcards.net']);
+  ga('send', 'pageview');
+
+</script>
+
+  <script>
+if (window.location.href.indexOf("noRedirect") === -1) {
+  if (window.innerHeight > window.innerWidth) {
+    // Extract the hash and query parameters from the current URL
+    const hash = window.location.hash;
+    const queryParams = window.location.search;
+
+    // Concatenate the hash and query parameters to the redirect URL
+    const redirectURL = "moby.html" + hash + queryParams;
+
+    // Redirect to the new URL
+    window.location.replace(redirectURL);
+  }
+}  </script>
+
+    <div class="overlay-dragdrop" id="drop-overlay">
+        Drag & Drop an Image or .hcards here.
+    </div>
+
+<div id="video-overlay"></div>
+<div id="video-container">
+    <span class="close-btn">&times;</span>
+    <video id="video" width="100%" controls>
+        <source src="" type="video/mp4">
+  <track
+    label="English"
+    kind="subtitles"
+    srclang="en"
+    src="/video/hc-guide-02142024.vtt"
+    default />
+  <track
+    label="Russian"
+    kind="subtitles"
+    srclang="ru"
+    src="/video/hc-guide-02142024RU.vtt"
+    />
+        Your browser does not support the video tag.
+    </video>
+</div>
+
+
+  <div class="font_preload" style="opacity: 0">
+    <span style="font-family: 'Belwe', Arial, sans-serif;"></span>
+    <span style="font-family: 'FranklinGothic', Arial, sans-serif;"></span>
+    <span style="font-family: 'BenguiatBoldITC', Arial, sans-serif;"></span>
+  </div>
+
+  <div id="black"></div>
+  <div id="container">
+
+
+      <a href="https://www.patreon.com/hearthcards"><div  style="background: url('../images/unad_en.png') no-repeat; min-height:600px; background-position-x: center; position: absolute;   left: 50%; top: 50%; margin: -280px 0 0 565px; width: 160px; height: 600px; border: 1px solid #DDDDDD;  background-color: #1a1816;border-radius: 6px;padding: 5px; text-align:center;">
+<img src="/images/suop8.webp">
+      </div></a>
+
+
+
+
+    <div id="importer" style="display: none; position: absolute; top: 219px; left: 220px; width: 410px; height: 150px; background-color: #1e1e1e; color: white; z-index: 60; overflow: hidden; border: 1px solid #DDDDDD; border-radius: 6px;padding: 5px; margin-top: 10px; text-align:center;">
+      <span style="float: center;">
+        <b>Import</b>
+        <br></span>
+      <br>
+      <span id="closebutton" onclick="$('#importer').hide(); $('#black').hide();" style="position: absolute; right: 3px; top: 3px; float: right;">
+        <img src="images/close-icon.png">&nbsp; </span>
+      <span style="float: center;">Import a card from the game by name</span>
+      <br>
+      <input id="card_ac" class="input-text icardname" name="icardname" placeholder="Card Name" maxlength="30"><input id="import" class="import-button" style="height: 30px;" type="submit" value="Import All"><input id="import-art" class="import-button" style="height: 30px;" type="submit" value="Art Only">
+      </span>      
+  <p>    <span style="float: center;">or save/load your card locally.</span>
+      <br><input id="jsonExport" onclick="exportJSON(cardParams);" class="import-button" style="float: center;" type="submit" value="Export as File">&nbsp;<input id="jsonImport" class="import-button" style="float: center; display:none;" type="file" value="I" accept=".hcards"><button type="button" onclick="document.getElementById('jsonImport').click();">Import from File</button>
+    </div>
+    <div id="customhs_menu_button"></div>
+    <div id="customhs">
+<div id="customhs_options_menu" style="display: none; padding: 15px; z-index:10000; width: 80px;height: 150px;background-color: black;border-color: white;border-width: thin;border-style: dotted;position: absolute;top: 103px;left: 268px;">
+<p style="font-size: 26px; color: red; cursor: pointer;" class="customhs_options_delete">Delete</p>
+<p style="font-size: 26px; color: white; cursor: pointer;" class="customhs_options_close">Close</p>
+</div>
+      <div id="customhs_create_button"></div>
+      <button class="customhs_controls" id="customhs_search_clear" style="position: absolute;left: 1005px;top: 35px;z-index: 50;background-color: transparent;border: 0px;cursor: pointer;" type="button">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" color="#B6BAC2">
+          <path d="M5 5l14 14M5 19L19 5" stroke="#B6BAC2" stroke-width="3" stroke-linecap="round"></path>
+        </svg>
+      </button>
+      <input class="customhs_controls" id="customhs_search" style="padding-right: 50px;" placeholder="Search" maxlength="30">
+      <div id="customhs_type_buttons" class="customhs_controls" style="display: none;">
+        <div data-type="0" class="customhs_type_button">
+          <span>All</span>
+        </div>
+        <div data-type="1" class="customhs_type_button">
+          <span>My</span>
+        </div>
+        <div data-type="2" class="customhs_type_button">
+          <span>Liked</span>
+        </div>
+      </div>
+      <div id="customhs_title">Custom Hearthstone</div>
+      <div id="customhs_left">
+        <div data-id="0" class="customhs_selector">
+          <img src="images/customhs_panel_left_tile_classes.png">
+        </div>
+        <div data-id="1" class="customhs_selector">
+          <img src="images/customhs_panel_left_tile_emblems.png">
+        </div>
+        <div data-id="2" class="customhs_selector">
+          <img src="images/customhs_panel_left_tile_banner.png">
+        </div>
+        <div data-id="4" class="customhs_selector">
+          <img src="images/customhs_panel_left_tile_templates.png">
+        </div>
+        <div data-id="3" class="customhs_selector">
+          <img src="images/customhs_panel_left_tile_aiart.png">
+        </div>
+      </div>
+      <div id="customhs_right">
+        <div style="position: absolute; padding-left: 20px; padding-right: 20px;">
+          <img src="images/kit-file.png" style="float: right; margin-top: 12px;">
+          <p>Hello! This menu contains all the Custom things we have. Anything that's not in the game can be selected from here. Pick an element you want to change on the left and select from a variety of user made content.</p>
+          <p>Apply it directly from here by clicking on it, or if you're gonna use it a lot, press the Star symbol to favorite it. It will add it to the "Liked" subcategory for easy access.</p>
+          <p style="text-align: center;">
+                      <img src="images/corgburger.png" style="float: center; margin-top: 12px; width: 300px;">
+          </p>
+          <p>Can't find what you want? Press Create button on the bottom left and make it yourself! Some things might require you to draw them. We'll give you instructions!</p>
+        </div>
+      </div>
+    </div>
+    <div id="type_menu" style="position: absolute; top: 110px; left: 0px; width: 78px; height: 576px;">
+      <div id="close" style="position: absolute; left: 17px; top: 40px; width: 51px; height: 56px; background:url(images/box-closed.png);"></div>
+      <div class="typemenu" type="minion" style="width: 68px; height: 73px; position: absolute; top: 30px; left: 9px; cursor: pointer;"></div>
+      <div class="typemenu" type="spell" style="width: 68px; height: 73px; position: absolute; top: 106px; left: 9px; cursor: pointer;"></div>
+      <div class="typemenu" type="weapon" style="width: 68px; height: 73px; position: absolute; top: 182px; left: 9px; cursor: pointer;"></div>
+      <div class="typemenu" type="heropower" style="width: 68px; height: 73px; position: absolute; top: 258px; left: 9px; cursor: pointer;"></div>
+      <div class="typemenu" type="hero" style="width: 68px; height: 73px; position: absolute; top: 335px; left: 9px; cursor: pointer;"></div>
+      <div class="typemenu" type="herocard" style="width: 68px; height: 73px; position: absolute; top: 412px; left: 9px; cursor: pointer;"></div>
+      <div class="typemenu" type="location" style="width: 68px; height: 73px; position: absolute; top: 488px; left: 9px; cursor: pointer;"></div>
+    </div>
+    <div id="warning_alert" style="position: absolute ;z-index: 2147483647;top: 385px;left: 248px; display:none;">
+      <div class="tooltipsy">One or more words can't fit on the card.</div>
+    </div>
+
+<div style="position: absolute;bottom: 12px;right: 19px;color: #646464;font-size: 14px;text-shadow: 0 1px 0 rgba(0,0,0,1);text-align: right;">HearthCards 2014-2026</div>
+<div id="bottomPanel" style="position: absolute; bottom: 0px; left: 0px; width: 663px; height: 57px; text-align: center;">
+
+<a href="/gallery/"><img src="../images/gallery_button.png" style="" class="unselectable"></a> 
+<a href="https://www.patreon.com/hearthcards" id="patreon_button"><img src="../images/patreon_button.png" style="" class="unselectable"></a> 
+<a href="https://www.hearthcards.net/sets/" id="setsbutton" style=""><img src="../images/sets_button.png" style="" class="unselectable"></a> 
+<a href="#" class="play-btn play-btn-bottom" style="display: none;"><img src="../images/help3_button.png" style="" class="unselectable"></a> 
+
+</div>
+
+<div id="WinterVeilStartButton" style="position: absolute; top: 5px; right: 36px; cursor: pointer;"></div>
+
+<div id="bottomPanelGuessingGame" style="position: absolute; bottom: 0px; left: 0px; width: 663px; height: 57px; text-align: center; display: none;">
+
+<span id="gg_health" style="font-size: 25px; font-family: 'Belwe'; color: white; position: absolute; left: 108px; top: 13px; cursor: pointer;">Life: 3/3</span>
+<span id="gg_round" style="font-size: 25px; font-family: 'Belwe'; color: white; position: absolute; left: 308px; top: 13px; cursor: pointer;">Round: 0</span>
+<span id="gg_back_button" style="font-size: 25px; font-family: 'Belwe'; color: white; position: absolute; left: 508px; top: 13px; cursor: pointer;">Back</span>
+
+</div>
+
+
+
+
+
+<div id="login_popup" style="width: 481px; height: 455px; position: absolute; top: 170px; left: 142px; font-size: 17px; font-family: 'Belwe'; display:none;">
+<form id="login_form">
+<p>
+    <label class="form-label" for="form2Example1">Email address</label></p><p>
+    <input type="email" id="form2Example1" class="input-text">
+</p><p>
+    <label class="form-label" for="form2Example2">Password</label></p><p>
+    <input type="password" id="form2Example2" class="input-text">
+</p><p>
+        <input class="form-check-input" type="checkbox" value="" id="form2Example31" checked="">
+        <label class="form-check-label" for="form2Example31"> Remember me </label>
+<br><a href="/forgot.php">Forgot password?</a>
+</p><p>
+  <button type="submit" class="btn btn-primary btn-block mb-4">Sign in</button>   <button type="button" onclick="$('#login_popup').hide(); $('#panel_cardmade').hide(); $('#panel_left').show();" class="btn btn-primary btn-block mb-4">Close</button>
+</p>
+</form>
+</div>
+
+
+<div id="panel_cardmade" style="width: 481px; height: 455px; position: absolute; top: 170px; left: 142px; font-size: 17px; font-family: 'Belwe'; display:none;">
+
+<img src="images/thankyou.webp" style="position: absolute; left: 0px; top: 15px;">
+<div style="position: absolute; left: 0px; top: 55px;">
+<p style="text-align: center;"><span class="translate" data-translate-key="cis_temp_link">Temporary Link:</span><br><img class="hyperlink-icon" src="images/world-link-icon.png"> <input id="finalLink" onclick="this.select();" class="input-text cardurl" style="width: 360px;" value="Generating..."></p>
+<p class="translate" data-translate-key="card_is_ready">Your card is ready! It's safe to close this if you only want to save it on your device. For a temporary link wait for the upload to finish. Your card will also be added to <b>My Cards</b> section of the Gallery where you can attach tokens and Publish it if you want!</p>
+</div>
+<div style="position: absolute; left: 10px; bottom: 3px; width: 95%;">
+<button type="button" onClick="DownloadUsingAnchorElement();" style="width: 100%; height: 40px; font-size: 18px;margin-top: 10px;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" style="height: 20px;"><!--! Font Awesome Pro 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license (Commercial License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c0-17.7-14.3-32-32-32s-32 14.3-32 32V274.7l-73.4-73.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3l128 128c12.5 12.5 32.8 12.5 45.3 0l128-128c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L288 274.7V32zM64 352c-35.3 0-64 28.7-64 64v32c0 35.3 28.7 64 64 64H448c35.3 0 64-28.7 64-64V416c0-35.3-28.7-64-64-64H346.5l-45.3 45.3c-25 25-65.5 25-90.5 0L165.5 352H64zM432 456c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg> <span class="translate" data-translate-key="cis_op1">Download Full-Sized Card</span></button>
+<button id="button_download_halfsized" disabled type="button" onClick="downloadUrl('/temp/' + fimgUrl + '_s.png');" style="width: 100%; height: 40px; font-size: 18px;margin-top: 10px;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" style="height: 20px;"><!--! Font Awesome Pro 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license (Commercial License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c0-17.7-14.3-32-32-32s-32 14.3-32 32V274.7l-73.4-73.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3l128 128c12.5 12.5 32.8 12.5 45.3 0l128-128c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L288 274.7V32zM64 352c-35.3 0-64 28.7-64 64v32c0 35.3 28.7 64 64 64H448c35.3 0 64-28.7 64-64V416c0-35.3-28.7-64-64-64H346.5l-45.3 45.3c-25 25-65.5 25-90.5 0L165.5 352H64zM432 456c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg> <span class="translate" data-translate-key="cis_op2">Download Half-Sized Card</span></button>
+<button type="button" onClick="location.reload();"style="width: 100%; height: 40px; font-size: 18px;margin-top: 10px;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" style="height: 20px;"><!--! Font Awesome Pro 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license (Commercial License) Copyright 2022 Fonticons, Inc. --><path d="M463.5 224H472c13.3 0 24-10.7 24-24V72c0-9.7-5.8-18.5-14.8-22.2s-19.3-1.7-26.2 5.2L413.4 96.6c-87.6-86.5-228.7-86.2-315.8 1c-87.5 87.5-87.5 229.3 0 316.8s229.3 87.5 316.8 0c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0c-62.5 62.5-163.8 62.5-226.3 0s-62.5-163.8 0-226.3c62.2-62.2 162.7-62.5 225.3-1L327 183c-6.9 6.9-8.9 17.2-5.2 26.2s12.5 14.8 22.2 14.8H463.5z"/></svg> <span class="translate" data-translate-key="cis_op3">Make Another Card</span></button>
+<button type="button" onClick="$('#panel_cardmade').hide(); $('#panel_left').show();"style="width: 100%; height: 40px; font-size: 18px;margin-top: 10px;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" style="height: 20px;"><!--! Font Awesome Pro 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license (Commercial License) Copyright 2022 Fonticons, Inc. --><path d="M471.6 21.7c-21.9-21.9-57.3-21.9-79.2 0L362.3 51.7l97.9 97.9 30.1-30.1c21.9-21.9 21.9-57.3 0-79.2L471.6 21.7zm-299.2 220c-6.1 6.1-10.8 13.6-13.5 21.9l-29.6 88.8c-2.9 8.6-.6 18.1 5.8 24.6s15.9 8.7 24.6 5.8l88.8-29.6c8.2-2.8 15.7-7.4 21.9-13.5L437.7 172.3 339.7 74.3 172.4 241.7zM96 64C43 64 0 107 0 160V416c0 53 43 96 96 96H352c53 0 96-43 96-96V320c0-17.7-14.3-32-32-32s-32 14.3-32 32v96c0 17.7-14.3 32-32 32H96c-17.7 0-32-14.3-32-32V160c0-17.7 14.3-32 32-32h96c17.7 0 32-14.3 32-32s-14.3-32-32-32H96z"/></svg> <span class="translate" data-translate-key="cis_op4">Back to Editing</span></button>
+</div>
+</div>
+    
+<div class="dropdown">
+  <button onclick="myFunction()" class="dropbtn" id="dropdownMenu">Sign In</button>
+  <div id="myDropdown" class="dropdown-content">
+    <a id="menuLogin" href="#" onclick="$('#login_popup').show(); $('#panel_cardmade').hide(); $('#panel_left').hide();">Log In</a>
+    <a id="menuRegister" href="registration.php">Register</a>
+    <a id="menuRegister" class="play-btn" href="#">Tutorial</a>
+    <a id="menuRegister" href="https://ko-fi.com/hearthcards#">Patreon</a>
+    <a id="menuLinkP" style="display: none;" href="https://www.hearthcards.net/patreon-php/log_in_user_via_patreon.php">Link Patreon</a>
+    <a id="menuRegister" href="https://ko-fi.com/hearthcards">Donate on Ko-fi</a>
+    <a id="menuRegister" href="https://discord.gg/fbzKQYt894">Discord</a>
+<select id="language-selector" style="width: 100%;">
+<option value="en">English</option>
+<option value="fr">Français</option>
+<option value="it">Italiano</option>
+<option value="de">Deutsch</option>
+<option value="es">Español</option>
+<option value="ptbr">Português</option>
+<option value="pl">Polski</option>
+<option value="ru">Русский</option>
+<option value="ua">Українська</option>
+<option value="ja">日本語</option>
+<option value="ko">한국어</option>
+<option value="zhcn">简体中文</option>
+</select>
+
+    <a id="menuLogout" href="#" onclick="logout().done(function(o){ if (hcParams.loggedin == false) { $('#dropdownMenu').html('Sign In'); $('#menuRegister').show(); $('#menuLogin').show(); $('#menuLogout').hide(); $('#menuLinkP').hide(); } });" style="display: none;">Log Out</a>
+  </div>
+</div>
+
+<div id="counter" style="position: absolute;top: 86px;left: 506px;font-size: 17px;font-family: 'Belwe';color: white;width: 100px;text-align: right; cursor: default; -webkit-user-select: none; user-select: none;">13.5M</div>
+
+    <div id="panel_left" style="background-image: url(images/panel_main_new7_seperators.webp); width: 481px;    height: 455px;    position: absolute;    top: 170px;    left: 142px;">
+      <div id="panel_left_cardname_race" style="width: 480px;
+    height: 62px;
+    position: absolute;
+    top: 84px;
+    left: 0px;
+    font-size: 17px;
+    font-family: 'Belwe';">
+        <span style="position: absolute; top: 4px; left: 12px;" class="translate" data-translate-key="card_name_type">Enter Card Name and (optionally) Type</span>
+        <div style="position: absolute; top: 37px; left: 3px;">
+          <input class="input-text cardname translate" style="padding-right: 50px;" name="text" placeholder="Card Name" maxlength="30" data-translate-key="card_name">
+          <span title="" id="openimporter" style="position: absolute; top: 0px; left: 260px; cursor: pointer;">
+            <img class="unselectable" src="../images/info-icon2.png">
+          </span>
+          <input class="input-text cardrace translate" name="race" list="tribes" placeholder="Type, 2Type" maxlength="20" style="opacity: 1;" data-translate-key="card_type">
+          <datalist id="tribes">
+            <option value="Beast"></option>
+            <option value="Demon"></option>
+            <option value="Draenei"></option>
+            <option value="Dragon"></option>
+            <option value="Elemental"></option>
+            <option value="Mech"></option>
+            <option value="Murloc"></option>
+            <option value="Naga"></option>
+            <option value="Pirate"></option>
+            <option value="Undead"></option>
+            <option value="Totem"></option>
+            <option value="Quilboar"></option>
+            <option value="Arcane"></option>
+            <option value="Fire"></option>
+            <option value="Fel"></option>
+            <option value="Frost"></option>
+            <option value="Holy"></option>
+            <option value="Nature"></option>
+            <option value="Shadow"></option>
+          </datalist>
+        </div>
+      </div>
+      <div id="panel_left_classes" style="opacity: 1;">
+        <span style="position: absolute; top: 0px; left: 12px;" class="translate" data-translate-key="choose_a_class">Choose a Class</span>
+<div style="position: absolute; top: 32px; left: 15px;">
+    <input type="radio" id="neutral" name="cardclass" value="neutral" checked=""><label for="neutral"><span></span><img title="" class="classimage unselectable" style="position: absolute; margin-left: -38px; margin-top: -1px; width:38px; height:38px;" cardclass="Neutral" src="/images/classes-main/neutral-64.png"></label>
+    <input type="radio" id="deathKnight" name="cardclass" value="deathKnight"><label for="deathKnight"><span></span><img title="" class="classimage unselectable" style="position: absolute; margin-left: -38px; margin-top: -1px; width:38px; height:38px;" cardclass="DeathKnight" src="/images/classes-main/dk_kotft-64.png"></span></label>
+    <input type="radio" id="demonHunter" name="cardclass" value="demonHunter"><label for="demonHunter"><span></span><img title="" class="classimage unselectable" style="position: absolute; margin-left: -38px; margin-top: -1px; width:38px; height:38px;" cardclass="DemonHunter" src="/images/classes-main/dhblizz-64.png"></span></label>
+    <input type="radio" id="druid" name="cardclass" value="druid"><label for="druid"><span></span><img title="" class="classimage unselectable" style="position: absolute; margin-left: -38px; margin-top: -1px; width:38px; height:38px;" cardclass="Druid" src="/images/classes-main/druid-64.png"></span></label>
+    <input type="radio" id="hunter" name="cardclass" value="hunter"><label for="hunter"><span></span><img title="" class="classimage unselectable" style="position: absolute; margin-left: -38px; margin-top: -1px; width:38px; height:38px;" cardclass="Hunter" src="/images/classes-main/hunter-64.png"></span></label>
+    <input type="radio" id="mage" name="cardclass" value="mage"><label for="mage"><span></span><img title="" class="classimage unselectable" style="position: absolute; margin-left: -38px; margin-top: -1px; width:38px; height:38px;" cardclass="Mage" src="/images/classes-main/mage-64.png"></span></label>
+    <input type="radio" id="paladin" name="cardclass" value="paladin"><label for="paladin"><span></span><img title="" class="classimage unselectable" style="position: absolute; margin-left: -38px; margin-top: -1px; width:38px; height:38px;" cardclass="Paladin" src="/images/classes-main/paladin-64.png"></span></label>
+    <input type="radio" id="priest" name="cardclass" value="priest"><label for="priest"><span></span><img title="" class="classimage unselectable" style="position: absolute; margin-left: -38px; margin-top: -1px; width:38px; height:38px;" cardclass="Priest" src="/images/classes-main/priest-64.png"></span></label>
+    <input type="radio" id="rogue" name="cardclass" value="rogue"><label for="rogue"><span></span><img title="" class="classimage unselectable" style="position: absolute; margin-left: -38px; margin-top: -1px; width:38px; height:38px;" cardclass="Rogue" src="/images/classes-main/rogue-64.png"></span></label>
+    <input type="radio" id="shaman" name="cardclass" value="shaman"><label for="shaman"><span></span><img title="" class="classimage unselectable" style="position: absolute; margin-left: -38px; margin-top: -1px; width:38px; height:38px;" cardclass="Shaman" src="/images/classes-main/shaman-64.png"></span></label>
+    <input type="radio" id="warlock" name="cardclass" value="warlock"><label for="warlock"><span></span><img title="" class="classimage unselectable" style="position: absolute; margin-left: -38px; margin-top: -1px; width:38px; height:38px;" cardclass="Warlock" src="/images/classes-main/warlock-64.png"></span></label>
+    <input type="radio" id="warrior" name="cardclass" value="warrior"><label for="warrior"><span></span><img title="" class="classimage unselectable" style="position: absolute; margin-left: -38px; margin-top: -1px; width:38px; height:38px;" cardclass="Warrior" src="/images/classes-main/warrior-64.png"></span></label>
+</div>
+
+<div id="dual_classes_selector" style="position: absolute; top: -6px; left: 9px; width: 470px; height: 77px; background-image: url('images/dualclasses.png'); z-index: 555; display:none;">
+    <div id="dual_menu_back" class="disable-select translate" style="position: absolute;top: 5px;left: 367px;color: white;text-decoration: underline; cursor: pointer; width: 100px; text-align: center;" data-translate-key="dual_menu_back">Back</div>
+    <div style="position: absolute; top: 38px; left: 6px;">
+        <input type="radio" id="none-r" name="dualclassimage" value="" checked=""><label for="none-r"><span></span><img title="" class="dualclassimage unselectable" style="position: absolute; margin-left: -38px; margin-top: -1px; width:38px; height:38px;" cardclass="" src="/images/classes-main/none-64.png"></label>
+        <input type="radio" id="deathKnight-r" name="dualclassimage" value="deathKnight"><label for="deathKnight-r"><span></span><img title="" class="dualclassimage unselectable" style="position: absolute; margin-left: -38px; margin-top: -1px; width:38px; height:38px;" cardclass="DeathKnight" src="/images/classes-main/dk_kotft-64.png"></span></label>
+        <input type="radio" id="demonHunter-r" name="dualclassimage" value="demonHunter"><label for="demonHunter-r"><span></span><img title="" class="dualclassimage unselectable" style="position: absolute; margin-left: -38px; margin-top: -1px; width:38px; height:38px;" cardclass="DemonHunter" src="/images/classes-main/dhblizz-64.png"></span></label>
+        <input type="radio" id="druid-r" name="dualclassimage" value="druid"><label for="druid-r"><span></span><img title="" class="dualclassimage unselectable" style="position: absolute; margin-left: -38px; margin-top: -1px; width:38px; height:38px;" cardclass="Druid" src="/images/classes-main/druid-64.png"></span></label>
+        <input type="radio" id="hunter-r" name="dualclassimage" value="hunter"><label for="hunter-r"><span></span><img title="" class="dualclassimage unselectable" style="position: absolute; margin-left: -38px; margin-top: -1px; width:38px; height:38px;" cardclass="Hunter" src="/images/classes-main/hunter-64.png"></span></label>
+        <input type="radio" id="mage-r" name="dualclassimage" value="mage"><label for="mage-r"><span></span><img title="" class="dualclassimage unselectable" style="position: absolute; margin-left: -38px; margin-top: -1px; width:38px; height:38px;" cardclass="Mage" src="/images/classes-main/mage-64.png"></span></label>
+        <input type="radio" id="paladin-r" name="dualclassimage" value="paladin"><label for="paladin-r"><span></span><img title="" class="dualclassimage unselectable" style="position: absolute; margin-left: -38px; margin-top: -1px; width:38px; height:38px;" cardclass="Paladin" src="/images/classes-main/paladin-64.png"></span></label>
+        <input type="radio" id="priest-r" name="dualclassimage" value="priest"><label for="priest-r"><span></span><img title="" class="dualclassimage unselectable" style="position: absolute; margin-left: -38px; margin-top: -1px; width:38px; height:38px;" cardclass="Priest" src="/images/classes-main/priest-64.png"></span></label>
+        <input type="radio" id="rogue-r" name="dualclassimage" value="rogue"><label for="rogue-r"><span></span><img title="" class="dualclassimage unselectable" style="position: absolute; margin-left: -38px; margin-top: -1px; width:38px; height:38px;" cardclass="Rogue" src="/images/classes-main/rogue-64.png"></span></label>
+        <input type="radio" id="shaman-r" name="dualclassimage" value="shaman"><label for="shaman-r"><span></span><img title="" class="dualclassimage unselectable" style="position: absolute; margin-left: -38px; margin-top: -1px; width:38px; height:38px;" cardclass="Shaman" src="/images/classes-main/shaman-64.png"></span></label>
+        <input type="radio" id="warlock-r" name="dualclassimage" value="warlock"><label for="warlock-r"><span></span><img title="" class="dualclassimage unselectable" style="position: absolute; margin-left: -38px; margin-top: -1px; width:38px; height:38px;" cardclass="Warlock" src="/images/classes-main/warlock-64.png"></span></label>
+        <input type="radio" id="warrior-r" name="dualclassimage" value="warrior"><label for="warrior-r"><span></span><img title="" class="dualclassimage unselectable" style="position: absolute; margin-left: -38px; margin-top: -1px; width:38px; height:38px;" cardclass="Warrior" src="/images/classes-main/warrior-64.png"></span></label>
+    </div>
+</div>        <div style="position: absolute; right: 13px; width: 250px; text-align: right;">
+          <a id="dual_menu" title="" class="disable-select translate" style="text-decoration: underline; dual_menu; cursor: pointer;" data-translate-key="dual_class">Dual Class</a>
+        </div>
+      </div>
+      <div id="panel_left_mana">
+        <span style="position: absolute; top: 10px; left: 12px;" class="translate" data-translate-key="cst_att_hlth">Cost, Attack, Health</span>
+        <div style="position: absolute; left: 0px; top: 13px;">
+          <div id="cost_selector_menu" style="position: absolute ;z-index: 2147483647; bottom: 40px; left: -67px; display:none;">
+            <div class="tooltipsy" style="box-shadow: 0px 0px 15px 1px black; background-color: white; width: 190px; padding-bottom: 22px; border-color:black;">
+<p style="color: black;">Cost Type:</p>
+              <img src="assets/Card_Inhand_BannerAtlas_Minion_ManaGem.webp" class="cost_selector" data="Mana" style="width:25px;">
+              <img src="images/cost_selector_coin.png" class="cost_selector" data="Coin" style="width:25px; margin-left:10px;">
+              <img src="images/cost_selector_bgstars.png" class="cost_selector" data="BGStars" style="width:25px; margin-left:10px;">
+              <img src="assets/heroshieldbannertexture.webp" class="cost_selector" data="ArmorCost" style="width:25px; margin-left:10px;">
+              <img src="assets/healthtexture.webp" class="cost_selector" data="HealthCost" style="width:25px; margin-left:10px;">
+
+
+
+<p style="color: black;">Banners:</p>
+              <img src="assets/banner_forge.webp" class="banner_selector" data="banner_forge.webp" style="width:25px; margin-left:10px;">
+              <img src="assets/banner_tradeable.webp" class="banner_selector" data="banner_tradeable.webp" style="width:25px; margin-left:10px;">
+              <img src="assets/banner_triclass_0-1.webp" class="banner_selector" data="banner_triclass_0-1.webp" style="width:25px; margin-left:10px;">
+              <img src="assets/banner_triclass_0-2.webp" class="banner_selector" data="banner_triclass_0-2.webp" style="width:25px; margin-left:10px;">
+              <img src="assets/banner_triclass_0-3.webp" class="banner_selector" data="banner_triclass_0-3.webp" style="width:25px; margin-left:10px;">
+
+              <img src="assets/banner_sc_zerg.webp" class="banner_selector" data="banner_sc_zerg.webp" style="width:25px; margin-left:10px;">
+              <img src="assets/banner_sc_protoss.webp" class="banner_selector" data="banner_sc_protoss.webp" style="width:25px; margin-left:10px;">
+              <img src="assets/banner_sc_terran.webp" class="banner_selector" data="banner_sc_terran.webp" style="width:25px; margin-left:10px;">
+
+              <img src="assets/right-banner-sc-us2.webp" class="rightbanner_selector" data="right-banner-sc-us2.webp" style="width:25px; margin-left:10px;">
+<p style="color: black;">Runes:</p>
+  <select class="form-select cardtype runes_selector" data-id="slot1" style="width: 60px;">
+    <option value="">Slot 1</option>
+    <option value="CardRunes_DeathKnight_Blood.webp">Blood</option>
+    <option value="CardRunes_DeathKnight_Frost.webp">Frost</option>
+    <option value="CardRunes_DeathKnight_Unholy.webp">Unholy</option>
+  </select>
+  <select class="form-select cardtype runes_selector" data-id="slot2" style="width: 60px;">
+    <option value="">Slot 2</option>
+    <option value="CardRunes_DeathKnight_Blood.webp">Blood</option>
+    <option value="CardRunes_DeathKnight_Frost.webp">Frost</option>
+    <option value="CardRunes_DeathKnight_Unholy.webp">Unholy</option>
+  </select>
+  <select class="form-select cardtype runes_selector" data-id="slot3" style="width: 60px;">
+    <option value="">Slot 3</option>
+    <option value="CardRunes_DeathKnight_Blood.webp">Blood</option>
+    <option value="CardRunes_DeathKnight_Frost.webp">Frost</option>
+    <option value="CardRunes_DeathKnight_Unholy.webp">Unholy</option>
+  </select>
+
+            </div>
+          </div>
+
+
+          <div id="cost_selector_button" style="position: absolute; float: left; width: 28px;height: 28px; margin-top: 30px; margin-left:10px; border-radius: 4px 4px 4px 4px; display: flex; align-items: center; justify-content: center;">
+            <img id="cost_selector_selected" class="unselectable" src="images/gear-cog-icon.png" style="width:20px;">
+            <span class="pointer pointer-down"></span>
+          </div>
+
+<select class="form-select cardtype chronum-selector input-text" data-id="chronumCost" style="top: 63px; left: 13px; width: 100px; height: 26px; position: absolute; font-size: 14px; display: none;">
+    <option value="">Chronum</option>
+    <option value="1">1</option>
+    <option value="2">2</option>
+    <option value="3">3</option>
+  </select>
+
+          <select id="cardbgstars" class="input-text" style="position: absolute; left: 50px; top: 30px; width: 51px; height: 28px; font-size: 14px; padding: 0px 0px; display: none;">
+            <option value="1" selected>1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5">5</option>
+            <option value="6">6</option>
+            <option value="7">7</option>
+          </select>
+          <input class="input-text cardmana" name="mana" placeholder="C" maxlength="2" style="opacity: 1; margin-left: 50px;">
+          <input class="input-text cardattack" name="attack" placeholder="A" maxlength="2" style="opacity: 1;">
+          <input class="input-text cardhealth" name="health" placeholder="H" maxlength="3" style="opacity: 1;">
+        </div>
+      </div>
+      <div id="panel_left_rarity" style="opacity: 1;">
+        <span style="position: absolute; top: 10px; left: 12px;" class="translate" data-translate-key="card_rarity">Card Rarity</span>
+        <div style="position: absolute; left: 4px; top: 41px;">
+          <input type="radio" id="free" name="gem" value="free">
+          <label for="free">
+            <span></span>
+            <img title="" class="gem unselectable" gem="Free" value="free" style="position: relative; margin-left: 11px;" src="../images/gem/gem_basic.png">
+          </label>
+          <input type="radio" id="common" name="gem" value="common" checked="">
+          <label for="common">
+            <span></span>
+            <img title="" class="gem unselectable" gem="Common" value="common" style="position: relative; margin-left: 11px;" src="../images/gem/gem_common.png">
+          </label>
+          <input type="radio" id="rare" name="gem" value="rare">
+          <label for="rare">
+            <span></span>
+            <img title="" class="gem unselectable" gem="Rare" value="rare" style="position: relative; margin-left: 11px;" src="../images/gem/gem_rare.png">
+          </label>
+          <input type="radio" id="epic" name="gem" value="epic">
+          <label for="epic">
+            <span></span>
+            <img title="" class="gem unselectable" gem="Epic" value="epic" style="position: relative; margin-left: 11px;" src="../images/gem/gem_epic.png">
+          </label>
+          <input type="radio" id="legendary" name="gem" value="legendary">
+          <label for="legendary">
+            <span></span>
+            <img title="" class="gem unselectable" gem="Legendary" value="legendary" style="position: relative; margin-left: 11px;" src="../images/gem/gem_legendary.png">
+          </label>
+        </div>
+        <img id="dragon_head_switch" src="images/dragon_head_switch.png" class="hide unselectable" style="height: 24px; position: absolute; top: 8px; left: 137px;">
+        <img id="emblem_switch" src="images/emblem_switch.png" class="show unselectable" style="height: 24px; position: absolute;top: 8px; left: 178px;">
+      </div>
+      <div id="panel_left_cardtext">
+
+          <div id="settings_menu" style="position: absolute ;z-index: 2147483647;top: -80px; left: 195px; display:none;">
+            <div class="tooltipsy" style="box-shadow: 0px 0px 15px 1px black; background-color: white; width: 190px; padding-bottom: 8px; border-color:black;">
+<p style="color: black;">Cost/Attack/Health Color:</p>
+  <select class="form-select cardtype cahc_selector" data-id="cost" style="width: 60px;">
+    <option value="0">Cost</option>
+    <option value="0">Default</option>
+    <option value="1">Red</option>
+    <option value="2">Green</option>
+  </select>
+  <select class="form-select cardtype cahc_selector" data-id="attack" style="width: 60px;">
+    <option value="0">Attack</option>
+    <option value="0">Default</option>
+    <option value="1">Red</option>
+    <option value="2">Green</option>
+  </select>
+  <select class="form-select cardtype cahc_selector" data-id="health" style="width: 60px;">
+    <option value="0">Health</option>
+    <option value="0">Default</option>
+    <option value="1">Red</option>
+    <option value="2">Green</option>
+  </select>
+
+<p><span style="color: black";>Art Image Adjustment</span>
+    <div class="adjustmentControls">
+      <label class="adjustmentLabel" for="saturationSlider">Saturation:</label>
+      <input type="range" class="adjustmentSlider" id="saturationSlider" min="0" max="200" value="100">
+      <label class="adjustmentLabel" for="brightnessSlider">Brightness:</label>
+      <input type="range" class="adjustmentSlider" id="brightnessSlider" min="0" max="200" value="100">
+      <label class="adjustmentLabel" for="contrastSlider">Contrast:</label>
+      <input type="range" class="adjustmentSlider" id="contrastSlider" min="0" max="200" value="100">
+      <label class="adjustmentLabel" for="hueSlider">Hue:</label>
+      <input type="range" class="adjustmentSlider" id="hueSlider" min="0" max="360" value="0">
+      <button id="flipButton">Flip Horizontally</button>
+    </div>
+<hr>
+</p>
+<p><input id="clipboardCard" onclick="copyCanvasContentsToClipboard();" class="btn btn-secondary" style="width: 185px;" type="submit" value="Copy the Card into Clipboard"></p>
+
+            </div>
+          </div>
+
+        <div id="tradeable" title="" class="banner_selector" data="banner_tradeable.webp" style="display: none;"></div>
+        <div id="forge" title="" class="banner_selector" data="banner_forge.webp" style="display: none;"></div>
+        <span id="bold" title="" style="position: absolute; top: 3px; left: 262px; z-index: 3;">
+          <img src="../images/bold-icon.png">
+        </span>
+        <span id="italic" title="" style="position: absolute; top: 23px; left: 262px; z-index: 3;">
+          <img src="../images/italic-icon.png">
+        </span>
+        </span>
+        <div style="position: absolute; top: 0px; left: 13px;">
+          <textarea id="input-area" class="cardtext translate" placeholder="Card Text" name="cardtext" rows="4" style="opacity: 1;" data-translate-key="card_text"></textarea>
+        </div>
+        <div style="position: absolute;left: 285px;width: 24px;">
+          <input type="button" class="em_font_size" data="0" value="-" style="width: 24px; height: 24px;">
+          <span id="em_font_size_indicator" style="width: 24px;text-align: center;display: inline-block;">0</span>
+          <input type="button" class="em_font_size" data="1" value="+" style="width: 24px; height: 24px;">
+          <button id="settings_button" style="width: 24px; height: 24px; padding: 0; margin-top: 2px;">
+            <img class="unselectable" src="images/gear-cog-icon.png" style="width: 20px;">
+          </button>
+        </div>
+        <div id="emblem_style" style="position: absolute; left: 315px; top: 0px; width: 158px; font-size: 16px; padding: 0px 0px;"> <span class="translate" data-translate-key="set_emblem">Set Emblem:</span> <select id="emblems_selector" class="input-text" style="width: 158px;">
+            <optgroup label="Recent">
+              <option value="CATAIcon">Cataclysm</option>
+              <option value="ATTIcon_MiniSet">Echoes of the Infinite</option>
+              <option value="ATTIcon" selected>Across the Timeways</option>
+              <option value="59263529">Year of the Raptor</option>
+            </optgroup>
+            <optgroup label="Standard">
+              <option value="ATTIcon_MiniSet">Echoes of the Infinite</option>
+              <option value="ATTIcon">Across the Timeways</option>
+              <option value="TLCIcon_Miniset">Day of Rebirth</option>
+              <option value="TLCIcon">Lost City of Un'Goro</option>
+              <option value="EDRIcon_Miniset">Emerald Dream MS</option>
+              <option value="EDRIcon">Into the Emerald Dream</option>
+              <option value="GDBIcon_MiniSetSC">Heroes of StarCraft</option>
+              <option value="GDBIcon">The Great Dark Beyond</option>
+              <option value="PRIcon_MiniSet">The Traveling Travel Agency</option>
+              <option value="PRIcon">Perils in Paradise</option>
+              <option value="TOYIcon_MiniSet">Dr. Boom’s Incredible Inventions</option>
+              <option value="TOYIcon">Whizbang's Workshop</option>
+            </optgroup>
+            <optgroup label="Wild">
+              <option value="WWIcon_MiniSet">Delve into Deepholm</option>
+              <option value="WWIcon">Showdown in the Badlands</option>
+              <option value="TTNIcon_MiniSet">Fall of Ulduar</option>
+              <option value="TTNIcon">TITANS</option>
+              <option value="BotBIcon_MiniSet">Audiopocalypse</option>
+              <option value="BotBIcon">Festival of Legends</option>
+              <option value="RLKIcon_MiniSet">Return to Naxxramas</option>
+              <option value="RLKIcon">Lich King</option>
+              <option value="REV_Icon_MiniSet">Maw and Disorder</option>
+              <option value="REV_Icon">Castle Nathria</option>
+              <option value="SCIcon_MiniSet">Throne of the Tides</option>
+              <option value="SCIcon">Sunken City</option>
+              <option value="AVIcon_MiniSet">Onyxia's Lair</option>
+              <option value="AVIcon">Alterac Valley</option>
+              <option value="SWIcon_MiniSet">Deadmines</option>
+              <option value="SWIcon">Stormwind</option>
+              <option value="BARIcon_MiniSet">Wailing Caverns</option>
+              <option value="BARIcon">Barrens</option>
+              <option value="DMFIcon_MiniSet">Darkmoon Races</option>
+              <option value="DMFIcon">Darkmoon</option>
+              <option value="SCHIcon">Scholomance</option>
+              <option value="DHIIcon">Initiate</option>
+              <option value="BTIcon">Outland</option>
+              <option value="DRGIcon_MiniSet">Dragons</option>
+              <option value="DRGIcon">Dragons</option>
+              <option value="UldumIcon">Uldum</option>
+              <option value="DALIcon">Rise of Shadows</option>
+              <option value="TRLIcon">Rumble</option>
+              <option value="BOTIcon">Boomsday</option>
+              <option value="GILIcon">Witchwood</option>
+              <option value="LOOTIcon">Kobolds</option>
+              <option value="ICCIcon">Frozen Throne</option>
+              <option value="UNGIcon">Un'Goro</option>
+              <option value="GangsIcon">Gadgetzan</option>
+              <option value="KaraIcon">Karazhan</option>
+              <option value="OGIcon">Old Gods</option>
+              <option value="LOEIcon">League of Explorers</option>
+              <option value="TGTIcon">Grand Tournament</option>
+              <option value="BRMIcon">Blackrock Mountain</option>
+              <option value="GvGIcon">Goblins vs Gnomes</option>
+              <option value="NaxxIcon">Naxxramas</option>
+              <option value="GenFX_Set1_Icon">Classic</option>
+            </optgroup>
+            <optgroup label="Extra">
+              <option value="59263529">Year of the Raptor</option>
+              <option value="GDBIcon_MiniSet">GDB Miniset (Unused)</option>
+              <option value="EventIcon">Event</option>
+              <option value="26794860">Year of the Pegasus</option>
+              <option value="COTIcon">Caverns of Time</option>
+              <option value="5eb42d9d">Year of the Wolf</option>
+              <option value="TwistIcon">Twist</option>
+              <option value="POAIcon">Path of Arthas</option>
+              <option value="Legacy">Legacy</option>
+              <option value="Classic">Hall of Fame</option>
+              <option value="PhoenixIcon">Year of Phoenix</option>
+              <option value="CORE">Year of Hydra</option>
+              <option value="PLACEHOLDER_202204">Year of Gryphon</option>
+            </optgroup>
+          </select> <span class="translate" data-translate-key="card_style">Card Style:</span> <select id="styleSelector" class="input-text" style="width: 100%; height: 28px;"></select>
+        </div>
+      </div>
+      <div id="panel_left_picture">
+        <input class="input-text imageurl" name="image_ext_url" placeholder="Image URL (jpg/png/webp)" maxlength="300">
+        <input type="hidden" name="tokenorigin" value="">
+        <input type="hidden" name="custombanner" value="">
+        <input type="hidden" name="setid" value="">
+        <input type="hidden" name="art" value="">
+        <a id="switch_source_browse" title="" style="cursor: pointer;" class="translate" data-translate-key="image_picture">Picture</a> (<span class="translate" data-translate-key="image_or_url">or</span> <a id="switch_source_url" title="" style="text-decoration: underline; cursor: pointer;">URL</a>):<br>
+        <input type="hidden" name="MAX_FILE_SIZE" value="10000000">
+        <input style="position: absolute; top: 21px; width: 348px;" id="file" name="userfile" type="file">
+        <input type="hidden" name="temp_id" value="c67b4fd6">
+
+<div id="cardcheck_alert" style="position: absolute;z-index: 2147483647;bottom: 55px;left: 376px;display: none;width: 350px;"><div class="tooltipsy" style="width: 100%"></div></div>
+<div id="check_indicator" style="position: absolute; right: 102px; top: 21px; cursor: hand; background: url('images/cardcheck_indicator[1].png'); width: 21px; height: 21px; display: none;"></div>
+
+        <input id="game_check" style="position: absolute; right: 24px; top: 21px; width: 60px; display: none;" type="button" value="Check">
+        <input id="cardcheck" style="position: absolute; right: 24px; top: 21px; width: 72px;" type="button" value="Create" class="translate" data-translate-key="button_create">
+      </div>
+    </div>
+
+
+<div id="more_card_icon" style="display: none;"></div>
+<div id="card-wrapper" style="position: absolute;top: 55px;left: 672px;z-index: 10;">
+<img id="card" src="cards/empty.webp" style="width: 411px; top: 16px;">    
+</div>
+<div id="hcratingpanel">
+  <div id="ratings_stars">
+        <div class="star_1 ratings_stars" idbox="12431270" amount="1" style="display: block;"></div>
+        <div class="star_2 ratings_stars" idbox="12431270" amount="2" style="display: block;"></div>
+        <div class="star_3 ratings_stars" idbox="12431270" amount="3" style="display: block;"></div>
+        <div class="star_4 ratings_stars" idbox="12431270" amount="4" style="display: block;"></div>
+        <div class="star_5 ratings_stars" idbox="12431270" amount="5" style="display: block;"></div>
+  </div>
+</div>
+
+<div id="hcScreenshotButton" onclick="copyCanvasContentsToClipboard();">
+</div>
+
+    <div id="slider" style="position: absolute; width: 135px; left: 810px; top: 665px; z-index: 5;"></div>
+    <div id="creator_card" oncontextmenu="return false;" style="position: absolute; top: 55px;     left: 672px; transform: scale(0.525); -webkit-filter: drop-shadow(0px 0px 15px rgba(0,0,0,0.7)); display: none;">
+      <canvas id="layer1" width="825" height="1130" style="position: absolute; left: 0; top: 0; z-index: 0;"></canvas>
+      <canvas id="layer2" width="825" height="1130" style="position: absolute; left: 0; top: 0; z-index: 1; pointer-events: none;"></canvas>
+      <canvas id="cardtextLayerTemp" width="825" height="1130" style="position: absolute; left: 0; top: 0; z-index: 1; pointer-events: none; display: none;"></canvas>
+      <canvas id="cardtextLayer" width="825" height="1100" style="position: absolute; left: 0; top: 0; z-index: 1; pointer-events: none;"></canvas>
+      <div id="layer3" width="825" height="1130" style="position: absolute; left: 0; top: 0; z-index: 1; pointer-events: none;">
+        <svg id="cardSVG" width="825" height="1130" viewBox="0 0 825 1130" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+        </svg>
+      </div>
+    </div>
+
+  </div>
+<script src="js/customhs.js?v=36"></script>
+<script src="js/hearthcards.full.js?v=268"></script>
+<script src="js/hearthcards_creator.js?v=50"></script>
+<script src="js/guessgame2.js?v=18"></script>
+<script src="js/cardcheck.js?v=22"></script>
+
+<script>
+var checked;
+(function($) {
+setInterval(oneSecondFunction, 1000);
+function oneSecondFunction() {
+if (hcParams['loggedin'] == true && (hcParams['lang'] == 'en' || !hcParams['lang'])) {
+$('#check_indicator').show();
+checked = checkCard(cardParams);
+if (checked != '') {
+$('#cardcheck_alert > .tooltipsy').html(checked);
+$('#check_indicator').css('background-position-x', '21px');
+} else {
+$('#check_indicator').css('background-position-x', '0px');
+}
+} else { $('#check_indicator').hide(); }
+}
+
+$("#check_indicator").hover(function(){
+$( "#cardcheck_alert" ).css({"left": $(this).position().left-($("#cardcheck_alert").width()/2)+($(this).width()/2) - 6 + "px"});
+    if (checked != '') { $('#cardcheck_alert').show(); } },function(){ $('#cardcheck_alert').hide();
+});
+
+
+$.getJSON( "votecardsajax_hc4.php", function( data ) { var cards_array = data; 
+var globalTokens;
+var globalTokensCount;
+var globalTokensCur;
+
+$.fn.preload = function() {
+    this.each(function(){
+        $('<img/>')[0].src = this;
+    });
+}
+
+$("#more_card_icon").click(function() {
+
+$("#card").attr("src","cards/" + globalTokens[globalTokensCur].id + "."+ globalTokens[globalTokensCur].ext);
+$("#card").hide();
+var cardstyle = globalTokens[globalTokensCur].style;
+$('#card').on('load', function(){
+$("#card").attr("class", cardstyle);
+$("#card").show();
+});
+
+globalTokensCur = globalTokensCur - 1;
+if (globalTokensCur == "-1") { globalTokensCur = globalTokensCount; }
+$(this).html(globalTokensCur);
+
+if (globalTokensCount > '0') { $(['cards/'+ globalTokens[globalTokensCur].id + '.' + globalTokens[globalTokensCur].ext]).preload(); }
+});
+
+
+
+function loadNewCard(id, cardid, style, ext, tokens, preload) {
+
+if (tokens != '0') { 
+//tokens.push({cardid:title, style:link});
+globalTokens = tokens.reverse();
+globalTokensCount = tokens.length-1;
+globalTokensCur = tokens.length-1;
+$("#more_card_icon").css("display", "block");
+$("#more_card_icon").html(globalTokensCount);
+ } else {
+$("#more_card_icon").css("display", "none");
+}
+
+
+$("#card").hide();
+$("#card").attr("src","cards/" + cardid + "." + ext);
+var cardstyle = style;
+$('#card').on('load', function(){
+$("#card").attr("class", style);
+$("#card").show();
+
+if (tokens != '0') { 
+var preloadid = tokens[tokens.length - 1].id;
+$(['cards/'+ preloadid + '.' + ext]).preload();
+}
+
+
+
+});
+
+
+
+
+$('#card').on('load', function(){
+
+  $( "#card, .ratings_stars" ).fadeIn("800", function() {   });
+});
+
+$(".ratings_stars").attr("idbox", id);
+
+//cards_array.splice(0, 1);
+//loadNewCard(cards_array[0].cid, cards_array[0].id, cards_array[0].style);
+
+$.fn.preload = function() {
+    this.each(function(){
+        $('<img/>')[0].src = this;
+    });
+}
+
+}
+
+
+    if (jQuery.isEmptyObject(cards_array[1]))
+    {
+
+    } else {
+  var hash = top.location.hash.replace('#', '');
+  hash = hash.replace('-', ' ');
+if (!hash) {
+loadNewCard(cards_array[0].cid, cards_array[0].id, cards_array[0].style, cards_array[0].ext, cards_array[0].tokens, cards_array[1].id);
+}
+}
+
+
+$('.ratings_stars').hover(
+    // Handles the mouseover
+    function() {
+        $(this).prevAll().addBack().addClass('ratings_over');
+        $(this).nextAll().removeClass('ratings_vote'); 
+					$(this).css('cursor','pointer');
+    },
+    // Handles the mouseout
+    function() {
+        $(this).prevAll().addBack().removeClass('ratings_over');
+   //     set_votes($(this).parent());
+					$(this).css('cursor','default');
+    }
+);
+
+$('.ratings_stars').click(function(e) { 
+var idbox = $(this).attr('idbox');
+var rate = $(this).attr('amount');
+
+  $( '.ratings_stars' ).fadeOut("fast", function() {  });
+   $.ajax({
+        type: "POST",
+        url: "api/card/vote.php",
+    data: JSON.stringify({ id: idbox, rate: rate }), // Convert data to JSON string
+    contentType: "application/json", // Set content type to JSON
+        cache: false,
+	context: this,
+        success: function(ret){
+if (cards_array[1].cid == "0") {  $( "#hcratingpanel" ).fadeOut("fast"); }
+cards_array.splice(0, 1);
+    if (jQuery.isEmptyObject(cards_array))
+    {
+  $( "#hcratingpanel" ).fadeOut("fast", function() {  });
+    } else {
+loadNewCard(cards_array[0].cid, cards_array[0].id, cards_array[0].style, cards_array[0].ext, cards_array[0].tokens);
+}
+        },
+	error: function(ret) {
+if (cards_array[1].cid == "0") {  $( "#hcratingpanel" ).fadeOut("fast"); }
+cards_array.splice(0, 1);
+    if (jQuery.isEmptyObject(cards_array))
+    {
+  $( "#hcratingpanel" ).fadeOut("slow", function() {  });
+    } else {
+loadNewCard(cards_array[0].cid, cards_array[0].id, cards_array[0].style, cards_array[0].ext, cards_array[0].tokens);
+}
+	}   
+
+
+
+    });
+
+    });
+});
+
+
+    function exitFullscreen() {
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        } else if (document.webkitExitFullscreen) {
+            document.webkitExitFullscreen();
+        } else if (document.mozCancelFullScreen) {
+            document.mozCancelFullScreen();
+        } else if (document.msExitFullscreen) {
+            document.msExitFullscreen();
+        }
+    }
+
+        $('.play-btn').click(function () {
+var videoSrc = navigator.userAgent.toLowerCase().indexOf('firefox') > -1 ? '/video/hc-guide-021420242FF.mp4' : '/video/hc-guide-021420242.mp4';
+var videoSrc = '/video/hc-guide-021520242.mp4';
+    $('#video source').attr('src', videoSrc);
+    $('#video')[0].load();
+            $('#video-overlay').fadeIn();
+            $('#video-container').fadeIn();
+        var video = document.getElementById("video");
+        video.currentTime = 0;
+        video.volume = 0.5;
+        video.play();
+        createCookie('tutorialwatched', '1', 3650)
+        $('.play-btn-bottom').hide();
+        });
+
+        // Close button click event
+        $('.close-btn, #video-overlay').click(function () {
+            $('#video-overlay').fadeOut();
+            $('#video-container').fadeOut();
+            // Pause the video when closing
+            $('#video').get(0).pause();
+        });
+
+    $('#video').on('ended', function() {
+        // Close the video container
+        $('#video-container .close-btn').click();
+        exitFullscreen();
+    });
+
+    if (!readCookie('tutorialwatched')) {
+        $('.play-btn-bottom').show();
+    }
+
+})(jQuery);
+</script>
+<script src="js/language.js?v=20"></script>
+</body>
+
+</html>

@@ -1,0 +1,8 @@
+﻿Field	Type	Null	Key	Default	Extra
+id	int	NO	PRI	NULL	auto_increment
+resource_type	varchar(50)	YES	MUL	NULL	
+resource_id	varchar(100)	NO		NULL	
+resource_name	varchar(200)	NO		NULL	
+rank_1	tinyint(1)	NO		0	
+rank_2	tinyint(1)	NO		0	
+rank_3	tinyint(1)	NO		1	

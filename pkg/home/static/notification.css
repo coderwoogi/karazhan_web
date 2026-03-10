@@ -1,0 +1,156 @@
+/* Notification Dropdown Styles */
+.notification-container {
+    position: relative;
+    margin-right: 15px;
+    /* Adjust spacing as needed */
+}
+
+.notification-badge {
+    position: absolute;
+    top: 0;
+    right: 0;
+    min-width: 20px;
+    height: 20px;
+    line-height: 18px;
+    padding: 0 6px;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: #ffffff;
+    border-radius: 999px;
+    border: 1.5px solid #ffffff;
+    background: linear-gradient(180deg, #ff6b6b 0%, #ff3b30 42%, #d70015 100%);
+    box-shadow: 0 2px 6px rgba(215, 0, 21, 0.45), 0 0 0 1px rgba(0, 0, 0, 0.08);
+    transform: translate(36%, -34%);
+    z-index: 2;
+    pointer-events: none;
+    user-select: none;
+    display: none;
+    /* Hidden by default */
+}
+
+.notification-badge::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 3px;
+    right: 3px;
+    height: 45%;
+    border-radius: 999px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0));
+    pointer-events: none;
+}
+
+/* Light Theme for Dropdown */
+.notification-dropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    width: 320px;
+    max-height: 450px;
+    background-color: #ffffff;
+    /* White background */
+    border: 1px solid #e2e8f0;
+    border-radius: 0.75rem;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+    overflow: hidden;
+    display: none;
+    flex-direction: column;
+}
+
+.notification-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    border-bottom: 1px solid #f1f5f9;
+    background-color: #f8fafc;
+    font-weight: 600;
+    color: #1e293b;
+    /* Dark Slate */
+}
+
+/* Custom Mark Read Button Style */
+.mark-read-btn {
+    background: #f1f5f9;
+    border: 1px solid transparent;
+    color: #64748b;
+    font-size: 0.75rem;
+    padding: 0.3rem 0.8rem;
+    border-radius: 999px;
+    /* Pill shape */
+    cursor: pointer;
+    transition: all 0.2s;
+    font-weight: 500;
+}
+
+.mark-read-btn:hover {
+    background: #e2e8f0;
+    color: #0f172a;
+}
+
+.notification-list {
+    overflow-y: auto;
+    max-height: 400px;
+    background-color: #ffffff;
+}
+
+.notification-item {
+    padding: 1rem;
+    border-bottom: 1px solid #f1f5f9;
+    transition: background-color 0.2s;
+    cursor: pointer;
+    display: flex;
+    gap: 12px;
+    align-items: start;
+}
+
+.notification-item:hover {
+    background-color: #f8fafc;
+}
+
+.notification-item.unread {
+    background-color: #ecfdf5;
+    /* Very light green */
+    border-left: 3px solid #10b981;
+}
+
+.notification-icon {
+    margin-top: 2px;
+    color: #64748b;
+}
+
+.notification-title {
+    font-weight: 600;
+    font-size: 0.95rem;
+    margin-bottom: 2px;
+    color: #0f172a !important;
+    /* Darkest Slate */
+}
+
+.notification-message {
+    font-size: 0.85rem;
+    color: #475569 !important;
+    /* Dark Slate */
+    margin-bottom: 4px;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.notification-time {
+    font-size: 0.75rem;
+    color: #94a3b8 !important;
+    /* Muted */
+}
+
+.notification-empty {
+    padding: 3rem 1rem;
+    text-align: center;
+    color: #64748b;
+    font-size: 0.95rem;
+}

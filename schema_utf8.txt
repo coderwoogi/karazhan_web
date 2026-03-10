@@ -1,0 +1,4 @@
+﻿Field	Type	Null	Key	Default	Extra
+menu_id	varchar(50)	NO	PRI	NULL	
+min_web_rank	int	NO		3	
+description	varchar(100)	YES		NULL	

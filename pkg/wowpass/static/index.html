@@ -1,0 +1,194 @@
+﻿<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>카드뽑기 - 리치왕의 분노</title>
+    <link rel="icon" type="image/x-icon" href="/img/fvc.ico">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css?v=61">
+    <script>
+        var whTooltips = {
+            colorLinks: false,
+            iconizeLinks: false,
+            renameLinks: false
+        };
+    </script>
+    <script src="https://wow.zamimg.com/widgets/power.js"></script>
+</head>
+<body>
+    <div class="wpass-bg" aria-hidden="true"></div>
+
+    <main class="wpass-page">
+        <header class="wpass-topbar">
+            <div class="topbar-left">
+                <a class="brand" href="/home/">KARAZHAN</a>
+                <nav class="top-nav">
+                    <a href="/home/">홈으로</a>
+                </nav>
+            </div>
+            <div class="topbar-right">
+                <button type="button" class="char-box char-box-btn" onclick="openCharacterPickerModal()">
+                    <img id="main-char-race-icon" src="/img/icons/race_human_male.gif" alt="race">
+                    <div class="char-box-text">
+                        <span>대표 캐릭터 선택</span>
+                        <strong id="main-char-name">불러오는 중...</strong>
+                    </div>
+                </button>
+            </div>
+        </header>
+
+        <section class="hero-shell">
+            <section id="hero" class="hero-panel">
+                <div class="hero-overlay"></div>
+                <div class="hero-content">
+                <p class="hero-kicker">WORLD OF WARCRAFT KARAZHAN SERVER</p>
+                <h1>WRATH OF THE LICH KING</h1>
+                <p class="hero-sub">차가운 카드 뽑기</p>
+                <p class="hero-desc">카드뽑기는 보유한 뽑기 횟수를 사용해 5장의 카드를 공개하고, 각 카드마다 일반·희귀·레어·전설 보상을 획득하는 시스템입니다. 공개된 결과는 즉시 획득 목록에 기록되며, 선택한 대표 캐릭터 기준으로 보상을 확인할 수 있습니다. 카드뽑기 횟수는 선술집, 퀘스트, 사냥, 던전 등을 통해 랜덤하게 얻을 수 있습니다.</p>
+            </div>
+            </section>
+            <aside class="hero-side-actions">
+                <button type="button" class="hero-btn ghost hero-side-btn" onclick="openObtainedListModal()">보상 목록 보기</button>
+                <div class="summary-item hero-side-count">
+                    <span>카드뽑기 가능 횟수</span>
+                    <strong id="draw-available-count">0</strong>
+                </div>
+                <button type="button" class="hero-btn primary hero-side-btn hero-side-btn-main" onclick="openFirstTrack()">
+                    <img src="/img/carddraw.png" alt="카드 뽑기">
+                    <span class="hero-side-btn-main-text">카드 뽑기!</span>
+                </button>
+            </aside>
+        </section>
+
+        <section id="track-area" class="track-section">
+            <div class="section-head">
+                <h2>카드 뽑기 획득 아이템</h2>
+                <p>카드 공개 시 획득한 아이템이 프론트 메모리에 저장되어 아래 목록에 표시됩니다.</p>
+            </div>
+            <div class="obtained-view-tabs">
+                <button type="button" id="obtained-tab-list" class="obtained-tab active" onclick="setObtainedViewMode('list')">목록형</button>
+                <button type="button" id="obtained-tab-summary" class="obtained-tab" onclick="setObtainedViewMode('summary')">항목형</button>
+            </div>
+            <div id="obtained-list-wrap" class="obtained-table-wrap">
+                <table class="obtained-table">
+                    <thead>
+                        <tr>
+                            <th>번호</th>
+                            <th>아이템</th>
+                            <th>희귀도</th>
+                            <th>획득 시간</th>
+                        </tr>
+                    </thead>
+                    <tbody id="obtained-items-body">
+                        <tr>
+                            <td colspan="4" class="obtained-empty">획득한 아이템이 없습니다.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div id="obtained-summary-wrap" class="obtained-table-wrap" style="display:none;">
+                <table class="obtained-table">
+                    <thead>
+                        <tr>
+                            <th>번호</th>
+                            <th>아이템</th>
+                            <th>획득 횟수</th>
+                            <th>최근 획득</th>
+                        </tr>
+                    </thead>
+                    <tbody id="obtained-summary-body">
+                        <tr>
+                            <td colspan="4" class="obtained-empty">획득한 아이템이 없습니다.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <div id="reward-modal" class="reward-modal" style="display:none;">
+        <div class="reveal-wrap">
+            <button type="button" class="modal-close" onclick="closeRewardModal()">&times;</button>
+            <div class="reveal-stage" id="reveal-stage">
+                <div id="reveal-card" class="reveal-card">
+                    <div class="reveal-inner">
+                        <div class="reveal-face reveal-back">
+                            <div class="reveal-back-logo">CARD DRAW</div>
+                            <div id="reveal-back-track" class="reveal-back-track">TRACK 1</div>
+                        </div>
+                        <div class="reveal-face reveal-front">
+                            <img id="modal-icon" alt="reward icon">
+                            <div id="modal-track" class="modal-track"></div>
+                            <div id="modal-rarity" class="modal-rarity">일반</div>
+                            <div id="modal-name" class="modal-name"></div>
+                        </div>
+                    </div>
+                </div>
+                <div id="simple-reveal-card" class="simple-reveal-card" style="display:none;">
+                    <div id="simple-track" class="simple-track">TRACK 1</div>
+                    <img id="simple-icon" class="simple-icon" alt="reward icon">
+                    <div id="simple-rarity" class="simple-rarity">일반</div>
+                    <div id="simple-name" class="simple-name">보상 이름</div>
+                </div>
+            </div>
+            <div class="reveal-caption">카드가 천천히 공개됩니다. 실제 보상 반영은 추후 연결 예정입니다.</div>
+            <div class="card-edit-box">
+                <div class="edit-row">
+                    <label for="edit-card-name">카드 텍스트</label>
+                    <input id="edit-card-name" type="text" placeholder="카드 이름 입력">
+                </div>
+                <div class="edit-row">
+                    <label for="edit-card-icon">아이콘</label>
+                    <input id="edit-card-icon" type="text" placeholder="inv_sword_04 또는 이미지 URL">
+                </div>
+                <div class="edit-actions">
+                    <button type="button" class="modal-btn" onclick="applyCardEdit()">적용</button>
+                    <a href="https://www.hearthcards.net/" target="_blank" rel="noopener noreferrer" class="edit-link">HearthCards 열기</a>
+                </div>
+            </div>
+            <div class="modal-foot">
+                <button type="button" class="modal-btn" onclick="closeRewardModal()">확인</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="char-picker-modal" class="char-picker-modal" style="display:none;">
+        <div class="char-picker-dialog">
+            <div class="char-picker-head">
+                <h3>대표 캐릭터 선택</h3>
+                <button type="button" class="char-picker-close" onclick="closeCharacterPickerModal()">&times;</button>
+            </div>
+            <div class="char-picker-body" id="char-picker-body">
+                <p class="char-picker-empty">캐릭터 목록을 불러오는 중입니다.</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="obtained-list-modal" class="char-picker-modal" style="display:none;">
+        <div class="char-picker-dialog obtained-list-dialog">
+            <div class="char-picker-head">
+                <h3>보상 목록</h3>
+                <button type="button" class="char-picker-close" onclick="closeObtainedListModal()">&times;</button>
+            </div>
+            <div class="char-picker-body obtained-list-body" id="obtained-list-body">
+                <p class="char-picker-empty">목록을 불러오는 중입니다.</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="carddraw-notice-modal" class="carddraw-notice-modal" style="display:none;">
+        <div class="carddraw-notice-board" role="dialog" aria-modal="true" aria-labelledby="carddraw-notice-title">
+            <h3 id="carddraw-notice-title" class="carddraw-notice-title">알림</h3>
+            <p id="carddraw-notice-message" class="carddraw-notice-message"></p>
+            <button type="button" id="carddraw-notice-confirm" class="carddraw-notice-confirm-btn" aria-label="확인">
+                <span>확인</span>
+            </button>
+        </div>
+    </div>
+
+    <script src="wowpass.js?v=78"></script>
+</body>
+</html>

@@ -1,0 +1,38 @@
+﻿id	resource_type	resource_id	resource_name	order_index
+744	menu	home	홈	100
+745	menu	gm	GM 업무 관리	200
+746	submenu	gm-todos	업무 관리	201
+747	submenu	gm-events	서버 일정	202
+748	submenu	gm-modules	모듈 분석	203
+749	submenu	gm-memos	전체 메모	204
+750	menu	remote	서버 제어	300
+751	submenu	remote-control	서버 제어	301
+752	submenu	remote-schedule	서버 점검 예약	302
+753	menu	update	업데이트	400
+754	menu	account	계정 관리	500
+755	submenu	account-list	계정 목록	501
+756	submenu	account-statistics	통계	502
+757	submenu	account-permissions	사용자 권한	503
+758	submenu	account-menu	메뉴 접근 권한	504
+759	menu	ban	캐릭터/제재	600
+760	submenu	ban-characters	캐릭터 목록	601
+761	submenu	ban-sendmail	우편 발송	602
+762	submenu	ban-accountban	계정 차단	603
+763	submenu	ban-ipban	IP 차단	604
+764	menu	log	로그 센터	700
+765	submenu	log-action	웹 관리자 활동	701
+766	submenu	log-blackmarket	암시장 거래	702
+767	submenu	log-karazhan	강화 로그	703
+768	submenu	log-playtime	접속 보상	704
+769	submenu	log-mail	우편 발송 기록	705
+770	menu	content	콘텐츠 데이터 관리	800
+771	submenu	content-blackmarket	암시장 품목 설정	801
+772	menu	board	게시판	900
+773	menu	mypage	마이페이지	1000
+774	menu	board-admin	게시판 관리 (CMS)	1100
+9	board_read	free	자유게시판 (읽기)	5009
+10	board_write	free	자유게시판 (쓰기)	5010
+11	board_read	notice	공지사항 (읽기)	5011
+12	board_write	notice	공지사항 (쓰기)	5012
+13	board_read	update	업데이트 (읽기)	5013
+14	board_write	update	업데이트 (쓰기)	5014

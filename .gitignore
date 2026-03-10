@@ -1,0 +1,13 @@
+*.exe
+*.log
+out.log
+server.log
+*.tmp
+tmp_*
+.tmp_*
+uploads/
+*.psd
+*.bak
+*.fixbak
+*.mojibake.bak
+perms_debug.json

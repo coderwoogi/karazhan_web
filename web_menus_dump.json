@@ -1,0 +1,48 @@
+{
+  "menus": [
+    {
+      "id": "account",
+      "rank": 2
+    },
+    {
+      "id": "ban",
+      "rank": 1
+    },
+    {
+      "id": "board",
+      "rank": 0
+    },
+    {
+      "id": "board-admin",
+      "rank": 2
+    },
+    {
+      "id": "content",
+      "rank": 1
+    },
+    {
+      "id": "gm",
+      "rank": 1
+    },
+    {
+      "id": "home",
+      "rank": 0
+    },
+    {
+      "id": "logs",
+      "rank": 1
+    },
+    {
+      "id": "mypage",
+      "rank": 0
+    },
+    {
+      "id": "remote",
+      "rank": 2
+    },
+    {
+      "id": "update",
+      "rank": 0
+    }
+  ]
+}
