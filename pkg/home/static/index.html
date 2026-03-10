@@ -188,7 +188,7 @@
             gap: 12px;
             width: 100%;
             min-width: 0;
-            overflow: hidden;
+            overflow: visible;
         }
         .desktop-welcome {
             grid-column: 1;
@@ -205,6 +205,14 @@
             align-items: center;
             gap: 1rem;
             white-space: nowrap;
+            overflow: visible;
+        }
+        .notification-container {
+            overflow: visible;
+            z-index: 1500;
+        }
+        .notification-dropdown {
+            margin-top: 10px;
         }
         .home-header-shortcuts {
             grid-column: 2;
@@ -551,7 +559,7 @@
                 </div>
                 <div class="header-actions">
                     <div class="notification-container">
-                        <button id="notification-btn" class="header-icon-btn" onclick="toggleNotificationDropdown()">
+                        <button id="notification-btn" class="header-icon-btn" onclick="toggleNotificationDropdown(event)">
                             <i class="far fa-bell"></i>
                             <span id="notification-badge" class="notification-badge">0</span>
                         </button>

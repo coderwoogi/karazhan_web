@@ -16,7 +16,11 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-function toggleNotificationDropdown() {
+function toggleNotificationDropdown(event) {
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
     const dropdown = document.getElementById('notification-dropdown');
     if (!dropdown) return;
     isNotificationDropdownOpen = !isNotificationDropdownOpen;
