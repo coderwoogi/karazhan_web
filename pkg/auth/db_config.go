@@ -14,11 +14,11 @@ var (
 )
 
 func authDSN() string {
-	return getDSN("KARAZHAN_AUTH_DSN", "AUTH_DSN", "root:4618@tcp(localhost:3306)/acore_auth")
+	return getDSN("KARAZHAN_AUTH_DSN", "AUTH_DSN", defaultAuthDSN())
 }
 
 func charsDSN() string {
-	return getDSN("KARAZHAN_CHARACTERS_DSN", "CHARACTERS_DSN", "root:4618@tcp(localhost:3306)/acore_characters")
+	return getDSN("KARAZHAN_CHARACTERS_DSN", "CHARACTERS_DSN", defaultCharactersDSN())
 }
 
 func updateDSN() string {
@@ -27,6 +27,25 @@ func updateDSN() string {
 
 func worldDSN() string {
 	return getDSN("KARAZHAN_WORLD_DSN", "WORLD_DSN", "cpo5704:584579@tcp(121.148.127.135:3306)/acore_world")
+}
+
+func defaultAuthDSN() string {
+	if isProductionEnv() {
+		return "root:z584579!@tcp(localhost:3306)/acore_auth"
+	}
+	return "root:4618@tcp(localhost:3306)/acore_auth"
+}
+
+func defaultCharactersDSN() string {
+	if isProductionEnv() {
+		return "root:z584579!@tcp(localhost:3306)/acore_characters"
+	}
+	return "root:4618@tcp(localhost:3306)/acore_characters"
+}
+
+func isProductionEnv() bool {
+	appEnv := strings.TrimSpace(os.Getenv("APP_ENV"))
+	return strings.EqualFold(appEnv, "production") || strings.EqualFold(appEnv, "prod")
 }
 
 func getDSN(primaryKey, fallbackKey, fallback string) string {
