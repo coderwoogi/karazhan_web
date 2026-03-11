@@ -288,7 +288,7 @@ func handleAdminMenuOrderList(w http.ResponseWriter, r *http.Request) {
 		SELECT id, name, order_index
 		FROM web_menu_registry
 		WHERE type = 'menu'
-		  AND id IN ('mailbox','connect-guide','carddraw','shop','gm','remote','update','account','ban','logs','content','board-admin','notification-admin','shop-admin')
+		  AND id IN ('mailbox','calendar','auction','connect-guide','carddraw','shop','gm','remote','update','account','ban','logs','content','board-admin','notification-admin','shop-admin')
 		ORDER BY order_index ASC, id ASC`)
 	if err != nil {
 		http.Error(w, "Query Error: "+err.Error(), http.StatusInternalServerError)
