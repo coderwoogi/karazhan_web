@@ -652,6 +652,8 @@ async function loadBoardsToSidebar() {
             adminBoards.forEach(board => createBoardNavItem(container, board));
         }
 
+        await loadSidebarContentMenuOrder();
+
     } catch (e) {
         console.error('Failed to load boards:', e);
     }
@@ -2018,8 +2020,10 @@ async function loadBoardOrderList() {
             ? userBoards.map(renderItem).join('')
             : '<div style="text-align:center; padding:20px; color:#94a3b8;">유저 게시판이 없습니다.</div>';
 
+        const contentMenuIds = new Set(['connect-guide', 'carddraw', 'shop']);
         const userMenus = adminMenus.filter(m => m.id === 'mailbox');
-        const managerMenus = adminMenus.filter(m => m.id !== 'mailbox');
+        const contentMenus = adminMenus.filter(m => contentMenuIds.has(String(m.id || '')));
+        const managerMenus = adminMenus.filter(m => m.id !== 'mailbox' && !contentMenuIds.has(String(m.id || '')));
 
         const userBoardHtml = userBoards.length
             ? userBoards.map(renderItem).join('')
@@ -2033,10 +2037,21 @@ async function loadBoardOrderList() {
                 </div>
             `).join('')
             : '<div style="text-align:center; padding:12px; color:#94a3b8;">유저 메뉴가 없습니다.</div>';
+        const contentMenuHtml = contentMenus.length
+            ? contentMenus.map(m => `
+                <div class="order-item order-item-content-menu" data-menu-id="${m.id}" style="display:flex; align-items:center; padding:12px 16px; background:white; border:1px solid #e2e8f0; border-radius:8px; margin-bottom:8px; cursor:grab; transition: all 0.2s;">
+                    <i class="fas fa-grip-vertical" style="color:#94a3b8; margin-right:16px;"></i>
+                    <span style="font-weight:600; color:#1e293b; min-width:130px;">${m.id}</span>
+                    <span style="color:#64748b;">${escapeHtml(m.name || m.id)}</span>
+                </div>
+            `).join('')
+            : '<div style="text-align:center; padding:12px; color:#94a3b8;">컨텐츠 메뉴가 없습니다.</div>';
 
         userContainer.innerHTML = `
             <div style="margin-bottom:10px; font-weight:700; color:#334155;">유저 게시판</div>
             <div id="board-order-list-user-boards" style="margin-bottom:14px;">${userBoardHtml}</div>
+            <div style="margin-bottom:10px; font-weight:700; color:#334155;">컨텐츠 메뉴</div>
+            <div id="board-order-list-user-content-menus" style="margin-bottom:14px;">${contentMenuHtml}</div>
             <div style="margin-bottom:10px; font-weight:700; color:#334155;">유저 메뉴</div>
             <div id="board-order-list-user-menus">${userMenuHtml}</div>
         `;
@@ -2070,6 +2085,7 @@ async function loadBoardOrderList() {
             });
         };
         initSortable(document.getElementById('board-order-list-user-boards'));
+        initSortable(document.getElementById('board-order-list-user-content-menus'));
         initSortable(document.getElementById('board-order-list-user-menus'));
         initSortable(document.getElementById('board-order-list-admin-boards'));
         initSortable(document.getElementById('board-order-list-admin-menus'));
@@ -2084,17 +2100,19 @@ async function loadBoardOrderList() {
 async function saveBoardOrder() {
     const userContainer = document.getElementById('board-order-list-user');
     const userBoardsContainer = document.getElementById('board-order-list-user-boards');
+    const contentMenusContainer = document.getElementById('board-order-list-user-content-menus');
     const userMenusContainer = document.getElementById('board-order-list-user-menus');
     const adminBoardsContainer = document.getElementById('board-order-list-admin-boards');
     const adminMenusContainer = document.getElementById('board-order-list-admin-menus');
-    if (!userContainer || !userBoardsContainer || !userMenusContainer || !adminBoardsContainer || !adminMenusContainer) return;
+    if (!userContainer || !userBoardsContainer || !contentMenusContainer || !userMenusContainer || !adminBoardsContainer || !adminMenusContainer) return;
 
     const userIds = Array.from(userBoardsContainer.querySelectorAll('.order-item')).map(item => item.getAttribute('data-id'));
     const adminIds = Array.from(adminBoardsContainer.querySelectorAll('.order-item')).map(item => item.getAttribute('data-id'));
+    const contentMenuIds = Array.from(contentMenusContainer.querySelectorAll('.order-item-content-menu')).map(item => item.getAttribute('data-menu-id'));
     const userMenuIds = Array.from(userMenusContainer.querySelectorAll('.order-item-user-menu')).map(item => item.getAttribute('data-menu-id'));
     const adminMenuIds = Array.from(adminMenusContainer.querySelectorAll('.order-item-admin-menu')).map(item => item.getAttribute('data-menu-id'));
     const ids = userIds.concat(adminIds);
-    if (ids.length === 0 && userMenuIds.length === 0 && adminMenuIds.length === 0) return;
+    if (ids.length === 0 && contentMenuIds.length === 0 && userMenuIds.length === 0 && adminMenuIds.length === 0) return;
 
     try {
         let boardOk = true;
@@ -2111,12 +2129,16 @@ async function saveBoardOrder() {
             if (!res.ok) errMsg = await res.text();
         }
 
-        const orderedMenuIds = userMenuIds.concat(adminMenuIds);
-        if (orderedMenuIds.length > 0) {
+        const menuPayload = {
+            content_menu_ids: contentMenuIds,
+            user_menu_ids: userMenuIds,
+            admin_menu_ids: adminMenuIds
+        };
+        if (contentMenuIds.length > 0 || userMenuIds.length > 0 || adminMenuIds.length > 0) {
             const mres = await fetch('/api/admin/menu-order/update', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(orderedMenuIds)
+                body: JSON.stringify(menuPayload)
             });
             menuOk = mres.ok;
             if (!mres.ok) errMsg = await mres.text();
@@ -2130,6 +2152,7 @@ async function saveBoardOrder() {
             if (typeof applyAdminMenuOrder === 'function') {
                 applyAdminMenuOrder();
             }
+            applySidebarContentMenuOrder(contentMenuIds);
         } else {
             ModalUtils.showAlert('저장 실패: ' + (errMsg || '권한 또는 서버 오류'));
         }
@@ -2139,3 +2162,46 @@ async function saveBoardOrder() {
     }
 }
 window.saveBoardOrder = saveBoardOrder;
+
+function applySidebarContentMenuOrder(orderedIDs) {
+    const container = document.getElementById('sidebar-content-menu-list');
+    if (!container) return;
+    const currentItems = Array.from(container.children).filter(item => item && item.id);
+    if (!currentItems.length) return;
+
+    const itemMap = new Map();
+    currentItems.forEach(item => {
+        itemMap.set(item.id.replace('tab-btn-', ''), item);
+    });
+
+    const fragment = document.createDocumentFragment();
+    (Array.isArray(orderedIDs) ? orderedIDs : []).forEach(id => {
+        const key = String(id || '');
+        const item = itemMap.get(key);
+        if (item) {
+            fragment.appendChild(item);
+            itemMap.delete(key);
+        }
+    });
+    itemMap.forEach(item => fragment.appendChild(item));
+    container.innerHTML = '';
+    container.appendChild(fragment);
+}
+window.applySidebarContentMenuOrder = applySidebarContentMenuOrder;
+
+async function loadSidebarContentMenuOrder() {
+    try {
+        const res = await fetch('/api/admin/menu-order/list');
+        if (!res.ok) return;
+        const data = await res.json();
+        const menus = Array.isArray(data.menus) ? data.menus : [];
+        const orderedIDs = menus
+            .map(item => String(item.id || ''))
+            .filter(id => ['connect-guide', 'carddraw', 'shop'].includes(id));
+        if (orderedIDs.length > 0) {
+            applySidebarContentMenuOrder(orderedIDs);
+        }
+    } catch (e) {
+        console.error('Failed to apply content menu order:', e);
+    }
+}

@@ -267,7 +267,11 @@ type MenuOrderItem struct {
 }
 
 func handleAdminMenuOrderList(w http.ResponseWriter, r *http.Request) {
-	if !CheckMenuPermission(w, r, "board-admin") {
+	cookie, err := r.Cookie("session_user")
+	if err != nil || cookie.Value == "" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{"status": "unauthorized"})
 		return
 	}
 
@@ -284,7 +288,7 @@ func handleAdminMenuOrderList(w http.ResponseWriter, r *http.Request) {
 		SELECT id, name, order_index
 		FROM web_menu_registry
 		WHERE type = 'menu'
-		  AND id IN ('mailbox','gm','remote','update','account','ban','logs','content','board-admin','notification-admin','shop-admin')
+		  AND id IN ('mailbox','connect-guide','carddraw','shop','gm','remote','update','account','ban','logs','content','board-admin','notification-admin','shop-admin')
 		ORDER BY order_index ASC, id ASC`)
 	if err != nil {
 		http.Error(w, "Query Error: "+err.Error(), http.StatusInternalServerError)
@@ -316,12 +320,18 @@ func handleAdminMenuOrderUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var ids []string
-	if err := json.NewDecoder(r.Body).Decode(&ids); err != nil {
+	type menuOrderUpdateRequest struct {
+		ContentMenuIDs []string `json:"content_menu_ids"`
+		UserMenuIDs    []string `json:"user_menu_ids"`
+		AdminMenuIDs   []string `json:"admin_menu_ids"`
+	}
+
+	var payload menuOrderUpdateRequest
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 		http.Error(w, "Invalid request", http.StatusBadRequest)
 		return
 	}
-	if len(ids) == 0 {
+	if len(payload.ContentMenuIDs) == 0 && len(payload.UserMenuIDs) == 0 && len(payload.AdminMenuIDs) == 0 {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{"status": "success"})
 		return
@@ -342,14 +352,29 @@ func handleAdminMenuOrderUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	base := 200
-	for i, id := range ids {
-		_, err = tx.Exec("UPDATE web_menu_registry SET order_index = ? WHERE id = ? AND type = 'menu'", base+i, id)
-		if err != nil {
-			_ = tx.Rollback()
-			http.Error(w, "Update failed: "+err.Error(), http.StatusInternalServerError)
-			return
+	updateGroup := func(base int, ids []string) error {
+		for i, id := range ids {
+			if _, err := tx.Exec("UPDATE web_menu_registry SET order_index = ? WHERE id = ? AND type = 'menu'", base+i, id); err != nil {
+				return err
+			}
 		}
+		return nil
+	}
+
+	if err := updateGroup(120, payload.UserMenuIDs); err != nil {
+		_ = tx.Rollback()
+		http.Error(w, "Update failed: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if err := updateGroup(130, payload.ContentMenuIDs); err != nil {
+		_ = tx.Rollback()
+		http.Error(w, "Update failed: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if err := updateGroup(200, payload.AdminMenuIDs); err != nil {
+		_ = tx.Rollback()
+		http.Error(w, "Update failed: "+err.Error(), http.StatusInternalServerError)
+		return
 	}
 	if err := tx.Commit(); err != nil {
 		http.Error(w, "Commit failed: "+err.Error(), http.StatusInternalServerError)
