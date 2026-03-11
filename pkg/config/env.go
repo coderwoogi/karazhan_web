@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"database/sql"
 	"fmt"
+	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -20,6 +22,76 @@ func AppEnv() string {
 		return strings.ToLower(v)
 	}
 	return "development"
+}
+
+func DevDomain() string {
+	if v := get("KARAZHAN_DEV_DOMAIN"); v != "" {
+		return strings.ToLower(v)
+	}
+	return "karazhandev.kro.kr"
+}
+
+func ProdDomain() string {
+	if v := get("KARAZHAN_PROD_DOMAIN"); v != "" {
+		return strings.ToLower(v)
+	}
+	return "karazhan.kro.kr"
+}
+
+func HostOnly(hostport string) string {
+	host := strings.TrimSpace(strings.ToLower(hostport))
+	if host == "" {
+		return ""
+	}
+	if strings.HasPrefix(host, "[") {
+		if parsedHost, _, err := net.SplitHostPort(host); err == nil {
+			return strings.Trim(parsedHost, "[]")
+		}
+	}
+	if strings.Contains(host, ":") {
+		if parsedHost, _, err := net.SplitHostPort(host); err == nil {
+			return strings.Trim(parsedHost, "[]")
+		}
+	}
+	return strings.Trim(host, "[]")
+}
+
+func SplitHostPort(hostport string) (string, string, error) {
+	return net.SplitHostPort(hostport)
+}
+
+func ResolveEnvByHost(hostport string) string {
+	host := HostOnly(hostport)
+	switch host {
+	case "", "127.0.0.1", "localhost":
+		return AppEnv()
+	case strings.ToLower(DevDomain()):
+		return "development"
+	case strings.ToLower(ProdDomain()):
+		return "production"
+	default:
+		return AppEnv()
+	}
+}
+
+func RequestEnv(r *http.Request) string {
+	if v := get("APP_ENV"); v != "" {
+		return strings.ToLower(v)
+	}
+	if r == nil {
+		return AppEnv()
+	}
+	return ResolveEnvByHost(r.Host)
+}
+
+func IsDevelopmentRequest(r *http.Request) bool {
+	env := RequestEnv(r)
+	return env == "development" || env == "dev"
+}
+
+func IsProductionRequest(r *http.Request) bool {
+	env := RequestEnv(r)
+	return env == "production" || env == "prod"
 }
 
 func IsProduction() bool {

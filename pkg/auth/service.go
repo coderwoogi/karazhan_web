@@ -9,9 +9,7 @@ import (
 	"karazhan/pkg/config"
 	"log"
 	"math/big"
-	"net"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -73,14 +71,13 @@ func RegisterRoutes(mux *http.ServeMux) {
 }
 
 func isSecureRequest(r *http.Request) bool {
-	appEnv := strings.TrimSpace(os.Getenv("APP_ENV"))
-	if strings.EqualFold(appEnv, "development") || strings.EqualFold(appEnv, "dev") {
+	if config.IsDevelopmentRequest(r) {
 		return false
 	}
 	if r != nil {
 		host := strings.TrimSpace(r.Host)
 		if strings.Contains(host, ":") {
-			if _, port, err := net.SplitHostPort(host); err == nil && port == "8080" {
+			if _, port, err := config.SplitHostPort(host); err == nil && port == "8080" {
 				return false
 			}
 		}

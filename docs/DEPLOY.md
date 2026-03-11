@@ -13,6 +13,8 @@
 ```env
 APP_ENV=production
 PORT=80
+KARAZHAN_DEV_DOMAIN=karazhandev.kro.kr
+KARAZHAN_PROD_DOMAIN=karazhan.kro.kr
 KARAZHAN_AUTH_DSN=dbuser:dbpass@tcp(127.0.0.1:3306)/acore_auth
 KARAZHAN_CHARACTERS_DSN=dbuser:dbpass@tcp(127.0.0.1:3306)/acore_characters
 KARAZHAN_WORLD_DSN=dbuser:dbpass@tcp(127.0.0.1:3306)/acore_world
@@ -23,6 +25,8 @@ KARAZHAN_UPDATE_DSN=dbuser:dbpass@tcp(127.0.0.1:3306)/update
 ```env
 APP_ENV=development
 PORT=8080
+KARAZHAN_DEV_DOMAIN=karazhandev.kro.kr
+KARAZHAN_PROD_DOMAIN=karazhan.kro.kr
 KARAZHAN_AUTH_DSN=dbuser:dbpass@tcp(127.0.0.1:3306)/acore_auth
 KARAZHAN_CHARACTERS_DSN=dbuser:dbpass@tcp(127.0.0.1:3306)/acore_characters
 KARAZHAN_WORLD_DSN=dbuser:dbpass@tcp(127.0.0.1:3306)/acore_world
@@ -30,6 +34,11 @@ KARAZHAN_UPDATE_DSN=dbuser:dbpass@tcp(127.0.0.1:3306)/update
 ```
 
 ## 운영 배포 절차
+도메인 규칙:
+- 개발 서버: `karazhandev.kro.kr`
+- 운영 서버: `karazhan.kro.kr`
+- `APP_ENV`가 비어 있어도 요청 Host 기준으로 개발/운영을 판별합니다.
+
 운영 서버에서는 아래 명령만 실행합니다.
 
 ```bash

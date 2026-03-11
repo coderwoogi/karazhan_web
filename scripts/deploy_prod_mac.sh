@@ -11,6 +11,7 @@ TEMP_OUTPUT="${BUILD_OUTPUT}.new"
 BACKUP_DIR="releases"
 TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
 BACKUP_PATH="${BACKUP_DIR}/${BUILD_OUTPUT}.${TIMESTAMP}.bak"
+PROD_DOMAIN="${KARAZHAN_PROD_DOMAIN:-karazhan.kro.kr}"
 
 mkdir -p "$BACKUP_DIR"
 
@@ -52,7 +53,7 @@ echo "[deploy] health check: 127.0.0.1:8080"
 curl -fsS http://127.0.0.1:8080/ >/dev/null
 
 echo "[deploy] health check: host routed http://127.0.0.1/"
-curl -fsS -H "Host: karazhan.kro.kr" http://127.0.0.1/ >/dev/null
+curl -fsS -H "Host: ${PROD_DOMAIN}" http://127.0.0.1/ >/dev/null
 
 trap - ERR
 echo "[deploy] success"
