@@ -8,7 +8,9 @@ import (
 	"fmt"
 	"log"
 	"math/big"
+	"net"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -70,6 +72,18 @@ func RegisterRoutes(mux *http.ServeMux) {
 }
 
 func isSecureRequest(r *http.Request) bool {
+	appEnv := strings.TrimSpace(os.Getenv("APP_ENV"))
+	if strings.EqualFold(appEnv, "development") || strings.EqualFold(appEnv, "dev") {
+		return false
+	}
+	if r != nil {
+		host := strings.TrimSpace(r.Host)
+		if strings.Contains(host, ":") {
+			if _, port, err := net.SplitHostPort(host); err == nil && port == "8080" {
+				return false
+			}
+		}
+	}
 	if r != nil && r.TLS != nil {
 		return true
 	}
