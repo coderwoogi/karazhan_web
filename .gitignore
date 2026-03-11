@@ -8,6 +8,7 @@ tmp_*
 uploads/
 *.psd
 *.bak
+*.bak_*
 *.fixbak
 *.mojibake.bak
 perms_debug.json
