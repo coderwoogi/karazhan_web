@@ -1,16 +1,17 @@
 package auth
 
-import "os"
+import (
+	"bufio"
+	"os"
+	"path/filepath"
+	"strings"
+	"sync"
+)
 
-func getDSN(primaryKey, fallbackKey, fallback string) string {
-	if value := os.Getenv(primaryKey); value != "" {
-		return value
-	}
-	if value := os.Getenv(fallbackKey); value != "" {
-		return value
-	}
-	return fallback
-}
+var (
+	dbConfigOnce sync.Once
+	dbConfigMap  map[string]string
+)
 
 func authDSN() string {
 	return getDSN("KARAZHAN_AUTH_DSN", "AUTH_DSN", "root:4618@tcp(localhost:3306)/acore_auth")
@@ -26,4 +27,67 @@ func updateDSN() string {
 
 func worldDSN() string {
 	return getDSN("KARAZHAN_WORLD_DSN", "WORLD_DSN", "cpo5704:584579@tcp(121.148.127.135:3306)/acore_world")
+}
+
+func getDSN(primaryKey, fallbackKey, fallback string) string {
+	if value := strings.TrimSpace(os.Getenv(primaryKey)); value != "" {
+		return value
+	}
+	if value := strings.TrimSpace(os.Getenv(fallbackKey)); value != "" {
+		return value
+	}
+	if value := strings.TrimSpace(loadDBConfig()[primaryKey]); value != "" {
+		return value
+	}
+	if value := strings.TrimSpace(loadDBConfig()[fallbackKey]); value != "" {
+		return value
+	}
+	return fallback
+}
+
+func loadDBConfig() map[string]string {
+	dbConfigOnce.Do(func() {
+		dbConfigMap = make(map[string]string)
+		for _, path := range databaseConfigCandidatePaths() {
+			readDatabaseConfigFile(path, dbConfigMap)
+		}
+	})
+	return dbConfigMap
+}
+
+func databaseConfigCandidatePaths() []string {
+	wd, _ := os.Getwd()
+	candidates := []string{
+		`configs/database.env`,
+		`E:/server/operate/configs/database.env`,
+	}
+	if wd != "" {
+		candidates = append([]string{filepath.Join(wd, "configs", "database.env")}, candidates...)
+	}
+	return candidates
+}
+
+func readDatabaseConfigFile(path string, target map[string]string) {
+	f, err := os.Open(path)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+
+	sc := bufio.NewScanner(f)
+	for sc.Scan() {
+		line := strings.TrimSpace(strings.TrimPrefix(sc.Text(), "\uFEFF"))
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		idx := strings.Index(line, "=")
+		if idx <= 0 {
+			continue
+		}
+		key := strings.TrimSpace(strings.TrimPrefix(line[:idx], "\uFEFF"))
+		value := strings.Trim(strings.TrimSpace(line[idx+1:]), "\"'")
+		if key != "" && value != "" {
+			target[key] = value
+		}
+	}
 }

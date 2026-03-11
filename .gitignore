@@ -11,3 +11,4 @@ uploads/
 *.fixbak
 *.mojibake.bak
 perms_debug.json
+configs/database.env
