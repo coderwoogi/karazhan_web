@@ -103,7 +103,10 @@ func Port() string {
 	if v := get("PORT"); v != "" {
 		return v
 	}
-	return "80"
+	if IsProduction() {
+		return "80"
+	}
+	return "8080"
 }
 
 func AuthDSN() string       { return get("KARAZHAN_AUTH_DSN") }

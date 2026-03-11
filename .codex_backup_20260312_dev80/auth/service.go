@@ -74,6 +74,14 @@ func isSecureRequest(r *http.Request) bool {
 	if config.IsDevelopmentRequest(r) {
 		return false
 	}
+	if r != nil {
+		host := strings.TrimSpace(r.Host)
+		if strings.Contains(host, ":") {
+			if _, port, err := config.SplitHostPort(host); err == nil && port == "8080" {
+				return false
+			}
+		}
+	}
 	if r != nil && r.TLS != nil {
 		return true
 	}

@@ -24,7 +24,7 @@ KARAZHAN_UPDATE_DSN=dbuser:dbpass@tcp(127.0.0.1:3306)/update
 개발 예시:
 ```env
 APP_ENV=development
-PORT=80
+PORT=8080
 KARAZHAN_DEV_DOMAIN=karazhandev.kro.kr
 KARAZHAN_PROD_DOMAIN=karazhan.kro.kr
 KARAZHAN_AUTH_DSN=dbuser:dbpass@tcp(127.0.0.1:3306)/acore_auth
@@ -52,7 +52,7 @@ bash scripts/deploy_prod_mac.sh
 4. 기존 바이너리 백업
 5. 새 바이너리 교체
 6. `launchctl kickstart -k gui/$(id -u)/com.karazhan.server`
-7. 헬스 체크 (`PORT` 미지정 시 80 기준)
+7. 헬스 체크
 
 실패 시:
 - 기존 바이너리로 롤백합니다.

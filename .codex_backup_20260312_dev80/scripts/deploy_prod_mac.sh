@@ -12,7 +12,6 @@ BACKUP_DIR="releases"
 TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
 BACKUP_PATH="${BACKUP_DIR}/${BUILD_OUTPUT}.${TIMESTAMP}.bak"
 PROD_DOMAIN="${KARAZHAN_PROD_DOMAIN:-karazhan.kro.kr}"
-APP_PORT="${PORT:-80}"
 
 mkdir -p "$BACKUP_DIR"
 
@@ -50,8 +49,8 @@ launchctl kickstart -k "$SERVICE_TARGET"
 echo "[deploy] waiting for service startup"
 sleep 3
 
-echo "[deploy] health check: 127.0.0.1:${APP_PORT}"
-curl -fsS "http://127.0.0.1:${APP_PORT}/" >/dev/null
+echo "[deploy] health check: 127.0.0.1:8080"
+curl -fsS http://127.0.0.1:8080/ >/dev/null
 
 echo "[deploy] health check: host routed http://127.0.0.1/"
 curl -fsS -H "Host: ${PROD_DOMAIN}" http://127.0.0.1/ >/dev/null
