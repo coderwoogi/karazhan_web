@@ -2026,25 +2026,14 @@ async function loadBoardOrderList() {
         const userMenus = adminMenus.filter(m => userMenuIds.has(String(m.id || '')));
         const managerMenus = adminMenus.filter(m => !contentMenuIds.has(String(m.id || '')) && !userMenuIds.has(String(m.id || '')));
 
-        const unifiedUserItems = [
-            ...userBoards.map((board, idx) => ({
-                kind: 'board',
-                id: board.id,
-                name: board.name,
-                order: Number.isFinite(Number(board.sort_order)) ? Number(board.sort_order) : idx,
-                badge: '게시판'
-            })),
+        const contentItems = [
             ...contentMenus.map((menu, idx) => ({
-                kind: 'menu',
-                menuGroup: 'content',
                 id: menu.id,
                 name: menu.name || menu.id,
                 order: Number.isFinite(Number(menu.order)) ? Number(menu.order) : (100 + idx),
                 badge: '컨텐츠'
             })),
             ...userMenus.map((menu, idx) => ({
-                kind: 'menu',
-                menuGroup: 'user',
                 id: menu.id,
                 name: menu.name || menu.id,
                 order: Number.isFinite(Number(menu.order)) ? Number(menu.order) : (110 + idx),
@@ -2056,12 +2045,14 @@ async function loadBoardOrderList() {
             return String(a.name || '').localeCompare(String(b.name || ''), 'ko');
         });
 
-        const userListHtml = unifiedUserItems.length
-            ? unifiedUserItems.map(item => `
-                <div class="order-item order-item-user-managed"
-                    data-kind="${item.kind}"
+        const userBoardHtml = userBoards.length
+            ? userBoards.map(renderItem).join('')
+            : '<div style="text-align:center; padding:12px; color:#94a3b8;">유저 게시판이 없습니다.</div>';
+        const contentListHtml = contentItems.length
+            ? contentItems.map(item => `
+                <div class="order-item order-item-user-content"
                     data-id="${item.id}"
-                    data-menu-group="${item.menuGroup || ''}"
+                    data-menu-group="${contentMenuIds.has(String(item.id || '')) ? 'content' : 'user'}"
                     style="display:flex; align-items:center; padding:12px 16px; background:white; border:1px solid #e2e8f0; border-radius:8px; margin-bottom:8px; cursor:grab; transition: all 0.2s;">
                     <i class="fas fa-grip-vertical" style="color:#94a3b8; margin-right:16px;"></i>
                     <span style="font-weight:600; color:#1e293b; min-width:130px;">${escapeHtml(item.id)}</span>
@@ -2069,12 +2060,14 @@ async function loadBoardOrderList() {
                     <span style="font-size:0.75rem; font-weight:700; color:#475569; background:#f1f5f9; border:1px solid #e2e8f0; border-radius:999px; padding:4px 10px;">${escapeHtml(item.badge)}</span>
                 </div>
             `).join('')
-            : '<div style="text-align:center; padding:12px; color:#94a3b8;">유저 메뉴가 없습니다.</div>';
+            : '<div style="text-align:center; padding:12px; color:#94a3b8;">컨텐츠 메뉴가 없습니다.</div>';
 
         userContainer.innerHTML = `
-            <div style="margin-bottom:10px; font-weight:700; color:#334155;">유저 사이드 전체 메뉴</div>
-            <div style="margin-bottom:10px; font-size:0.84rem; color:#64748b;">게시판과 유저 메뉴를 한 목록에서 드래그하여 순서를 조절할 수 있습니다.</div>
-            <div id="board-order-list-user-all">${userListHtml}</div>
+            <div style="margin-bottom:10px; font-weight:700; color:#334155;">게시판</div>
+            <div id="board-order-list-user-boards" style="margin-bottom:16px;">${userBoardHtml}</div>
+            <div style="margin-bottom:10px; font-weight:700; color:#334155;">컨텐츠</div>
+            <div style="margin-bottom:10px; font-size:0.84rem; color:#64748b;">알림함, 캘린더, 경매장, 접속방법, 카드뽑기, 선술집 메뉴를 드래그하여 정렬할 수 있습니다.</div>
+            <div id="board-order-list-user-content">${contentListHtml}</div>
         `;
 
         const adminBoardHtml = adminBoards.length
@@ -2105,7 +2098,8 @@ async function loadBoardOrderList() {
                 dragClass: 'sortable-drag'
             });
         };
-        initSortable(document.getElementById('board-order-list-user-all'));
+        initSortable(document.getElementById('board-order-list-user-boards'));
+        initSortable(document.getElementById('board-order-list-user-content'));
         initSortable(document.getElementById('board-order-list-admin-boards'));
         initSortable(document.getElementById('board-order-list-admin-menus'));
 
@@ -2118,21 +2112,20 @@ async function loadBoardOrderList() {
 
 async function saveBoardOrder() {
     const userContainer = document.getElementById('board-order-list-user');
-    const userAllContainer = document.getElementById('board-order-list-user-all');
+    const userBoardsContainer = document.getElementById('board-order-list-user-boards');
+    const userContentContainer = document.getElementById('board-order-list-user-content');
     const adminBoardsContainer = document.getElementById('board-order-list-admin-boards');
     const adminMenusContainer = document.getElementById('board-order-list-admin-menus');
-    if (!userContainer || !userAllContainer || !adminBoardsContainer || !adminMenusContainer) return;
+    if (!userContainer || !userBoardsContainer || !userContentContainer || !adminBoardsContainer || !adminMenusContainer) return;
 
-    const unifiedItems = Array.from(userAllContainer.querySelectorAll('.order-item-user-managed'));
-    const userIds = unifiedItems
-        .filter(item => item.getAttribute('data-kind') === 'board')
-        .map(item => item.getAttribute('data-id'));
+    const userIds = Array.from(userBoardsContainer.querySelectorAll('.order-item')).map(item => item.getAttribute('data-id'));
     const adminIds = Array.from(adminBoardsContainer.querySelectorAll('.order-item')).map(item => item.getAttribute('data-id'));
-    const contentMenuIds = unifiedItems
-        .filter(item => item.getAttribute('data-kind') === 'menu' && item.getAttribute('data-menu-group') === 'content')
+    const contentItems = Array.from(userContentContainer.querySelectorAll('.order-item-user-content'));
+    const contentMenuIds = contentItems
+        .filter(item => item.getAttribute('data-menu-group') === 'content')
         .map(item => item.getAttribute('data-id'));
-    const userMenuIds = unifiedItems
-        .filter(item => item.getAttribute('data-kind') === 'menu' && item.getAttribute('data-menu-group') === 'user')
+    const userMenuIds = contentItems
+        .filter(item => item.getAttribute('data-menu-group') === 'user')
         .map(item => item.getAttribute('data-id'));
     const adminMenuIds = Array.from(adminMenusContainer.querySelectorAll('.order-item-admin-menu')).map(item => item.getAttribute('data-menu-id'));
     const ids = userIds.concat(adminIds);
@@ -2221,7 +2214,7 @@ async function loadSidebarContentMenuOrder() {
         const menus = Array.isArray(data.menus) ? data.menus : [];
         const orderedIDs = menus
             .map(item => String(item.id || ''))
-            .filter(id => ['connect-guide', 'carddraw', 'shop'].includes(id));
+            .filter(id => ['mailbox', 'calendar', 'auction', 'connect-guide', 'carddraw', 'shop'].includes(id));
         if (orderedIDs.length > 0) {
             applySidebarContentMenuOrder(orderedIDs);
         }

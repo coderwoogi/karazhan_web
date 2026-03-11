@@ -473,14 +473,14 @@
             <div id="tab-btn-home" class="nav-item tab-btn active" onclick="openTab('home')">
                 <i class="fas fa-home"></i> 홈
             </div>
-            <div id="tab-btn-mailbox" class="nav-item tab-btn" onclick="openTab('mailbox')">
-                <i class="far fa-envelope"></i> 알림함
-            </div>
             <div
                 style="margin: 15px 0 10px 0; padding-left: 15px; font-size: 0.75rem; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
                 컨텐츠 메뉴
             </div>
             <div id="sidebar-content-menu-list">
+                <div id="tab-btn-mailbox" class="nav-item tab-btn" onclick="openTab('mailbox')">
+                    <i class="far fa-envelope"></i> 알림함
+                </div>
                 <div id="tab-btn-connect-guide" class="nav-item tab-btn" onclick="openTab('connect-guide')">
                     <i class="fas fa-link"></i> 접속방법
                 </div>
@@ -490,15 +490,15 @@
                 <div id="tab-btn-shop" class="nav-item tab-btn" onclick="location.href='/shop/'">
                     <i class="fas fa-store"></i> 선술집
                 </div>
-            </div>
-            <div id="tab-btn-calendar" class="nav-item tab-btn" onclick="openTab('calendar-page')" style="display:none;">
-                <i class="far fa-calendar-alt"></i> 캘린더
+                <div id="tab-btn-calendar" class="nav-item tab-btn" onclick="openTab('calendar-page')" style="display:none;">
+                    <i class="far fa-calendar-alt"></i> 캘린더
+                </div>
+                <div id="tab-btn-auction" class="nav-item tab-btn" onclick="openTab('auction')" style="display:none;">
+                    <i class="fas fa-gavel"></i> 경매장
+                </div>
             </div>
             <div id="tab-btn-promotion" class="nav-item tab-btn" onclick="openPromotionBoard()" style="display:flex;">
                 <i class="fas fa-bullhorn"></i> 홍보게시판
-            </div>
-            <div id="tab-btn-auction" class="nav-item tab-btn" onclick="openTab('auction')" style="display:none;">
-                <i class="fas fa-gavel"></i> 경매장
             </div>
             <div id="sidebar-boards">
                 <!-- Dynamic boards will be inserted here -->
