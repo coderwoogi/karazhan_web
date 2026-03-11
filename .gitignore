@@ -14,5 +14,6 @@ perms_debug.json
 configs/database.env
 .codex_backup_20260311/
 .codex_backup_20260312_domain/
+.codex_backup_20260312_dev80/
 karazhan_server
 karazhan_server_darwin
