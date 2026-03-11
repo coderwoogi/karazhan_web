@@ -2,6 +2,7 @@ package home
 
 import (
 	"encoding/json"
+	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -24,7 +25,16 @@ func RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/meta/environment", func(w http.ResponseWriter, r *http.Request) {
 		env := strings.TrimSpace(os.Getenv("APP_ENV"))
 		if env == "" {
-			env = "development"
+			host := strings.TrimSpace(r.Host)
+			if strings.Contains(host, ":") {
+				if _, port, err := net.SplitHostPort(host); err == nil && port == "8080" {
+					env = "development"
+				} else {
+					env = "production"
+				}
+			} else {
+				env = "production"
+			}
 		}
 		isDev := strings.EqualFold(env, "development") || strings.EqualFold(env, "dev")
 		w.Header().Set("Content-Type", "application/json")

@@ -336,6 +336,12 @@ function ensureHeaderIcons() {
 async function loadEnvironmentBadge() {
     const badge = document.getElementById('header-env-badge');
     if (!badge) return;
+    const session = (window.g_sessionUser && typeof window.g_sessionUser === 'object') ? window.g_sessionUser : null;
+    const canSeeBadge = !!(session && (Number(session.gmLevel || 0) >= 2 || session.isAdmin === true || Number(session.webRank || 0) >= 2));
+    if (!canSeeBadge) {
+        badge.style.display = 'none';
+        return;
+    }
     try {
         const res = await fetch('/api/meta/environment');
         if (!res.ok) return;
@@ -3858,6 +3864,7 @@ async function checkAdminAccess() {
         const data = await response.json();
         g_sessionUser = data; // Restore global user state
         window.g_sessionUser = data;
+        loadEnvironmentBadge();
         showEnhancedStoneExpiryWarning(data);
         applySubscriptionMenuState(data);
         
@@ -4125,7 +4132,6 @@ document.addEventListener('DOMContentLoaded', () => {
     LoadingUX.init();
     normalizeKoreanLabels();
     ensureHeaderIcons();
-    loadEnvironmentBadge();
     // Initial Load
     checkAdminAccess(); // Check User Status & Permissions
     updatePointsHeader(); // Initial Points Load
