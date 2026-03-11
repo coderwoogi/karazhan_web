@@ -3923,16 +3923,12 @@ async function checkAdminAccess() {
 
             
             const isAdmin = data.webRank >= 2 || data.permissions.admin_all === true;
-            const coreMenus = ['home', 'mypage', 'board', 'mailbox', 'carddraw', 'connect-guide', 'promotion'];
+            const coreMenus = ['home', 'mypage', 'board', 'mailbox', 'carddraw', 'connect-guide', 'shop', 'promotion'];
             
             // 1. Dynamic Main Menus
             const allTabBtns = document.querySelectorAll('[id^="tab-btn-"]');
             allTabBtns.forEach(btn => {
                 const menuStr = btn.id.replace('tab-btn-', '');
-                if (menuStr === 'shop') {
-                    btn.style.display = 'none';
-                    return;
-                }
                 const isCoreMenu = coreMenus.includes(menuStr);
                 const isAllowed = isCoreMenu || isAdmin || data.permissions[`menu_${menuStr}`] === true;
                 btn.style.display = isAllowed ? 'flex' : 'none';
