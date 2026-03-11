@@ -26,7 +26,7 @@ func adminUserCharactersHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch Characters from Characters DB
-	charDSN := charsDSN()
+	charDSN := "root:4618@tcp(localhost:3306)/acore_characters"
 	charDB, err := sql.Open("mysql", charDSN)
 	if err != nil {
 		log.Printf("[ERROR] Char DB Connect: %v", err)
