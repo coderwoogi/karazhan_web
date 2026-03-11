@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"karazhan/pkg/config"
 	"karazhan/pkg/stats"
 	"karazhan/pkg/utils"
 	"log"
@@ -16,19 +17,9 @@ import (
 	"regexp"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
-)
-
-// DB Configurations
-const (
-	dbUser     = "cpo5704"
-	dbPassword = "584579"
-	dbHost     = "121.148.127.135"
-	dbPort     = "3306"
-	dbName     = "update"
 )
 
 // Process Manager
@@ -81,7 +72,7 @@ func RegisterRoutes(mux *http.ServeMux) {
 }
 
 func ensureAnnounceHistoryTable() {
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true&charset=utf8mb4", dbUser, dbPassword, dbHost, dbPort, dbName)
+	dsn := config.UpdateDSNWithParams("parseTime=true&charset=utf8mb4")
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		log.Printf("announce history table init db open error: %v", err)
@@ -127,10 +118,7 @@ func StartProcess(target string) error {
 	cmd := exec.Command(cmdPath)
 	cmd.Dir = workDir
 
-	// Create new process group (Detached)
-	cmd.SysProcAttr = &syscall.SysProcAttr{
-		CreationFlags: syscall.CREATE_NEW_PROCESS_GROUP,
-	}
+	applyDetachedProcessAttributes(cmd)
 
 	// Open Stdin Pipe to prevent EOF (WorldServer halts on EOF)
 	stdin, err := cmd.StdinPipe()
@@ -162,7 +150,7 @@ func handleScheduleList(w http.ResponseWriter, r *http.Request) {
 	if !stats.CheckMenuPermission(w, r, "remote-schedule", "submenu") {
 		return
 	}
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true", dbUser, dbPassword, dbHost, dbPort, dbName)
+	dsn := config.UpdateDSNWithParams("parseTime=true")
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -248,7 +236,7 @@ func handleScheduleAdd(w http.ResponseWriter, r *http.Request) {
 		date += ":00" // Append seconds if missing
 	}
 
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true", dbUser, dbPassword, dbHost, dbPort, dbName)
+	dsn := config.UpdateDSNWithParams("parseTime=true")
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		log.Printf("[Schedule] DB Conn Error: %v", err)
@@ -502,7 +490,7 @@ func handleAnnounceHistory(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true&charset=utf8mb4", dbUser, dbPassword, dbHost, dbPort, dbName)
+	dsn := config.UpdateDSNWithParams("parseTime=true&charset=utf8mb4")
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -543,7 +531,7 @@ func handleAnnounceHistory(w http.ResponseWriter, r *http.Request) {
 }
 
 func saveAnnounceHistory(r *http.Request, text string, sendType string) {
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true&charset=utf8mb4", dbUser, dbPassword, dbHost, dbPort, dbName)
+	dsn := config.UpdateDSNWithParams("parseTime=true&charset=utf8mb4")
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		log.Printf("saveAnnounceHistory db open error: %v", err)
@@ -571,7 +559,7 @@ func resolveAnnounceSender(r *http.Request, updateDB *sql.DB) (string, string) {
 	}
 	senderName := senderAccount
 
-	authDB, err := sql.Open("mysql", "root:4618@tcp(localhost:3306)/acore_auth")
+	authDB, err := sql.Open("mysql", config.AuthDSN())
 	if err != nil {
 		return senderAccount, senderName
 	}
@@ -929,7 +917,7 @@ func broadcastLog(proc *ServerProcess, msg string) {
 }
 
 func handleLatestLauncher(w http.ResponseWriter, r *http.Request) {
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true", dbUser, dbPassword, dbHost, dbPort, dbName)
+	dsn := config.UpdateDSNWithParams("parseTime=true")
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Database connection error: %v", err), http.StatusInternalServerError)

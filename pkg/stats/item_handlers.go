@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"karazhan/pkg/config"
 	"log"
 	"net/http"
 	"strconv"
@@ -51,7 +52,7 @@ func handleItemSearch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Connect to WORLD DB
-	worldDSN := "root:4618@tcp(localhost:3306)/acore_world"
+	worldDSN := config.WorldDSN()
 	db, err := sql.Open("mysql", worldDSN)
 	if err != nil {
 		http.Error(w, "DB Conn Error", http.StatusInternalServerError)
@@ -101,7 +102,7 @@ func handleItemTooltip(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	db, err := sql.Open("mysql", "root:4618@tcp(localhost:3306)/acore_world")
+	db, err := sql.Open("mysql", config.WorldDSN())
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "db open failed"})
 		return

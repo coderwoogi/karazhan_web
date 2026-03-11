@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"karazhan/pkg/config"
 	"log"
 	"net/http"
 	"os/exec"
@@ -13,12 +14,14 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-const (
-	updateDSN = "cpo5704:584579@tcp(121.148.127.135:3306)/update"
-	authDSN   = "root:4618@tcp(localhost:3306)/acore_auth"
-	charDSN   = "root:4618@tcp(localhost:3306)/acore_characters"
-	worldDSN  = "root:4618@tcp(localhost:3306)/acore_world"
+var (
+	updateDSN = config.UpdateDSN()
+	authDSN   = config.AuthDSN()
+	charDSN   = config.CharactersDSN()
+	worldDSN  = config.WorldDSN()
+)
 
+const (
 	menuNameCardDraw = "\uce74\ub4dc\ubf51\uae30"
 )
 

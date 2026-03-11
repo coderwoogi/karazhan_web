@@ -3,6 +3,7 @@ package stats
 import (
 	"database/sql"
 	"encoding/json"
+	"karazhan/pkg/config"
 	"net/http"
 	"strconv"
 	"strings"
@@ -11,7 +12,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-const auctionCharDSN = "root:4618@tcp(localhost:3306)/acore_characters"
+var auctionCharDSN = config.CharactersDSN()
 
 func ensureAuctionPermissionSeeds() {
 	db, err := sql.Open("mysql", updateDSN)

@@ -3,6 +3,7 @@ package auth
 import (
 	"database/sql"
 	"encoding/json"
+	"karazhan/pkg/config"
 	"log"
 	"net/http"
 	"strings"
@@ -35,7 +36,7 @@ func adminUserPasswordHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	dsn := "root:4618@tcp(localhost:3306)/acore_auth"
+	dsn := config.AuthDSN()
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		http.Error(w, "DB Error", http.StatusInternalServerError)

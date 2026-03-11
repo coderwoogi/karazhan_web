@@ -2,6 +2,7 @@ package notification
 
 import (
 	"database/sql"
+	"karazhan/pkg/config"
 	"net/http"
 	"time"
 
@@ -20,7 +21,7 @@ var (
 func RegisterRoutes(mux *http.ServeMux) {
 	// Initialize DB connection
 	// In production, this should share the main DB pool, but for now we create a new one to follow module pattern
-	dsn := "cpo5704:584579@tcp(121.148.127.135:3306)/update"
+	dsn := config.UpdateDSN()
 	var err error
 	DB, err = sql.Open("mysql", dsn)
 	if err != nil {

@@ -17,4 +17,3 @@ func RegisterRoutes(mux *http.ServeMux) {
 		http.StripPrefix("/shop/", fs).ServeHTTP(w, r)
 	})
 }
-

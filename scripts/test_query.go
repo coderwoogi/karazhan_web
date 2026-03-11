@@ -3,13 +3,14 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"karazhan/pkg/config"
 	"log"
 
 	_ "github.com/go-sql-driver/mysql"
 )
 
 func main_test_query() {
-	authDSN := "root:4618@tcp(localhost:3306)/acore_auth"
+	authDSN := config.AuthDSN()
 	authDB, err := sql.Open("mysql", authDSN)
 	if err != nil {
 		log.Fatalf("Open Error: %v", err)

@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"karazhan/pkg/config"
 	"log"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -10,7 +11,7 @@ import (
 
 func main_probe_db() {
 	// 1. acore_auth
-	db, err := sql.Open("mysql", "root:4618@tcp(localhost:3306)/acore_auth")
+	db, err := sql.Open("mysql", config.AuthDSN())
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -32,7 +33,7 @@ func main_probe_db() {
 	}
 
 	// 2. update
-	db2, err := sql.Open("mysql", "cpo5704:584579@tcp(121.148.127.135:3306)/update")
+	db2, err := sql.Open("mysql", config.UpdateDSN())
 	if err != nil {
 		log.Fatal(err)
 	}

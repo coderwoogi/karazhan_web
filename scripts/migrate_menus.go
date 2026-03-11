@@ -3,13 +3,14 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"karazhan/pkg/config"
 	"log"
 	"strings"
 
 	_ "github.com/go-sql-driver/mysql"
 )
 
-const dsn = "cpo5704:584579@tcp(121.148.127.135:3306)/update"
+var dsn = config.UpdateDSN()
 
 type Menu struct {
 	Type     string

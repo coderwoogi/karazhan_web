@@ -492,7 +492,7 @@ func extractCommandsFromSource(content, source string) []commandCandidate {
 
 func parseChatCommandTables(content string) map[string][]chatCommandEntry {
 	lines := strings.Split(content, "\n")
-	startRe := regexp.MustCompile(`static\s+ChatCommandTable\s+([A-Za-z0-9_]+)\s*=`) 
+	startRe := regexp.MustCompile(`static\s+ChatCommandTable\s+([A-Za-z0-9_]+)\s*=`)
 	entryRe := regexp.MustCompile(`\{\s*"([^"]*)"\s*,\s*([A-Za-z0-9_]+)`)
 	secRe := regexp.MustCompile(`SEC_[A-Z_]+`)
 

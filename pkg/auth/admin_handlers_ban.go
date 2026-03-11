@@ -3,6 +3,7 @@ package auth
 import (
 	"database/sql"
 	"encoding/json"
+	"karazhan/pkg/config"
 	"log"
 	"net/http"
 	"time"
@@ -61,7 +62,7 @@ func adminUserBanHandler(w http.ResponseWriter, r *http.Request) {
 	// Actually TrinityCore/AzerothCore usually supports multiple, but active=1 matches.
 	// We'll just insert a new one.
 
-	dsn := "root:4618@tcp(localhost:3306)/acore_auth"
+	dsn := config.AuthDSN()
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		http.Error(w, "DB Error", http.StatusInternalServerError)
@@ -101,7 +102,7 @@ func adminUserUnbanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	dsn := "root:4618@tcp(localhost:3306)/acore_auth"
+	dsn := config.AuthDSN()
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		http.Error(w, "DB Error", http.StatusInternalServerError)

@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"karazhan/pkg/auth"
+	"karazhan/pkg/config"
 	"log"
 	"net/http"
 	"strconv"
@@ -29,7 +30,7 @@ func handleMenuMetadata(w http.ResponseWriter, r *http.Request) {
 	log.Printf("[MenuMetadata] Admin Auth Success")
 
 	log.Printf("[MenuMetadata] Connecting to Auth DB...")
-	authDSN := "root:4618@tcp(localhost:3306)/acore_auth"
+	authDSN := config.AuthDSN()
 	authDB, err := sql.Open("mysql", authDSN)
 	if err != nil {
 		log.Printf("[MenuMetadata] sql.Open Error: %v", err)
@@ -90,7 +91,7 @@ func handleUpdateMenuPermission(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	authDSN := "root:4618@tcp(localhost:3306)/acore_auth"
+	authDSN := config.AuthDSN()
 	authDB, err := sql.Open("mysql", authDSN)
 	if err != nil {
 		http.Error(w, "Auth DB Connection Error", http.StatusInternalServerError)
@@ -124,7 +125,7 @@ func CheckMenuPermission(w http.ResponseWriter, r *http.Request, menuID string, 
 	}
 	username := cookie.Value
 
-	authDSN := "root:4618@tcp(localhost:3306)/acore_auth"
+	authDSN := config.AuthDSN()
 	authDB, err := sql.Open("mysql", authDSN)
 	if err != nil {
 		log.Printf("Auth DB Conn Error: %v", err)
@@ -170,13 +171,13 @@ func checkAdminAuth(w http.ResponseWriter, r *http.Request, minLevel int) bool {
 	}
 
 	username := cookie.Value
-	authDB, _ := sql.Open("mysql", "root:4618@tcp(localhost:3306)/acore_auth")
+	authDB, _ := sql.Open("mysql", config.AuthDSN())
 	if authDB != nil {
 		defer authDB.Close()
 		var userID int
 		authDB.QueryRow("SELECT id FROM account WHERE UPPER(TRIM(username)) = UPPER(TRIM(?))", username).Scan(&userID)
 
-		updateDB, _ := sql.Open("mysql", "cpo5704:584579@tcp(121.148.127.135:3306)/update")
+		updateDB, _ := sql.Open("mysql", config.UpdateDSN())
 		if updateDB != nil {
 			defer updateDB.Close()
 			webRank := 0

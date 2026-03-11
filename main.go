@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"karazhan/pkg/auth"
 	"karazhan/pkg/board"
+	"karazhan/pkg/config"
 	"karazhan/pkg/gm"
 	"karazhan/pkg/home"
 	"karazhan/pkg/inspect"
@@ -18,8 +19,6 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
-	"os"
-	"strings"
 )
 
 func main() {
@@ -60,19 +59,8 @@ func main() {
 		proxy.ServeHTTP(w, r)
 	})
 
-	appEnv := strings.TrimSpace(os.Getenv("APP_ENV"))
-	if appEnv == "" {
-		appEnv = "development"
-	}
-
-	port := strings.TrimSpace(os.Getenv("PORT"))
-	if port == "" {
-		if strings.EqualFold(appEnv, "production") || strings.EqualFold(appEnv, "prod") {
-			port = "80"
-		} else {
-			port = "8080"
-		}
-	}
+	appEnv := config.AppEnv()
+	port := config.Port()
 
 	fmt.Printf("Starting Karazhan Unified Server [%s] on port %s...\n", appEnv, port)
 	fmt.Printf("- Launcher API: http://localhost:%s/api/launcher/latest\n", port)

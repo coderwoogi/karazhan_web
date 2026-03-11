@@ -3,6 +3,7 @@ package auth
 import (
 	"database/sql"
 	"encoding/json"
+	"karazhan/pkg/config"
 	"net/http"
 	"strconv"
 
@@ -33,7 +34,7 @@ func adminUpdateCardDrawCountHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	updateDB, err := sql.Open("mysql", "cpo5704:584579@tcp(121.148.127.135:3306)/update")
+	updateDB, err := sql.Open("mysql", config.UpdateDSN())
 	if err != nil {
 		http.Error(w, "Update DB Error", http.StatusInternalServerError)
 		return

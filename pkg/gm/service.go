@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"karazhan/pkg/config"
 	"karazhan/pkg/services"
 	"karazhan/pkg/stats"
 	"log"
@@ -19,7 +20,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-var dbDSN = "cpo5704:584579@tcp(121.148.127.135:3306)/update"
+var dbDSN = config.UpdateDSN()
 var modulesPath = "E:\\server\\azerothcore-wotlk\\modules"
 
 type Memo struct {
@@ -260,7 +261,7 @@ func handleAddServerEvent(w http.ResponseWriter, r *http.Request) {
 
 		// Try to resolve Main Character from user_profiles
 		// 1. Get Account ID from Auth DB
-		authDSN := "root:4618@tcp(localhost:3306)/acore_auth"
+		authDSN := config.AuthDSN()
 		authDB, err := sql.Open("mysql", authDSN)
 		if err == nil {
 			defer authDB.Close()
@@ -1022,7 +1023,7 @@ func handleSearchCalendarCharacters(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	charDB, err := sql.Open("mysql", "root:4618@tcp(localhost:3306)/acore_characters")
+	charDB, err := sql.Open("mysql", config.CharactersDSN())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -1066,7 +1067,7 @@ func resolveCalendarAuthorDisplayName(sessionUser string) string {
 		return "SYSTEM"
 	}
 
-	authDB, err := sql.Open("mysql", "root:4618@tcp(localhost:3306)/acore_auth")
+	authDB, err := sql.Open("mysql", config.AuthDSN())
 	if err != nil {
 		return sessionUser
 	}
@@ -1112,7 +1113,7 @@ func resolveCharacterNameByGUID(guid int) string {
 	if guid <= 0 {
 		return ""
 	}
-	charDB, err := sql.Open("mysql", "root:4618@tcp(localhost:3306)/acore_characters")
+	charDB, err := sql.Open("mysql", config.CharactersDSN())
 	if err != nil {
 		return ""
 	}
@@ -1166,7 +1167,7 @@ func resolveCalendarAuthorCandidates(sessionUser string) []string {
 		return out
 	}
 
-	authDB, err := sql.Open("mysql", "root:4618@tcp(localhost:3306)/acore_auth")
+	authDB, err := sql.Open("mysql", config.AuthDSN())
 	if err != nil {
 		return out
 	}
@@ -1187,7 +1188,7 @@ func resolveCalendarAuthorCandidates(sessionUser string) []string {
 		}
 	}
 
-	charDB, err := sql.Open("mysql", "root:4618@tcp(localhost:3306)/acore_characters")
+	charDB, err := sql.Open("mysql", config.CharactersDSN())
 	if err == nil {
 		defer charDB.Close()
 		rows, err := charDB.Query("SELECT name FROM characters WHERE account = ? LIMIT 300", accountID)
@@ -1248,7 +1249,7 @@ func attachCalendarParticipantsMeta(events []ServerEvent) {
 		names = append(names, original)
 	}
 
-	charDB, err := sql.Open("mysql", "root:4618@tcp(localhost:3306)/acore_characters")
+	charDB, err := sql.Open("mysql", config.CharactersDSN())
 	if err != nil {
 		return
 	}
@@ -1306,7 +1307,7 @@ func notifyCalendarParticipants(updateDB *sql.DB, e ServerEvent, sessionUser str
 		return
 	}
 
-	charDB, err := sql.Open("mysql", "root:4618@tcp(localhost:3306)/acore_characters")
+	charDB, err := sql.Open("mysql", config.CharactersDSN())
 	if err != nil {
 		return
 	}

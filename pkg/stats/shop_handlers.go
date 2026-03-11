@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"karazhan/pkg/config"
 	"karazhan/pkg/services"
 	"log"
 	"net/http"
@@ -54,7 +55,7 @@ func getSessionUserIDAndName(r *http.Request) (int, string, error) {
 	}
 	username := cookie.Value
 
-	authDB, err := sql.Open("mysql", "root:4618@tcp(localhost:3306)/acore_auth")
+	authDB, err := sql.Open("mysql", config.AuthDSN())
 	if err != nil {
 		return 0, "", err
 	}
@@ -517,7 +518,7 @@ func getCharacterLevelForUser(userID int, characterName string) (int, error) {
 		return 0, fmt.Errorf("캐릭터가 선택되지 않았습니다")
 	}
 
-	charDSN := "root:4618@tcp(localhost:3306)/acore_characters"
+	charDSN := config.CharactersDSN()
 	charDB, err := sql.Open("mysql", charDSN)
 	if err != nil {
 		return 0, err
@@ -540,7 +541,7 @@ func sendShopItemMail(receiverName, subject, body string, itemEntry, itemCount i
 		return fmt.Errorf("\uc694\uccad \ucc98\ub9ac \uc911 \uc624\ub958\uac00 \ubc1c\uc0dd\ud588\uc2b5\ub2c8\ub2e4.")
 	}
 
-	charDSN := "root:4618@tcp(localhost:3306)/acore_characters"
+	charDSN := config.CharactersDSN()
 	charDB, err := sql.Open("mysql", charDSN)
 	if err != nil {
 		return err
@@ -601,7 +602,7 @@ func sendShopItemMail(receiverName, subject, body string, itemEntry, itemCount i
 }
 
 func getUserCharactersWithGold(userID int) ([]map[string]interface{}, error) {
-	charDB, err := sql.Open("mysql", "root:4618@tcp(localhost:3306)/acore_characters")
+	charDB, err := sql.Open("mysql", config.CharactersDSN())
 	if err != nil {
 		return nil, err
 	}
@@ -627,17 +628,17 @@ func getUserCharactersWithGold(userID int) ([]map[string]interface{}, error) {
 			continue
 		}
 		result = append(result, map[string]interface{}{
-			"name":       name,
-			"level":      level,
+			"name":        name,
+			"level":       level,
 			"gold_copper": money,
-			"gold":       money / 10000,
+			"gold":        money / 10000,
 		})
 	}
 	return result, nil
 }
 
 func getCharacterMoneyByUserID(userID int, characterName string) (int64, error) {
-	charDB, err := sql.Open("mysql", "root:4618@tcp(localhost:3306)/acore_characters")
+	charDB, err := sql.Open("mysql", config.CharactersDSN())
 	if err != nil {
 		return 0, err
 	}
@@ -652,7 +653,7 @@ func getCharacterMoneyByUserID(userID int, characterName string) (int64, error) 
 }
 
 func adjustCharacterGoldByUserID(userID int, characterName string, deltaCopper int64) error {
-	charDB, err := sql.Open("mysql", "root:4618@tcp(localhost:3306)/acore_characters")
+	charDB, err := sql.Open("mysql", config.CharactersDSN())
 	if err != nil {
 		return err
 	}
@@ -666,7 +667,7 @@ func adjustCharacterGoldByUserID(userID int, characterName string, deltaCopper i
 }
 
 func sendShopGoldMail(receiverName, subject, body string, goldCopper int64, senderUserID int, senderUsername string, r *http.Request) error {
-	charDSN := "root:4618@tcp(localhost:3306)/acore_characters"
+	charDSN := config.CharactersDSN()
 	charDB, err := sql.Open("mysql", charDSN)
 	if err != nil {
 		return err
@@ -743,7 +744,7 @@ func handleShopItems(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 	var authDB *sql.DB
-	if adb, e := sql.Open("mysql", "root:4618@tcp(localhost:3306)/acore_auth"); e == nil {
+	if adb, e := sql.Open("mysql", config.AuthDSN()); e == nil {
 		authDB = adb
 		defer authDB.Close()
 	}
@@ -797,7 +798,7 @@ func handleShopCoinMarketList(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 
-	charDB, _ := sql.Open("mysql", "root:4618@tcp(localhost:3306)/acore_characters")
+	charDB, _ := sql.Open("mysql", config.CharactersDSN())
 	if charDB != nil {
 		defer charDB.Close()
 	}
@@ -833,18 +834,18 @@ func handleShopCoinMarketList(w http.ResponseWriter, r *http.Request) {
 		}
 
 		listings = append(listings, map[string]interface{}{
-			"id":               id,
-			"seller_user_id":   sellerUserID,
-			"seller_username":  sellerUsername,
-			"seller_character": sellerCharacter,
-			"seller_level":     sellerLevel,
-			"seller_faction":   sellerFaction,
+			"id":                  id,
+			"seller_user_id":      sellerUserID,
+			"seller_username":     sellerUsername,
+			"seller_character":    sellerCharacter,
+			"seller_level":        sellerLevel,
+			"seller_faction":      sellerFaction,
 			"seller_faction_code": sellerFactionCode,
-			"gold_copper":      goldCopper,
-			"gold":             goldCopper / 10000,
-			"price_points":     price,
-			"status":           status,
-			"created_at":       createdAt,
+			"gold_copper":         goldCopper,
+			"gold":                goldCopper / 10000,
+			"price_points":        price,
+			"status":              status,
+			"created_at":          createdAt,
 		})
 	}
 	writeJSON(w, http.StatusOK, map[string]interface{}{"status": "success", "listings": listings})
@@ -1116,11 +1117,11 @@ func handleShopCoinMarketBuy(w http.ResponseWriter, r *http.Request) {
 	_ = notify.CreateNotification(sellerUserID, "point", "코인시장 판매 완료", fmt.Sprintf("%s 골드 판매가 완료되었습니다. (%d 포인트 획득)", goldText, pricePoints), "", "시스템")
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"status":        "success",
-		"points_after":  buyerAfter,
-		"gold_copper":   goldCopper,
-		"gold_amount":   goldCopper / 10000,
-		"price_points":  pricePoints,
+		"status":          "success",
+		"points_after":    buyerAfter,
+		"gold_copper":     goldCopper,
+		"gold_amount":     goldCopper / 10000,
+		"price_points":    pricePoints,
 		"buyer_character": strings.TrimSpace(req.BuyerCharacter),
 	})
 }
@@ -1866,7 +1867,7 @@ func handleAdminShopOrders(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 	var authDB *sql.DB
-	if adb, e := sql.Open("mysql", "root:4618@tcp(localhost:3306)/acore_auth"); e == nil {
+	if adb, e := sql.Open("mysql", config.AuthDSN()); e == nil {
 		authDB = adb
 		defer authDB.Close()
 	}

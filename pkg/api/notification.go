@@ -3,6 +3,7 @@ package api
 import (
 	"database/sql"
 	"encoding/json"
+	"karazhan/pkg/config"
 	"log"
 	"net/http"
 	"strconv"
@@ -29,7 +30,7 @@ func getUserID(r *http.Request) (int, error) {
 	username := cookie.Value
 
 	// Resolving UserID from Auth DB
-	dsn := "root:4618@tcp(localhost:3306)/acore_auth"
+	dsn := config.AuthDSN()
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		return 0, err
@@ -216,7 +217,7 @@ func (h *NotificationHandler) Send(w http.ResponseWriter, r *http.Request) {
 
 	// Check Admin Rank (Web Rank >= 2 or GM Level >= 3)
 	// For simplicity, let's query Web Rank from Update DB
-	dsn := "cpo5704:584579@tcp(121.148.127.135:3306)/update"
+	dsn := config.UpdateDSN()
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		http.Error(w, "Database Error", http.StatusInternalServerError)

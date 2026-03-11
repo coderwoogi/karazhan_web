@@ -1,9 +1,10 @@
-﻿package auth
+package auth
 
 import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"karazhan/pkg/config"
 	"karazhan/pkg/services"
 	"log"
 	"net/http"
@@ -12,7 +13,7 @@ import (
 
 // GetPoints returns the current points for a user. Returns 0 if not found.
 func GetPoints(userID int) int {
-	dsn := "cpo5704:584579@tcp(121.148.127.135:3306)/update"
+	dsn := config.UpdateDSN()
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		log.Printf("GetPoints DB Conn Error: %v", err)
@@ -34,7 +35,7 @@ func GetPoints(userID int) int {
 
 // AddPoints adds (or subtracts) points for a user and logs the transaction.
 func AddPoints(userID int, amount int, reason string, adminName string) error {
-	dsn := "cpo5704:584579@tcp(121.148.127.135:3306)/update"
+	dsn := config.UpdateDSN()
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		log.Printf("[ERROR] AddPoints DB Conn Error: %v", err)
@@ -96,7 +97,7 @@ func AddPoints(userID int, amount int, reason string, adminName string) error {
 	log.Printf("[SUCCESS] AddPoints: User %d points updated successfully", userID)
 
 	// Send Notification
-	updateDSN := "cpo5704:584579@tcp(121.148.127.135:3306)/update"
+	updateDSN := config.UpdateDSN()
 	updateDB, err := sql.Open("mysql", updateDSN)
 	if err == nil {
 		defer updateDB.Close()
@@ -136,7 +137,7 @@ func handlePointHistory(w http.ResponseWriter, r *http.Request) {
 	username := cookie.Value
 
 	// Get User ID
-	authDSN := "root:4618@tcp(localhost:3306)/acore_auth"
+	authDSN := config.AuthDSN()
 	authDB, err := sql.Open("mysql", authDSN)
 	if err != nil {
 		http.Error(w, "Auth DB Error", http.StatusInternalServerError)
@@ -161,7 +162,7 @@ func handlePointHistory(w http.ResponseWriter, r *http.Request) {
 	offset := (page - 1) * limit
 
 	// Query Logs
-	updateDSN := "cpo5704:584579@tcp(121.148.127.135:3306)/update"
+	updateDSN := config.UpdateDSN()
 	db, err := sql.Open("mysql", updateDSN)
 	if err != nil {
 		http.Error(w, "Update DB Error", http.StatusInternalServerError)
@@ -233,7 +234,7 @@ func adminPointHistoryHandler(w http.ResponseWriter, r *http.Request) {
 	limit := 10
 	offset := (page - 1) * limit
 
-	updateDSN := "cpo5704:584579@tcp(121.148.127.135:3306)/update"
+	updateDSN := config.UpdateDSN()
 	db, err := sql.Open("mysql", updateDSN)
 	if err != nil {
 		log.Printf("[ERROR] adminPointHistoryHandler: DB Connection Error: %v", err)

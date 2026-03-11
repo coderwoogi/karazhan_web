@@ -3,6 +3,7 @@ package stats
 import (
 	"database/sql"
 	"fmt"
+	"karazhan/pkg/config"
 	"math/rand"
 	"net/http"
 	"strconv"
@@ -10,21 +11,21 @@ import (
 	"time"
 )
 
-const (
-	updateDSNCarddraw = "cpo5704:584579@tcp(121.148.127.135:3306)/update"
-	worldDSNCarddraw  = "root:4618@tcp(localhost:3306)/acore_world"
+var (
+	updateDSNCarddraw = config.UpdateDSN()
+	worldDSNCarddraw  = config.WorldDSN()
 )
 
 type carddrawPoolItem struct {
-	ID          int    `json:"id"`
-	ItemEntry   int    `json:"item_entry"`
-	ItemName    string `json:"item_name"`
-	Icon        string `json:"icon"`
-	Rarity      string `json:"rarity"`
-	RarityLabel string `json:"rarity_label"`
+	ID            int     `json:"id"`
+	ItemEntry     int     `json:"item_entry"`
+	ItemName      string  `json:"item_name"`
+	Icon          string  `json:"icon"`
+	Rarity        string  `json:"rarity"`
+	RarityLabel   string  `json:"rarity_label"`
 	ChancePercent float64 `json:"chance_percent"`
-	MaxCount    int    `json:"max_count"`
-	IsActive    int    `json:"is_active"`
+	MaxCount      int     `json:"max_count"`
+	IsActive      int     `json:"is_active"`
 }
 
 func ensureCarddrawPoolSchema() {
@@ -623,15 +624,15 @@ func handleCarddrawRandomPack(w http.ResponseWriter, r *http.Request) {
 			quantity = rand.Intn(picked.MaxCount) + 1
 		}
 		rewards = append(rewards, map[string]interface{}{
-			"id":          picked.ID,
-			"itemEntry":   picked.ItemEntry,
-			"name":        picked.ItemName,
-			"icon":        picked.Icon,
-			"rarity":      picked.Rarity,
-			"rarityLabel": picked.RarityLabel,
+			"id":            picked.ID,
+			"itemEntry":     picked.ItemEntry,
+			"name":          picked.ItemName,
+			"icon":          picked.Icon,
+			"rarity":        picked.Rarity,
+			"rarityLabel":   picked.RarityLabel,
 			"chancePercent": picked.ChancePercent,
-			"maxCount":    picked.MaxCount,
-			"quantity":    quantity,
+			"maxCount":      picked.MaxCount,
+			"quantity":      quantity,
 		})
 		if useWorking {
 			working = append(working[:pickIdx], working[pickIdx+1:]...)

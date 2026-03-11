@@ -3,13 +3,14 @@ package inspect
 import (
 	"database/sql"
 	"fmt"
+	"karazhan/pkg/config"
 	"log"
 
 	_ "github.com/go-sql-driver/mysql"
 )
 
 func Run() {
-	dsn := "root:4618@tcp(localhost:3306)/acore_auth"
+	dsn := config.AuthDSN()
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		log.Fatal(err)

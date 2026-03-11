@@ -2,7 +2,7 @@ package launcher
 
 import (
 	"database/sql"
-	"fmt"
+	"karazhan/pkg/config"
 	"log"
 	"time"
 )
@@ -20,7 +20,7 @@ func StartScheduler() {
 
 func checkSchedule() {
 	// Connect to DB (Create new connection or use shared)
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true", dbUser, dbPassword, dbHost, dbPort, dbName)
+	dsn := config.UpdateDSNWithParams("parseTime=true")
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		log.Printf("[Scheduler] DB Connection Error: %v", err)

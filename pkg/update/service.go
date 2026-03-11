@@ -5,22 +5,14 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"io"
+	"karazhan/pkg/config"
 	"log"
 	"net/http"
 	"strconv"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
-)
-
-// DB설정: Localhost
-const (
-	DBHost = "tcp(localhost:3306)"
-	DBUser = "root"
-	DBPass = "4618"
-	DBName = "update"
 )
 
 var db *sql.DB
@@ -35,7 +27,7 @@ type UpdateFile struct {
 
 func RegisterRoutes(mux *http.ServeMux) {
 	var err error
-	dsn := fmt.Sprintf("%s:%s@%s/%s?parseTime=true", DBUser, DBPass, DBHost, DBName)
+	dsn := config.UpdateDSNWithParams("parseTime=true")
 	db, err = sql.Open("mysql", dsn)
 	if err != nil {
 		log.Printf("Update Service DB Error: %v", err)

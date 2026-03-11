@@ -3,13 +3,14 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"karazhan/pkg/config"
 	"log"
 
 	_ "github.com/go-sql-driver/mysql"
 )
 
 func main() {
-	dsn := "cpo5704:584579@tcp(121.148.127.135:3306)/update"
+	dsn := config.UpdateDSN()
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		log.Fatal(err)

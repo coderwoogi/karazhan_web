@@ -2,6 +2,7 @@ package utils
 
 import (
 	"database/sql"
+	"karazhan/pkg/config"
 	"log"
 	"net/http"
 	"strings"
@@ -10,16 +11,8 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-const (
-	logDBUser     = "cpo5704"
-	logDBPassword = "584579"
-	logDBHost     = "121.148.127.135"
-	logDBPort     = "3306"
-	logDBName     = "update"
-)
-
 func LogAction(r *http.Request, userOverride string, button string) {
-	dsn := logDBUser + ":" + logDBPassword + "@tcp(" + logDBHost + ":" + logDBPort + ")/" + logDBName
+	dsn := config.UpdateDSN()
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		log.Printf("Logger Error (DB Open): %v", err)
@@ -40,7 +33,7 @@ func LogAction(r *http.Request, userOverride string, button string) {
 
 	// 2. Determine Role (Admin if in account_access)
 	role := "User"
-	authDSN := "root:4618@tcp(localhost:3306)/acore_auth"
+	authDSN := config.AuthDSN()
 	authDB, err := sql.Open("mysql", authDSN)
 	if err == nil {
 		var exists bool

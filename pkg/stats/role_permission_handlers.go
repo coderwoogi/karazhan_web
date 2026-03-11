@@ -4,13 +4,14 @@ import (
 	"database/sql"
 	"encoding/json"
 	"karazhan/pkg/auth"
+	"karazhan/pkg/config"
 	"log"
 	"net/http"
 
 	_ "github.com/go-sql-driver/mysql"
 )
 
-const updateDSN = "cpo5704:584579@tcp(121.148.127.135:3306)/update"
+var updateDSN = config.UpdateDSN()
 
 // RolePermission represents a single resource's role-based access
 type RolePermission struct {
@@ -371,7 +372,7 @@ func CheckRolePermission(w http.ResponseWriter, r *http.Request, resourceType, r
 	}
 	username := cookie.Value
 
-	authDB, err := sql.Open("mysql", "root:4618@tcp(localhost:3306)/acore_auth")
+	authDB, err := sql.Open("mysql", config.AuthDSN())
 	if err != nil {
 		return false
 	}

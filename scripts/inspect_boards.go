@@ -3,12 +3,13 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"karazhan/pkg/config"
 
 	_ "github.com/go-sql-driver/mysql"
 )
 
 func main_inspect_boards() {
-	db, err := sql.Open("mysql", "cpo5704:584579@tcp(121.148.127.135:3306)/update")
+	db, err := sql.Open("mysql", config.UpdateDSN())
 	if err != nil {
 		panic(err)
 	}

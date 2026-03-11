@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"karazhan/pkg/config"
 	"log"
 	"os"
 
@@ -11,7 +12,7 @@ import (
 )
 
 func main_dump_boards() {
-	dsn := "cpo5704:584579@tcp(121.148.127.135:3306)/acore_auth"
+	dsn := config.AuthDSN()
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		log.Fatal(err)

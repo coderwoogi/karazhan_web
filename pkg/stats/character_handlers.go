@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"karazhan/pkg/config"
 	"log"
 	"net/http"
 )
@@ -23,7 +24,7 @@ func handleCharacterList(w http.ResponseWriter, r *http.Request) {
 	// So we are safe.
 
 	// Connect to characters DB
-	charDSN := "root:4618@tcp(localhost:3306)/acore_characters"
+	charDSN := config.CharactersDSN()
 	charDB, err := sql.Open("mysql", charDSN)
 	if err != nil {
 		http.Error(w, "Characters DB Connection Error", http.StatusInternalServerError)
@@ -196,7 +197,7 @@ func handleSendMail(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Connect to characters DB
-	charDSN := "root:4618@tcp(localhost:3306)/acore_characters"
+	charDSN := config.CharactersDSN()
 	charDB, err := sql.Open("mysql", charDSN)
 	if err != nil {
 		http.Error(w, "Characters DB Connection Error", http.StatusInternalServerError)

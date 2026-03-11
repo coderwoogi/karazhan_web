@@ -1,4 +1,4 @@
-﻿package board
+package board
 
 import (
 	"bytes"
@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"karazhan/pkg/config"
 	"karazhan/pkg/services"
 	"karazhan/pkg/stats"
 	"log"
@@ -121,8 +122,8 @@ type Attachment struct {
 	CreatedAt        string `json:"created_at"`
 }
 
-const updateDSN = "cpo5704:584579@tcp(121.148.127.135:3306)/update?charset=utf8mb4&parseTime=true&loc=Local"
-const authDSN = "root:4618@tcp(localhost:3306)/acore_auth?charset=utf8mb4&parseTime=true&loc=Local"
+var updateDSN = config.UpdateDSNWithParams("charset=utf8mb4&parseTime=true&loc=Local")
+var authDSN = config.AuthDSNWithParams("charset=utf8mb4&parseTime=true&loc=Local")
 
 var boardSchemaInitOnce sync.Once
 
@@ -455,7 +456,7 @@ func getUserInfo(r *http.Request) (userInfo, error) {
 	// Get Web Rank (from update DB)
 	info.WebRank = 0
 	info.AuthorName = username // Default
-		uDB, err := sql.Open("mysql", updateDSN)
+	uDB, err := sql.Open("mysql", updateDSN)
 	if err == nil {
 		defer uDB.Close()
 		var charName string
@@ -1535,24 +1536,24 @@ func GetPromotionAdminListHandler(w http.ResponseWriter, r *http.Request) {
 				urls = append(urls, u)
 			}
 			list = append(list, map[string]interface{}{
-				"id":             id,
-				"account_id":     accountID,
-				"author_name":    author,
-				"title":          title,
-				"created_at":     createdAt,
-				"first_url":      firstURL,
-				"urls":           urls,
-				"url_count":      len(urls),
-				"reward_paid":    paidID > 0,
-				"reward_paid_at": paidAt,
-				"receiver_name":  receiverName,
-				"verify_ok":      verifyOK == 1,
-				"verify_message": verifyMsg,
-				"checked_at":     checkedAt,
-				"verify_pass_count": passCount,
+				"id":                 id,
+				"account_id":         accountID,
+				"author_name":        author,
+				"title":              title,
+				"created_at":         createdAt,
+				"first_url":          firstURL,
+				"urls":               urls,
+				"url_count":          len(urls),
+				"reward_paid":        paidID > 0,
+				"reward_paid_at":     paidAt,
+				"receiver_name":      receiverName,
+				"verify_ok":          verifyOK == 1,
+				"verify_message":     verifyMsg,
+				"checked_at":         checkedAt,
+				"verify_pass_count":  passCount,
 				"verify_total_count": totalCount,
-				"review_status":  reviewStatus,
-				"review_at":      reviewAt,
+				"review_status":      reviewStatus,
+				"review_at":          reviewAt,
 			})
 		}
 	}
@@ -1974,7 +1975,7 @@ func resolvePromotionReceiverCharacter(updateDB *sql.DB, accountID int) string {
 			}
 		}
 	}
-	charDB, err := sql.Open("mysql", "root:4618@tcp(localhost:3306)/acore_characters?charset=utf8mb4&parseTime=true&loc=Local")
+	charDB, err := sql.Open("mysql", config.CharactersDSNWithParams("charset=utf8mb4&parseTime=true&loc=Local"))
 	if err != nil {
 		return ""
 	}
@@ -1985,7 +1986,7 @@ func resolvePromotionReceiverCharacter(updateDB *sql.DB, accountID int) string {
 }
 
 func sendPromotionItemMail(receiverName, subject, body string, itemEntry, itemCount int) error {
-	charDB, err := sql.Open("mysql", "root:4618@tcp(localhost:3306)/acore_characters?charset=utf8mb4&parseTime=true&loc=Local")
+	charDB, err := sql.Open("mysql", config.CharactersDSNWithParams("charset=utf8mb4&parseTime=true&loc=Local"))
 	if err != nil {
 		return err
 	}

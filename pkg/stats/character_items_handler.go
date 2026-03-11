@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"karazhan/pkg/config"
 	"log"
 	"net/http"
 )
@@ -30,7 +31,7 @@ func handleCharacterItems(w http.ResponseWriter, r *http.Request) {
 	fmt.Sscanf(guidStr, "%d", &guid)
 
 	// Connect to characters DB
-	charDSN := "root:4618@tcp(localhost:3306)/acore_characters"
+	charDSN := config.CharactersDSN()
 	charDB, err := sql.Open("mysql", charDSN)
 	if err != nil {
 		http.Error(w, "Characters DB Connection Error", http.StatusInternalServerError)

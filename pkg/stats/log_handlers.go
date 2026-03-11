@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"karazhan/pkg/config"
 	"log"
 	"net/http"
 )
@@ -19,7 +20,7 @@ func handleBlackMarketLogs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Connect to characters DB
-	charDSN := "root:4618@tcp(localhost:3306)/acore_characters"
+	charDSN := config.CharactersDSN()
 	charDB, err := sql.Open("mysql", charDSN)
 	if err != nil {
 		http.Error(w, "Characters DB Connection Error", http.StatusInternalServerError)
@@ -139,7 +140,7 @@ func handleKarazhanLogs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Connect to characters DB
-	charDSN := "root:4618@tcp(localhost:3306)/acore_characters"
+	charDSN := config.CharactersDSN()
 	charDB, err := sql.Open("mysql", charDSN)
 	if err != nil {
 		http.Error(w, "Characters DB Connection Error", http.StatusInternalServerError)
@@ -257,7 +258,7 @@ func handlePlaytimeLogs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Connect to characters DB
-	charDSN := "root:4618@tcp(localhost:3306)/acore_characters"
+	charDSN := config.CharactersDSN()
 	charDB, err := sql.Open("mysql", charDSN)
 	if err != nil {
 		http.Error(w, "Characters DB Connection Error", http.StatusInternalServerError)
@@ -375,7 +376,7 @@ func handleMailLogs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Connect to characters DB
-	charDSN := "root:4618@tcp(localhost:3306)/acore_characters"
+	charDSN := config.CharactersDSN()
 	charDB, err := sql.Open("mysql", charDSN)
 	if err != nil {
 		http.Error(w, "Characters DB Connection Error", http.StatusInternalServerError)

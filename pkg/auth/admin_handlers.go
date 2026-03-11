@@ -3,6 +3,7 @@ package auth
 import (
 	"database/sql"
 	"encoding/json"
+	"karazhan/pkg/config"
 	"log"
 	"net/http"
 	"strconv"
@@ -26,7 +27,7 @@ func adminUserCharactersHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch Characters from Characters DB
-	charDSN := charsDSN()
+	charDSN := config.CharactersDSN()
 	charDB, err := sql.Open("mysql", charDSN)
 	if err != nil {
 		log.Printf("[ERROR] Char DB Connect: %v", err)

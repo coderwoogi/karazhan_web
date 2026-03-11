@@ -12,3 +12,6 @@ uploads/
 *.mojibake.bak
 perms_debug.json
 configs/database.env
+.codex_backup_20260311/
+karazhan_server
+karazhan_server_darwin

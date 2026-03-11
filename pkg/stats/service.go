@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"karazhan/pkg/config"
 	"log"
 	"net/http"
 
@@ -105,8 +106,8 @@ func RegisterRoutes(mux *http.ServeMux) {
 
 func statsHandler(w http.ResponseWriter, r *http.Request) {
 	// auth DSN
-	authDSN := "root:4618@tcp(localhost:3306)/acore_auth"
-	charDSN := "root:4618@tcp(localhost:3306)/acore_characters"
+	authDSN := config.AuthDSN()
+	charDSN := config.CharactersDSN()
 
 	stats := &StatsResponse{}
 	stats.Accounts.DailyCounts = make([]DailyCount, 0)
@@ -210,7 +211,7 @@ func handleLogsList(w http.ResponseWriter, r *http.Request) {
 	log.Printf("[Stats] Loading logs for user: %s", username)
 
 	// 2. Fetch Logs
-	dsn := "cpo5704:584579@tcp(121.148.127.135:3306)/update"
+	dsn := config.UpdateDSN()
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		log.Printf("[Stats] DB Open Error: %v", err)

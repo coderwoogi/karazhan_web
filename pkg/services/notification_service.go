@@ -3,6 +3,7 @@ package services
 import (
 	"database/sql"
 	"fmt"
+	"karazhan/pkg/config"
 	"karazhan/pkg/models"
 	"strings"
 )
@@ -58,7 +59,7 @@ func (s *NotificationService) CreateNotificationsByRank(rank int, nType, title, 
 
 // CreateNotificationsAll inserts notifications for all registered accounts
 func (s *NotificationService) CreateNotificationsAll(nType, title, message, link, senderName string) error {
-	dsn := "root:4618@tcp(localhost:3306)/acore_auth"
+	dsn := config.AuthDSN()
 	authDB, err := sql.Open("mysql", dsn)
 	if err != nil {
 		return err

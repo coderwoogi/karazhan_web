@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	db, err := sql.Open("mysql", "cpo5704:584579@tcp(121.148.127.135:3306)/update?charset=utf8mb4&parseTime=True&loc=Local")
+	db, err := sql.Open("mysql", config.UpdateDSNWithParams("charset=utf8mb4&parseTime=True&loc=Local"))
 	if err != nil {
 		log.Fatal(err)
 	}

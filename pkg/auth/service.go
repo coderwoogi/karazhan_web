@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"karazhan/pkg/config"
 	"log"
 	"math/big"
 	"net"
@@ -135,7 +136,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// DB 연결
-	dsn := authDSN()
+	dsn := config.AuthDSN()
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		log.Printf("Auth DB Conn Error: %v", err)
@@ -212,7 +213,7 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// DB 연결
-	dsn := authDSN()
+	dsn := config.AuthDSN()
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		log.Printf("Auth DB Conn Error: %v", err)
@@ -268,7 +269,7 @@ func userStatusHandler(w http.ResponseWriter, r *http.Request) {
 	username := cookie.Value
 
 	// DB 연결
-	dsn := authDSN()
+	dsn := config.AuthDSN()
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		log.Printf("Auth DB Conn Error: %v", err)
@@ -299,7 +300,7 @@ func userStatusHandler(w http.ResponseWriter, r *http.Request) {
 
 	// 1-1. Get Web Rank (from update DB)
 	webRank := 0
-	updateDSN := updateDSN()
+	updateDSN := config.UpdateDSN()
 	updateDB, err := sql.Open("mysql", updateDSN)
 	if err == nil {
 		defer updateDB.Close()
@@ -396,7 +397,7 @@ func userStatusHandler(w http.ResponseWriter, r *http.Request) {
 
 	// 3-1. Get Character Details (from characters DB)
 	if mainCharGUID > 0 {
-		charsDSN := charsDSN()
+		charsDSN := config.CharactersDSN()
 		charsDB, err := sql.Open("mysql", charsDSN)
 		if err == nil {
 			defer charsDB.Close()
@@ -453,7 +454,7 @@ func userCharactersHandler(w http.ResponseWriter, r *http.Request) {
 	username := cookie.Value
 
 	// 1. Get Account ID
-	authDSN := authDSN()
+	authDSN := config.AuthDSN()
 	authDB, err := sql.Open("mysql", authDSN)
 	if err != nil {
 		log.Printf("[ERROR] Auth DB Connect: %v", err)
@@ -471,7 +472,7 @@ func userCharactersHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 2. Fetch Characters
-	charDSN := charsDSN()
+	charDSN := config.CharactersDSN()
 	charDB, err := sql.Open("mysql", charDSN)
 	if err != nil {
 		log.Printf("[ERROR] Char DB Connect: %v", err)
@@ -546,7 +547,7 @@ func handleSetMainCharacter(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 1. Get Account ID
-	authDSN := authDSN()
+	authDSN := config.AuthDSN()
 	authDB, err := sql.Open("mysql", authDSN)
 	if err != nil {
 		http.Error(w, "Auth DB Error", http.StatusInternalServerError)
@@ -566,7 +567,7 @@ func handleSetMainCharacter(w http.ResponseWriter, r *http.Request) {
 	// For now, assuming client sends valid GUID from the list we gave them.
 
 	// 3. Update User Profile
-	updateDSN := updateDSN()
+	updateDSN := config.UpdateDSN()
 	updateDB, err := sql.Open("mysql", updateDSN)
 	if err != nil {
 		http.Error(w, "Update DB Error", http.StatusInternalServerError)
@@ -607,7 +608,7 @@ func adminUserListHandler(w http.ResponseWriter, r *http.Request) {
 	// So we just return.
 
 	// DB 연결
-	dsn := authDSN()
+	dsn := config.AuthDSN()
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		http.Error(w, "Auth DB Connection Error", http.StatusInternalServerError)
@@ -729,7 +730,7 @@ func adminUserListHandler(w http.ResponseWriter, r *http.Request) {
 
 	if len(userIDs) > 0 {
 		// 1. Fetch Points & Web Rank (Update DB)
-		updateDSN := updateDSN()
+		updateDSN := config.UpdateDSN()
 		uDB, err := sql.Open("mysql", updateDSN)
 		if err == nil {
 			defer uDB.Close()
@@ -781,7 +782,7 @@ func adminUserListHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// 2. Fetch Character Counts (Characters DB)
-		charDSN := charsDSN()
+		charDSN := config.CharactersDSN()
 		cDB, err := sql.Open("mysql", charDSN)
 		if err == nil {
 			defer cDB.Close()
@@ -843,7 +844,7 @@ func adminUserUpdateHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// DB 연결
-	dsn := authDSN()
+	dsn := config.AuthDSN()
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		http.Error(w, "Auth DB Connection Error", http.StatusInternalServerError)
@@ -875,7 +876,7 @@ func adminUserUpdateHandler(w http.ResponseWriter, r *http.Request) {
 
 	// 2. Update Web Rank (if provided)
 	if newWebRank != "" {
-		updateDSN := updateDSN()
+		updateDSN := config.UpdateDSN()
 		uDB, err := sql.Open("mysql", updateDSN)
 		if err == nil {
 			defer uDB.Close()
@@ -901,7 +902,7 @@ func adminBanListHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	dsn := authDSN()
+	dsn := config.AuthDSN()
 	db, _ := sql.Open("mysql", dsn)
 	defer db.Close()
 
@@ -991,7 +992,7 @@ func adminBanAddHandler(w http.ResponseWriter, r *http.Request) {
 	duration := r.FormValue("duration") // seconds
 	reason := r.FormValue("reason")
 
-	dsn := authDSN()
+	dsn := config.AuthDSN()
 	db, _ := sql.Open("mysql", dsn)
 	defer db.Close()
 
@@ -1045,7 +1046,7 @@ func adminBanRemoveHandler(w http.ResponseWriter, r *http.Request) {
 	banType := r.FormValue("type")
 	target := r.FormValue("target")
 
-	dsn := authDSN()
+	dsn := config.AuthDSN()
 	db, _ := sql.Open("mysql", dsn)
 	defer db.Close()
 
@@ -1209,7 +1210,7 @@ func checkMenuPermission(w http.ResponseWriter, r *http.Request, menuID string) 
 	}
 	username := cookie.Value
 
-	authDSN := authDSN()
+	authDSN := config.AuthDSN()
 	authDB, err := sql.Open("mysql", authDSN)
 	if err != nil {
 		log.Printf("Auth DB Conn Error: %v", err)
@@ -1228,7 +1229,7 @@ func checkMenuPermission(w http.ResponseWriter, r *http.Request, menuID string) 
 
 	// 2. Get User's Web Rank (from update DB)
 	webRank := 0
-	updateDSN := updateDSN()
+	updateDSN := config.UpdateDSN()
 	updateDB, err := sql.Open("mysql", updateDSN)
 	if err == nil {
 		defer updateDB.Close()
@@ -1257,7 +1258,7 @@ func checkSubMenuPermission(w http.ResponseWriter, r *http.Request, submenuID st
 	}
 	username := cookie.Value
 
-	authDSN := authDSN()
+	authDSN := config.AuthDSN()
 	authDB, err := sql.Open("mysql", authDSN)
 	if err != nil {
 		log.Printf("Auth DB Conn Error: %v", err)
@@ -1274,7 +1275,7 @@ func checkSubMenuPermission(w http.ResponseWriter, r *http.Request, submenuID st
 	}
 
 	webRank := 0
-	updateDSN := updateDSN()
+	updateDSN := config.UpdateDSN()
 	updateDB, err := sql.Open("mysql", updateDSN)
 	if err == nil {
 		defer updateDB.Close()
@@ -1293,7 +1294,7 @@ func checkSubMenuPermission(w http.ResponseWriter, r *http.Request, submenuID st
 
 func serverOnlineHandler(w http.ResponseWriter, r *http.Request) {
 	// Character DB 연결 (온라인 여부는 characters 테이블의 online 컬럼 활용)
-	dsn := charsDSN()
+	dsn := config.CharactersDSN()
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		http.Error(w, "DB Conn Error", http.StatusInternalServerError)
@@ -1389,7 +1390,7 @@ func handleGetServerEventsPublic(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Connect to Update DB
-	dbDSN := updateDSN()
+	dbDSN := config.UpdateDSN()
 	db, err := sql.Open("mysql", dbDSN)
 	if err != nil {
 		log.Printf("[ServerEvents] DB Connection Error: %v", err)
@@ -1453,7 +1454,7 @@ type GameEvent struct {
 
 func handleGetGameEvents(w http.ResponseWriter, r *http.Request) {
 	// Connect to World DB
-	dbDSN := worldDSN()
+	dbDSN := config.WorldDSN()
 	db, err := sql.Open("mysql", dbDSN)
 	if err != nil {
 		log.Printf("[GameEvents] DB Connection Error: %v", err)

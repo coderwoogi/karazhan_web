@@ -3,6 +3,7 @@ package stats
 import (
 	"database/sql"
 	"encoding/json"
+	"karazhan/pkg/config"
 	"log"
 	"net/http"
 	"sort"
@@ -68,7 +69,7 @@ func handleStatsDashboard(w http.ResponseWriter, r *http.Request) {
 	resp := statsDashboardResponse{}
 	fromTime, toTime, useDateFilter := parseDateRange(r)
 
-	authDB, err := sql.Open("mysql", "root:4618@tcp(localhost:3306)/acore_auth")
+	authDB, err := sql.Open("mysql", config.AuthDSN())
 	if err == nil {
 		defer authDB.Close()
 
@@ -180,7 +181,7 @@ func handleStatsDashboard(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	charDB, err := sql.Open("mysql", "root:4618@tcp(localhost:3306)/acore_characters")
+	charDB, err := sql.Open("mysql", config.CharactersDSN())
 	if err == nil {
 		defer charDB.Close()
 
@@ -383,7 +384,7 @@ func handleStatsDashboard(w http.ResponseWriter, r *http.Request) {
 		}
 
 		nameMap := map[int]string{}
-		worldDB, wErr := sql.Open("mysql", "root:4618@tcp(localhost:3306)/acore_world")
+		worldDB, wErr := sql.Open("mysql", config.WorldDSN())
 		if wErr == nil {
 			defer worldDB.Close()
 			for _, it := range items {
