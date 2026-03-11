@@ -335,11 +335,14 @@ function ensureHeaderIcons() {
 
 async function loadEnvironmentBadge() {
     const badge = document.getElementById('header-env-badge');
+    const watermark = document.getElementById('environment-watermark');
     if (!badge) return;
     const session = (window.g_sessionUser && typeof window.g_sessionUser === 'object') ? window.g_sessionUser : null;
     const canSeeBadge = !!(session && (Number(session.gmLevel || 0) >= 2 || session.isAdmin === true || Number(session.webRank || 0) >= 2));
     if (!canSeeBadge) {
         badge.style.display = 'none';
+        badge.classList.remove('dev', 'prod');
+        if (watermark) watermark.style.display = 'none';
         return;
     }
     try {
@@ -349,11 +352,20 @@ async function loadEnvironmentBadge() {
         if (data && data.is_development === true) {
             badge.style.display = 'inline-flex';
             badge.textContent = '개발';
+            badge.classList.remove('prod');
+            badge.classList.add('dev');
+            if (watermark) watermark.style.display = 'inline-flex';
         } else {
-            badge.style.display = 'none';
+            badge.style.display = 'inline-flex';
+            badge.textContent = '운영';
+            badge.classList.remove('dev');
+            badge.classList.add('prod');
+            if (watermark) watermark.style.display = 'none';
         }
     } catch (e) {
         badge.style.display = 'none';
+        badge.classList.remove('dev', 'prod');
+        if (watermark) watermark.style.display = 'none';
     }
 }
 

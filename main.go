@@ -18,6 +18,8 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"os"
+	"strings"
 )
 
 func main() {
@@ -58,9 +60,21 @@ func main() {
 		proxy.ServeHTTP(w, r)
 	})
 
-	port := "8080"
+	appEnv := strings.TrimSpace(os.Getenv("APP_ENV"))
+	if appEnv == "" {
+		appEnv = "development"
+	}
 
-	fmt.Printf("Starting Karazhan Unified Server on port %s...\n", port)
+	port := strings.TrimSpace(os.Getenv("PORT"))
+	if port == "" {
+		if strings.EqualFold(appEnv, "production") || strings.EqualFold(appEnv, "prod") {
+			port = "80"
+		} else {
+			port = "8080"
+		}
+	}
+
+	fmt.Printf("Starting Karazhan Unified Server [%s] on port %s...\n", appEnv, port)
 	fmt.Printf("- Launcher API: http://localhost:%s/api/launcher/latest\n", port)
 	fmt.Printf("- Update Web:   http://localhost:%s/update/\n", port)
 

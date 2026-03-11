@@ -224,7 +224,36 @@
             font-size: 0.8rem;
             font-weight: 900;
             letter-spacing: 0.02em;
+        }
+        .env-badge.dev {
+            background: linear-gradient(180deg, #fef3c7 0%, #f59e0b 100%);
+            color: #111827;
             box-shadow: 0 6px 18px rgba(245, 158, 11, 0.24);
+        }
+        .env-badge.prod {
+            background: linear-gradient(180deg, #dbeafe 0%, #3b82f6 100%);
+            color: #ffffff;
+            box-shadow: 0 6px 18px rgba(59, 130, 246, 0.24);
+        }
+        .environment-watermark {
+            position: fixed;
+            right: 18px;
+            bottom: 18px;
+            z-index: 999;
+            display: none;
+            pointer-events: none;
+            user-select: none;
+            padding: 10px 16px;
+            border-radius: 999px;
+            border: 1px solid rgba(245, 158, 11, 0.28);
+            background: rgba(17, 24, 39, 0.78);
+            color: rgba(254, 243, 199, 0.92);
+            font-size: 0.8rem;
+            font-weight: 900;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 14px 28px rgba(0, 0, 0, 0.18);
         }
         .notification-dropdown {
             margin-top: 10px;
@@ -429,6 +458,7 @@
     </style>
 </head>
 
+<div id="environment-watermark" class="environment-watermark">DEVELOPMENT</div>
 <div class="dashboard-wrapper">
     <!-- Sidebar Navigation -->
     <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
