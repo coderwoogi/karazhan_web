@@ -6,10 +6,10 @@
     function showError(message) {
         if (hasSwal()) {
             window.Swal.fire({
-                title: '로그인 실패',
+                title: '??? ??',
                 text: message,
                 icon: 'error',
-                confirmButtonText: '확인',
+                confirmButtonText: '??',
                 confirmButtonColor: '#3085d6'
             });
             return;
@@ -59,10 +59,10 @@
             }
 
             const text = await response.text();
-            showError(`로그인 실패: ${text}`);
+            showError(`??? ??: ${text}`);
         } catch (err) {
             console.error('Login request failed', err);
-            showError('로그인 요청 중 오류가 발생했습니다.');
+            showError('??? ?? ? ??? ??????.');
         }
     }
 
