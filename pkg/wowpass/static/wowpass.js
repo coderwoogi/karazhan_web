@@ -784,35 +784,23 @@
     }
 
     function getPackCardPositions(count) {
-        const key = clampOpenCount(count);
-        const map = {
-            1: [
-                { x: 40, y: -100 }
-            ],
-            2: [
-                { x: -78, y: -116 },
-                { x: 156, y: -106 }
-            ],
-            3: [
-                { x: 38, y: -250 },
-                { x: -146, y: -6 },
-                { x: 218, y: -2 }
-            ],
-            4: [
-                { x: -82, y: -220 },
-                { x: 158, y: -214 },
-                { x: -76, y: 62 },
-                { x: 164, y: 66 }
-            ],
-            5: [
-                { x: 40, y: -285 },
-                { x: -163, y: -215 },
-                { x: 266, y: -212 },
-                { x: -76, y: 70 },
-                { x: 161, y: 81 }
-            ]
+        const baseSlots = [
+            { x: 40, y: -285 },
+            { x: -163, y: -215 },
+            { x: 266, y: -212 },
+            { x: -76, y: 70 },
+            { x: 161, y: 81 }
+        ];
+        const slotOrderMap = {
+            1: [0],
+            2: [1, 2],
+            3: [0, 1, 2],
+            4: [1, 2, 3, 4],
+            5: [0, 1, 2, 3, 4]
         };
-        return map[key] || map[1];
+        const key = clampOpenCount(count);
+        const order = slotOrderMap[key] || slotOrderMap[1];
+        return order.map((slotIndex) => baseSlots[slotIndex]);
     }
 
     function renderPackScene(rewards) {
