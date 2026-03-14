@@ -1786,26 +1786,27 @@ body {
     filter: grayscale(0.2) brightness(0.72);
 }
 
-.pack-card.ready::after {
+.pack-card.ready .pack-card-inner::after {
     content: "";
     position: absolute;
-    inset: -8px;
-    border-radius: 18px;
+    inset: 0;
+    border-radius: 12px;
     border: 1px solid rgba(153, 212, 255, 0.42);
     box-shadow:
-        0 0 10px rgba(107, 188, 255, 0.16),
-        0 0 22px rgba(87, 155, 255, 0.14),
-        inset 0 0 16px rgba(255, 229, 167, 0.06);
+        0 0 8px rgba(107, 188, 255, 0.18),
+        0 0 16px rgba(87, 155, 255, 0.14),
+        inset 0 0 12px rgba(255, 229, 167, 0.06);
     opacity: 0.9;
     animation: packCardReadyGlow 1.7s ease-in-out infinite;
     pointer-events: none;
+    z-index: 5;
 }
 
-.pack-card.revealed::after {
+.pack-card.revealed .pack-card-inner::after {
     opacity: 0;
 }
 
-.pack-card.is-locked::after {
+.pack-card.is-locked .pack-card-inner::after {
     display: none;
 }
 
