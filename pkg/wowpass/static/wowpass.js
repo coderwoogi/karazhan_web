@@ -806,6 +806,7 @@
             return `
                 <button type="button" class="pack-card ${isOpenable ? "is-openable" : "is-locked"}" data-card-index="${idx}" data-openable="${isOpenable ? "1" : "0"}" data-title="" data-rarity="" data-track="0" data-entry="0" data-icon="${esc(buildIconUrl("inv_misc_questionmark"))}" data-quantity="1" style="--mx:${pos.x}px; --my:${pos.y}px;">
                     <div class="pack-card-inner">
+                        <span class="pack-card-back-glow" aria-hidden="true"></span>
                         <img class="pack-card-face pack-card-back" src="${PACK_BACK}" alt="card back">
                         <div class="pack-card-face pack-card-front rarity-common">
                             <img class="pack-card-front-frame" src="${getCardFrontByRarity("common")}" alt="card front">

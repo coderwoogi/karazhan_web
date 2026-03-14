@@ -1786,18 +1786,29 @@ body {
     filter: grayscale(0.2) brightness(0.72);
 }
 
-.pack-card.ready .pack-card-back {
-    box-shadow:
-        0 0 0 1px rgba(243, 216, 148, 0.72),
-        0 0 10px rgba(239, 199, 110, 0.28),
-        0 0 22px rgba(246, 220, 159, 0.22);
+.pack-card-back-glow {
+    position: absolute;
+    inset: 0;
+    background: center / contain no-repeat url("https://www.hearthcards.net/packs/images/card_back.png");
+    opacity: 0;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.pack-card.ready .pack-card-back-glow {
+    opacity: 1;
+    filter:
+        drop-shadow(0 0 1px rgba(255, 226, 158, 0.82))
+        drop-shadow(0 0 7px rgba(239, 199, 110, 0.3))
+        drop-shadow(0 0 16px rgba(246, 220, 159, 0.24));
     animation: packCardReadyGlow 1.7s ease-in-out infinite;
 }
 
-.pack-card.revealed .pack-card-back,
-.pack-card.is-locked .pack-card-back {
-    box-shadow: none;
+.pack-card.revealed .pack-card-back-glow,
+.pack-card.is-locked .pack-card-back-glow {
+    opacity: 0;
     animation: none;
+    filter: none;
 }
 
 .pack-card-inner {
@@ -1823,11 +1834,16 @@ body {
     -webkit-backface-visibility: hidden;
 }
 
+.pack-card-back {
+    z-index: 2;
+}
+
 .pack-card-front {
     transform: rotateY(180deg);
     overflow: hidden;
     /* border: 1px solid rgba(255, 255, 255, 0.35); */
     box-shadow: 0 12px 24px rgba(0, 0, 0, 0.4);
+    z-index: 3;
 }
 
 .pack-card-front-frame {
@@ -1893,22 +1909,22 @@ body {
 
 @keyframes packCardReadyGlow {
     0% {
-        box-shadow:
-            0 0 0 1px rgba(231, 205, 140, 0.58),
-            0 0 8px rgba(231, 193, 103, 0.18),
-            0 0 18px rgba(239, 214, 152, 0.14);
+        filter:
+            drop-shadow(0 0 1px rgba(231, 205, 140, 0.58))
+            drop-shadow(0 0 6px rgba(231, 193, 103, 0.18))
+            drop-shadow(0 0 14px rgba(239, 214, 152, 0.14));
     }
     50% {
-        box-shadow:
-            0 0 0 1px rgba(255, 225, 156, 0.82),
-            0 0 12px rgba(255, 214, 120, 0.3),
-            0 0 24px rgba(255, 233, 177, 0.24);
+        filter:
+            drop-shadow(0 0 1px rgba(255, 225, 156, 0.82))
+            drop-shadow(0 0 9px rgba(255, 214, 120, 0.3))
+            drop-shadow(0 0 20px rgba(255, 233, 177, 0.24));
     }
     100% {
-        box-shadow:
-            0 0 0 1px rgba(231, 205, 140, 0.58),
-            0 0 8px rgba(231, 193, 103, 0.18),
-            0 0 18px rgba(239, 214, 152, 0.14);
+        filter:
+            drop-shadow(0 0 1px rgba(231, 205, 140, 0.58))
+            drop-shadow(0 0 6px rgba(231, 193, 103, 0.18))
+            drop-shadow(0 0 14px rgba(239, 214, 152, 0.14));
     }
 }
 
