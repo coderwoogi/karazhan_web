@@ -804,19 +804,35 @@
     }
 
     function renderPackScene(rewards) {
-        const positions = getPackCardPositions(rewards.length);
-        const cards = rewards.map((r, idx) => {
-            const iconUrl = String(r.iconUrl || "").trim()
-                || (String(r.icon || "").trim() ? buildIconUrl(r.icon) : buildIconUrl("inv_misc_questionmark"));
-            const pos = positions[idx] || { x: 0, y: 0 };
+        const baseSlots = [
+            { x: 40, y: -285 },
+            { x: -163, y: -215 },
+            { x: 266, y: -212 },
+            { x: -76, y: 70 },
+            { x: 161, y: 81 }
+        ];
+        const activePositions = getPackCardPositions(rewards.length);
+        const activeSlotMap = activePositions.map((pos) => `${pos.x}:${pos.y}`);
+        const rewardBySlot = new Map();
+        activePositions.forEach((pos, idx) => {
+            rewardBySlot.set(`${pos.x}:${pos.y}`, rewards[idx]);
+        });
+
+        const cards = baseSlots.map((pos, idx) => {
+            const reward = rewardBySlot.get(`${pos.x}:${pos.y}`) || null;
+            const isOpenable = !!reward;
+            const iconUrl = reward
+                ? (String(reward.iconUrl || "").trim()
+                    || (String(reward.icon || "").trim() ? buildIconUrl(reward.icon) : buildIconUrl("inv_misc_questionmark")))
+                : buildIconUrl("inv_misc_questionmark");
             return `
-                <button type="button" class="pack-card" data-card-index="${idx}" data-title="${esc(r.title)}" data-rarity="${esc(r.rarityLabel)}" data-track="${r.level}" data-entry="${Number(r.itemEntry || 0)}" data-icon="${esc(iconUrl)}" data-quantity="${Number(r.quantity || 1)}" style="--mx:${pos.x}px; --my:${pos.y}px;">
+                <button type="button" class="pack-card ${isOpenable ? "is-openable" : "is-locked"}" data-card-index="${idx}" data-openable="${isOpenable ? "1" : "0"}" data-title="${esc(reward ? reward.title : "")}" data-rarity="${esc(reward ? reward.rarityLabel : "")}" data-track="${reward ? reward.level : 0}" data-entry="${Number(reward && reward.itemEntry ? reward.itemEntry : 0)}" data-icon="${esc(iconUrl)}" data-quantity="${Number(reward && reward.quantity ? reward.quantity : 1)}" style="--mx:${pos.x}px; --my:${pos.y}px;">
                     <div class="pack-card-inner">
                         <img class="pack-card-face pack-card-back" src="${PACK_BACK}" alt="card back">
-                        <div class="pack-card-face pack-card-front rarity-${esc(r.rarity)}">
-                            <img class="pack-card-front-frame" src="${getCardFrontByRarity(r.rarity)}" alt="card front">
-                            <img class="pack-card-item-icon" data-entry="${Number(r.itemEntry || 0)}" src="${esc(iconUrl)}" alt="item icon">
-                            <div class="pack-card-item-desc">${wrapWithWowheadItemLink(r.itemEntry, esc(r.title || r.description || "아이템"), r.title || r.description || "아이템")}</div>
+                        <div class="pack-card-face pack-card-front rarity-${esc(reward ? reward.rarity : "common")}">
+                            <img class="pack-card-front-frame" src="${getCardFrontByRarity(reward ? reward.rarity : "common")}" alt="card front">
+                            <img class="pack-card-item-icon" data-entry="${Number(reward && reward.itemEntry ? reward.itemEntry : 0)}" src="${esc(iconUrl)}" alt="item icon">
+                            <div class="pack-card-item-desc">${reward ? wrapWithWowheadItemLink(reward.itemEntry, esc(reward.title || reward.description || "아이템"), reward.title || reward.description || "아이템") : "오픈 대기 중"}</div>
                         </div>
                     </div>
                 </button>
@@ -926,7 +942,13 @@
         const enableCards = () => {
             cardsWrap.classList.add("show");
             cardsWrap.setAttribute("aria-hidden", "false");
-            cards.forEach((card) => card.classList.add("ready"));
+            cards.forEach((card) => {
+                if (String(card.dataset.openable || "0") === "1") {
+                    card.classList.add("ready");
+                } else {
+                    card.classList.remove("ready");
+                }
+            });
         };
 
         const playDeckSequence = () => {
@@ -1105,6 +1127,7 @@
         cards.forEach((card) => {
             card.addEventListener("click", () => {
                 if (!cardsWrap.classList.contains("show")) return;
+                if (String(card.dataset.openable || "0") !== "1") return;
                 if (card.classList.contains("revealed")) return;
                 card.classList.add("revealed");
                 const pickedTitle = String(card.dataset.title || "").trim();
@@ -1116,7 +1139,8 @@
                     rarityLabel: card.dataset.rarity || "일반",
                     iconUrl: card.dataset.icon || ""
                 });
-                if (cards.every((v) => v.classList.contains("revealed"))) {
+                const openableCards = cards.filter((v) => String(v.dataset.openable || "0") === "1");
+                if (openableCards.length > 0 && openableCards.every((v) => v.classList.contains("revealed"))) {
                     scene.classList.add("all-revealed");
                     showCloseBtn();
                 }

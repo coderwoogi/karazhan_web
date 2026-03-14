@@ -1777,6 +1777,15 @@ body {
     opacity: 1;
 }
 
+.pack-card.is-locked {
+    opacity: 1;
+    cursor: default;
+}
+
+.pack-card.is-locked .pack-card-back {
+    filter: grayscale(0.2) brightness(0.72);
+}
+
 .pack-card.ready::after {
     content: "";
     position: absolute;
@@ -1794,6 +1803,10 @@ body {
 
 .pack-card.revealed::after {
     opacity: 0;
+}
+
+.pack-card.is-locked::after {
+    display: none;
 }
 
 .pack-card-inner {
