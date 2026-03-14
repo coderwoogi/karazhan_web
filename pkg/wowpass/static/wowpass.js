@@ -1099,17 +1099,27 @@
                 void (async () => {
                     try {
                         const reward = await openPackCard(Number(card.dataset.cardIndex || 0));
+                        const rewardEntry = Number(reward && reward.itemEntry ? reward.itemEntry : 0);
                         const quantity = Math.max(1, Number(reward && reward.quantity ? reward.quantity : 1));
                         const baseName = String(reward && reward.name ? reward.name : "").trim() || "알 수 없는 아이템";
                         const resolvedName = quantity > 1 ? `${baseName} x${quantity}` : baseName;
                         const rarityCode = mapPoolRarityCode(reward && reward.rarity ? reward.rarity : "");
                         const rarityLabel = mapPoolRarityLabel(reward && reward.rarity ? reward.rarity : "", reward && reward.rarityLabel ? reward.rarityLabel : "일반");
-                        const iconUrl = String(reward && reward.iconUrl ? reward.iconUrl : "").trim()
-                            || (String(reward && reward.icon ? reward.icon : "").trim() ? buildIconUrl(reward.icon) : buildIconUrl("inv_misc_questionmark"));
+                        let iconUrl = String(reward && reward.iconUrl ? reward.iconUrl : "").trim()
+                            || (String(reward && reward.icon ? reward.icon : "").trim() ? buildIconUrl(reward.icon) : "");
+                        if (!iconUrl || iconUrl.includes("inv_misc_questionmark")) {
+                            const resolvedIconUrl = await resolveIconUrlByEntry(rewardEntry);
+                            if (resolvedIconUrl) {
+                                iconUrl = resolvedIconUrl;
+                            }
+                        }
+                        if (!iconUrl) {
+                            iconUrl = buildIconUrl("inv_misc_questionmark");
+                        }
                         card.dataset.title = resolvedName;
                         card.dataset.rarity = rarityLabel;
                         card.dataset.track = String(Number(targetTrack && targetTrack.level ? targetTrack.level : 1));
-                        card.dataset.entry = String(Number(reward && reward.itemEntry ? reward.itemEntry : 0));
+                        card.dataset.entry = String(rewardEntry);
                         card.dataset.icon = iconUrl;
                         card.dataset.quantity = String(quantity);
                         const front = card.querySelector(".pack-card-front");
@@ -1124,17 +1134,17 @@
                         }
                         if (icon) {
                             icon.src = iconUrl;
-                            icon.dataset.entry = String(Number(reward && reward.itemEntry ? reward.itemEntry : 0));
+                            icon.dataset.entry = String(rewardEntry);
                         }
                         if (desc) {
-                            desc.innerHTML = wrapWithWowheadItemLink(Number(reward && reward.itemEntry ? reward.itemEntry : 0), esc(resolvedName), resolvedName);
+                            desc.innerHTML = wrapWithWowheadItemLink(rewardEntry, esc(resolvedName), resolvedName);
                         }
                         refreshWowheadTooltips();
                         card.classList.add("revealed");
                         addObtainedItem({
                             itemName: resolvedName,
                             title: resolvedName,
-                            itemEntry: Number(reward && reward.itemEntry ? reward.itemEntry : 0),
+                            itemEntry: rewardEntry,
                             rarityLabel,
                             iconUrl
                         });
