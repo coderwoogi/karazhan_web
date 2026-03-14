@@ -418,10 +418,17 @@ func handleCardDrawDraw(w http.ResponseWriter, r *http.Request) {
 
 	var req struct {
 		TrackLevel   int    `json:"trackLevel"`
+		DrawCount    int    `json:"drawCount"`
 		RewardEntry  int    `json:"rewardEntry"`
 		RewardName   string `json:"rewardName"`
 		RewardIcon   string `json:"rewardIcon"`
 		RewardRarity string `json:"rewardRarity"`
+		Rewards      []struct {
+			RewardEntry  int    `json:"rewardEntry"`
+			RewardName   string `json:"rewardName"`
+			RewardIcon   string `json:"rewardIcon"`
+			RewardRarity string `json:"rewardRarity"`
+		} `json:"rewards"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "카드 뽑기 요청이 올바르지 않습니다."})
@@ -434,13 +441,74 @@ func handleCardDrawDraw(w http.ResponseWriter, r *http.Request) {
 		req.TrackLevel = 1
 	}
 
-	if req.RewardEntry > 0 {
-		if worldName, e := fetchWorldItemName(req.RewardEntry); e == nil && strings.TrimSpace(worldName) != "" {
-			req.RewardName = strings.TrimSpace(worldName)
-		}
+	type drawRewardLog struct {
+		Entry  int
+		Name   string
+		Icon   string
+		Rarity string
 	}
-	if strings.TrimSpace(req.RewardName) == "" {
-		req.RewardName = "알 수 없는 아이템"
+
+	rewardLogs := make([]drawRewardLog, 0, 5)
+	for _, reward := range req.Rewards {
+		row := drawRewardLog{
+			Entry:  reward.RewardEntry,
+			Name:   strings.TrimSpace(reward.RewardName),
+			Icon:   strings.TrimSpace(reward.RewardIcon),
+			Rarity: strings.TrimSpace(reward.RewardRarity),
+		}
+		if row.Entry > 0 {
+			if worldName, e := fetchWorldItemName(row.Entry); e == nil && strings.TrimSpace(worldName) != "" {
+				row.Name = strings.TrimSpace(worldName)
+			}
+		}
+		if row.Name == "" {
+			row.Name = "알 수 없는 아이템"
+		}
+		if row.Rarity == "" {
+			row.Rarity = "일반"
+		}
+		rewardLogs = append(rewardLogs, row)
+	}
+	if len(rewardLogs) == 0 {
+		row := drawRewardLog{
+			Entry:  req.RewardEntry,
+			Name:   strings.TrimSpace(req.RewardName),
+			Icon:   strings.TrimSpace(req.RewardIcon),
+			Rarity: strings.TrimSpace(req.RewardRarity),
+		}
+		if row.Entry > 0 {
+			if worldName, e := fetchWorldItemName(row.Entry); e == nil && strings.TrimSpace(worldName) != "" {
+				row.Name = strings.TrimSpace(worldName)
+			}
+		}
+		if row.Name == "" {
+			row.Name = "알 수 없는 아이템"
+		}
+		if row.Rarity == "" {
+			row.Rarity = "일반"
+		}
+		rewardLogs = append(rewardLogs, row)
+	}
+
+	requestedDrawCount := req.DrawCount
+	if requestedDrawCount <= 0 {
+		requestedDrawCount = len(rewardLogs)
+	}
+	if requestedDrawCount <= 0 {
+		requestedDrawCount = 1
+	}
+	if requestedDrawCount > 5 {
+		requestedDrawCount = 5
+	}
+	if len(rewardLogs) > requestedDrawCount {
+		rewardLogs = rewardLogs[:requestedDrawCount]
+	}
+	if len(rewardLogs) < requestedDrawCount {
+		requestedDrawCount = len(rewardLogs)
+	}
+	if requestedDrawCount <= 0 {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "카드 뽑기 요청이 올바르지 않습니다."})
+		return
 	}
 
 	updateDB, err := sql.Open("mysql", updateDSN)
@@ -490,15 +558,20 @@ func handleCardDrawDraw(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "카드 뽑기 가능 횟수가 없습니다."})
 		return
 	}
+	if drawCount < requestedDrawCount {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "선택한 횟수만큼 카드 뽑기 가능 횟수가 없습니다."})
+		return
+	}
 
-	newCount := drawCount - 1
+	newCount := drawCount - requestedDrawCount
 	if _, err := tx.Exec("UPDATE user_profiles SET carddraw_draw_count = ? WHERE user_id = ?", newCount, userID); err != nil {
 		log.Printf("[carddraw/draw] draw_count update error user_id=%d err=%v", userID, err)
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "카드 뽑기에 실패했습니다."})
 		return
 	}
 
-	if _, err := tx.Exec(`
+	for _, reward := range rewardLogs {
+		if _, err := tx.Exec(`
         INSERT INTO carddraw_draw_logs
         (
             user_id, username,
@@ -506,9 +579,10 @@ func handleCardDrawDraw(w http.ResponseWriter, r *http.Request) {
             track_level, reward_name, reward_icon, reward_rarity
         )
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `, userID, username, selected.Guid, selected.Name, selected.Race, selected.Class, selected.Gender, selected.Level, req.TrackLevel, req.RewardName, req.RewardIcon, req.RewardRarity); err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "카드 뽑기 로그 기록에 실패했습니다."})
-		return
+    `, userID, username, selected.Guid, selected.Name, selected.Race, selected.Class, selected.Gender, selected.Level, req.TrackLevel, reward.Name, reward.Icon, reward.Rarity); err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "카드 뽑기 로그 기록에 실패했습니다."})
+			return
+		}
 	}
 
 	if err := tx.Commit(); err != nil {

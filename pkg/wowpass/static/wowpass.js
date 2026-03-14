@@ -36,6 +36,7 @@
 
     let activeTrackLevel = 0;
     let drawCount = 0;
+    let selectedOpenCount = 1;
     let selectedCharacter = null;
     const obtainedItems = [];
     let cachedCharacters = [];
@@ -194,6 +195,37 @@
         if (itemEntry <= 0) return innerHtml;
         return `<span title="${safeTitle}" data-item-entry="${itemEntry}" onmouseenter="showCarddrawItemTooltip(event, ${itemEntry})" onmousemove="moveCarddrawItemTooltip(event)" onmouseleave="hideCarddrawItemTooltip()" style="text-decoration:none; color:inherit; cursor:help;">${innerHtml}</span>`;
     }
+
+    function clampOpenCount(value) {
+        const parsed = Number(value || 1);
+        if (!Number.isFinite(parsed)) return 1;
+        return Math.max(1, Math.min(5, Math.floor(parsed)));
+    }
+
+    function getEffectiveOpenCount() {
+        return clampOpenCount(selectedOpenCount);
+    }
+
+    function syncOpenCountButtons() {
+        const current = getEffectiveOpenCount();
+        const available = Math.max(0, Number(drawCount || 0));
+        document.querySelectorAll(".carddraw-count-btn").forEach((btn) => {
+            const value = clampOpenCount(btn.getAttribute("data-open-count"));
+            btn.classList.toggle("active", value === current);
+            btn.disabled = available > 0 ? value > available : false;
+        });
+    }
+
+    window.setCarddrawOpenCount = function (count) {
+        const next = clampOpenCount(count);
+        const available = Math.max(0, Number(drawCount || 0));
+        if (available > 0 && next > available) {
+            selectedOpenCount = clampOpenCount(Math.min(available, 5));
+        } else {
+            selectedOpenCount = next;
+        }
+        syncOpenCountButtons();
+    };
 
     function refreshWowheadTooltips() {}
 
@@ -478,20 +510,26 @@
         }
     }
 
-    async function openNextPack() {
+    async function openNextPack(openCount) {
         const unopened = tracks.find((t) => !t.opened);
         const target = unopened || tracks[Math.floor(Math.random() * tracks.length)];
         if (!target) return;
         if (unopened) {
-            await window.openRewardModal(unopened.level);
+            await window.openRewardModal(unopened.level, openCount);
             return;
         }
-        await window.openRewardModal(target.level);
+        await window.openRewardModal(target.level, openCount);
     }
 
     function refreshSummary() {
         const drawAvailableEl = document.getElementById("draw-available-count");
         if (drawAvailableEl) drawAvailableEl.textContent = String(Math.max(0, Number(drawCount || 0)));
+        if (Number(drawCount || 0) <= 0) {
+            selectedOpenCount = 1;
+        } else if (selectedOpenCount > drawCount) {
+            selectedOpenCount = clampOpenCount(drawCount);
+        }
+        syncOpenCountButtons();
     }
 
     async function loadCardDrawState() {
@@ -567,17 +605,22 @@
         }
     }
 
-    async function requestDraw(track) {
+    async function requestDraw(track, rewards) {
+        const rewardRows = Array.isArray(rewards) ? rewards.filter(Boolean) : [];
+        const consumeCount = clampOpenCount(rewardRows.length || 1);
         try {
             const res = await fetch("/api/carddraw/draw", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     trackLevel: Number(track && track.level ? track.level : 1),
-                    rewardEntry: Number(track && track.itemEntry ? track.itemEntry : 0),
-                    rewardName: track && track.title ? track.title : "",
-                    rewardIcon: track && track.icon ? track.icon : "",
-                    rewardRarity: track && track.rarityLabel ? track.rarityLabel : "일반"
+                    drawCount: consumeCount,
+                    rewards: rewardRows.map((reward) => ({
+                        rewardEntry: Number(reward && reward.itemEntry ? reward.itemEntry : 0),
+                        rewardName: reward && reward.title ? reward.title : "",
+                        rewardIcon: reward && reward.icon ? reward.icon : "",
+                        rewardRarity: reward && reward.rarityLabel ? reward.rarityLabel : "일반"
+                    }))
                 })
             });
             const data = await res.json().catch(() => ({}));
@@ -683,8 +726,9 @@
         return fallback || "일반";
     }
 
-    async function buildPackRewards(baseTrack) {
-        const res = await fetch("/api/carddraw/pool/random?count=5", {
+    async function buildPackRewards(baseTrack, rewardCount) {
+        const count = clampOpenCount(rewardCount);
+        const res = await fetch(`/api/carddraw/pool/random?count=${count}`, {
             method: "GET",
             credentials: "same-origin",
             cache: "no-store"
@@ -729,20 +773,46 @@
         return resolved;
     }
 
+    function getPackCardPositions(count) {
+        const key = clampOpenCount(count);
+        const map = {
+            1: [
+                { x: 40, y: -100 }
+            ],
+            2: [
+                { x: -78, y: -116 },
+                { x: 156, y: -106 }
+            ],
+            3: [
+                { x: 38, y: -250 },
+                { x: -146, y: -6 },
+                { x: 218, y: -2 }
+            ],
+            4: [
+                { x: -82, y: -220 },
+                { x: 158, y: -214 },
+                { x: -76, y: 62 },
+                { x: 164, y: 66 }
+            ],
+            5: [
+                { x: 40, y: -285 },
+                { x: -163, y: -215 },
+                { x: 266, y: -212 },
+                { x: -76, y: 70 },
+                { x: 161, y: 81 }
+            ]
+        };
+        return map[key] || map[1];
+    }
+
     function renderPackScene(rewards) {
-        const positions = [
-            { x: 40, y: -285 },
-            { x: -163, y: -215 },
-            { x: 266, y: -212 },
-            { x: -76, y: 70 },
-            { x: 161, y: 81 }
-        ];
+        const positions = getPackCardPositions(rewards.length);
         const cards = rewards.map((r, idx) => {
             const iconUrl = String(r.iconUrl || "").trim()
                 || (String(r.icon || "").trim() ? buildIconUrl(r.icon) : buildIconUrl("inv_misc_questionmark"));
             const pos = positions[idx] || { x: 0, y: 0 };
             return `
-                <button type="button" class="pack-card" data-card-index="${idx}" data-title="${esc(r.title)}" data-rarity="${esc(r.rarityLabel)}" data-track="${r.level}" data-entry="${Number(r.itemEntry || 0)}" data-icon="${esc(iconUrl)}" style="--mx:${pos.x}px; --my:${pos.y}px;">
+                <button type="button" class="pack-card" data-card-index="${idx}" data-title="${esc(r.title)}" data-rarity="${esc(r.rarityLabel)}" data-track="${r.level}" data-entry="${Number(r.itemEntry || 0)}" data-icon="${esc(iconUrl)}" data-quantity="${Number(r.quantity || 1)}" style="--mx:${pos.x}px; --my:${pos.y}px;">
                     <div class="pack-card-inner">
                         <img class="pack-card-face pack-card-back" src="${PACK_BACK}" alt="card back">
                         <div class="pack-card-face pack-card-front rarity-${esc(r.rarity)}">
@@ -780,7 +850,7 @@
         `;
     }
 
-    function initPackInteraction(stage, targetTrack) {
+    function initPackInteraction(stage, targetTrack, rewards) {
         const closeBtn = document.querySelector("#reward-modal .modal-close");
         const showCloseBtn = () => {
             if (!closeBtn) return;
@@ -912,7 +982,7 @@
         async function openPackWithAnimation() {
             if (packOpened || openingInProgress) return;
             openingInProgress = true;
-            const ok = await requestDraw(targetTrack);
+            const ok = await requestDraw(targetTrack, rewards);
             if (!ok) {
                 openingInProgress = false;
                 packZone.classList.remove("is-opened");
@@ -1056,10 +1126,11 @@
         });
     }
 
-    window.openRewardModal = async function (level) {
+    window.openRewardModal = async function (level, openCount) {
         const t = tracks.find((row) => row.level === Number(level));
         if (!t) return;
         activeTrackLevel = t.level;
+        const rewardCount = clampOpenCount(openCount || selectedOpenCount);
 
         const modal = document.getElementById("reward-modal");
         const stage = document.getElementById("reveal-stage");
@@ -1074,9 +1145,9 @@
         modal.style.display = "flex";
         stage.innerHTML = `<div style="height:100%; display:flex; align-items:center; justify-content:center; color:#cbd5e1;">보상 정보를 불러오는 중...</div>`;
         try {
-            const rewards = await buildPackRewards(t);
+            const rewards = await buildPackRewards(t, rewardCount);
             stage.innerHTML = renderPackScene(rewards);
-            initPackInteraction(stage, t);
+            initPackInteraction(stage, t, rewards);
         } catch (e) {
             window.closeRewardModal();
             await showCarddrawNotice((e && e.message) || "카드뽑기 품목을 불러오지 못했습니다.", "카드 뽑기");
@@ -1135,7 +1206,12 @@
             await showCarddrawNotice("카드 뽑기 가능 횟수가 없어 카드 뽑기가 불가능 합니다.", "경고");
             return;
         }
-        await openNextPack();
+        const openCount = getEffectiveOpenCount();
+        if (openCount > Number(drawCount || 0)) {
+            await showCarddrawNotice(`선택한 카드 오픈 수량(${openCount}회)보다 보유 횟수가 부족합니다.`, "경고");
+            return;
+        }
+        await openNextPack(openCount);
     };
 
     window.openCharacterPickerModal = function () {
@@ -1153,6 +1229,7 @@
     document.addEventListener("DOMContentLoaded", () => {
         renderObtainedViews();
         loadCardDrawState();
+        syncOpenCountButtons();
 
         carddrawHoverAudio = new Audio(SOUND_CARDDRAW_HOVER);
         carddrawHoverAudio.preload = "auto";

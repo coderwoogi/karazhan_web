@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=61">
+    <link rel="stylesheet" href="style.css?v=62">
     <script>
         var whTooltips = {
             colorLinks: false,
@@ -47,7 +47,7 @@
                 <p class="hero-kicker">WORLD OF WARCRAFT KARAZHAN SERVER</p>
                 <h1>WRATH OF THE LICH KING</h1>
                 <p class="hero-sub">차가운 카드 뽑기</p>
-                <p class="hero-desc">카드뽑기는 보유한 뽑기 횟수를 사용해 5장의 카드를 공개하고, 각 카드마다 일반·희귀·레어·전설 보상을 획득하는 시스템입니다. 공개된 결과는 즉시 획득 목록에 기록되며, 선택한 대표 캐릭터 기준으로 보상을 확인할 수 있습니다. 카드뽑기 횟수는 선술집, 퀘스트, 사냥, 던전 등을 통해 랜덤하게 얻을 수 있습니다.</p>
+                <p class="hero-desc">카드뽑기는 보유한 뽑기 횟수를 사용해 1회부터 5회까지 원하는 만큼 카드를 공개하고, 각 카드마다 일반·희귀·레어·전설 보상을 획득하는 시스템입니다. 공개된 결과는 즉시 획득 목록에 기록되며, 선택한 대표 캐릭터 기준으로 보상을 확인할 수 있습니다. 카드뽑기 횟수는 선술집, 퀘스트, 사냥, 던전 등을 통해 랜덤하게 얻을 수 있습니다.</p>
             </div>
             </section>
             <aside class="hero-side-actions">
@@ -55,6 +55,16 @@
                 <div class="summary-item hero-side-count">
                     <span>카드뽑기 가능 횟수</span>
                     <strong id="draw-available-count">0</strong>
+                </div>
+                <div class="carddraw-count-picker" aria-label="카드 오픈 수 선택">
+                    <span class="carddraw-count-picker-label">오픈 수량</span>
+                    <div class="carddraw-count-picker-buttons">
+                        <button type="button" class="carddraw-count-btn active" data-open-count="1" onclick="setCarddrawOpenCount(1)">1회</button>
+                        <button type="button" class="carddraw-count-btn" data-open-count="2" onclick="setCarddrawOpenCount(2)">2회</button>
+                        <button type="button" class="carddraw-count-btn" data-open-count="3" onclick="setCarddrawOpenCount(3)">3회</button>
+                        <button type="button" class="carddraw-count-btn" data-open-count="4" onclick="setCarddrawOpenCount(4)">4회</button>
+                        <button type="button" class="carddraw-count-btn" data-open-count="5" onclick="setCarddrawOpenCount(5)">5회</button>
+                    </div>
                 </div>
                 <button type="button" class="hero-btn primary hero-side-btn hero-side-btn-main" onclick="openFirstTrack()">
                     <img src="/img/carddraw.png" alt="카드 뽑기">
@@ -189,6 +199,6 @@
         </div>
     </div>
 
-    <script src="wowpass.js?v=78"></script>
+    <script src="wowpass.js?v=79"></script>
 </body>
 </html>
