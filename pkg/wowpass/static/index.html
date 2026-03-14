@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=62">
+    <link rel="stylesheet" href="style.css?v=63">
     <script>
         var whTooltips = {
             colorLinks: false,
@@ -58,12 +58,13 @@
                 </div>
                 <div class="carddraw-count-picker" aria-label="카드 오픈 수 선택">
                     <span class="carddraw-count-picker-label">오픈 수량</span>
-                    <div class="carddraw-count-picker-buttons">
-                        <button type="button" class="carddraw-count-btn active" data-open-count="1" onclick="setCarddrawOpenCount(1)">1회</button>
-                        <button type="button" class="carddraw-count-btn" data-open-count="2" onclick="setCarddrawOpenCount(2)">2회</button>
-                        <button type="button" class="carddraw-count-btn" data-open-count="3" onclick="setCarddrawOpenCount(3)">3회</button>
-                        <button type="button" class="carddraw-count-btn" data-open-count="4" onclick="setCarddrawOpenCount(4)">4회</button>
-                        <button type="button" class="carddraw-count-btn" data-open-count="5" onclick="setCarddrawOpenCount(5)">5회</button>
+                    <div class="carddraw-count-stepper">
+                        <button type="button" class="carddraw-count-step-btn" id="carddraw-count-decrease" aria-label="오픈 수량 감소" onclick="changeCarddrawOpenCount(-1)">-</button>
+                        <div class="carddraw-count-value-box">
+                            <strong id="carddraw-open-count-value">1</strong>
+                            <span>회</span>
+                        </div>
+                        <button type="button" class="carddraw-count-step-btn" id="carddraw-count-increase" aria-label="오픈 수량 증가" onclick="changeCarddrawOpenCount(1)">+</button>
                     </div>
                 </div>
                 <button type="button" class="hero-btn primary hero-side-btn hero-side-btn-main" onclick="openFirstTrack()">
@@ -199,6 +200,6 @@
         </div>
     </div>
 
-    <script src="wowpass.js?v=79"></script>
+    <script src="wowpass.js?v=80"></script>
 </body>
 </html>

@@ -207,7 +207,7 @@ body {
 .hero-side-actions {
     display: grid;
     grid-template-columns: 1fr;
-    grid-template-rows: 1fr 1.2fr 1.6fr;
+    grid-template-rows: auto auto auto minmax(116px, 1fr);
     gap: 8px;
     align-content: start;
     height: 100%;
@@ -288,45 +288,65 @@ body {
     color: #8cb7d9;
 }
 
-.carddraw-count-picker-buttons {
+.carddraw-count-stepper {
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 8px;
+    grid-template-columns: 54px minmax(0, 1fr) 54px;
+    align-items: center;
+    gap: 10px;
 }
 
-.carddraw-count-btn {
-    min-height: 40px;
-    border-radius: 12px;
+.carddraw-count-step-btn {
+    width: 54px;
+    height: 54px;
+    border-radius: 14px;
     border: 1px solid rgba(114, 164, 206, 0.32);
     background: rgba(17, 35, 62, 0.88);
     color: #dbeeff;
-    font-size: 0.9rem;
-    font-weight: 800;
+    font-size: 1.45rem;
+    font-weight: 900;
     cursor: pointer;
     transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 
-.carddraw-count-btn:hover:not(:disabled) {
+.carddraw-count-step-btn:hover:not(:disabled) {
     border-color: rgba(188, 227, 255, 0.5);
     background: rgba(31, 57, 95, 0.96);
     transform: translateY(-1px);
 }
 
-.carddraw-count-btn.active {
-    border-color: rgba(243, 197, 106, 0.72);
-    background: linear-gradient(180deg, rgba(196, 151, 65, 0.95), rgba(140, 102, 29, 0.95));
-    color: #10151d;
-    box-shadow: 0 0 0 1px rgba(255, 223, 155, 0.18), 0 8px 18px rgba(176, 130, 49, 0.24);
-}
-
-.carddraw-count-btn:disabled {
+.carddraw-count-step-btn:disabled {
     opacity: 0.38;
     cursor: not-allowed;
 }
 
+.carddraw-count-value-box {
+    min-height: 54px;
+    border-radius: 14px;
+    border: 1px solid rgba(243, 197, 106, 0.44);
+    background: linear-gradient(180deg, rgba(33, 47, 74, 0.92), rgba(14, 23, 43, 0.92));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.carddraw-count-value-box strong {
+    font-size: 1.5rem;
+    line-height: 1;
+    font-weight: 900;
+    color: #f6f8ff;
+}
+
+.carddraw-count-value-box span {
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: #9cc7e5;
+}
+
 .hero-side-btn-main {
-    min-height: 0;
-    height: 100%;
+    min-height: 116px;
+    height: auto;
     font-size: 1.02rem;
     background: transparent !important;
     border: none !important;

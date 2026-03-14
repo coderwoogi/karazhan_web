@@ -209,11 +209,15 @@
     function syncOpenCountButtons() {
         const current = getEffectiveOpenCount();
         const available = Math.max(0, Number(drawCount || 0));
-        document.querySelectorAll(".carddraw-count-btn").forEach((btn) => {
-            const value = clampOpenCount(btn.getAttribute("data-open-count"));
-            btn.classList.toggle("active", value === current);
-            btn.disabled = available > 0 ? value > available : false;
-        });
+        const valueEl = document.getElementById("carddraw-open-count-value");
+        const decreaseBtn = document.getElementById("carddraw-count-decrease");
+        const increaseBtn = document.getElementById("carddraw-count-increase");
+        if (valueEl) valueEl.textContent = String(current);
+        if (decreaseBtn) decreaseBtn.disabled = current <= 1;
+        if (increaseBtn) {
+            const maxAvailable = available > 0 ? Math.min(5, available) : 5;
+            increaseBtn.disabled = current >= maxAvailable;
+        }
     }
 
     window.setCarddrawOpenCount = function (count) {
@@ -225,6 +229,12 @@
             selectedOpenCount = next;
         }
         syncOpenCountButtons();
+    };
+
+    window.changeCarddrawOpenCount = function (delta) {
+        const step = Number(delta || 0);
+        if (!Number.isFinite(step) || step === 0) return;
+        window.setCarddrawOpenCount(getEffectiveOpenCount() + step);
     };
 
     function refreshWowheadTooltips() {}
