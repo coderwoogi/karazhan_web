@@ -38,6 +38,7 @@
     let drawCount = 0;
     let selectedOpenCount = 1;
     let selectedCharacter = null;
+    let currentPackSession = null;
     const obtainedItems = [];
     let cachedCharacters = [];
     let registeredRewardItems = [];
@@ -615,37 +616,57 @@
         }
     }
 
-    async function requestDraw(track, rewards) {
-        const rewardRows = Array.isArray(rewards) ? rewards.filter(Boolean) : [];
-        const consumeCount = clampOpenCount(rewardRows.length || 1);
+    async function createPackSession(track, openCount) {
         try {
-            const res = await fetch("/api/carddraw/draw", {
+            const res = await fetch("/api/carddraw/pack/create", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
+                credentials: "same-origin",
                 body: JSON.stringify({
                     trackLevel: Number(track && track.level ? track.level : 1),
-                    drawCount: consumeCount,
-                    rewards: rewardRows.map((reward) => ({
-                        rewardEntry: Number(reward && reward.itemEntry ? reward.itemEntry : 0),
-                        rewardName: reward && reward.title ? reward.title : "",
-                        rewardIcon: reward && reward.icon ? reward.icon : "",
-                        rewardRarity: reward && reward.rarityLabel ? reward.rarityLabel : "일반"
-                    }))
+                    drawCount: clampOpenCount(openCount)
                 })
             });
             const data = await res.json().catch(() => ({}));
-            if (!res.ok || (data && data.status !== "success")) {
-                await showCarddrawNotice((data && data.message) || "카드 뽑기에 실패했습니다.", "카드 뽑기");
-                return false;
+            if (!res.ok || !data || data.status !== "success") {
+                throw new Error((data && data.message) || "카드팩 생성에 실패했습니다.");
             }
-            drawCount = Number(data && data.drawCount ? data.drawCount : drawCount);
+            currentPackSession = {
+                packId: String(data.packId || ""),
+                openableSlots: Array.isArray(data.openableSlots) ? data.openableSlots.map((v) => Number(v)) : [],
+                openedSlots: {}
+            };
             if (data && data.selectedCharacter) updateMainCharacterUI(data.selectedCharacter);
+            const nextDrawCount = Number(data && data.remainingDraw);
+            if (Number.isFinite(nextDrawCount) && nextDrawCount >= 0) {
+                drawCount = nextDrawCount;
+            }
             refreshSummary();
-            return true;
-        } catch (_) {
-            await showCarddrawNotice("카드 뽑기에 실패했습니다.", "카드 뽑기");
-            return false;
+            return currentPackSession;
+        } catch (e) {
+            await showCarddrawNotice((e && e.message) || "카드팩 생성에 실패했습니다.", "카드 뽑기");
+            return null;
         }
+    }
+
+    async function openPackCard(slotIndex) {
+        if (!currentPackSession || !currentPackSession.packId) {
+            throw new Error("오픈 가능한 카드팩 정보가 없습니다.");
+        }
+        const res = await fetch("/api/carddraw/pack/open", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "same-origin",
+            body: JSON.stringify({
+                packId: currentPackSession.packId,
+                slot: Number(slotIndex || 0)
+            })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data || data.status !== "success" || !data.reward) {
+            throw new Error((data && data.message) || "카드 오픈에 실패했습니다.");
+        }
+        return data.reward;
     }
 
     async function loadCharactersForPicker() {
@@ -736,53 +757,6 @@
         return fallback || "일반";
     }
 
-    async function buildPackRewards(baseTrack, rewardCount) {
-        const count = clampOpenCount(rewardCount);
-        const res = await fetch(`/api/carddraw/pool/random?count=${count}`, {
-            method: "GET",
-            credentials: "same-origin",
-            cache: "no-store"
-        });
-        const data = await res.json().catch(() => ({}));
-        const rows = Array.isArray(data && data.rewards) ? data.rewards : [];
-        if (!res.ok || !rows.length) {
-            const message = String((data && data.message) || "카드뽑기 품목을 불러오지 못했습니다.");
-            throw new Error(message);
-        }
-        const mapped = rows.map((row, idx) => {
-            const entry = Number(row.itemEntry || row.item_entry || 0);
-            const quantity = Math.max(1, Number(row.quantity || 1));
-            const baseName = String(row.name || row.item_name || "").trim() || `알 수 없는 아이템 ${idx + 1}`;
-            const name = quantity > 1 ? `${baseName} x${quantity}` : baseName;
-            return ({
-                level: Number(baseTrack && baseTrack.level ? baseTrack.level : 1),
-                title: name,
-                description: name,
-                icon: String(row.icon || ""),
-                iconUrl: "",
-                rarity: mapPoolRarityCode(row.rarity),
-                rarityLabel: mapPoolRarityLabel(row.rarity, row.rarityLabel),
-                itemEntry: entry,
-                quantity,
-                opened: false
-            });
-        });
-        const resolved = await Promise.all(mapped.map(async (item) => {
-            const byEntry = await resolveIconUrlByEntry(item.itemEntry);
-            if (byEntry) {
-                item.iconUrl = byEntry;
-                return item;
-            }
-            if (String(item.icon || "").trim()) {
-                item.iconUrl = buildIconUrl(item.icon);
-            } else {
-                item.iconUrl = buildIconUrl("inv_misc_questionmark");
-            }
-            return item;
-        }));
-        return resolved;
-    }
-
     function getPackCardPositions(count) {
         const baseSlots = [
             { x: 40, y: -285 },
@@ -803,7 +777,18 @@
         return order.map((slotIndex) => baseSlots[slotIndex]);
     }
 
-    function renderPackScene(rewards) {
+    function getPackCardSlotIndexes(count) {
+        const slotOrderMap = {
+            1: [0],
+            2: [1, 2],
+            3: [0, 1, 2],
+            4: [1, 2, 3, 4],
+            5: [0, 1, 2, 3, 4]
+        };
+        return (slotOrderMap[clampOpenCount(count)] || slotOrderMap[1]).slice();
+    }
+
+    function renderPackScene(packSession) {
         const baseSlots = [
             { x: 40, y: -285 },
             { x: -163, y: -215 },
@@ -811,28 +796,21 @@
             { x: -76, y: 70 },
             { x: 161, y: 81 }
         ];
-        const activePositions = getPackCardPositions(rewards.length);
-        const activeSlotMap = activePositions.map((pos) => `${pos.x}:${pos.y}`);
-        const rewardBySlot = new Map();
-        activePositions.forEach((pos, idx) => {
-            rewardBySlot.set(`${pos.x}:${pos.y}`, rewards[idx]);
-        });
+        const openableSlots = Array.isArray(packSession && packSession.openableSlots)
+            ? packSession.openableSlots.map((v) => Number(v))
+            : [];
+        const openableSet = new Set(openableSlots);
 
         const cards = baseSlots.map((pos, idx) => {
-            const reward = rewardBySlot.get(`${pos.x}:${pos.y}`) || null;
-            const isOpenable = !!reward;
-            const iconUrl = reward
-                ? (String(reward.iconUrl || "").trim()
-                    || (String(reward.icon || "").trim() ? buildIconUrl(reward.icon) : buildIconUrl("inv_misc_questionmark")))
-                : buildIconUrl("inv_misc_questionmark");
+            const isOpenable = openableSet.has(idx);
             return `
-                <button type="button" class="pack-card ${isOpenable ? "is-openable" : "is-locked"}" data-card-index="${idx}" data-openable="${isOpenable ? "1" : "0"}" data-title="${esc(reward ? reward.title : "")}" data-rarity="${esc(reward ? reward.rarityLabel : "")}" data-track="${reward ? reward.level : 0}" data-entry="${Number(reward && reward.itemEntry ? reward.itemEntry : 0)}" data-icon="${esc(iconUrl)}" data-quantity="${Number(reward && reward.quantity ? reward.quantity : 1)}" style="--mx:${pos.x}px; --my:${pos.y}px;">
+                <button type="button" class="pack-card ${isOpenable ? "is-openable" : "is-locked"}" data-card-index="${idx}" data-openable="${isOpenable ? "1" : "0"}" data-title="" data-rarity="" data-track="0" data-entry="0" data-icon="${esc(buildIconUrl("inv_misc_questionmark"))}" data-quantity="1" style="--mx:${pos.x}px; --my:${pos.y}px;">
                     <div class="pack-card-inner">
                         <img class="pack-card-face pack-card-back" src="${PACK_BACK}" alt="card back">
-                        <div class="pack-card-face pack-card-front rarity-${esc(reward ? reward.rarity : "common")}">
-                            <img class="pack-card-front-frame" src="${getCardFrontByRarity(reward ? reward.rarity : "common")}" alt="card front">
-                            <img class="pack-card-item-icon" data-entry="${Number(reward && reward.itemEntry ? reward.itemEntry : 0)}" src="${esc(iconUrl)}" alt="item icon">
-                            <div class="pack-card-item-desc">${reward ? wrapWithWowheadItemLink(reward.itemEntry, esc(reward.title || reward.description || "아이템"), reward.title || reward.description || "아이템") : "오픈 대기 중"}</div>
+                        <div class="pack-card-face pack-card-front rarity-common">
+                            <img class="pack-card-front-frame" src="${getCardFrontByRarity("common")}" alt="card front">
+                            <img class="pack-card-item-icon" data-entry="0" src="${esc(buildIconUrl("inv_misc_questionmark"))}" alt="item icon">
+                            <div class="pack-card-item-desc">${isOpenable ? "카드를 뒤집어 보상을 확인하세요." : "오픈 대기 중"}</div>
                         </div>
                     </div>
                 </button>
@@ -864,7 +842,7 @@
         `;
     }
 
-    function initPackInteraction(stage, targetTrack, rewards) {
+    function initPackInteraction(stage, targetTrack, packSession) {
         const closeBtn = document.querySelector("#reward-modal .modal-close");
         const showCloseBtn = () => {
             if (!closeBtn) return;
@@ -883,17 +861,6 @@
         const cards = Array.from(stage.querySelectorAll(".pack-card"));
         if (!scene || !packZone || !dropZone || !dragWrap || !packImage || !cardsWrap || !cards.length) return;
 
-        // Fill icon URL by item entry when available (more accurate than static icon names).
-        cards.forEach((card) => {
-            const img = card.querySelector(".pack-card-item-icon");
-            const entry = Number(card.dataset.entry || 0);
-            if (!img || entry <= 0) return;
-            resolveIconUrlByEntry(entry).then((url) => {
-                if (!url) return;
-                img.src = url;
-                card.dataset.icon = url;
-            });
-        });
         refreshWowheadTooltips();
 
         const audioPackLift = new Audio(SOUND_PACK_LIFT);
@@ -1002,8 +969,8 @@
         async function openPackWithAnimation() {
             if (packOpened || openingInProgress) return;
             openingInProgress = true;
-            const ok = await requestDraw(targetTrack, rewards);
-            if (!ok) {
+            const createdPack = await createPackSession(targetTrack, packSession.drawCount);
+            if (!createdPack) {
                 openingInProgress = false;
                 packZone.classList.remove("is-opened");
                 dropZone.classList.remove("matched");
@@ -1129,21 +1096,61 @@
                 if (!cardsWrap.classList.contains("show")) return;
                 if (String(card.dataset.openable || "0") !== "1") return;
                 if (card.classList.contains("revealed")) return;
-                card.classList.add("revealed");
-                const pickedTitle = String(card.dataset.title || "").trim();
-                const pickedEntry = Number(card.dataset.entry || 0);
-                addObtainedItem({
-                    itemName: pickedTitle || "알 수 없는 아이템",
-                    title: pickedTitle || "알 수 없는 아이템",
-                    itemEntry: pickedEntry,
-                    rarityLabel: card.dataset.rarity || "일반",
-                    iconUrl: card.dataset.icon || ""
-                });
-                const openableCards = cards.filter((v) => String(v.dataset.openable || "0") === "1");
-                if (openableCards.length > 0 && openableCards.every((v) => v.classList.contains("revealed"))) {
-                    scene.classList.add("all-revealed");
-                    showCloseBtn();
-                }
+                void (async () => {
+                    try {
+                        const reward = await openPackCard(Number(card.dataset.cardIndex || 0));
+                        const quantity = Math.max(1, Number(reward && reward.quantity ? reward.quantity : 1));
+                        const baseName = String(reward && reward.name ? reward.name : "").trim() || "알 수 없는 아이템";
+                        const resolvedName = quantity > 1 ? `${baseName} x${quantity}` : baseName;
+                        const rarityCode = mapPoolRarityCode(reward && reward.rarity ? reward.rarity : "");
+                        const rarityLabel = mapPoolRarityLabel(reward && reward.rarity ? reward.rarity : "", reward && reward.rarityLabel ? reward.rarityLabel : "일반");
+                        const iconUrl = String(reward && reward.iconUrl ? reward.iconUrl : "").trim()
+                            || (String(reward && reward.icon ? reward.icon : "").trim() ? buildIconUrl(reward.icon) : buildIconUrl("inv_misc_questionmark"));
+                        card.dataset.title = resolvedName;
+                        card.dataset.rarity = rarityLabel;
+                        card.dataset.track = String(Number(targetTrack && targetTrack.level ? targetTrack.level : 1));
+                        card.dataset.entry = String(Number(reward && reward.itemEntry ? reward.itemEntry : 0));
+                        card.dataset.icon = iconUrl;
+                        card.dataset.quantity = String(quantity);
+                        const front = card.querySelector(".pack-card-front");
+                        const frame = card.querySelector(".pack-card-front-frame");
+                        const icon = card.querySelector(".pack-card-item-icon");
+                        const desc = card.querySelector(".pack-card-item-desc");
+                        if (front) {
+                            front.className = `pack-card-face pack-card-front rarity-${rarityCode}`;
+                        }
+                        if (frame) {
+                            frame.src = getCardFrontByRarity(rarityCode);
+                        }
+                        if (icon) {
+                            icon.src = iconUrl;
+                            icon.dataset.entry = String(Number(reward && reward.itemEntry ? reward.itemEntry : 0));
+                        }
+                        if (desc) {
+                            desc.innerHTML = wrapWithWowheadItemLink(Number(reward && reward.itemEntry ? reward.itemEntry : 0), esc(resolvedName), resolvedName);
+                        }
+                        refreshWowheadTooltips();
+                        card.classList.add("revealed");
+                        addObtainedItem({
+                            itemName: resolvedName,
+                            title: resolvedName,
+                            itemEntry: Number(reward && reward.itemEntry ? reward.itemEntry : 0),
+                            rarityLabel,
+                            iconUrl
+                        });
+                        if (currentPackSession && currentPackSession.openedSlots) {
+                            currentPackSession.openedSlots[String(card.dataset.cardIndex || 0)] = true;
+                        }
+                        const openableCards = cards.filter((v) => String(v.dataset.openable || "0") === "1");
+                        if (openableCards.length > 0 && openableCards.every((v) => v.classList.contains("revealed"))) {
+                            scene.classList.add("all-revealed");
+                            currentPackSession = null;
+                            showCloseBtn();
+                        }
+                    } catch (e) {
+                        await showCarddrawNotice((e && e.message) || "카드 오픈에 실패했습니다.", "카드 뽑기");
+                    }
+                })();
             });
         });
     }
@@ -1167,9 +1174,14 @@
         modal.style.display = "flex";
         stage.innerHTML = `<div style="height:100%; display:flex; align-items:center; justify-content:center; color:#cbd5e1;">보상 정보를 불러오는 중...</div>`;
         try {
-            const rewards = await buildPackRewards(t, rewardCount);
-            stage.innerHTML = renderPackScene(rewards);
-            initPackInteraction(stage, t, rewards);
+            currentPackSession = {
+                packId: "",
+                drawCount: rewardCount,
+                openableSlots: getPackCardSlotIndexes(rewardCount),
+                openedSlots: {}
+            };
+            stage.innerHTML = renderPackScene(currentPackSession);
+            initPackInteraction(stage, t, currentPackSession);
         } catch (e) {
             window.closeRewardModal();
             await showCarddrawNotice((e && e.message) || "카드뽑기 품목을 불러오지 못했습니다.", "카드 뽑기");

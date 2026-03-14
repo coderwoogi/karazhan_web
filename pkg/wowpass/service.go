@@ -6,10 +6,14 @@ import (
 	"fmt"
 	"karazhan/pkg/config"
 	"log"
+	"math/rand"
 	"net/http"
 	"os/exec"
 	"runtime"
+	"sort"
 	"strings"
+	"sync"
+	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 )
@@ -43,6 +47,46 @@ type carddrawPoolListItem struct {
 	RarityLabel string `json:"rarityLabel"`
 }
 
+type carddrawReward struct {
+	ItemEntry   int    `json:"itemEntry"`
+	Name        string `json:"name"`
+	Icon        string `json:"icon"`
+	IconURL     string `json:"iconUrl"`
+	Rarity      string `json:"rarity"`
+	RarityLabel string `json:"rarityLabel"`
+	Quantity    int    `json:"quantity"`
+}
+
+type carddrawPendingPack struct {
+	PackID        string
+	UserID        int
+	Username      string
+	TrackLevel    int
+	SelectedChar  cardCharacter
+	DrawCount     int
+	OpenableSlots []int
+	RewardsBySlot map[int]carddrawReward
+	OpenedSlots   map[int]bool
+	CreatedAt     time.Time
+}
+
+type carddrawPoolItem struct {
+	ID            int
+	ItemEntry     int
+	ItemName      string
+	Icon          string
+	Rarity        string
+	RarityLabel   string
+	ChancePercent float64
+	MaxCount      int
+	IsActive      int
+}
+
+var (
+	carddrawPackStoreMu sync.Mutex
+	carddrawPackStore   = map[int]*carddrawPendingPack{}
+)
+
 func RegisterRoutes(mux *http.ServeMux) {
 	ensureCardDrawMenuSeeds()
 	ensureCardDrawSchema()
@@ -51,6 +95,8 @@ func RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/carddraw/world-status", handleCardDrawWorldStatus)
 	mux.HandleFunc("/api/carddraw/characters", handleCardDrawCharacters)
 	mux.HandleFunc("/api/carddraw/character/select", handleCardDrawSelectCharacter)
+	mux.HandleFunc("/api/carddraw/pack/create", handleCardDrawPackCreate)
+	mux.HandleFunc("/api/carddraw/pack/open", handleCardDrawPackOpen)
 	mux.HandleFunc("/api/carddraw/draw", handleCardDrawDraw)
 	mux.HandleFunc("/api/carddraw/pool/list", handleCarddrawPoolList)
 
@@ -399,6 +445,266 @@ func handleCardDrawSelectCharacter(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func handleCardDrawPackCreate(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"status": "error", "message": "허용되지 않은 요청입니다."})
+		return
+	}
+	if !isCardDrawWorldServerRunning() {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "월드서버가 가동 중이 아닙니다. 서버 가동 후 카드뽑기가 가능합니다."})
+		return
+	}
+
+	userID, username, err := getSessionUserID(r)
+	if err != nil {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"status": "error", "message": "로그인이 필요합니다."})
+		return
+	}
+
+	var req struct {
+		TrackLevel int `json:"trackLevel"`
+		DrawCount  int `json:"drawCount"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "카드팩 생성 요청이 올바르지 않습니다."})
+		return
+	}
+	if req.TrackLevel <= 0 {
+		req.TrackLevel = 1
+	}
+	if req.DrawCount <= 0 {
+		req.DrawCount = 1
+	}
+	if req.DrawCount > 5 {
+		req.DrawCount = 5
+	}
+
+	carddrawPackStoreMu.Lock()
+	existing := carddrawPackStore[userID]
+	if existing != nil {
+		hasUnopened := false
+		for _, slot := range existing.OpenableSlots {
+			if !existing.OpenedSlots[slot] {
+				hasUnopened = true
+				break
+			}
+		}
+		if hasUnopened {
+			openable := append([]int(nil), existing.OpenableSlots...)
+			sort.Ints(openable)
+			carddrawPackStoreMu.Unlock()
+			writeJSON(w, http.StatusOK, map[string]interface{}{
+				"status":        "success",
+				"packId":        existing.PackID,
+				"drawCount":     req.DrawCount,
+				"remainingDraw": -1,
+				"openableSlots": openable,
+				"selectedCharacter": map[string]interface{}{
+					"guid":   existing.SelectedChar.Guid,
+					"name":   existing.SelectedChar.Name,
+					"race":   existing.SelectedChar.Race,
+					"class":  existing.SelectedChar.Class,
+					"gender": existing.SelectedChar.Gender,
+					"level":  existing.SelectedChar.Level,
+				},
+			})
+			return
+		}
+		delete(carddrawPackStore, userID)
+	}
+	carddrawPackStoreMu.Unlock()
+
+	updateDB, err := sql.Open("mysql", updateDSN)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "카드팩 생성에 실패했습니다."})
+		return
+	}
+	defer updateDB.Close()
+
+	if err := ensureUserProfileRow(updateDB, userID); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "카드팩 생성에 실패했습니다."})
+		return
+	}
+
+	tx, err := updateDB.Begin()
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "카드팩 생성에 실패했습니다."})
+		return
+	}
+	defer tx.Rollback()
+
+	var drawCount int
+	var selected cardCharacter
+	err = tx.QueryRow(`
+        SELECT
+            IFNULL(carddraw_draw_count, 0),
+            IFNULL(carddraw_selected_char_guid, 0),
+            IFNULL(carddraw_selected_char_name, ''),
+            IFNULL(carddraw_selected_char_race, 0),
+            IFNULL(carddraw_selected_char_class, 0),
+            IFNULL(carddraw_selected_char_gender, 0),
+            IFNULL(carddraw_selected_char_level, 0)
+        FROM user_profiles
+        WHERE user_id = ?
+        FOR UPDATE
+    `, userID).Scan(&drawCount, &selected.Guid, &selected.Name, &selected.Race, &selected.Class, &selected.Gender, &selected.Level)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "카드팩 생성에 실패했습니다."})
+		return
+	}
+
+	if selected.Guid <= 0 || strings.TrimSpace(selected.Name) == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "대표 캐릭터를 먼저 선택해주세요."})
+		return
+	}
+	if drawCount < req.DrawCount {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "선택한 횟수만큼 카드 뽑기 가능 횟수가 없습니다."})
+		return
+	}
+
+	rewards, err := loadCarddrawRandomRewards(req.DrawCount)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "카드뽑기 품목을 불러오지 못했습니다."})
+		return
+	}
+
+	newCount := drawCount - req.DrawCount
+	if _, err := tx.Exec("UPDATE user_profiles SET carddraw_draw_count = ? WHERE user_id = ?", newCount, userID); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "카드팩 생성에 실패했습니다."})
+		return
+	}
+	if err := tx.Commit(); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "카드팩 생성에 실패했습니다."})
+		return
+	}
+
+	slotOrder := pickCarddrawSlotOrder(req.DrawCount)
+	rewardsBySlot := make(map[int]carddrawReward, len(slotOrder))
+	for idx, slot := range slotOrder {
+		if idx >= len(rewards) {
+			break
+		}
+		rewardsBySlot[slot] = rewards[idx]
+	}
+	pack := &carddrawPendingPack{
+		PackID:        fmt.Sprintf("%d-%d", userID, time.Now().UnixNano()),
+		UserID:        userID,
+		Username:      username,
+		TrackLevel:    req.TrackLevel,
+		SelectedChar:  selected,
+		DrawCount:     req.DrawCount,
+		OpenableSlots: append([]int(nil), slotOrder...),
+		RewardsBySlot: rewardsBySlot,
+		OpenedSlots:   map[int]bool{},
+		CreatedAt:     time.Now(),
+	}
+
+	carddrawPackStoreMu.Lock()
+	carddrawPackStore[userID] = pack
+	carddrawPackStoreMu.Unlock()
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"status":        "success",
+		"packId":        pack.PackID,
+		"drawCount":     req.DrawCount,
+		"remainingDraw": newCount,
+		"openableSlots": slotOrder,
+		"selectedCharacter": map[string]interface{}{
+			"guid":   selected.Guid,
+			"name":   selected.Name,
+			"race":   selected.Race,
+			"class":  selected.Class,
+			"gender": selected.Gender,
+			"level":  selected.Level,
+		},
+	})
+}
+
+func handleCardDrawPackOpen(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"status": "error", "message": "허용되지 않은 요청입니다."})
+		return
+	}
+
+	userID, username, err := getSessionUserID(r)
+	if err != nil {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"status": "error", "message": "로그인이 필요합니다."})
+		return
+	}
+
+	var req struct {
+		PackID string `json:"packId"`
+		Slot   int    `json:"slot"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "카드 오픈 요청이 올바르지 않습니다."})
+		return
+	}
+	req.PackID = strings.TrimSpace(req.PackID)
+	if req.PackID == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "카드팩 정보가 올바르지 않습니다."})
+		return
+	}
+
+	carddrawPackStoreMu.Lock()
+	pack := carddrawPackStore[userID]
+	if pack == nil || pack.PackID != req.PackID {
+		carddrawPackStoreMu.Unlock()
+		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "오픈 가능한 카드팩 정보가 없습니다."})
+		return
+	}
+	reward, ok := pack.RewardsBySlot[req.Slot]
+	if !ok {
+		carddrawPackStoreMu.Unlock()
+		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "해당 카드는 오픈할 수 없습니다."})
+		return
+	}
+	if pack.OpenedSlots[req.Slot] {
+		carddrawPackStoreMu.Unlock()
+		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "이미 오픈한 카드입니다."})
+		return
+	}
+	pack.OpenedSlots[req.Slot] = true
+	selected := pack.SelectedChar
+	trackLevel := pack.TrackLevel
+	carddrawPackStoreMu.Unlock()
+
+	updateDB, err := sql.Open("mysql", updateDSN)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "카드 오픈에 실패했습니다."})
+		return
+	}
+	defer updateDB.Close()
+
+	if _, err := updateDB.Exec(`
+        INSERT INTO carddraw_draw_logs
+        (
+            user_id, username,
+            selected_char_guid, selected_char_name, selected_char_race, selected_char_class, selected_char_gender, selected_char_level,
+            track_level, reward_name, reward_icon, reward_rarity
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, userID, username, selected.Guid, selected.Name, selected.Race, selected.Class, selected.Gender, selected.Level, trackLevel, reward.Name, reward.Icon, reward.RarityLabel); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "카드 뽑기 로그 기록에 실패했습니다."})
+		return
+	}
+
+	clearCompletedCarddrawPack(userID)
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"status": "success",
+		"reward": map[string]interface{}{
+			"itemEntry":   reward.ItemEntry,
+			"name":        reward.Name,
+			"icon":        reward.Icon,
+			"iconUrl":     reward.IconURL,
+			"rarity":      reward.Rarity,
+			"rarityLabel": reward.RarityLabel,
+			"quantity":    reward.Quantity,
+		},
+	})
+}
+
 func handleCardDrawDraw(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"status": "error", "message": "허용되지 않은 요청입니다."})
@@ -612,6 +918,191 @@ func fetchWorldItemName(entry int) (string, error) {
 		return "", err
 	}
 	return name, nil
+}
+
+func normalizeCarddrawChance(v float64) float64 {
+	if v < 0 {
+		return 0
+	}
+	return v
+}
+
+func normalizeCarddrawMaxCount(v int) int {
+	if v <= 0 {
+		return 1
+	}
+	return v
+}
+
+func pickCarddrawSlotOrder(count int) []int {
+	switch count {
+	case 1:
+		return []int{0}
+	case 2:
+		return []int{1, 2}
+	case 3:
+		return []int{0, 1, 2}
+	case 4:
+		return []int{1, 2, 3, 4}
+	default:
+		return []int{0, 1, 2, 3, 4}
+	}
+}
+
+func weightedPickCarddrawIndex(items []carddrawPoolItem) int {
+	if len(items) == 0 {
+		return -1
+	}
+	total := 0.0
+	for _, item := range items {
+		total += normalizeCarddrawChance(item.ChancePercent)
+	}
+	if total <= 0 {
+		return rand.Intn(len(items))
+	}
+	roll := rand.Float64() * total
+	acc := 0.0
+	for idx, item := range items {
+		acc += normalizeCarddrawChance(item.ChancePercent)
+		if roll <= acc {
+			return idx
+		}
+	}
+	return len(items) - 1
+}
+
+func fillSingleCarddrawRewardMeta(reward *carddrawReward) {
+	if reward == nil {
+		return
+	}
+	items := []carddrawPoolListItem{{
+		ItemEntry:   reward.ItemEntry,
+		Name:        strings.TrimSpace(reward.Name),
+		Icon:        strings.TrimSpace(reward.Icon),
+		Rarity:      strings.TrimSpace(strings.ToLower(reward.Rarity)),
+		RarityLabel: strings.TrimSpace(reward.RarityLabel),
+	}}
+	fillCarddrawPoolMetaFromWorld(items)
+	if len(items) == 0 {
+		return
+	}
+	reward.Name = strings.TrimSpace(items[0].Name)
+	reward.Icon = strings.TrimSpace(items[0].Icon)
+	reward.IconURL = strings.TrimSpace(items[0].IconURL)
+	if reward.IconURL == "" {
+		reward.IconURL = buildCarddrawIconURL(reward.Icon)
+	}
+	if reward.RarityLabel == "" {
+		reward.RarityLabel = carddrawRarityLabel(reward.Rarity)
+	}
+	if reward.Quantity <= 0 {
+		reward.Quantity = 1
+	}
+}
+
+func loadCarddrawRandomRewards(count int) ([]carddrawReward, error) {
+	if count <= 0 {
+		count = 1
+	}
+	if count > 5 {
+		count = 5
+	}
+
+	updateDB, err := sql.Open("mysql", updateDSN)
+	if err != nil {
+		return nil, err
+	}
+	defer updateDB.Close()
+
+	rows, err := updateDB.Query(`
+		SELECT
+			ci.id,
+			ci.item_entry,
+			ci.item_name,
+			ci.item_icon,
+			ci.rarity,
+			ci.chance_percent,
+			ci.max_count,
+			ci.is_active
+		FROM web_carddraw_items ci
+		WHERE ci.is_active = 1
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	all := make([]carddrawPoolItem, 0)
+	for rows.Next() {
+		var item carddrawPoolItem
+		if err := rows.Scan(&item.ID, &item.ItemEntry, &item.ItemName, &item.Icon, &item.Rarity, &item.ChancePercent, &item.MaxCount, &item.IsActive); err != nil {
+			continue
+		}
+		item.Rarity = strings.ToLower(strings.TrimSpace(item.Rarity))
+		if item.Rarity == "" {
+			item.Rarity = "common"
+		}
+		item.RarityLabel = carddrawRarityLabel(item.Rarity)
+		item.ChancePercent = normalizeCarddrawChance(item.ChancePercent)
+		item.MaxCount = normalizeCarddrawMaxCount(item.MaxCount)
+		all = append(all, item)
+	}
+	if len(all) == 0 {
+		return nil, fmt.Errorf("활성 카드뽑기 아이템이 없습니다")
+	}
+
+	rewards := make([]carddrawReward, 0, count)
+	working := make([]carddrawPoolItem, len(all))
+	copy(working, all)
+	for i := 0; i < count; i++ {
+		candidates := working
+		useWorking := true
+		if len(candidates) == 0 {
+			candidates = all
+			useWorking = false
+		}
+		pickIdx := weightedPickCarddrawIndex(candidates)
+		if pickIdx < 0 || pickIdx >= len(candidates) {
+			pickIdx = rand.Intn(len(candidates))
+		}
+		picked := candidates[pickIdx]
+		quantity := 1
+		if picked.MaxCount > 1 {
+			quantity = rand.Intn(picked.MaxCount) + 1
+		}
+		reward := carddrawReward{
+			ItemEntry:   picked.ItemEntry,
+			Name:        strings.TrimSpace(picked.ItemName),
+			Icon:        strings.TrimSpace(picked.Icon),
+			Rarity:      picked.Rarity,
+			RarityLabel: picked.RarityLabel,
+			Quantity:    quantity,
+		}
+		fillSingleCarddrawRewardMeta(&reward)
+		if reward.Name == "" {
+			reward.Name = "알 수 없는 아이템"
+		}
+		rewards = append(rewards, reward)
+		if useWorking {
+			working = append(working[:pickIdx], working[pickIdx+1:]...)
+		}
+	}
+	return rewards, nil
+}
+
+func clearCompletedCarddrawPack(userID int) {
+	carddrawPackStoreMu.Lock()
+	defer carddrawPackStoreMu.Unlock()
+	pack := carddrawPackStore[userID]
+	if pack == nil {
+		return
+	}
+	for _, slot := range pack.OpenableSlots {
+		if !pack.OpenedSlots[slot] {
+			return
+		}
+	}
+	delete(carddrawPackStore, userID)
 }
 
 func handleCardDrawWorldStatus(w http.ResponseWriter, r *http.Request) {
