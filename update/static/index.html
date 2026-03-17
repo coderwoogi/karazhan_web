@@ -33,6 +33,10 @@
                 <form id="uploadForm" novalidate>
                     <input type="hidden" id="edit-no" name="no">
                     <div class="filter-bar">
+                        <div class="filter-group" style="min-width: 180px;">
+                            <label id="upload-version-label"><i class="fas fa-code-branch"></i> 버전</label>
+                            <input type="text" id="versionInput" name="version" class="text-input" placeholder="예: 1.0.0">
+                        </div>
                         <div class="filter-group file-select">
                             <label id="upload-file-label"><i class="fas fa-file-upload"></i> 업데이트 파일</label>
                             <div class="file-input-wrapper">
@@ -100,11 +104,12 @@
                     <table>
                         <thead>
                             <tr>
-                                <th style="width:10%;">No</th>
-                                <th style="width:35%;">파일명</th>
-                                <th style="width:30%;">MD5 Hash</th>
-                                <th style="width:15%;">등록일</th>
-                                <th style="width:10%; text-align:center;">관리</th>
+                                <th style="width:8%;">No</th>
+                                <th style="width:14%;">버전</th>
+                                <th style="width:28%;">파일명</th>
+                                <th style="width:28%;">MD5 Hash</th>
+                                <th style="width:14%;">등록일</th>
+                                <th style="width:8%; text-align:center;">관리</th>
                             </tr>
                         </thead>
                         <tbody id="fileList"></tbody>

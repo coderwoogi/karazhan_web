@@ -21,6 +21,7 @@ var db *sql.DB
 
 type UpdateFile struct {
 	No       int    `json:"no"`
+	Version  string `json:"version"`
 	File     string `json:"file"`
 	Md5      string `json:"md5"`
 	Date     string `json:"date"`
@@ -53,6 +54,7 @@ func RegisterRoutes(mux *http.ServeMux) {
 	CREATE TABLE IF NOT EXISTS ` + "`update`" + ` (
 		` + "`no`" + ` INT(11) NOT NULL AUTO_INCREMENT,
 		` + "`file_type`" + ` VARCHAR(20) NOT NULL DEFAULT 'update',
+		` + "`version`" + ` VARCHAR(50) NOT NULL DEFAULT '',
 		` + "`file`" + ` VARCHAR(255) NOT NULL,
 		` + "`md5`" + ` VARCHAR(32) NOT NULL,
 		` + "`date`" + ` DATETIME NOT NULL,
@@ -61,6 +63,7 @@ func RegisterRoutes(mux *http.ServeMux) {
 	if db != nil {
 		db.Exec(createTableQuery)
 		_, _ = db.Exec("ALTER TABLE `update` ADD COLUMN `file_type` VARCHAR(20) NOT NULL DEFAULT 'update' AFTER `no`")
+		_, _ = db.Exec("ALTER TABLE `update` ADD COLUMN `version` VARCHAR(50) NOT NULL DEFAULT '' AFTER `file_type`")
 		_, _ = db.Exec("UPDATE `update` SET `file_type`='update' WHERE `file_type`='' OR `file_type` IS NULL")
 		_, _ = db.Exec(`
 			CREATE TABLE IF NOT EXISTS update_source_urls (
@@ -90,7 +93,7 @@ func listHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	fileType := normalizeFileType(r.URL.Query().Get("type"))
-	rows, err := db.Query("SELECT `no`, `file_type`, `file`, `md5`, `date` FROM `update` WHERE `file_type`=? ORDER BY `date` DESC", fileType)
+	rows, err := db.Query("SELECT `no`, `file_type`, `version`, `file`, `md5`, `date` FROM `update` WHERE `file_type`=? ORDER BY `date` DESC, `no` DESC", fileType)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -101,7 +104,7 @@ func listHandler(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var f UpdateFile
 		var dateVal []uint8
-		if err := rows.Scan(&f.No, &f.FileType, &f.File, &f.Md5, &dateVal); err != nil {
+		if err := rows.Scan(&f.No, &f.FileType, &f.Version, &f.File, &f.Md5, &dateVal); err != nil {
 			log.Println(err)
 			continue
 		}
@@ -125,6 +128,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 
 	r.ParseMultipartForm(100 << 20)
 	fileType := normalizeFileType(r.FormValue("type"))
+	version := strings.TrimSpace(r.FormValue("version"))
 
 	file, handler, err := r.FormFile("file")
 	if err != nil {
@@ -145,9 +149,9 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 
 	if noStr != "" {
 		no, _ := strconv.Atoi(noStr)
-		_, err = db.Exec("UPDATE `update` SET `file_type`=?, `file`=?, `md5`=?, `date`=? WHERE `no`=?", fileType, handler.Filename, md5Str, now, no)
+		_, err = db.Exec("UPDATE `update` SET `file_type`=?, `version`=?, `file`=?, `md5`=?, `date`=? WHERE `no`=?", fileType, version, handler.Filename, md5Str, now, no)
 	} else {
-		_, err = db.Exec("INSERT INTO `update` (`file_type`, `file`, `md5`, `date`) VALUES (?, ?, ?, ?)", fileType, handler.Filename, md5Str, now)
+		_, err = db.Exec("INSERT INTO `update` (`file_type`, `version`, `file`, `md5`, `date`) VALUES (?, ?, ?, ?, ?)", fileType, version, handler.Filename, md5Str, now)
 	}
 
 	if err != nil {

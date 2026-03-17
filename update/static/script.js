@@ -12,7 +12,9 @@
     const uploadCardTitle = document.getElementById('upload-card-title');
     const listCardTitle = document.getElementById('list-card-title');
     const compareCardTitle = document.getElementById('compare-card-title');
+    const uploadVersionLabel = document.getElementById('upload-version-label');
     const uploadFileLabel = document.getElementById('upload-file-label');
+    const versionInput = document.getElementById('versionInput');
     const compareUrlLabel = document.getElementById('compare-url-label');
     const tabButtons = document.querySelectorAll('.update-tab-btn');
     const compareSourceUrlInput = document.getElementById('compareSourceUrl');
@@ -90,6 +92,7 @@
         if (uploadCardTitle) uploadCardTitle.innerHTML = `<i class="fas fa-cloud-upload-alt"></i> ${typeLabel} 등록 / 수정`;
         if (listCardTitle) listCardTitle.innerHTML = `<i class="fas fa-list"></i> ${typeLabel} 목록`;
         if (compareCardTitle) compareCardTitle.innerHTML = `<i class="fas fa-fingerprint"></i> ${typeLabel} MD5 비교`;
+        if (uploadVersionLabel) uploadVersionLabel.innerHTML = `<i class="fas fa-code-branch"></i> ${typeLabel} 버전`;
         if (uploadFileLabel) uploadFileLabel.innerHTML = `<i class="fas fa-file-upload"></i> ${typeLabel}`;
         if (compareUrlLabel) compareUrlLabel.innerHTML = `<i class="fas fa-link"></i> ${typeLabel} 비교 URL`;
 
@@ -190,7 +193,8 @@
         if (editBtn) {
             const no = editBtn.dataset.no;
             const filename = editBtn.dataset.file;
-            startEdit(no, filename);
+            const version = editBtn.dataset.version || '';
+            startEdit(no, filename, version);
             return;
         }
 
@@ -230,7 +234,9 @@
     }
 
     function startEdit(no, filename) {
+        const version = arguments[2] || '';
         editNoInput.value = no;
+        if (versionInput) versionInput.value = version;
         fileNameSpan.textContent = filename + ' (새 파일 선택 시 교체)';
         submitBtn.innerHTML = '<i class="fas fa-pen"></i> 수정하기';
         cancelBtn.style.display = 'inline-flex';
@@ -339,7 +345,7 @@
             fileListBody.innerHTML = '';
 
             if (!Array.isArray(data) || data.length === 0) {
-                fileListBody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color:#64748b;">등록된 파일이 없습니다.</td></tr>';
+                fileListBody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px; color:#64748b;">등록된 파일이 없습니다.</td></tr>';
                 return;
             }
 
@@ -349,21 +355,22 @@
                 const countedNo = total - idx;
                 tr.innerHTML = `
                     <td>${countedNo}</td>
-                    <td>${item.file}</td>
+                    <td>${escapeHtml(item.version || '-')}</td>
+                    <td>${escapeHtml(item.file)}</td>
                     <td style="font-family:monospace; font-size:0.82rem;">${item.md5}</td>
                     <td>${item.date}</td>
                     <td class="action-cell">
-                        <button type="button" class="action-btn edit-btn" data-no="${item.no}" data-file="${escapeHtml(item.file)}">수정</button>
+                        <button type="button" class="action-btn edit-btn" data-no="${item.no}" data-version="${escapeHtml(item.version || '')}" data-file="${escapeHtml(item.file)}">수정</button>
                         <button type="button" class="action-btn delete-btn" data-no="${item.no}">삭제</button>
                     </td>
                 `;
-                fileListBody.appendChild(tr);
-            });
-        } catch (error) {
-            console.error('List load error:', error);
-            fileListBody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color:#dc2626;">파일 목록을 불러오지 못했습니다.</td></tr>';
-        }
+            fileListBody.appendChild(tr);
+        });
+    } catch (error) {
+        console.error('List load error:', error);
+        fileListBody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px; color:#dc2626;">파일 목록을 불러오지 못했습니다.</td></tr>';
     }
+}
 
     function escapeHtml(value) {
         return String(value)
