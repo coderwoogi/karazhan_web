@@ -59,6 +59,40 @@
 
         <div class="card">
             <div class="card-header">
+                <h2 id="compare-card-title"><i class="fas fa-fingerprint"></i> 최신 등록 파일 MD5 비교</h2>
+            </div>
+            <div class="card-body">
+                <div class="filter-bar compare-filter-bar">
+                    <div class="filter-group compare-url-group">
+                        <label id="compare-url-label"><i class="fas fa-link"></i> 비교 URL</label>
+                        <input type="url" id="compareSourceUrl" class="text-input" placeholder="비교할 파일 URL을 입력하세요">
+                    </div>
+                    <button type="button" id="saveCompareUrlBtn" class="refresh-btn"><i class="fas fa-save"></i> URL 저장</button>
+                    <button type="button" id="runCompareBtn" class="search-btn"><i class="fas fa-not-equal"></i> 비교 실행</button>
+                </div>
+                <div class="compare-result-grid">
+                    <div class="compare-result-card">
+                        <span class="compare-label">최근 등록 파일</span>
+                        <strong id="compareLocalFile">없음</strong>
+                        <code id="compareLocalMd5">-</code>
+                    </div>
+                    <div class="compare-result-card">
+                        <span class="compare-label">URL 파일 MD5</span>
+                        <strong id="compareRemoteFile">URL에서 계산</strong>
+                        <code id="compareRemoteMd5">-</code>
+                    </div>
+                    <div class="compare-result-card compare-result-status-card">
+                        <span class="compare-label">비교 결과</span>
+                        <strong id="compareStatusBadge" class="compare-status-badge neutral">대기 중</strong>
+                        <span id="compareCheckedAt" class="compare-meta">아직 비교하지 않았습니다.</span>
+                    </div>
+                </div>
+                <p id="compareMessage" class="compare-message">비교 URL을 저장한 뒤 비교 실행을 누르면 최신 등록 파일과 URL 파일의 MD5를 나란히 확인할 수 있습니다.</p>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
                 <h2 id="list-card-title"><i class="fas fa-list"></i> 업데이트 파일 목록</h2>
             </div>
             <div class="card-body">

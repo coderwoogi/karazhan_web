@@ -5,11 +5,13 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"io"
 	"karazhan/pkg/config"
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -23,6 +25,18 @@ type UpdateFile struct {
 	Md5      string `json:"md5"`
 	Date     string `json:"date"`
 	FileType string `json:"fileType"`
+}
+
+type UpdateCompareResult struct {
+	FileType   string `json:"fileType"`
+	SourceURL  string `json:"sourceUrl"`
+	LocalFile  string `json:"localFile"`
+	LocalMd5   string `json:"localMd5"`
+	RemoteMd5  string `json:"remoteMd5"`
+	Match      bool   `json:"match"`
+	CheckedAt  string `json:"checkedAt"`
+	RemoteSize int64  `json:"remoteSize"`
+	Message    string `json:"message,omitempty"`
 }
 
 func RegisterRoutes(mux *http.ServeMux) {
@@ -48,6 +62,13 @@ func RegisterRoutes(mux *http.ServeMux) {
 		db.Exec(createTableQuery)
 		_, _ = db.Exec("ALTER TABLE `update` ADD COLUMN `file_type` VARCHAR(20) NOT NULL DEFAULT 'update' AFTER `no`")
 		_, _ = db.Exec("UPDATE `update` SET `file_type`='update' WHERE `file_type`='' OR `file_type` IS NULL")
+		_, _ = db.Exec(`
+			CREATE TABLE IF NOT EXISTS update_source_urls (
+				file_type VARCHAR(20) NOT NULL PRIMARY KEY,
+				source_url VARCHAR(1000) NOT NULL,
+				updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+		`)
 	}
 
 	// 정적 파일 서빙
@@ -59,6 +80,8 @@ func RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/update/api/upload", uploadHandler)
 	mux.HandleFunc("/update/api/delete", deleteHandler)
 	mux.HandleFunc("/update/api/latest_md5", latestMd5Handler)
+	mux.HandleFunc("/update/api/source_url", sourceURLHandler)
+	mux.HandleFunc("/update/api/compare_md5", compareMd5Handler)
 }
 
 func listHandler(w http.ResponseWriter, r *http.Request) {
@@ -168,6 +191,141 @@ func latestMd5Handler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	json.NewEncoder(w).Encode(map[string]string{"md5": md5})
+}
+
+func sourceURLHandler(w http.ResponseWriter, r *http.Request) {
+	if db == nil {
+		http.Error(w, "DB Not Connected", http.StatusInternalServerError)
+		return
+	}
+	fileType := normalizeFileType(r.URL.Query().Get("type"))
+
+	switch r.Method {
+	case http.MethodGet:
+		var sourceURL string
+		err := db.QueryRow("SELECT source_url FROM update_source_urls WHERE file_type=? LIMIT 1", fileType).Scan(&sourceURL)
+		w.Header().Set("Content-Type", "application/json")
+		if err != nil {
+			if err == sql.ErrNoRows {
+				_ = json.NewEncoder(w).Encode(map[string]string{
+					"fileType":  fileType,
+					"sourceUrl": "",
+				})
+				return
+			}
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]string{
+			"fileType":  fileType,
+			"sourceUrl": sourceURL,
+		})
+	case http.MethodPost:
+		sourceURL := strings.TrimSpace(r.FormValue("source_url"))
+		if sourceURL == "" {
+			http.Error(w, "URL이 비어 있습니다.", http.StatusBadRequest)
+			return
+		}
+		if _, err := db.Exec(`
+			INSERT INTO update_source_urls (file_type, source_url)
+			VALUES (?, ?)
+			ON DUPLICATE KEY UPDATE source_url=VALUES(source_url)
+		`, fileType, sourceURL); err != nil {
+			http.Error(w, "DB Error: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]string{
+			"status":    "success",
+			"fileType":  fileType,
+			"sourceUrl": sourceURL,
+		})
+	default:
+		http.Error(w, "Invalid method", http.StatusMethodNotAllowed)
+	}
+}
+
+func compareMd5Handler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Invalid method", http.StatusMethodNotAllowed)
+		return
+	}
+	if db == nil {
+		http.Error(w, "DB Not Connected", http.StatusInternalServerError)
+		return
+	}
+
+	fileType := normalizeFileType(r.URL.Query().Get("type"))
+	result := UpdateCompareResult{
+		FileType:  fileType,
+		CheckedAt: time.Now().Format("2006-01-02 15:04:05"),
+	}
+
+	err := db.QueryRow("SELECT file, md5 FROM `update` WHERE `file_type`=? ORDER BY `date` DESC LIMIT 1", fileType).Scan(&result.LocalFile, &result.LocalMd5)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			result.Message = "최근 등록된 파일이 없습니다."
+			writeCompareJSON(w, http.StatusOK, result)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	err = db.QueryRow("SELECT source_url FROM update_source_urls WHERE file_type=? LIMIT 1", fileType).Scan(&result.SourceURL)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			result.Message = "비교할 URL이 등록되지 않았습니다."
+			writeCompareJSON(w, http.StatusOK, result)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	remoteMd5, remoteSize, err := fetchRemoteMD5(result.SourceURL)
+	if err != nil {
+		result.Message = fmt.Sprintf("URL 파일을 불러오지 못했습니다: %v", err)
+		writeCompareJSON(w, http.StatusOK, result)
+		return
+	}
+
+	result.RemoteMd5 = remoteMd5
+	result.RemoteSize = remoteSize
+	result.Match = strings.EqualFold(strings.TrimSpace(result.LocalMd5), strings.TrimSpace(result.RemoteMd5))
+	writeCompareJSON(w, http.StatusOK, result)
+}
+
+func fetchRemoteMD5(rawURL string) (string, int64, error) {
+	req, err := http.NewRequest(http.MethodGet, rawURL, nil)
+	if err != nil {
+		return "", 0, err
+	}
+	req.Header.Set("User-Agent", "KarazhanUpdateComparer/1.0")
+
+	client := &http.Client{Timeout: 60 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", 0, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return "", 0, fmt.Errorf("HTTP %d", resp.StatusCode)
+	}
+
+	hash := md5.New()
+	size, err := io.Copy(hash, resp.Body)
+	if err != nil {
+		return "", 0, err
+	}
+	return hex.EncodeToString(hash.Sum(nil)), size, nil
+}
+
+func writeCompareJSON(w http.ResponseWriter, status int, result UpdateCompareResult) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(result)
 }
 
 func normalizeFileType(v string) string {

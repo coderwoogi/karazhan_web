@@ -11,8 +11,20 @@
     const uploadProgressBar = document.getElementById('uploadProgressBar');
     const uploadCardTitle = document.getElementById('upload-card-title');
     const listCardTitle = document.getElementById('list-card-title');
+    const compareCardTitle = document.getElementById('compare-card-title');
     const uploadFileLabel = document.getElementById('upload-file-label');
+    const compareUrlLabel = document.getElementById('compare-url-label');
     const tabButtons = document.querySelectorAll('.update-tab-btn');
+    const compareSourceUrlInput = document.getElementById('compareSourceUrl');
+    const saveCompareUrlBtn = document.getElementById('saveCompareUrlBtn');
+    const runCompareBtn = document.getElementById('runCompareBtn');
+    const compareLocalFile = document.getElementById('compareLocalFile');
+    const compareLocalMd5 = document.getElementById('compareLocalMd5');
+    const compareRemoteFile = document.getElementById('compareRemoteFile');
+    const compareRemoteMd5 = document.getElementById('compareRemoteMd5');
+    const compareStatusBadge = document.getElementById('compareStatusBadge');
+    const compareCheckedAt = document.getElementById('compareCheckedAt');
+    const compareMessage = document.getElementById('compareMessage');
 
     let isUploading = false;
     let currentType = 'update'; // update | launcher
@@ -77,9 +89,13 @@
         const typeLabel = getTypeLabel();
         if (uploadCardTitle) uploadCardTitle.innerHTML = `<i class="fas fa-cloud-upload-alt"></i> ${typeLabel} 등록 / 수정`;
         if (listCardTitle) listCardTitle.innerHTML = `<i class="fas fa-list"></i> ${typeLabel} 목록`;
+        if (compareCardTitle) compareCardTitle.innerHTML = `<i class="fas fa-fingerprint"></i> ${typeLabel} MD5 비교`;
         if (uploadFileLabel) uploadFileLabel.innerHTML = `<i class="fas fa-file-upload"></i> ${typeLabel}`;
+        if (compareUrlLabel) compareUrlLabel.innerHTML = `<i class="fas fa-link"></i> ${typeLabel} 비교 URL`;
 
         resetForm();
+        resetCompareResult();
+        loadSourceUrl();
         loadList();
     }
 
@@ -220,6 +236,101 @@
         cancelBtn.style.display = 'inline-flex';
     }
 
+    function resetCompareResult() {
+        if (compareLocalFile) compareLocalFile.textContent = '없음';
+        if (compareLocalMd5) compareLocalMd5.textContent = '-';
+        if (compareRemoteFile) compareRemoteFile.textContent = 'URL에서 계산';
+        if (compareRemoteMd5) compareRemoteMd5.textContent = '-';
+        if (compareCheckedAt) compareCheckedAt.textContent = '아직 비교하지 않았습니다.';
+        if (compareMessage) compareMessage.textContent = '비교 URL을 저장한 뒤 비교 실행을 누르면 최신 등록 파일과 URL 파일의 MD5를 나란히 확인할 수 있습니다.';
+        if (compareStatusBadge) {
+            compareStatusBadge.textContent = '대기 중';
+            compareStatusBadge.className = 'compare-status-badge neutral';
+        }
+    }
+
+    async function loadSourceUrl() {
+        if (!compareSourceUrlInput) return;
+        try {
+            const response = await fetch('/update/api/source_url?type=' + encodeURIComponent(currentType));
+            const data = await response.json();
+            compareSourceUrlInput.value = data && data.sourceUrl ? data.sourceUrl : '';
+        } catch (error) {
+            console.error('Source URL load error:', error);
+            compareSourceUrlInput.value = '';
+        }
+    }
+
+    async function saveSourceUrl() {
+        const sourceUrl = compareSourceUrlInput ? compareSourceUrlInput.value.trim() : '';
+        if (!sourceUrl) {
+            await showAlert('비교할 URL을 먼저 입력해주세요.', 'warning', 'URL 미입력');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('source_url', sourceUrl);
+
+        try {
+            const response = await fetch('/update/api/source_url?type=' + encodeURIComponent(currentType), {
+                method: 'POST',
+                body: formData
+            });
+            if (!response.ok) {
+                const text = (await response.text()).trim();
+                throw new Error(text || '저장에 실패했습니다.');
+            }
+            await showAlert('비교 URL이 저장되었습니다.', 'success', '완료');
+        } catch (error) {
+            console.error('Source URL save error:', error);
+            await showAlert(error.message || 'URL 저장에 실패했습니다.', 'error', '저장 실패');
+        }
+    }
+
+    async function runMd5Compare() {
+        resetCompareResult();
+        if (compareMessage) compareMessage.textContent = 'URL 파일을 내려받아 MD5를 계산하는 중입니다...';
+
+        try {
+            const response = await fetch('/update/api/compare_md5?type=' + encodeURIComponent(currentType), { cache: 'no-store' });
+            const data = await response.json();
+
+            if (compareLocalFile) compareLocalFile.textContent = data && data.localFile ? data.localFile : '없음';
+            if (compareLocalMd5) compareLocalMd5.textContent = data && data.localMd5 ? data.localMd5 : '-';
+            if (compareRemoteMd5) compareRemoteMd5.textContent = data && data.remoteMd5 ? data.remoteMd5 : '-';
+            if (compareRemoteFile) compareRemoteFile.textContent = data && data.sourceUrl ? data.sourceUrl : 'URL이 등록되지 않음';
+            if (compareCheckedAt) compareCheckedAt.textContent = data && data.checkedAt ? `${data.checkedAt} 비교` : '비교 시각 없음';
+
+            const message = data && data.message ? data.message : '';
+            if (compareMessage) {
+                compareMessage.textContent = message || (data && data.match
+                    ? '최근 등록 파일과 URL 파일의 MD5가 일치합니다.'
+                    : '최근 등록 파일과 URL 파일의 MD5가 다릅니다.');
+            }
+
+            if (compareStatusBadge) {
+                if (message && !data.remoteMd5) {
+                    compareStatusBadge.textContent = '확인 필요';
+                    compareStatusBadge.className = 'compare-status-badge error';
+                } else if (data && data.match) {
+                    compareStatusBadge.textContent = '일치';
+                    compareStatusBadge.className = 'compare-status-badge match';
+                } else {
+                    compareStatusBadge.textContent = '불일치';
+                    compareStatusBadge.className = 'compare-status-badge mismatch';
+                }
+            }
+        } catch (error) {
+            console.error('MD5 compare error:', error);
+            if (compareStatusBadge) {
+                compareStatusBadge.textContent = '오류';
+                compareStatusBadge.className = 'compare-status-badge error';
+            }
+            if (compareMessage) compareMessage.textContent = 'MD5 비교 중 오류가 발생했습니다.';
+            if (compareCheckedAt) compareCheckedAt.textContent = '비교 실패';
+        }
+    }
+
     async function loadList() {
         try {
             const response = await fetch('/update/api/list?type=' + encodeURIComponent(currentType));
@@ -270,6 +381,18 @@
             applyTabUI();
         });
     });
+
+    if (saveCompareUrlBtn) {
+        saveCompareUrlBtn.addEventListener('click', () => {
+            void saveSourceUrl();
+        });
+    }
+
+    if (runCompareBtn) {
+        runCompareBtn.addEventListener('click', () => {
+            void runMd5Compare();
+        });
+    }
 
     applyTabUI();
 });
