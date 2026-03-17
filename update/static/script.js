@@ -95,10 +95,15 @@
         if (uploadVersionLabel) uploadVersionLabel.innerHTML = `<i class="fas fa-code-branch"></i> ${typeLabel} 버전`;
         if (uploadFileLabel) uploadFileLabel.innerHTML = `<i class="fas fa-file-upload"></i> ${typeLabel}`;
         if (compareUrlLabel) compareUrlLabel.innerHTML = `<i class="fas fa-link"></i> ${typeLabel} 비교 URL`;
+        if (versionInput) {
+            versionInput.readOnly = currentType === 'launcher';
+            versionInput.placeholder = currentType === 'launcher' ? '자동으로 증가합니다.' : '예: 1.0.0';
+        }
 
         resetForm();
         resetCompareResult();
         loadSourceUrl();
+        loadNextVersion();
         loadList();
     }
 
@@ -231,15 +236,38 @@
         submitBtn.innerHTML = '<i class="fas fa-save"></i> 등록하기';
         cancelBtn.style.display = 'none';
         setProgress(false, 0);
+        if (versionInput) {
+            versionInput.readOnly = currentType === 'launcher';
+        }
+        loadNextVersion();
     }
 
     function startEdit(no, filename) {
         const version = arguments[2] || '';
         editNoInput.value = no;
-        if (versionInput) versionInput.value = version;
+        if (versionInput) {
+            versionInput.value = version;
+            versionInput.readOnly = currentType === 'launcher';
+        }
         fileNameSpan.textContent = filename + ' (새 파일 선택 시 교체)';
         submitBtn.innerHTML = '<i class="fas fa-pen"></i> 수정하기';
         cancelBtn.style.display = 'inline-flex';
+    }
+
+    async function loadNextVersion() {
+        if (!versionInput || editNoInput.value) return;
+        if (currentType !== 'launcher') {
+            versionInput.value = '';
+            return;
+        }
+        try {
+            const response = await fetch('/update/api/next_version?type=' + encodeURIComponent(currentType), { cache: 'no-store' });
+            const data = await response.json();
+            versionInput.value = data && data.version ? data.version : '1.0.0';
+        } catch (error) {
+            console.error('Next version load error:', error);
+            versionInput.value = '1.0.0';
+        }
     }
 
     function resetCompareResult() {

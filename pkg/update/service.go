@@ -83,6 +83,7 @@ func RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/update/api/upload", uploadHandler)
 	mux.HandleFunc("/update/api/delete", deleteHandler)
 	mux.HandleFunc("/update/api/latest_md5", latestMd5Handler)
+	mux.HandleFunc("/update/api/next_version", nextVersionHandler)
 	mux.HandleFunc("/update/api/source_url", sourceURLHandler)
 	mux.HandleFunc("/update/api/compare_md5", compareMd5Handler)
 }
@@ -149,8 +150,14 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 
 	if noStr != "" {
 		no, _ := strconv.Atoi(noStr)
+		if fileType == "launcher" && version == "" {
+			_ = db.QueryRow("SELECT `version` FROM `update` WHERE `no`=? LIMIT 1", no).Scan(&version)
+		}
 		_, err = db.Exec("UPDATE `update` SET `file_type`=?, `version`=?, `file`=?, `md5`=?, `date`=? WHERE `no`=?", fileType, version, handler.Filename, md5Str, now, no)
 	} else {
+		if fileType == "launcher" {
+			version = getNextLauncherVersion()
+		}
 		_, err = db.Exec("INSERT INTO `update` (`file_type`, `version`, `file`, `md5`, `date`) VALUES (?, ?, ?, ?, ?)", fileType, version, handler.Filename, md5Str, now)
 	}
 
@@ -195,6 +202,29 @@ func latestMd5Handler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	json.NewEncoder(w).Encode(map[string]string{"md5": md5})
+}
+
+func nextVersionHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Invalid method", http.StatusMethodNotAllowed)
+		return
+	}
+	if db == nil {
+		http.Error(w, "DB Not Connected", http.StatusInternalServerError)
+		return
+	}
+
+	fileType := normalizeFileType(r.URL.Query().Get("type"))
+	version := ""
+	if fileType == "launcher" {
+		version = getNextLauncherVersion()
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]string{
+		"fileType": fileType,
+		"version":  version,
+	})
 }
 
 func sourceURLHandler(w http.ResponseWriter, r *http.Request) {
@@ -339,4 +369,30 @@ func normalizeFileType(v string) string {
 	default:
 		return "update"
 	}
+}
+
+func getNextLauncherVersion() string {
+	if db == nil {
+		return "1.0.0"
+	}
+
+	var latest string
+	err := db.QueryRow("SELECT `version` FROM `update` WHERE `file_type`='launcher' AND TRIM(`version`) <> '' ORDER BY `date` DESC, `no` DESC LIMIT 1").Scan(&latest)
+	if err != nil || strings.TrimSpace(latest) == "" {
+		return "1.0.0"
+	}
+
+	parts := strings.Split(strings.TrimSpace(latest), ".")
+	if len(parts) != 3 {
+		return "1.0.0"
+	}
+
+	major, errMajor := strconv.Atoi(parts[0])
+	minor, errMinor := strconv.Atoi(parts[1])
+	patch, errPatch := strconv.Atoi(parts[2])
+	if errMajor != nil || errMinor != nil || errPatch != nil {
+		return "1.0.0"
+	}
+
+	return fmt.Sprintf("%d.%d.%d", major, minor, patch+1)
 }
