@@ -77,7 +77,12 @@ func RegisterRoutes(mux *http.ServeMux) {
 	// 정적 파일 서빙
 	// Root is now /update/, mapping to ./update/static
 	fs := http.FileServer(http.Dir("./update/static"))
-	mux.Handle("/update/", http.StripPrefix("/update/", fs))
+	mux.Handle("/update/", http.StripPrefix("/update/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
+		w.Header().Set("Pragma", "no-cache")
+		w.Header().Set("Expires", "0")
+		fs.ServeHTTP(w, r)
+	})))
 
 	mux.HandleFunc("/update/api/list", listHandler)
 	mux.HandleFunc("/update/api/upload", uploadHandler)
