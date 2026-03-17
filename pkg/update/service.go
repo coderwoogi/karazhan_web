@@ -83,6 +83,7 @@ func RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/update/api/upload", uploadHandler)
 	mux.HandleFunc("/update/api/delete", deleteHandler)
 	mux.HandleFunc("/update/api/latest_md5", latestMd5Handler)
+	mux.HandleFunc("/update/api/latest", latestFileHandler)
 	mux.HandleFunc("/update/api/next_version", nextVersionHandler)
 	mux.HandleFunc("/update/api/source_url", sourceURLHandler)
 	mux.HandleFunc("/update/api/compare_md5", compareMd5Handler)
@@ -202,6 +203,44 @@ func latestMd5Handler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	json.NewEncoder(w).Encode(map[string]string{"md5": md5})
+}
+
+func latestFileHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Invalid method", http.StatusMethodNotAllowed)
+		return
+	}
+	if db == nil {
+		http.Error(w, "DB Not Connected", http.StatusInternalServerError)
+		return
+	}
+
+	fileType := normalizeFileType(r.URL.Query().Get("type"))
+	var item UpdateFile
+	var dateVal []uint8
+	err := db.QueryRow(
+		"SELECT `no`, `file_type`, `version`, `file`, `md5`, `date` FROM `update` WHERE `file_type`=? ORDER BY `date` DESC, `no` DESC LIMIT 1",
+		fileType,
+	).Scan(&item.No, &item.FileType, &item.Version, &item.File, &item.Md5, &dateVal)
+
+	w.Header().Set("Content-Type", "application/json")
+	if err != nil {
+		if err == sql.ErrNoRows {
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"exists":   false,
+				"fileType": fileType,
+			})
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	item.Date = string(dateVal)
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"exists": true,
+		"item":   item,
+	})
 }
 
 func nextVersionHandler(w http.ResponseWriter, r *http.Request) {
