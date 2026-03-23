@@ -1,0 +1,68 @@
+﻿<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>시안 3 - 분할 워크스페이스형</title>
+<style>
+:root{--bg:#f3f6fb;--left:#ffffff;--right:#fbfdff;--line:#dbe4ef;--text:#15202d;--muted:#738395;--primary:#3457d6;}
+*{box-sizing:border-box}
+body{margin:0;font-family:"Pretendard","Noto Sans KR",sans-serif;background:var(--bg);color:var(--text);}
+.page{display:grid;grid-template-columns:280px 1fr;min-height:100vh;}
+.side{background:#fff;border-right:1px solid var(--line);padding:22px 18px;}.side .brand{font-size:24px;font-weight:900;margin-bottom:24px;}.side a{display:block;padding:11px 12px;border-radius:12px;color:#314155;text-decoration:none;margin-bottom:6px;}.side a.active{background:#edf3ff;color:var(--primary);font-weight:800;}
+.work{padding:24px;}.header{margin-bottom:16px;}.header h1{margin:0;font-size:32px;}.header p{margin:8px 0 0;color:var(--muted);line-height:1.7;}
+.workspace{display:grid;grid-template-columns:380px 1fr;gap:16px;}
+.left,.right{background:#fff;border:1px solid var(--line);border-radius:24px;overflow:hidden;}.section-head{padding:18px 18px 14px;border-bottom:1px solid #e9eef5;}.section-head h3{margin:0;}.filters{padding:16px 18px;border-bottom:1px solid #edf2f7;display:grid;gap:12px;}label{display:block;margin-bottom:6px;font-size:13px;color:var(--muted);font-weight:700;}input,select{width:100%;padding:11px 12px;border-radius:12px;border:1px solid var(--line);background:#fff;}.list{padding:10px;display:flex;flex-direction:column;gap:10px;max-height:calc(100vh - 240px);overflow:auto;}.item{border:1px solid var(--line);border-radius:16px;padding:14px;background:#fff;}.item.active{border-color:#bfd1ff;background:#f7faff;}.item h4{margin:0 0 6px;}.item p{margin:0;color:var(--muted);font-size:13px;}.detail{padding:18px;}.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}.full{grid-column:1 / -1}textarea{width:100%;min-height:140px;padding:12px;border-radius:12px;border:1px solid var(--line);} .actions{display:flex;gap:8px;margin-top:16px;}button{padding:11px 14px;border-radius:12px;border:1px solid var(--line);font-weight:800;} .primary{background:var(--primary);border-color:var(--primary);color:#fff;}
+.back{position:fixed;right:20px;bottom:20px;background:#111827;color:#fff;text-decoration:none;padding:12px 14px;border-radius:999px;font-weight:700;box-shadow:0 14px 30px rgba(17,24,39,.2);}
+@media (max-width:1100px){.page{grid-template-columns:1fr}.workspace{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="page">
+  <aside class="side">
+    <div class="brand">KARAZHAN</div>
+    <a href="#">홈</a>
+    <a href="#" class="active">던전/레이드</a>
+    <a href="#">업데이트</a>
+    <a href="#">통계</a>
+  </aside>
+  <main class="work">
+    <div class="header">
+      <h1>테마-미션 연결</h1>
+      <p>왼쪽에서 미션을 찾고, 오른쪽에서 연결 상태를 바로 관리하는 생산성 중심 워크스페이스형 시안입니다.</p>
+    </div>
+    <div class="workspace">
+      <section class="left">
+        <div class="section-head"><h3>후보 미션</h3></div>
+        <div class="filters">
+          <div><label>테마 선택</label><select><option>학살형</option></select></div>
+          <div><label>후보 검색</label><input placeholder="미션 이름 검색"></div>
+        </div>
+        <div class="list">
+          <div class="item active"><h4>에테리얼 사술사 토벌</h4><p>처치형 · 마나 무덤</p></div>
+          <div class="item"><h4>팬더모니우스 격파</h4><p>보스형 · 마나 무덤</p></div>
+          <div class="item"><h4>무사고 돌파</h4><p>생존형 · 마나 무덤</p></div>
+        </div>
+      </section>
+      <section class="right">
+        <div class="section-head"><h3>연결 상세</h3></div>
+        <div class="detail">
+          <div class="detail-grid">
+            <div><label>미션 이름</label><input value="에테리얼 사술사 토벌"></div>
+            <div><label>필수 여부</label><select><option>필수</option></select></div>
+            <div><label>순서</label><input value="1"></div>
+            <div><label>가중치</label><input value="100"></div>
+            <div class="full"><label>설명</label><textarea>지정된 적을 제한 시간 안에 처치합니다.</textarea></div>
+          </div>
+          <div class="actions">
+            <button class="primary">저장</button>
+            <button>삭제</button>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+<a class="back" href="./index.html">시안 목록으로</a>
+</body>
+</html>

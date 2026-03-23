@@ -1,0 +1,121 @@
+﻿<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>시안 1 - 운영툴 정돈형</title>
+<style>
+:root{
+  --bg:#eef3f9;
+  --panel:#ffffff;
+  --panel-soft:#f8fbff;
+  --line:#d7e2ef;
+  --text:#17202b;
+  --muted:#66768a;
+  --primary:#3157d5;
+  --primary-soft:#e9efff;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:"Pretendard","Noto Sans KR",sans-serif;background:linear-gradient(180deg,#f3f7fc 0%,#eaf1f8 100%);color:var(--text);}
+.layout{display:grid;grid-template-columns:260px 1fr;min-height:100vh;}
+.sidebar{background:linear-gradient(180deg,#0f172a 0%,#16243b 100%);color:#fff;padding:24px 18px;}
+.logo{font-size:24px;font-weight:800;margin-bottom:28px;letter-spacing:-0.03em;}
+.side-group{margin-bottom:22px;}
+.side-title{font-size:12px;color:rgba(255,255,255,.5);text-transform:uppercase;margin-bottom:10px;}
+.side-link{display:block;padding:11px 14px;border-radius:12px;color:#d7e2f1;text-decoration:none;margin-bottom:6px;}
+.side-link.active{background:rgba(255,255,255,.12);color:#fff;font-weight:700;}
+.main{padding:24px;}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;gap:16px;}
+.title h1{margin:0;font-size:30px;letter-spacing:-0.04em;}
+.title p{margin:6px 0 0;color:var(--muted);line-height:1.7;}
+.actions{display:flex;gap:10px;}
+.btn{border:1px solid var(--line);background:#fff;color:var(--text);padding:10px 14px;border-radius:12px;font-weight:700;}
+.btn.primary{background:var(--primary);color:#fff;border-color:var(--primary);}
+.tabs{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;}
+.tab{padding:10px 16px;border-radius:12px;background:#fff;border:1px solid var(--line);color:var(--muted);font-weight:700;}
+.tab.active{background:var(--primary-soft);color:var(--primary);border-color:#c8d7ff;}
+.toolbar{display:grid;grid-template-columns:1.6fr 1fr 1fr auto auto;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:14px;margin-bottom:18px;}
+.field label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px;font-weight:700;}
+.field input,.field select{width:100%;border:1px solid var(--line);background:#fff;border-radius:12px;padding:11px 12px;}
+.content{display:grid;grid-template-columns:1.2fr .8fr;gap:18px;}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:18px;}
+.panel h3{margin:0 0 14px;font-size:18px;}
+.table{width:100%;border-collapse:collapse;}
+.table th,.table td{padding:12px 10px;border-bottom:1px solid #ebf0f6;text-align:left;font-size:14px;}
+.table th{color:var(--muted);font-weight:800;background:#fafcff;}
+.badge{display:inline-block;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:800;}
+.badge.ok{background:#dcfce7;color:#166534;}
+.badge.review{background:#fef3c7;color:#92400e;}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.form-grid .full{grid-column:1 / -1;}
+textarea{width:100%;min-height:120px;resize:vertical;border:1px solid var(--line);border-radius:12px;padding:12px;}
+.back{position:fixed;right:20px;bottom:20px;background:#111827;color:#fff;text-decoration:none;padding:12px 14px;border-radius:999px;font-weight:700;box-shadow:0 14px 30px rgba(17,24,39,.2);}
+@media (max-width:1100px){.layout{grid-template-columns:1fr}.content{grid-template-columns:1fr}.toolbar{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="logo">KARAZHAN</div>
+    <div class="side-group">
+      <div class="side-title">관리 메뉴</div>
+      <a class="side-link" href="#">계정 관리</a>
+      <a class="side-link active" href="#">던전/레이드</a>
+      <a class="side-link" href="#">업데이트</a>
+      <a class="side-link" href="#">통계</a>
+    </div>
+    <div class="side-group">
+      <div class="side-title">운영 상태</div>
+      <a class="side-link" href="#">개발 서버</a>
+    </div>
+  </aside>
+  <main class="main">
+    <div class="header">
+      <div class="title">
+        <h1>던전/레이드 관리</h1>
+        <p>추가 미션, 테마, 보상, 실행 로그를 하나의 업무 흐름 안에서 정돈해서 보여주는 운영툴 방향입니다.</p>
+      </div>
+      <div class="actions">
+        <button class="btn">초기화</button>
+        <button class="btn primary">새 미션 추가</button>
+      </div>
+    </div>
+    <div class="tabs">
+      <button class="tab active">미션 관리</button>
+      <button class="tab">테마 관리</button>
+      <button class="tab">연결 관리</button>
+      <button class="tab">런 로그</button>
+    </div>
+    <div class="toolbar">
+      <div class="field"><label>던전/레이드</label><input value="마나 무덤" /></div>
+      <div class="field"><label>게시 상태</label><select><option>전체</option></select></div>
+      <div class="field"><label>활성 여부</label><select><option>전체</option></select></div>
+      <button class="btn">초기화</button>
+      <button class="btn primary">검색</button>
+    </div>
+    <div class="content">
+      <section class="panel">
+        <h3>미션 목록</h3>
+        <table class="table">
+          <thead><tr><th>이름</th><th>유형</th><th>상태</th><th>버전</th></tr></thead>
+          <tbody>
+            <tr><td>에테리얼 사술사 토벌</td><td>처치형</td><td><span class="badge ok">게시</span></td><td>1</td></tr>
+            <tr><td>팬더모니우스 격파</td><td>보스형</td><td><span class="badge review">검토</span></td><td>1</td></tr>
+            <tr><td>무사고 돌파</td><td>생존형</td><td><span class="badge ok">게시</span></td><td>2</td></tr>
+          </tbody>
+        </table>
+      </section>
+      <section class="panel">
+        <h3>상세 편집</h3>
+        <div class="form-grid">
+          <div><label>미션 이름</label><input value="에테리얼 사술사 토벌" /></div>
+          <div><label>미션 키</label><input value="mana_tombs_kill_ethereal" /></div>
+          <div class="full"><label>설명</label><textarea>던전 내 지정된 적을 제한 시간 안에 처치해야 합니다.</textarea></div>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+<a class="back" href="./index.html">시안 목록으로</a>
+</body>
+</html>

@@ -1,0 +1,78 @@
+﻿<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>시안 2 - 블리자드 콘솔형</title>
+<style>
+:root{--bg:#0a1320;--panel:#101b2b;--panel-2:#152338;--line:rgba(255,255,255,.08);--text:#ecf3ff;--muted:#9db0c8;--gold:#c8a96a;--gold-soft:rgba(200,169,106,.14);--blue:#5d8fff;}
+*{box-sizing:border-box}
+body{margin:0;font-family:"Pretendard","Noto Sans KR",sans-serif;background:radial-gradient(circle at top,#18304f 0%,transparent 35%),linear-gradient(180deg,#09111d 0%,#0d1625 100%);color:var(--text);}
+.wrap{max-width:1480px;margin:0 auto;padding:28px;}
+.topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;gap:16px;}
+.brand{font-size:28px;font-weight:900;letter-spacing:-0.04em;}.brand small{display:block;font-size:13px;color:var(--muted);margin-top:6px;font-weight:600;}
+.shell{display:grid;grid-template-columns:240px 1fr;gap:18px;}
+.nav{background:linear-gradient(180deg,#0d1828 0%,#101a2b 100%);border:1px solid var(--line);border-radius:24px;padding:18px;}
+.nav h4{margin:0 0 10px;color:var(--gold);}.nav a{display:block;color:#dce7f8;text-decoration:none;padding:11px 12px;border-radius:12px;margin-bottom:6px;}.nav a.active{background:var(--gold-soft);color:#fff3d4;border:1px solid rgba(200,169,106,.22);}
+.main{display:flex;flex-direction:column;gap:16px;}
+.hero{background:linear-gradient(135deg,#0f1e31 0%,#142844 100%);border:1px solid var(--line);border-radius:26px;padding:22px;}
+.hero h1{margin:0;font-size:34px;color:#fff;}.hero p{margin:8px 0 0;color:var(--muted);line-height:1.7;}
+.filters{display:grid;grid-template-columns:1.6fr 1fr 1fr auto auto;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:14px;}
+label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:700;}input,select{width:100%;padding:11px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.08);background:var(--panel-2);color:#fff;}button{padding:11px 14px;border-radius:12px;border:1px solid transparent;font-weight:800;cursor:pointer;}.btn-gold{background:var(--gold);color:#15120c;}.btn-dark{background:#172536;color:#d7e4f7;border-color:rgba(255,255,255,.08);}
+.grid{display:grid;grid-template-columns:1.15fr .85fr;gap:16px;}.card{background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:18px;}.card h3{margin:0 0 14px;color:#fff5df;}.table{width:100%;border-collapse:collapse;}.table th,.table td{padding:12px 10px;border-bottom:1px solid rgba(255,255,255,.06);text-align:left;}.table th{color:var(--muted);font-size:13px;}.badge{display:inline-block;padding:5px 10px;border-radius:999px;font-size:12px;font-weight:800;}.badge.live{background:rgba(93,143,255,.16);color:#b6ccff;}.badge.pub{background:rgba(200,169,106,.15);color:#f6db9d;}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}.full{grid-column:1 / -1}textarea{width:100%;min-height:120px;border-radius:12px;border:1px solid rgba(255,255,255,.08);background:var(--panel-2);color:#fff;padding:12px;}
+.back{position:fixed;right:20px;bottom:20px;background:rgba(200,169,106,.92);color:#15120c;text-decoration:none;padding:12px 14px;border-radius:999px;font-weight:800;box-shadow:0 18px 36px rgba(0,0,0,.3);}
+@media (max-width:1100px){.shell{grid-template-columns:1fr}.grid{grid-template-columns:1fr}.filters{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div class="brand">KARAZHAN ADMIN<small>던전/레이드 미션 운영 콘솔</small></div>
+    <div><button class="btn-gold">새 미션 추가</button></div>
+  </div>
+  <div class="shell">
+    <aside class="nav">
+      <h4>대메뉴</h4>
+      <a href="#">홈</a>
+      <a href="#" class="active">던전/레이드</a>
+      <a href="#">업데이트</a>
+      <a href="#">통계</a>
+    </aside>
+    <div class="main">
+      <section class="hero">
+        <h1>던전/레이드 운영</h1>
+        <p>레이드 콘텐츠, 미션 연결, 보상 구조, 실행 기록까지 한 번에 관리하는 게임 운영 콘솔 방향의 시안입니다.</p>
+      </section>
+      <section class="filters">
+        <div><label>던전/레이드</label><input value="마나 무덤" /></div>
+        <div><label>게시 상태</label><select><option>전체</option></select></div>
+        <div><label>활성 여부</label><select><option>전체</option></select></div>
+        <button class="btn-dark">초기화</button>
+        <button class="btn-gold">검색</button>
+      </section>
+      <section class="grid">
+        <div class="card">
+          <h3>미션 목록</h3>
+          <table class="table">
+            <thead><tr><th>이름</th><th>유형</th><th>상태</th></tr></thead>
+            <tbody>
+              <tr><td>에테리얼 사술사 토벌</td><td>처치형</td><td><span class="badge pub">게시</span></td></tr>
+              <tr><td>팬더모니우스 격파</td><td>보스형</td><td><span class="badge live">검토</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="card">
+          <h3>편집</h3>
+          <div class="form-grid">
+            <div><label>미션 이름</label><input value="에테리얼 사술사 토벌"></div>
+            <div><label>목표 수량</label><input value="12"></div>
+            <div class="full"><label>브리핑</label><textarea>지정된 목표를 제한 시간 안에 처리하세요.</textarea></div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+<a class="back" href="./index.html">시안 목록으로</a>
+</body>
+</html>

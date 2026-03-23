@@ -1,0 +1,108 @@
+﻿<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>던전/레이드 관리 디자인 시안</title>
+<style>
+:root{
+  --bg:#0b1320;
+  --panel:#111b2b;
+  --panel-soft:#16253a;
+  --line:rgba(255,255,255,.08);
+  --text:#edf3fb;
+  --muted:#95a7bf;
+  --gold:#c8a96a;
+  --blue:#6f95ff;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family:"Pretendard","Noto Sans KR",sans-serif;
+  background:radial-gradient(circle at top,#18304f 0%,transparent 30%), linear-gradient(180deg,#08111d 0%,#0f1725 100%);
+  color:var(--text);
+}
+.wrap{max-width:1200px;margin:0 auto;padding:40px 24px 60px;}
+.hero{margin-bottom:28px;}
+.hero h1{margin:0;font-size:40px;letter-spacing:-0.04em;}
+.hero p{margin:10px 0 0;color:var(--muted);font-size:16px;line-height:1.7;max-width:720px;}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px;}
+.card{
+  display:block;
+  text-decoration:none;
+  color:inherit;
+  background:linear-gradient(180deg,rgba(255,255,255,.02),rgba(255,255,255,.01));
+  border:1px solid var(--line);
+  border-radius:24px;
+  padding:24px;
+  transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease;
+}
+.card:hover{
+  transform:translateY(-4px);
+  border-color:rgba(200,169,106,.35);
+  box-shadow:0 18px 40px rgba(0,0,0,.22);
+}
+.badge{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:6px 12px;
+  border-radius:999px;
+  background:rgba(200,169,106,.12);
+  color:#efd8a7;
+  font-size:12px;
+  font-weight:800;
+  margin-bottom:18px;
+}
+.card h2{margin:0 0 10px;font-size:26px;letter-spacing:-0.03em;}
+.card p{margin:0 0 18px;color:var(--muted);line-height:1.7;}
+.list{display:grid;gap:8px;color:#d9e6fb;font-size:14px;}
+.footer-note{margin-top:26px;color:var(--muted);font-size:14px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <section class="hero">
+    <h1>던전/레이드 관리 디자인 시안</h1>
+    <p>실제 화면에 반영하지 않고, 브라우저에서 바로 비교해볼 수 있도록 만든 HTML/CSS 전용 미리보기입니다. 각 시안은 레이아웃 흐름과 정보 위계를 다르게 잡았고, 현재 운영 도구에 어떤 방향이 더 잘 맞는지 판단하는 용도로 보시면 됩니다.</p>
+  </section>
+
+  <section class="grid">
+    <a class="card" href="./concept-1-operational-clean.html">
+      <div class="badge">시안 1 · 운영툴 정돈형</div>
+      <h2>안정적인 운영 화면</h2>
+      <p>현재 웹 구조를 크게 깨지 않으면서도 헤더, 필터, 목록, 편집 패널의 위계를 더 명확하게 정리하는 방향입니다.</p>
+      <div class="list">
+        <div>헤더와 필터가 명확하게 분리됨</div>
+        <div>관리자 테이블과 폼에 익숙한 구조</div>
+        <div>기존 UI와 연결하기 쉬움</div>
+      </div>
+    </a>
+
+    <a class="card" href="./concept-2-blizzard-console.html">
+      <div class="badge">시안 2 · 블리자드 콘솔형</div>
+      <h2>게임 운영툴 분위기 강화</h2>
+      <p>다크 블루 배경과 금색 포인트를 중심으로, 카라잔 세계관에 더 가까운 운영 콘솔 분위기를 만드는 방향입니다.</p>
+      <div class="list">
+        <div>게임/GM 도구 느낌이 강함</div>
+        <div>현재 사이트 분위기와 잘 어울림</div>
+        <div>시각적 개성이 가장 강함</div>
+      </div>
+    </a>
+
+    <a class="card" href="./concept-3-workspace-split.html">
+      <div class="badge">시안 3 · 분할 워크스페이스형</div>
+      <h2>검색-목록-편집 생산성 중심</h2>
+      <p>좌측에서 항목을 빠르게 찾고 우측에서 상세를 바로 편집하는 구조로, 실제 운영 효율을 우선하는 방향입니다.</p>
+      <div class="list">
+        <div>목록과 상세를 동시에 다루기 쉬움</div>
+        <div>작업 흐름이 가장 빠름</div>
+        <div>운영자가 오래 써도 덜 피로한 구조</div>
+      </div>
+    </a>
+  </section>
+
+  <div class="footer-note">권장 흐름: 전체 개편은 시안 1, 던전/레이드 같은 운영형 화면은 시안 3, 분위기 강조는 시안 2가 잘 맞습니다.</div>
+</div>
+</body>
+</html>
