@@ -603,21 +603,48 @@ func handleMapOptions(w http.ResponseWriter, r *http.Request) {
 
 	rows, err := worldDB.Query(`
 		SELECT
-			m.ID,
-			COALESCE(NULLIF(m.MapName_Lang_koKR, ''), NULLIF(m.MapName_Lang_enUS, ''), CONCAT('맵 ', m.ID)) AS map_name,
-			CASE m.InstanceType
-				WHEN 1 THEN '던전'
-				WHEN 2 THEN '레이드'
-				WHEN 4 THEN '전장'
-				ELSE '기타'
+			src.map_id,
+			COALESCE(
+				NULLIF(cfg.map_name, ''),
+				NULLIF(dbc.MapName_Lang_koKR, ''),
+				NULLIF(dbc.MapName_Lang_enUS, ''),
+				CASE
+					WHEN it.script <> '' THEN REPLACE(REPLACE(it.script, 'instance_', ''), '_', ' ')
+					ELSE CONCAT('맵 ', src.map_id)
+				END
+			) AS map_name,
+			CASE
+				WHEN IFNULL(dbc.InstanceType, 0) = 2 THEN '레이드'
+				WHEN IFNULL(dbc.InstanceType, 0) = 1 THEN '던전'
+				WHEN IFNULL(dbc.InstanceType, 0) = 4 THEN '전장'
+				WHEN it.parent <> 0 THEN '레이드'
+				ELSE '던전'
 			END AS map_type,
-			COALESCE(m.MaxPlayers, 0) AS max_players
-		FROM map_dbc m
-		INNER JOIN instance_template it ON it.map = m.ID
+			COALESCE(dbc.MaxPlayers, 0) AS max_players
+		FROM (
+			SELECT map AS map_id FROM instance_template
+			UNION
+			SELECT map_id FROM instance_bonus_map_config
+			UNION
+			SELECT map_id FROM instance_bonus_mission_pool
+			UNION
+			SELECT map_id FROM instance_bonus_theme_pool
+			UNION
+			SELECT map_id FROM instance_bonus_mission
+			UNION
+			SELECT map_id FROM instance_bonus_theme
+		) src
+		LEFT JOIN instance_template it ON it.map = src.map_id
+		LEFT JOIN map_dbc dbc ON dbc.ID = src.map_id
+		LEFT JOIN instance_bonus_map_config cfg ON cfg.map_id = src.map_id
 		ORDER BY
-			CASE m.InstanceType WHEN 2 THEN 0 WHEN 1 THEN 1 ELSE 2 END,
+			CASE
+				WHEN IFNULL(dbc.InstanceType, 0) = 2 OR it.parent <> 0 THEN 0
+				WHEN IFNULL(dbc.InstanceType, 0) = 1 THEN 1
+				ELSE 2
+			END,
 			map_name ASC,
-			m.ID ASC`)
+			src.map_id ASC`)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
