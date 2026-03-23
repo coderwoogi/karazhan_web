@@ -18,26 +18,27 @@
     };
 
     const missionFields = [
-        ['map_id', 'map_id', 'number'], ['mission_key', 'mission_key'], ['name', '이름'], ['description', '설명', 'textarea', true],
-        ['briefing_text', '브리핑', 'textarea', true], ['mission_type', 'mission_type'], ['objective_type', 'objective_type'],
-        ['target_entry', 'target_entry', 'number'], ['target_label', 'target_label'], ['target_count', 'target_count', 'number'],
-        ['time_limit_sec', 'time_limit_sec', 'number'], ['failure_condition_type', 'failure_condition_type'], ['required_boss_entry', 'required_boss_entry', 'number'],
-        ['required_before_boss_entry', 'required_before_boss_entry', 'number'], ['allowed_death_count', 'allowed_death_count', 'number'],
-        ['allowed_wipe_count', 'allowed_wipe_count', 'number'], ['reward_profile_id', 'reward_profile_id', 'number'], ['difficulty_weight', 'difficulty_weight', 'number'],
+        ['map_id', '맵 ID', 'number'], ['mission_key', '미션 키'], ['name', '이름'], ['description', '설명', 'textarea', true],
+        ['briefing_text', '브리핑', 'textarea', true], ['mission_type', '미션 종류'], ['objective_type', '목표 방식'],
+        ['target_entry', '대상 번호', 'number'], ['target_label', '목표 이름'], ['target_count', '목표 수량', 'number'],
+        ['time_limit_sec', '제한 시간(초)', 'number'], ['failure_condition_type', '실패 조건'], ['required_boss_entry', '필수 보스 번호', 'number'],
+        ['required_before_boss_entry', '선행 보스 번호', 'number'], ['allowed_death_count', '허용 사망 수', 'number'],
+        ['allowed_wipe_count', '허용 전멸 수', 'number'], ['reward_profile_id', '보상 프로파일 ID', 'number'], ['difficulty_weight', '난이도 가중치', 'number'],
         ['min_party_size', '최소 파티 수', 'number'], ['max_party_size', '최대 파티 수', 'number'], ['min_avg_item_level', '최소 평균 템렙', 'number'],
         ['max_avg_item_level', '최대 평균 템렙', 'number'], ['required_tank', '탱커 필요', 'checkbox'], ['required_healer', '힐러 필요', 'checkbox'],
         ['enabled', '활성', 'checkbox'], ['publish_status', '게시 상태', 'select', false, ['draft','review','published','archived']]
     ];
     const themeFields = [
-        ['map_id', 'map_id', 'number'], ['theme_key', 'theme_key'], ['name', '이름'], ['description', '설명', 'textarea', true],
-        ['briefing_style', 'briefing_style'], ['min_party_size', '최소 파티 수', 'number'], ['max_party_size', '최대 파티 수', 'number'],
+        ['map_id', '맵 ID', 'number'], ['theme_key', '테마 키'], ['name', '이름'], ['description', '설명', 'textarea', true],
+        ['briefing_style', '브리핑 방식'], ['min_party_size', '최소 파티 수', 'number'], ['max_party_size', '최대 파티 수', 'number'],
         ['min_avg_item_level', '최소 평균 템렙', 'number'], ['max_avg_item_level', '최대 평균 템렙', 'number'], ['required_tank', '탱커 필요', 'checkbox'],
         ['required_healer', '힐러 필요', 'checkbox'], ['weight', '가중치', 'number'], ['enabled', '활성', 'checkbox'],
         ['publish_status', '게시 상태', 'select', false, ['draft','review','published','archived']]
     ];
     const publishStatuses = ['draft', 'review', 'published', 'archived'];
+    const publishStatusLabels = { draft: '초안', review: '검토', published: '게시', archived: '보관' };
     const mapFields = [
-        { name: 'map_id', label: 'map_id', type: 'number', help: '던전/레이드 맵 ID입니다.' },
+        { name: 'map_id', label: '맵 ID', type: 'number', help: '던전이나 레이드 맵 번호입니다.' },
         { name: 'map_name', label: '맵 이름', help: '운영 화면에서 확인할 이름입니다.' },
         { name: 'default_time_limit_sec', label: '기본 시간 제한(초)', type: 'number' },
         { name: 'max_concurrent_missions', label: '최대 동시 미션 수', type: 'number' },
@@ -108,7 +109,8 @@
 
     function publishBadge(value) {
         const klass = value === 'published' ? 'ok' : (value === 'review' ? 'warn' : 'off');
-        return `<span class="ib-badge ${klass}">${escapeHtml(value || 'draft')}</span>`;
+        const raw = value || 'draft';
+        return `<span class="ib-badge ${klass}">${escapeHtml(publishStatusLabels[raw] || raw)}</span>`;
     }
 
     function renderPagination(containerId, current, total, limit, handlerName) {
@@ -134,13 +136,13 @@
         const helpHtml = help ? `<small class="ib-help">${help}</small>` : '';
         if (type === 'textarea') return `<div class="ib-field ${full ? 'full' : ''}"><label>${label}</label><textarea name="${name}"></textarea>${helpHtml}</div>`;
         if (type === 'checkbox') return `<div class="ib-field"><label>${label}</label><select name="${name}"><option value="1">사용</option><option value="0">미사용</option></select>${helpHtml}</div>`;
-        if (type === 'select') return `<div class="ib-field ${full ? 'full' : ''}"><label>${label}</label><select name="${name}">${options.map((v) => `<option value="${v}">${v}</option>`).join('')}</select>${helpHtml}</div>`;
+        if (type === 'select') return `<div class="ib-field ${full ? 'full' : ''}"><label>${label}</label><select name="${name}">${options.map((v) => `<option value="${v}">${publishStatusLabels[v] || v}</option>`).join('')}</select>${helpHtml}</div>`;
         return `<div class="ib-field ${full ? 'full' : ''}"><label>${label}</label><input type="${type}" name="${name}">${helpHtml}</div>`;
     }
 
     function confirmPublishWorkflow(name) {
-        const acknowledged = prompt(`${name}을(를) published 상태로 저장합니다.\n운영 중인 콘텐츠라면 검토 후 진행해야 합니다.\n계속하려면 published 를 입력하세요.`, '');
-        return acknowledged === 'published';
+        const acknowledged = prompt(`${name}을(를) 게시 상태로 저장합니다.\n운영 중인 콘텐츠라면 검토 후 진행해야 합니다.\n계속하려면 게시 를 입력하세요.`, '');
+        return acknowledged === '게시' || acknowledged === 'published';
     }
 
     function renderRowsTable(columns, rows, emptyMessage = '데이터가 없습니다.') {
@@ -165,18 +167,34 @@
 
     async function loadDashboard() {
         const data = await api('/instance-bonus/dashboard');
+        document.getElementById('dashboard-guide').innerHTML = [
+            '1. 먼저 맵 설정에서 어떤 던전/레이드를 운영할지 등록합니다.',
+            '2. 보상 프로파일에서 등급별 보상을 먼저 만듭니다.',
+            '3. 미션 관리에서 실제 추가 미션을 만듭니다.',
+            '4. 테마 관리에서 미션을 묶을 테마를 만듭니다.',
+            '5. 테마-미션 연결에서 테마에 미션을 연결하고 순서를 정합니다.',
+            '6. 검토가 끝나면 게시 상태를 게시로 바꿔 운영에 투입합니다.',
+            `현재 기존 게임 테이블에는 미션 ${data.runtimeMissionCount || 0}개, 테마 ${data.runtimeThemeCount || 0}개가 있고, 웹 관리용 v2 테이블에는 미션 ${data.v2MissionCount || 0}개, 테마 ${data.v2ThemeCount || 0}개가 있습니다.`
+        ].map((line) => `<div class="ib-list-item">${line}</div>`).join('');
         document.getElementById('dashboard-stats').innerHTML = [
             ['최근 실행 런 수', data.recentRuns || 0],
             ['오늘 성공 런', data.todaySuccess || 0],
             ['오늘 실패 런', data.todayFailed || 0],
-            ['최근 fallback 발생 수', data.recentFallbacks || 0]
+            ['최근 대체 선택 발생 수', data.recentFallbacks || 0]
         ].map(([label, value]) => `<div class="ib-stat"><small>${label}</small><strong>${value}</strong></div>`).join('');
         document.getElementById('dashboard-map-runs').innerHTML = (data.mapRunCounts || []).length
-            ? data.mapRunCounts.map((row) => `<div class="ib-list-item"><div class="ib-kv"><strong>map_id</strong><span>${escapeHtml(row.map_id)}</span></div><div class="ib-kv"><strong>실행 수</strong><span>${escapeHtml(row.run_count)}</span></div></div>`).join('')
+            ? data.mapRunCounts.map((row) => `<div class="ib-list-item"><div class="ib-kv"><strong>맵 ID</strong><span>${escapeHtml(row.mapId)}</span></div><div class="ib-kv"><strong>실행 수</strong><span>${escapeHtml(row.count)}</span></div></div><div class="ib-help">${escapeHtml(row.name || '')}</div>`).join('')
             : '<div class="ib-empty">최근 실행 데이터가 없습니다.</div>';
         document.getElementById('dashboard-failed-runs').innerHTML = (data.recentFailedRuns || []).length
             ? data.recentFailedRuns.map((row) => `<div class="ib-list-item"><div><strong>#${row.run_id}</strong> · ${escapeHtml(row.mission_name || '-')}</div><div class="ib-help">${escapeHtml(row.status || '-')} / ${escapeHtml(row.failure_reason || '실패 사유 없음')}</div></div>`).join('')
             : '<div class="ib-empty">최근 실패 런이 없습니다.</div>';
+    }
+
+    async function importRuntimeData() {
+        if (!confirm('기존 게임 런타임 테이블의 미션/테마 데이터를 v2 관리 화면으로 가져오시겠습니까?\n기존 런타임 테이블은 수정하지 않습니다.')) return;
+        const result = await api('/instance-bonus/runtime/import', { method: 'POST', body: '{}' });
+        alert(`가져오기가 완료되었습니다.\n맵 설정 ${result.importedMaps}건\n미션 ${result.importedMissions}건\n테마 ${result.importedThemes}건\n연결 ${result.importedLinks}건`);
+        refreshCurrent();
     }
 
     function resetMapsFilter() {
@@ -232,7 +250,7 @@
             else if (field.type === 'checkbox') payload[field.name] = el.value === '1';
             else payload[field.name] = el.value;
         });
-        if (!payload.map_id || payload.map_id <= 0) throw new Error('map_id는 필수입니다.');
+        if (!payload.map_id || payload.map_id <= 0) throw new Error('맵 ID는 필수입니다.');
         return payload;
     }
 
@@ -292,28 +310,28 @@
         const form = document.getElementById('mission-form');
         const sections = [
             formSection('기본 정보', '운영자가 식별하는 미션 키와 화면 노출 이름, 설명을 설정합니다.'),
-            fieldTemplate({ name: 'map_id', label: 'map_id', type: 'number', help: '어떤 던전/레이드 맵에 속하는 미션인지 지정합니다.' }),
-            fieldTemplate({ name: 'mission_key', label: 'mission_key', help: '중복되지 않는 내부 식별자입니다.' }),
+            fieldTemplate({ name: 'map_id', label: '맵 ID', type: 'number', help: '어느 던전/레이드에 속하는 미션인지 지정합니다.' }),
+            fieldTemplate({ name: 'mission_key', label: '미션 키', help: '중복되지 않는 내부 식별자입니다.' }),
             fieldTemplate({ name: 'name', label: '이름', help: '운영자/유저 화면에 표시되는 미션 이름입니다.' }),
             fieldTemplate({ name: 'description', label: '설명', type: 'textarea', full: true }),
             fieldTemplate({ name: 'briefing_text', label: '브리핑', type: 'textarea', full: true, help: '인게임 진입 시 노출될 짧은 안내 텍스트입니다.' }),
 
             formSection('목표 조건', '미션 성공/실패 판정을 위한 핵심 목표값을 설정합니다.'),
-            fieldTemplate({ name: 'mission_type', label: 'mission_type', help: '예: massacre, speedrun, boss_focus 등' }),
-            fieldTemplate({ name: 'objective_type', label: 'objective_type', help: '예: kill_count, boss_clear, no_death 등' }),
-            fieldTemplate({ name: 'target_entry', label: 'target_entry', type: 'number' }),
-            fieldTemplate({ name: 'target_label', label: 'target_label' }),
-            fieldTemplate({ name: 'target_count', label: 'target_count', type: 'number' }),
-            fieldTemplate({ name: 'time_limit_sec', label: 'time_limit_sec', type: 'number' }),
-            fieldTemplate({ name: 'failure_condition_type', label: 'failure_condition_type' }),
-            fieldTemplate({ name: 'required_boss_entry', label: 'required_boss_entry', type: 'number' }),
-            fieldTemplate({ name: 'required_before_boss_entry', label: 'required_before_boss_entry', type: 'number' }),
-            fieldTemplate({ name: 'allowed_death_count', label: 'allowed_death_count', type: 'number' }),
-            fieldTemplate({ name: 'allowed_wipe_count', label: 'allowed_wipe_count', type: 'number' }),
+            fieldTemplate({ name: 'mission_type', label: '미션 종류', help: '예: 빠른 클리어, 보스 집중, 처치형 등으로 구분합니다.' }),
+            fieldTemplate({ name: 'objective_type', label: '목표 방식', help: '예: 처치 수, 보스 처치, 무사고 클리어 같은 판정 기준입니다.' }),
+            fieldTemplate({ name: 'target_entry', label: '대상 번호', type: 'number' }),
+            fieldTemplate({ name: 'target_label', label: '대상 이름' }),
+            fieldTemplate({ name: 'target_count', label: '목표 수량', type: 'number' }),
+            fieldTemplate({ name: 'time_limit_sec', label: '제한 시간(초)', type: 'number' }),
+            fieldTemplate({ name: 'failure_condition_type', label: '실패 조건' }),
+            fieldTemplate({ name: 'required_boss_entry', label: '필수 보스 번호', type: 'number' }),
+            fieldTemplate({ name: 'required_before_boss_entry', label: '선행 보스 번호', type: 'number' }),
+            fieldTemplate({ name: 'allowed_death_count', label: '허용 사망 수', type: 'number' }),
+            fieldTemplate({ name: 'allowed_wipe_count', label: '허용 전멸 수', type: 'number' }),
 
             formSection('보상/난이도', '보상 프로파일과 미션 가중치를 연결합니다.'),
-            fieldTemplate({ name: 'reward_profile_id', label: 'reward_profile_id', type: 'number' }),
-            fieldTemplate({ name: 'difficulty_weight', label: 'difficulty_weight', type: 'number' }),
+            fieldTemplate({ name: 'reward_profile_id', label: '보상 프로파일 ID', type: 'number' }),
+            fieldTemplate({ name: 'difficulty_weight', label: '난이도 가중치', type: 'number' }),
 
             formSection('파티 조건 및 게시', '파티 규모와 게시 워크플로우를 함께 관리합니다.'),
             fieldTemplate({ name: 'min_party_size', label: '최소 파티 수', type: 'number' }),
@@ -323,7 +341,7 @@
             fieldTemplate({ name: 'required_tank', label: '탱커 필요', type: 'checkbox' }),
             fieldTemplate({ name: 'required_healer', label: '힐러 필요', type: 'checkbox' }),
             fieldTemplate({ name: 'enabled', label: '활성', type: 'checkbox' }),
-            fieldTemplate({ name: 'publish_status', label: '게시 상태', type: 'select', options: publishStatuses, help: 'draft / review / published / archived 단계로 관리합니다.' }),
+            fieldTemplate({ name: 'publish_status', label: '게시 상태', type: 'select', options: publishStatuses, help: '초안, 검토, 게시, 보관 단계로 관리합니다.' }),
             `<div class="ib-field full"><div class="ib-actions"><button type="button" class="ib-btn ib-btn-primary" onclick="instanceBonusApp.saveMission(false)">저장 후 목록</button><button type="button" class="ib-btn ib-btn-ghost" onclick="instanceBonusApp.saveMission(true)">저장 후 계속 편집</button><button type="button" class="ib-btn ib-btn-secondary" onclick="instanceBonusApp.closeMissionForm()">닫기</button></div></div>`
         ];
         form.innerHTML = sections.join('');
@@ -362,7 +380,7 @@
             else if (type === 'checkbox') data[name] = el.value === '1';
             else data[name] = el.value;
         });
-        if (!data.mission_key || !data.name) throw new Error('mission_key와 이름은 필수입니다.');
+        if (!data.mission_key || !data.name) throw new Error('미션 키와 이름은 필수입니다.');
         return data;
     }
 
@@ -387,7 +405,7 @@
     async function loadMissions(page = state.missionsPage) {
         state.missionsPage = page;
         const params = new URLSearchParams({ page: String(page), limit: '20' });
-        [['map_id','missions-filter-map-id'],['publish_status','missions-filter-publish'],['enabled','missions-filter-enabled'],['mission_type','missions-filter-type'],['objective_type','missions-filter-objective'],['keyword','missions-filter-keyword']].forEach(([key,id]) => {
+        [['map_id','missions-filter-map-id'],['publish_status','missions-filter-publish'],['enabled','missions-filter-enabled'],['mission_type','missions-filter-type'],['objective_type','missions-filter-objective'],['search','missions-filter-keyword']].forEach(([key,id]) => {
             const value = document.getElementById(id)?.value.trim();
             if (value) params.set(key, value);
         });
@@ -401,7 +419,7 @@
                 <td>${row.target_count || 0}</td><td>${row.time_limit_sec || 0}</td><td>${badge(row.enabled)}</td>
                 <td>${publishBadge(row.publish_status)}</td><td>${row.version || 1}</td><td>${escapeHtml(row.updated_at || '-')}</td>
                 <td><div class="ib-actions"><button class="ib-btn ib-btn-ghost" onclick="instanceBonusApp.fetchMission(${row.mission_id})">편집</button></div></td>
-            </tr>`).join('') : '<tr><td colspan="14" class="ib-empty">등록된 미션이 없습니다.</td></tr>';
+            </tr>`).join('') : '<tr><td colspan="14" class="ib-empty">등록된 미션이 없습니다. 기존 게임 테이블에 넣어둔 미션은 대시보드의 "기존 게임 데이터 가져오기"를 먼저 눌러주세요.</td></tr>';
         renderPagination('missions-pagination', data.page || 1, data.total || 0, data.limit || 20, 'loadMissions');
         loadMissionCandidates();
     }
@@ -415,11 +433,11 @@
         const form = document.getElementById('theme-form');
         const sections = [
             formSection('기본 정보', '테마 이름, 키, 설명과 브리핑 스타일을 정의합니다.'),
-            fieldTemplate({ name: 'map_id', label: 'map_id', type: 'number' }),
-            fieldTemplate({ name: 'theme_key', label: 'theme_key', help: '예: massacre, flawless, speedrun' }),
+            fieldTemplate({ name: 'map_id', label: '맵 ID', type: 'number' }),
+            fieldTemplate({ name: 'theme_key', label: '테마 키', help: '운영자가 구분하기 쉬운 짧은 이름을 쓰면 됩니다.' }),
             fieldTemplate({ name: 'name', label: '이름' }),
             fieldTemplate({ name: 'description', label: '설명', type: 'textarea', full: true }),
-            fieldTemplate({ name: 'briefing_style', label: 'briefing_style', help: '출력 톤이나 브리핑 스타일 키' }),
+            fieldTemplate({ name: 'briefing_style', label: '브리핑 스타일', help: '설명 문체나 안내 톤을 구분하는 이름입니다.' }),
 
             formSection('파티 조건', '테마가 어떤 파티에 적합한지 제한합니다.'),
             fieldTemplate({ name: 'min_party_size', label: '최소 파티 수', type: 'number' }),
@@ -471,7 +489,7 @@
             else if (type === 'checkbox') data[name] = el.value === '1';
             else data[name] = el.value;
         });
-        if (!data.theme_key || !data.name) throw new Error('theme_key와 이름은 필수입니다.');
+        if (!data.theme_key || !data.name) throw new Error('테마 키와 이름은 필수입니다.');
         return data;
     }
 
@@ -495,7 +513,7 @@
     async function loadThemes(page = state.themesPage) {
         state.themesPage = page;
         const params = new URLSearchParams({ page: String(page), limit: '20' });
-        [['map_id','themes-filter-map-id'],['publish_status','themes-filter-publish'],['enabled','themes-filter-enabled'],['keyword','themes-filter-keyword']].forEach(([key,id]) => {
+        [['map_id','themes-filter-map-id'],['publish_status','themes-filter-publish'],['enabled','themes-filter-enabled'],['search','themes-filter-keyword']].forEach(([key,id]) => {
             const value = document.getElementById(id)?.value.trim();
             if (value) params.set(key, value);
         });
@@ -508,7 +526,7 @@
                 <td>${escapeHtml(row.briefing_style)}</td><td>${row.weight || 0}</td><td>${badge(row.enabled)}</td>
                 <td>${publishBadge(row.publish_status)}</td><td>${row.version || 1}</td><td>${escapeHtml(row.updated_at || '-')}</td>
                 <td><div class="ib-actions"><button class="ib-btn ib-btn-ghost" onclick="instanceBonusApp.fetchTheme(${row.theme_id})">편집</button></div></td>
-            </tr>`).join('') : '<tr><td colspan="11" class="ib-empty">등록된 테마가 없습니다.</td></tr>';
+            </tr>`).join('') : '<tr><td colspan="11" class="ib-empty">등록된 테마가 없습니다. 기존 게임 테이블에 넣어둔 테마는 대시보드의 "기존 게임 데이터 가져오기"를 먼저 눌러주세요.</td></tr>';
         renderPagination('themes-pagination', data.page || 1, data.total || 0, data.limit || 20, 'loadThemes');
         renderThemeSelect();
     }
@@ -527,7 +545,7 @@
     async function loadMissionCandidates() {
         const keyword = document.getElementById('theme-link-keyword')?.value.trim();
         const params = new URLSearchParams({ page: '1', limit: '50' });
-        if (keyword) params.set('keyword', keyword);
+        if (keyword) params.set('search', keyword);
         const data = await api(`/instance-bonus/missions?${params.toString()}`);
         state.missionsCache = data.items || [];
         renderThemeMissionCandidates();
@@ -553,9 +571,9 @@
         const items = await api(`/instance-bonus/themes/${themeId}/missions`);
         document.getElementById('theme-link-table').innerHTML = items.length ? items.map((row) => `
             <tr>
-                <td>#${row.mission_id}</td>
+                <td>${escapeHtml(row.mission_name || `미션 #${row.mission_id}`)}<div class="ib-help">${escapeHtml(row.mission_key || '')}</div></td>
                 <td><select onchange="instanceBonusApp.updateThemeMission(${themeId}, ${row.mission_id}, 'required', this.value)"><option value="1" ${row.required ? 'selected' : ''}>필수</option><option value="0" ${!row.required ? 'selected' : ''}>선택</option></select></td>
-                <td><input type="number" value="${row.slot_order || 0}" onchange="instanceBonusApp.updateThemeMission(${themeId}, ${row.mission_id}, 'slot_order', this.value)"></td>
+                <td><input type="number" value="${row.slot || 0}" onchange="instanceBonusApp.updateThemeMission(${themeId}, ${row.mission_id}, 'slot', this.value)"></td>
                 <td><input type="number" value="${row.weight || 0}" onchange="instanceBonusApp.updateThemeMission(${themeId}, ${row.mission_id}, 'weight', this.value)"></td>
                 <td><button class="ib-btn ib-btn-danger" onclick="instanceBonusApp.removeThemeMission(${themeId}, ${row.mission_id})">삭제</button></td>
             </tr>`).join('') : '<tr><td colspan="5" class="ib-empty">연결된 미션이 없습니다.</td></tr>';
@@ -565,7 +583,7 @@
     async function addThemeMission(missionId) {
         const themeId = document.getElementById('theme-link-theme-select')?.value;
         if (!themeId) throw new Error('테마를 먼저 선택하세요.');
-        await api(`/instance-bonus/themes/${themeId}/missions`, { method: 'POST', body: JSON.stringify({ mission_id: missionId, required: false, slot_order: 0, weight: 100 }) });
+        await api(`/instance-bonus/themes/${themeId}/missions`, { method: 'POST', body: JSON.stringify({ mission_id: missionId, required: false, slot: 0, weight: 100 }) });
         loadThemeLinks();
     }
 
@@ -573,7 +591,7 @@
         const items = await api(`/instance-bonus/themes/${themeId}/missions`);
         const current = items.find((item) => Number(item.mission_id) === Number(missionId));
         if (!current) return;
-        const payload = { mission_id: missionId, required: current.required, slot_order: current.slot_order, weight: current.weight };
+        const payload = { mission_id: missionId, required: current.required, slot: current.slot, weight: current.weight };
         payload[field] = field === 'required' ? value === '1' : Number(value || 0);
         await api(`/instance-bonus/themes/${themeId}/missions`, { method: 'POST', body: JSON.stringify(payload) });
         loadThemeLinks();
@@ -588,12 +606,12 @@
         const form = document.getElementById('reward-form');
         form.innerHTML = `
             ${formSection('기본 정보', '등급별 보상 세트의 이름과 맵 연결 정보를 설정합니다.')}
-            <div class="ib-field"><label>map_id</label><input type="number" name="map_id"></div>
-            <div class="ib-field"><label>profile_key</label><input type="text" name="profile_key"></div>
+            <div class="ib-field"><label>맵 ID</label><input type="number" name="map_id"></div>
+            <div class="ib-field"><label>보상 키</label><input type="text" name="profile_key"></div>
             <div class="ib-field"><label>이름</label><input type="text" name="name"></div>
             <div class="ib-field"><label>활성</label><select name="enabled"><option value="1">사용</option><option value="0">비활성</option></select></div>
             <div class="ib-field full"><label>설명</label><textarea name="description"></textarea></div>
-            <div class="ib-field"><label>게시 상태</label><select name="publish_status"><option value="draft">draft</option><option value="review">review</option><option value="published">published</option><option value="archived">archived</option></select></div>
+            <div class="ib-field"><label>게시 상태</label><select name="publish_status"><option value="draft">초안</option><option value="review">검토</option><option value="published">게시</option><option value="archived">보관</option></select></div>
             ${formSection('보상 항목', 'S/A/B/C/D 등급별 아이템, 수량, 확률을 관리합니다.')}
             <div class="ib-field full"><label>보상 항목</label><div id="reward-items-box"></div><div class="ib-actions" style="margin-top:10px;"><button type="button" class="ib-btn ib-btn-ghost" onclick="instanceBonusApp.addRewardItemRow()"><i class="fas fa-plus"></i> 항목 추가</button></div></div>
             <div class="ib-field full"><div class="ib-actions"><button type="button" class="ib-btn ib-btn-primary" onclick="instanceBonusApp.saveReward(false)">저장 후 목록</button><button type="button" class="ib-btn ib-btn-ghost" onclick="instanceBonusApp.saveReward(true)">저장 후 계속 편집</button><button type="button" class="ib-btn ib-btn-secondary" onclick="instanceBonusApp.closeRewardForm()">닫기</button></div></div>`;
@@ -601,7 +619,7 @@
     }
 
     function rewardItemRow(item = {}) {
-        return `<div class="ib-detail-row reward-item-row"><div class="ib-detail-grid"><div class="ib-field"><label>등급</label><select class="reward-grade"><option value="S" ${item.grade === 'S' ? 'selected' : ''}>S</option><option value="A" ${item.grade === 'A' ? 'selected' : ''}>A</option><option value="B" ${item.grade === 'B' ? 'selected' : ''}>B</option><option value="C" ${item.grade === 'C' ? 'selected' : ''}>C</option><option value="D" ${item.grade === 'D' ? 'selected' : ''}>D</option></select></div><div class="ib-field"><label>item_entry</label><input class="reward-item-entry" type="number" value="${item.item_entry || 0}"></div><div class="ib-field"><label>수량</label><input class="reward-item-count" type="number" value="${item.item_count || 1}"></div><div class="ib-field"><label>chance</label><input class="reward-item-chance" type="number" value="${item.chance || 100}" step="0.01"></div><div class="ib-field"><label>정렬</label><input class="reward-item-sort" type="number" value="${item.sort_order || 0}"></div><div class="ib-field"><label>관리</label><button type="button" class="ib-btn ib-btn-danger" onclick="this.closest('.reward-item-row').remove()">삭제</button></div></div></div>`;
+        return `<div class="ib-detail-row reward-item-row"><div class="ib-detail-grid"><div class="ib-field"><label>등급</label><select class="reward-grade"><option value="S" ${item.grade === 'S' ? 'selected' : ''}>S</option><option value="A" ${item.grade === 'A' ? 'selected' : ''}>A</option><option value="B" ${item.grade === 'B' ? 'selected' : ''}>B</option><option value="C" ${item.grade === 'C' ? 'selected' : ''}>C</option><option value="D" ${item.grade === 'D' ? 'selected' : ''}>D</option></select></div><div class="ib-field"><label>아이템 번호</label><input class="reward-item-entry" type="number" value="${item.item_entry || 0}"></div><div class="ib-field"><label>수량</label><input class="reward-item-count" type="number" value="${item.item_count || 1}"></div><div class="ib-field"><label>확률</label><input class="reward-item-chance" type="number" value="${item.chance || 100}" step="0.01"></div><div class="ib-field"><label>정렬</label><input class="reward-item-sort" type="number" value="${item.sort_order || 0}"></div><div class="ib-field"><label>관리</label><button type="button" class="ib-btn ib-btn-danger" onclick="this.closest('.reward-item-row').remove()">삭제</button></div></div></div>`;
     }
 
     function addRewardItemRow(item = {}) {
@@ -652,7 +670,7 @@
 
     async function saveReward(keepEditing = false) {
         const payload = rewardPayload();
-        if (!payload.profile_key || !payload.name) throw new Error('profile_key와 이름은 필수입니다.');
+        if (!payload.profile_key || !payload.name) throw new Error('보상 키와 이름은 필수입니다.');
         if (payload.publish_status === 'published' && !confirmPublishWorkflow('보상 프로파일')) return;
         if (state.rewardEditingId) await api(`/instance-bonus/reward-profiles/${state.rewardEditingId}`, { method: 'PUT', body: JSON.stringify(payload) });
         else await api('/instance-bonus/reward-profiles', { method: 'POST', body: JSON.stringify(payload) });
@@ -671,7 +689,7 @@
     async function loadRewards(page = state.rewardsPage) {
         state.rewardsPage = page;
         const params = new URLSearchParams({ page: String(page), limit: '20' });
-        [['map_id','rewards-filter-map-id'],['publish_status','rewards-filter-publish'],['keyword','rewards-filter-keyword']].forEach(([key,id]) => {
+        [['map_id','rewards-filter-map-id'],['publish_status','rewards-filter-publish'],['search','rewards-filter-keyword']].forEach(([key,id]) => {
             const value = document.getElementById(id)?.value.trim();
             if (value) params.set(key, value);
         });
@@ -730,10 +748,10 @@
         if (tab === 'overview') {
             const row = await api(`/instance-bonus/runs/${runId}`);
             body.innerHTML = `<div class="ib-detail-grid">${[
-                ['run_id', row.run_id], ['map_id', row.map_id], ['theme', row.theme_name || '-'], ['mission', row.mission_name || '-'],
-                ['status', row.status || '-'], ['grade', row.grade || '-'], ['started_at', row.started_at || '-'], ['ended_at', row.ended_at || '-'],
-                ['clear_time_sec', row.clear_time_sec || 0], ['deaths', row.deaths || 0], ['wipes', row.wipes || 0], ['score', row.score || 0],
-                ['vote_yes', row.vote_yes || 0], ['vote_no', row.vote_no || 0], ['LLM 사용', row.llm_used ? '예' : '아니오'], ['fallback', row.fallback_used ? '예' : '아니오'], ['실패 사유', row.failure_reason || '-']
+                ['기록 번호', row.run_id], ['맵 ID', row.map_id], ['테마', row.theme_name || '-'], ['미션', row.mission_name || '-'],
+                ['상태', row.status || '-'], ['등급', row.grade || '-'], ['시작 시각', row.started_at || '-'], ['종료 시각', row.ended_at || '-'],
+                ['클리어 시간(초)', row.clear_time_sec || 0], ['사망 수', row.deaths || 0], ['전멸 수', row.wipes || 0], ['점수', row.score || 0],
+                ['찬성 수', row.vote_yes || 0], ['반대 수', row.vote_no || 0], ['LLM 사용', row.llm_used ? '예' : '아니오'], ['대체 선택 사용', row.fallback_used ? '예' : '아니오'], ['실패 사유', row.failure_reason || '-']
             ].map(([k,v]) => `<div class="ib-detail-row"><div class="ib-kv"><strong>${escapeHtml(k)}</strong><span>${escapeHtml(v)}</span></div></div>`).join('')}</div>`;
             return;
         }
@@ -741,8 +759,8 @@
         const items = await api(`/instance-bonus/runs/${runId}/${map[tab]}`);
         const tableConfigs = {
             members: [
-                { key: 'member_id', label: 'member_id' },
-                { key: 'character_guid', label: 'GUID' },
+                { key: 'member_id', label: '참가 번호' },
+                { key: 'character_guid', label: '참가자 번호' },
                 { key: 'character_name', label: '캐릭터명' },
                 { key: 'account_id', label: '계정 ID' },
                 { key: 'class_id', label: '직업' },
@@ -752,39 +770,46 @@
                 { key: 'joined_at', label: '참여 시각' }
             ],
             votes: [
-                { key: 'vote_id', label: 'vote_id' },
-                { key: 'character_guid', label: 'GUID' },
+                { key: 'vote_id', label: '투표 번호' },
+                { key: 'character_guid', label: '참가자 번호' },
                 { key: 'character_name', label: '캐릭터명' },
-                { key: 'vote_value', label: '투표값' },
+                { key: 'vote_value', label: '투표 결과' },
                 { key: 'voted_at', label: '투표 시각' }
             ],
             rewards: [
-                { key: 'reward_log_id', label: 'reward_log_id' },
-                { key: 'character_guid', label: 'GUID' },
+                { key: 'reward_log_id', label: '보상 기록 번호' },
+                { key: 'character_guid', label: '참가자 번호' },
                 { key: 'character_name', label: '캐릭터명' },
                 { key: 'grade', label: '등급' },
-                { key: 'item_entry', label: 'item_entry' },
+                { key: 'item_entry', label: '아이템 번호' },
                 { key: 'item_count', label: '수량' },
                 { key: 'granted_at', label: '지급 시각' }
             ],
             events: [
-                { key: 'event_id', label: 'event_id' },
-                { key: 'event_type', label: '이벤트 타입' },
+                { key: 'event_id', label: '이벤트 번호' },
+                { key: 'event_type', label: '이벤트 종류' },
                 { key: 'event_message', label: '메시지' },
                 { key: 'event_data', label: '세부 데이터' },
                 { key: 'created_at', label: '생성 시각' }
             ],
             llm: [
-                { key: 'llm_log_id', label: 'llm_log_id' },
+                { key: 'llm_log_id', label: 'LLM 기록 번호' },
                 { key: 'candidate_theme', label: '후보 테마' },
                 { key: 'candidate_mission', label: '후보 미션' },
                 { key: 'selected_theme', label: '선택 테마' },
                 { key: 'selected_mission', label: '선택 미션' },
-                { key: 'fallback_used', label: 'fallback' , render: (row) => row.fallback_used ? '예' : '아니오' },
+                { key: 'fallback_used', label: '대체 선택 사용' , render: (row) => row.fallback_used ? '예' : '아니오' },
                 { key: 'created_at', label: '생성 시각' }
             ]
         };
-        body.innerHTML = renderRowsTable(tableConfigs[tab], items, `${tab} 데이터가 없습니다.`);
+        const emptyMessages = {
+            members: '참가자 데이터가 없습니다.',
+            votes: '투표 데이터가 없습니다.',
+            rewards: '보상 데이터가 없습니다.',
+            events: '이벤트 데이터가 없습니다.',
+            llm: 'LLM 데이터가 없습니다.'
+        };
+        body.innerHTML = renderRowsTable(tableConfigs[tab], items, emptyMessages[tab] || '데이터가 없습니다.');
     }
 
     function refreshCurrent() {
@@ -807,6 +832,7 @@
     return {
         init,
         refreshCurrent,
+        importRuntimeData,
         loadMaps,
         resetMapsFilter,
         openMapForm,
