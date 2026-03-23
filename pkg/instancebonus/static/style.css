@@ -98,6 +98,7 @@ button, input, select, textarea { font: inherit; }
 .ib-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .ib-field-grow { flex: 1 1 auto; }
 .ib-field-span2 { grid-column: span 2; }
+.ib-toolbar-grid .ib-field.ib-map-field { grid-column: span 2; }
 .ib-field label { font-size: 13px; color: var(--ib-muted); font-weight: 700; }
 .ib-field input, .ib-field select, .ib-field textarea {
     width: 100%;
@@ -123,6 +124,14 @@ button, input, select, textarea { font: inherit; }
     gap: 12px;
     text-align: left;
     font-weight: 500;
+    min-height: 48px;
+}
+.ib-map-picker-trigger span {
+    display: block;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 .ib-map-picker.open .ib-map-picker-trigger {
     border-color: var(--ib-primary);
