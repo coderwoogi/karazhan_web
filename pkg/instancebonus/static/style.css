@@ -155,13 +155,16 @@ button, input, select, textarea { font: inherit; }
     transform: translateY(-50%);
     color: var(--ib-muted);
     font-size: 13px;
+    pointer-events: none;
+    z-index: 1;
 }
 .ib-map-picker-search {
     width: 100%;
     border: 1px solid var(--ib-line);
     border-radius: 12px;
-    padding: 10px 12px 10px 34px;
+    padding: 10px 12px 10px 40px;
     background: #f8fafc;
+    line-height: 1.4;
 }
 .ib-map-picker-options {
     display: flex;

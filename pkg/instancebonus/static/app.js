@@ -190,6 +190,17 @@
 
         const trigger = picker.querySelector('.ib-map-picker-trigger');
         const searchInput = picker.querySelector('.ib-map-picker-search');
+        const reopenPicker = (nextKeyword) => {
+            renderMapPicker(selectId, includeEmpty, emptyLabel, nextKeyword);
+            const reopened = document.querySelector(`.ib-map-picker[data-target="${selectId}"]`);
+            reopened?.classList.add('open');
+            const input = reopened?.querySelector('.ib-map-picker-search');
+            if (input) {
+                input.focus();
+                const end = input.value.length;
+                input.setSelectionRange(end, end);
+            }
+        };
         trigger?.addEventListener('click', () => {
             const willOpen = !picker.classList.contains('open');
             closeAllMapPickers(willOpen ? selectId : '');
@@ -198,16 +209,16 @@
                 setTimeout(() => searchInput?.focus(), 0);
             }
         });
+        searchInput?.addEventListener('compositionstart', () => {
+            searchInput.dataset.composing = '1';
+        });
+        searchInput?.addEventListener('compositionend', () => {
+            searchInput.dataset.composing = '0';
+            reopenPicker(searchInput.value);
+        });
         searchInput?.addEventListener('input', () => {
-            renderMapPicker(selectId, includeEmpty, emptyLabel, searchInput.value);
-            const reopened = document.querySelector(`.ib-map-picker[data-target="${selectId}"]`);
-            reopened?.classList.add('open');
-            reopened?.querySelector('.ib-map-picker-search')?.focus();
-            const input = reopened?.querySelector('.ib-map-picker-search');
-            if (input) {
-                const end = input.value.length;
-                input.setSelectionRange(end, end);
-            }
+            if (searchInput.dataset.composing === '1') return;
+            reopenPicker(searchInput.value);
         });
         picker.querySelectorAll('.ib-map-picker-option').forEach((option) => {
             option.addEventListener('click', () => {
