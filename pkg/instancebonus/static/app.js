@@ -190,7 +190,7 @@
         form.innerHTML = [
             formSection('기본 설정', '어떤 맵에서 시스템을 사용할지와 기본 제한값을 설정합니다.'),
             ...mapFields.map((field) => fieldTemplate(field)),
-            `<div class="ib-field full"><div class="ib-actions"><button type="button" class="ib-btn ib-btn-primary" onclick="instanceBonusApp.saveMap()">저장</button><button type="button" class="ib-btn ib-btn-secondary" onclick="instanceBonusApp.closeMapForm()">닫기</button></div></div>`
+            `<div class="ib-field full"><div class="ib-actions"><button type="button" class="ib-btn ib-btn-primary" onclick="instanceBonusApp.saveMap(false)">저장 후 목록</button><button type="button" class="ib-btn ib-btn-ghost" onclick="instanceBonusApp.saveMap(true)">저장 후 계속 편집</button><button type="button" class="ib-btn ib-btn-secondary" onclick="instanceBonusApp.closeMapForm()">닫기</button></div></div>`
         ].join('');
     }
 
@@ -236,15 +236,17 @@
         return payload;
     }
 
-    async function saveMap() {
+    async function saveMap(keepEditing = false) {
         const payload = mapPayload();
         if (state.mapEditingId) {
             await api(`/instance-bonus/maps/${state.mapEditingId}`, { method: 'PUT', body: JSON.stringify(payload) });
         } else {
             await api('/instance-bonus/maps', { method: 'POST', body: JSON.stringify(payload) });
         }
-        closeMapForm();
         loadMaps();
+        if (!keepEditing) {
+            closeMapForm();
+        }
     }
 
     async function loadMaps(page = state.mapsPage) {
@@ -322,7 +324,7 @@
             fieldTemplate({ name: 'required_healer', label: '힐러 필요', type: 'checkbox' }),
             fieldTemplate({ name: 'enabled', label: '활성', type: 'checkbox' }),
             fieldTemplate({ name: 'publish_status', label: '게시 상태', type: 'select', options: publishStatuses, help: 'draft / review / published / archived 단계로 관리합니다.' }),
-            `<div class="ib-field full"><div class="ib-actions"><button type="button" class="ib-btn ib-btn-primary" onclick="instanceBonusApp.saveMission()">저장</button><button type="button" class="ib-btn ib-btn-secondary" onclick="instanceBonusApp.closeMissionForm()">닫기</button></div></div>`
+            `<div class="ib-field full"><div class="ib-actions"><button type="button" class="ib-btn ib-btn-primary" onclick="instanceBonusApp.saveMission(false)">저장 후 목록</button><button type="button" class="ib-btn ib-btn-ghost" onclick="instanceBonusApp.saveMission(true)">저장 후 계속 편집</button><button type="button" class="ib-btn ib-btn-secondary" onclick="instanceBonusApp.closeMissionForm()">닫기</button></div></div>`
         ];
         form.innerHTML = sections.join('');
     }
@@ -364,14 +366,16 @@
         return data;
     }
 
-    async function saveMission() {
+    async function saveMission(keepEditing = false) {
         const payload = missionPayload();
         if (payload.publish_status === 'published' && !confirmPublishWorkflow('미션')) return;
         if (state.missionEditingId) await api(`/instance-bonus/missions/${state.missionEditingId}`, { method: 'PUT', body: JSON.stringify(payload) });
         else await api('/instance-bonus/missions', { method: 'POST', body: JSON.stringify(payload) });
-        closeMissionForm();
         loadMissions();
         loadMissionCandidates();
+        if (!keepEditing) {
+            closeMissionForm();
+        }
     }
 
     function resetMissionFilter() {
@@ -429,7 +433,7 @@
             fieldTemplate({ name: 'weight', label: '가중치', type: 'number' }),
             fieldTemplate({ name: 'enabled', label: '활성', type: 'checkbox' }),
             fieldTemplate({ name: 'publish_status', label: '게시 상태', type: 'select', options: publishStatuses }),
-            `<div class="ib-field full"><div class="ib-actions"><button type="button" class="ib-btn ib-btn-primary" onclick="instanceBonusApp.saveTheme()">저장</button><button type="button" class="ib-btn ib-btn-secondary" onclick="instanceBonusApp.closeThemeForm()">닫기</button></div></div>`
+            `<div class="ib-field full"><div class="ib-actions"><button type="button" class="ib-btn ib-btn-primary" onclick="instanceBonusApp.saveTheme(false)">저장 후 목록</button><button type="button" class="ib-btn ib-btn-ghost" onclick="instanceBonusApp.saveTheme(true)">저장 후 계속 편집</button><button type="button" class="ib-btn ib-btn-secondary" onclick="instanceBonusApp.closeThemeForm()">닫기</button></div></div>`
         ];
         form.innerHTML = sections.join('');
     }
@@ -471,13 +475,15 @@
         return data;
     }
 
-    async function saveTheme() {
+    async function saveTheme(keepEditing = false) {
         const payload = themePayload();
         if (payload.publish_status === 'published' && !confirmPublishWorkflow('테마')) return;
         if (state.themeEditingId) await api(`/instance-bonus/themes/${state.themeEditingId}`, { method: 'PUT', body: JSON.stringify(payload) });
         else await api('/instance-bonus/themes', { method: 'POST', body: JSON.stringify(payload) });
-        closeThemeForm();
         loadThemes();
+        if (!keepEditing) {
+            closeThemeForm();
+        }
     }
 
     function resetThemeFilter() {
@@ -590,7 +596,7 @@
             <div class="ib-field"><label>게시 상태</label><select name="publish_status"><option value="draft">draft</option><option value="review">review</option><option value="published">published</option><option value="archived">archived</option></select></div>
             ${formSection('보상 항목', 'S/A/B/C/D 등급별 아이템, 수량, 확률을 관리합니다.')}
             <div class="ib-field full"><label>보상 항목</label><div id="reward-items-box"></div><div class="ib-actions" style="margin-top:10px;"><button type="button" class="ib-btn ib-btn-ghost" onclick="instanceBonusApp.addRewardItemRow()"><i class="fas fa-plus"></i> 항목 추가</button></div></div>
-            <div class="ib-field full"><div class="ib-actions"><button type="button" class="ib-btn ib-btn-primary" onclick="instanceBonusApp.saveReward()">저장</button><button type="button" class="ib-btn ib-btn-secondary" onclick="instanceBonusApp.closeRewardForm()">닫기</button></div></div>`;
+            <div class="ib-field full"><div class="ib-actions"><button type="button" class="ib-btn ib-btn-primary" onclick="instanceBonusApp.saveReward(false)">저장 후 목록</button><button type="button" class="ib-btn ib-btn-ghost" onclick="instanceBonusApp.saveReward(true)">저장 후 계속 편집</button><button type="button" class="ib-btn ib-btn-secondary" onclick="instanceBonusApp.closeRewardForm()">닫기</button></div></div>`;
         addRewardItemRow();
     }
 
@@ -644,14 +650,16 @@
         };
     }
 
-    async function saveReward() {
+    async function saveReward(keepEditing = false) {
         const payload = rewardPayload();
         if (!payload.profile_key || !payload.name) throw new Error('profile_key와 이름은 필수입니다.');
         if (payload.publish_status === 'published' && !confirmPublishWorkflow('보상 프로파일')) return;
         if (state.rewardEditingId) await api(`/instance-bonus/reward-profiles/${state.rewardEditingId}`, { method: 'PUT', body: JSON.stringify(payload) });
         else await api('/instance-bonus/reward-profiles', { method: 'POST', body: JSON.stringify(payload) });
-        closeRewardForm();
         loadRewards();
+        if (!keepEditing) {
+            closeRewardForm();
+        }
     }
 
     function resetRewardFilter() {
