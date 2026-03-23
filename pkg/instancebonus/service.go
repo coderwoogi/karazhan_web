@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -19,6 +20,103 @@ var worldDB *sql.DB
 var updateDB *sql.DB
 
 const menuID = "instance-bonus-admin"
+
+var nonDungeonMapIDs = map[int]bool{
+	30:  true,
+	44:  true,
+	169: true,
+	489: true,
+	529: true,
+	559: true,
+	562: true,
+	566: true,
+	572: true,
+	607: true,
+	628: true,
+}
+
+var raidMapIDs = map[int]bool{
+	249: true, 269: true, 309: true, 409: true, 469: true, 509: true, 531: true, 533: true, 534: true,
+	544: true, 548: true, 550: true, 564: true, 565: true, 568: true, 580: true, 603: true, 615: true,
+	616: true, 624: true, 631: true, 649: true, 724: true,
+}
+
+var instanceMapNames = map[int]string{
+	33:  "그림자송곳니 성채",
+	34:  "스톰윈드 지하감옥",
+	36:  "죽음의 폐광",
+	43:  "통곡의 동굴",
+	47:  "가시덩굴 우리",
+	48:  "검은심연 나락",
+	70:  "울다만",
+	90:  "놈리건",
+	109: "가라앉은 사원",
+	129: "가시덩굴 구릉",
+	189: "붉은십자군 수도원",
+	209: "줄파락",
+	229: "검은바위 첨탑",
+	230: "검은바위 나락",
+	249: "오닉시아의 둥지",
+	269: "검은 늪",
+	289: "스칼로맨스",
+	309: "줄구룹",
+	329: "스트라솔름",
+	349: "마라우돈",
+	389: "성난불길 협곡",
+	409: "화산 심장부",
+	429: "혈투의 전장",
+	469: "검은날개 둥지",
+	509: "안퀴라즈 폐허",
+	531: "안퀴라즈 사원",
+	532: "카라잔",
+	533: "낙스라마스",
+	534: "하이잘 정상",
+	540: "부서진 손의 전당",
+	542: "피의 용광로",
+	543: "지옥불 성루",
+	544: "마그테리돈의 둥지",
+	545: "증기 저장고",
+	546: "지하수렁",
+	547: "강제 노역소",
+	548: "불뱀 제단",
+	550: "폭풍우 요새",
+	552: "알카트라즈",
+	553: "신록의 정원",
+	554: "메카나르",
+	555: "어둠의 미궁",
+	556: "세데크 전당",
+	557: "마나 무덤",
+	558: "아키나이 납골당",
+	560: "옛 힐스브래드 구릉지",
+	564: "검은 사원",
+	565: "그룰의 둥지",
+	568: "줄아만",
+	574: "우트가드 성채",
+	575: "우트가드 첨탑",
+	576: "마력의 탑",
+	578: "마력의 눈",
+	580: "태양샘 고원",
+	585: "마법학자의 정원",
+	595: "옛 스트라솔름",
+	599: "돌의 전당",
+	600: "드락타론 성채",
+	601: "아졸네룹",
+	602: "번개의 전당",
+	603: "울두아르",
+	604: "군드락",
+	608: "보랏빛 요새",
+	615: "흑요석 성소",
+	616: "영원의 눈",
+	619: "안카헤트: 고대 왕국",
+	624: "아카본 석실",
+	631: "얼음왕관 성채",
+	632: "영혼의 제련소",
+	649: "십자군의 시험장",
+	650: "용사의 시험장",
+	658: "사론의 구덩이",
+	668: "투영의 전당",
+	724: "루비 성소",
+}
 
 type pageResult struct {
 	Items any `json:"items"`
@@ -604,22 +702,12 @@ func handleMapOptions(w http.ResponseWriter, r *http.Request) {
 	rows, err := worldDB.Query(`
 		SELECT
 			src.map_id,
-			COALESCE(
-				NULLIF(cfg.map_name, ''),
-				NULLIF(dbc.MapName_Lang_koKR, ''),
-				NULLIF(dbc.MapName_Lang_enUS, ''),
-				CASE
-					WHEN it.script <> '' THEN REPLACE(REPLACE(it.script, 'instance_', ''), '_', ' ')
-					ELSE CONCAT('맵 ', src.map_id)
-				END
-			) AS map_name,
-			CASE
-				WHEN IFNULL(dbc.InstanceType, 0) = 2 THEN '레이드'
-				WHEN IFNULL(dbc.InstanceType, 0) = 1 THEN '던전'
-				WHEN IFNULL(dbc.InstanceType, 0) = 4 THEN '전장'
-				WHEN it.parent <> 0 THEN '레이드'
-				ELSE '던전'
-			END AS map_type,
+			IFNULL(cfg.map_name, '') AS config_name,
+			IFNULL(dbc.MapName_Lang_koKR, '') AS name_ko,
+			IFNULL(dbc.MapName_Lang_enUS, '') AS name_en,
+			IFNULL(it.script, '') AS script_name,
+			IFNULL(it.parent, 0) AS parent_map,
+			IFNULL(dbc.InstanceType, 0) AS instance_type,
 			COALESCE(dbc.MaxPlayers, 0) AS max_players
 		FROM (
 			SELECT map AS map_id FROM instance_template
@@ -637,14 +725,7 @@ func handleMapOptions(w http.ResponseWriter, r *http.Request) {
 		LEFT JOIN instance_template it ON it.map = src.map_id
 		LEFT JOIN map_dbc dbc ON dbc.ID = src.map_id
 		LEFT JOIN instance_bonus_map_config cfg ON cfg.map_id = src.map_id
-		ORDER BY
-			CASE
-				WHEN IFNULL(dbc.InstanceType, 0) = 2 OR it.parent <> 0 THEN 0
-				WHEN IFNULL(dbc.InstanceType, 0) = 1 THEN 1
-				ELSE 2
-			END,
-			map_name ASC,
-			src.map_id ASC`)
+		ORDER BY src.map_id ASC`)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -654,11 +735,66 @@ func handleMapOptions(w http.ResponseWriter, r *http.Request) {
 	items := make([]mapOption, 0)
 	for rows.Next() {
 		var item mapOption
-		if err := rows.Scan(&item.MapID, &item.MapName, &item.MapType, &item.Players); err == nil {
-			items = append(items, item)
+		var configName, nameKO, nameEN, scriptName string
+		var parentMap, instanceType int
+		if err := rows.Scan(&item.MapID, &configName, &nameKO, &nameEN, &scriptName, &parentMap, &instanceType, &item.Players); err != nil {
+			continue
+		}
+		mapType := mapTypeLabel(item.MapID, parentMap, instanceType)
+		if mapType == "" {
+			continue
+		}
+		item.MapType = mapType
+		item.MapName = mapDisplayName(item.MapID, configName, nameKO, nameEN, scriptName)
+		items = append(items, item)
+	}
+	sort.Slice(items, func(i, j int) bool {
+		typeRank := map[string]int{"레이드": 0, "던전": 1, "기타": 2}
+		left := typeRank[items[i].MapType]
+		right := typeRank[items[j].MapType]
+		if left != right {
+			return left < right
+		}
+		if items[i].MapName != items[j].MapName {
+			return items[i].MapName < items[j].MapName
+		}
+		return items[i].MapID < items[j].MapID
+	})
+	writeJSON(w, http.StatusOK, items)
+}
+
+func mapTypeLabel(mapID, parentMap, instanceType int) string {
+	if nonDungeonMapIDs[mapID] {
+		return ""
+	}
+	if raidMapIDs[mapID] {
+		return "레이드"
+	}
+	switch instanceType {
+	case 2:
+		return "레이드"
+	case 1:
+		return "던전"
+	}
+	if parentMap != 0 {
+		return "레이드"
+	}
+	return "던전"
+}
+
+func mapDisplayName(mapID int, configName, nameKO, nameEN, scriptName string) string {
+	if override, ok := instanceMapNames[mapID]; ok {
+		return override
+	}
+	for _, value := range []string{configName, nameKO, nameEN} {
+		if strings.TrimSpace(value) != "" {
+			return value
 		}
 	}
-	writeJSON(w, http.StatusOK, items)
+	if strings.TrimSpace(scriptName) != "" {
+		return strings.ReplaceAll(strings.TrimPrefix(scriptName, "instance_"), "_", " ")
+	}
+	return fmt.Sprintf("맵 %d", mapID)
 }
 
 func handleRuntimeImport(w http.ResponseWriter, r *http.Request) {
