@@ -237,6 +237,7 @@ function normalizeKoreanLabels() {
     setHtml('tab-btn-board-admin', '<i class="fas fa-edit"></i> 게시판 관리 (CMS)');
     setHtml('tab-btn-notification-admin', '<i class="fas fa-bullhorn"></i> 알림발송');
     setHtml('tab-btn-shop-admin', '<i class="fas fa-store-alt"></i> 선술집관리');
+    setHtml('tab-btn-instance-bonus-admin', '<i class="fas fa-dungeon"></i> 던전/레이드');
 
     // Ban tab headers
     setText('#ban > .card.flex-card .card-header h2', '캐릭터 및 제재 관리');
@@ -296,6 +297,8 @@ function ensureHeaderIcons() {
         { key: '업데이트', icon: 'fas fa-sync' },
         { key: '계정', icon: 'fas fa-users-cog' },
         { key: '캐릭터', icon: 'fas fa-user-shield' },
+        { key: '던전', icon: 'fas fa-dungeon' },
+        { key: '레이드', icon: 'fas fa-dungeon' },
         { key: '제재', icon: 'fas fa-user-shield' },
         { key: '로그', icon: 'fas fa-list-ul' },
         { key: '통계', icon: 'fas fa-chart-line' },
@@ -640,7 +643,7 @@ function openTab(tabName, options) {
         pushTabHistory(tabName);
     }
 
-    const subTabParents = ['remote', 'account', 'gm', 'ban', 'log', 'logs', 'stats', 'content', 'board-admin', 'notification-admin', 'shop-admin'];
+    const subTabParents = ['remote', 'account', 'gm', 'ban', 'log', 'logs', 'stats', 'content', 'board-admin', 'notification-admin', 'shop-admin', 'instance-bonus-admin'];
     
     if (subTabParents.includes(tabName)) {
         if (tabName === 'remote') {
@@ -1464,6 +1467,17 @@ async function loadMenuPermissions() {
                 rank_2: true,
                 rank_3: true,
                 order_index: 96
+            });
+        }
+        if (!menuPerms.some(p => p.resource_type === 'menu' && p.resource_id === 'instance-bonus-admin')) {
+            menuPerms.push({
+                resource_type: 'menu',
+                resource_id: 'instance-bonus-admin',
+                resource_name: '던전/레이드',
+                rank_1: false,
+                rank_2: true,
+                rank_3: true,
+                order_index: 97
             });
         }
 
@@ -3956,7 +3970,8 @@ async function checkAdminAccess() {
                     'content',
                     'board-admin',
                     'notification-admin',
-                    'shop-admin'
+                    'shop-admin',
+                    'instance-bonus-admin'
                 ]);
                 let hasAdmin = false;
                 Object.keys(data.permissions).forEach((k) => {
@@ -4010,7 +4025,7 @@ async function applyAdminMenuOrder() {
         const res = await fetch('/api/admin/menu-order/list');
         if (!res.ok) return;
         const data = await res.json();
-        const adminMenuIds = new Set(['gm', 'remote', 'update', 'account', 'ban', 'logs', 'stats', 'content', 'board-admin', 'notification-admin', 'shop-admin']);
+        const adminMenuIds = new Set(['gm', 'remote', 'update', 'account', 'ban', 'logs', 'stats', 'content', 'board-admin', 'notification-admin', 'shop-admin', 'instance-bonus-admin']);
         const menus = (Array.isArray(data.menus) ? data.menus : []).filter(m => adminMenuIds.has(m.id));
         if (!menus.length) return;
 

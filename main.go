@@ -8,6 +8,7 @@ import (
 	"karazhan/pkg/config"
 	"karazhan/pkg/gm"
 	"karazhan/pkg/home"
+	"karazhan/pkg/instancebonus"
 	"karazhan/pkg/inspect"
 	"karazhan/pkg/launcher"
 	"karazhan/pkg/notification"
@@ -39,6 +40,7 @@ func main() {
 	update.RegisterRoutes(mux)
 	stats.RegisterRoutes(mux)
 	gm.RegisterRoutes(mux)
+	instancebonus.RegisterRoutes(mux)
 	board.RegisterRoutes(mux)
 	notification.RegisterRoutes(mux)
 	wowpass.RegisterRoutes(mux)

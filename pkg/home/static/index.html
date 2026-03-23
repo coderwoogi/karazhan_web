@@ -559,6 +559,9 @@
             <div id="tab-btn-shop-admin" class="nav-item tab-btn" onclick="openTab('shop-admin')" style="display: none;">
                 <i class="fas fa-store-alt"></i> 선술집관리
             </div>
+            <div id="tab-btn-instance-bonus-admin" class="nav-item tab-btn" onclick="openTab('instance-bonus-admin')" style="display: none;">
+                <i class="fas fa-dungeon"></i> 던전/레이드
+            </div>
         </div>
         <div class="sidebar-footer">
             <button class="logout-btn-premium" onclick="logout()">
@@ -1683,6 +1686,17 @@
                     </div>
                     <div class="update-frame-wrap">
                         <iframe src="/update/" class="content-frame"></iframe>
+                    </div>
+                </div>
+            </div>
+
+            <div id="instance-bonus-admin" class="tab-content">
+                <div class="card flex-card">
+                    <div class="card-header">
+                        <h2><i class="fas fa-dungeon"></i> 던전/레이드</h2>
+                    </div>
+                    <div class="update-frame-wrap">
+                        <iframe src="/instance-bonus-admin/" class="content-frame"></iframe>
                     </div>
                 </div>
             </div>

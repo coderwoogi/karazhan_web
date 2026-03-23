@@ -1,0 +1,201 @@
+﻿<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>던전/레이드 관리</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css?v=1">
+</head>
+<body>
+    <div class="ib-app">
+        <header class="ib-hero">
+            <div>
+                <p class="ib-eyebrow">mod-instance-bonus-mission 운영 도구</p>
+                <h1>던전/레이드 콘텐츠 관리</h1>
+                <p class="ib-subtitle">v2 스키마 기준으로 던전 설정, 미션, 테마, 보상 프로파일과 런 로그를 관리합니다.</p>
+            </div>
+            <div class="ib-hero-actions">
+                <button class="ib-btn ib-btn-secondary" onclick="instanceBonusApp.refreshCurrent()"><i class="fas fa-rotate"></i> 새로고침</button>
+            </div>
+        </header>
+
+        <nav class="ib-tabs">
+            <button class="ib-tab active" data-tab="dashboard">대시보드</button>
+            <button class="ib-tab" data-tab="maps">맵 설정</button>
+            <button class="ib-tab" data-tab="missions">미션 관리</button>
+            <button class="ib-tab" data-tab="themes">테마 관리</button>
+            <button class="ib-tab" data-tab="theme-links">테마-미션 연결</button>
+            <button class="ib-tab" data-tab="rewards">보상 프로파일</button>
+            <button class="ib-tab" data-tab="runs">런 로그</button>
+        </nav>
+
+        <main class="ib-content">
+            <section class="ib-panel active" data-panel="dashboard">
+                <div class="ib-card-grid ib-stat-grid" id="dashboard-stats"></div>
+                <div class="ib-card-grid ib-two-col">
+                    <article class="ib-card">
+                        <div class="ib-card-header"><h3>맵별 실행 수</h3></div>
+                        <div id="dashboard-map-runs" class="ib-list-block"></div>
+                    </article>
+                    <article class="ib-card">
+                        <div class="ib-card-header"><h3>최근 실패/오류 런</h3></div>
+                        <div id="dashboard-failed-runs" class="ib-list-block"></div>
+                    </article>
+                </div>
+            </section>
+
+            <section class="ib-panel" data-panel="maps">
+                <article class="ib-card">
+                    <div class="ib-card-header"><h3>맵 설정 목록</h3></div>
+                    <div class="ib-toolbar">
+                        <div class="ib-field"><label>map_id</label><input id="maps-filter-map-id" type="number" placeholder="맵 ID"></div>
+                        <div class="ib-field"><label>사용 여부</label><select id="maps-filter-enabled"><option value="">전체</option><option value="1">사용</option><option value="0">비활성</option></select></div>
+                        <div class="ib-field ib-field-grow"></div>
+                        <button class="ib-btn ib-btn-primary" onclick="instanceBonusApp.loadMaps()"><i class="fas fa-search"></i> 검색</button>
+                        <button class="ib-btn ib-btn-secondary" onclick="instanceBonusApp.resetMapsFilter()">초기화</button>
+                    </div>
+                    <div class="ib-table-wrap">
+                        <table class="ib-table">
+                            <thead><tr><th>map_id</th><th>사용</th><th>투표</th><th>LLM</th><th>기본 시간</th><th>파티 크기</th><th>최대 미션</th><th>수정자</th><th>관리</th></tr></thead>
+                            <tbody id="maps-table"></tbody>
+                        </table>
+                    </div>
+                    <div class="ib-pagination" id="maps-pagination"></div>
+                </article>
+            </section>
+
+            <section class="ib-panel" data-panel="missions">
+                <article class="ib-card">
+                    <div class="ib-card-header"><h3>미션 목록</h3><button class="ib-btn ib-btn-primary" onclick="instanceBonusApp.openMissionForm()"><i class="fas fa-plus"></i> 미션 추가</button></div>
+                    <div class="ib-toolbar ib-toolbar-grid">
+                        <div class="ib-field"><label>map_id</label><input id="missions-filter-map-id" type="number" placeholder="맵 ID"></div>
+                        <div class="ib-field"><label>게시 상태</label><select id="missions-filter-publish"><option value="">전체</option><option value="draft">draft</option><option value="review">review</option><option value="published">published</option><option value="archived">archived</option></select></div>
+                        <div class="ib-field"><label>활성</label><select id="missions-filter-enabled"><option value="">전체</option><option value="1">사용</option><option value="0">비활성</option></select></div>
+                        <div class="ib-field"><label>미션 타입</label><input id="missions-filter-type" type="text" placeholder="미션 타입"></div>
+                        <div class="ib-field"><label>목표 타입</label><input id="missions-filter-objective" type="text" placeholder="목표 타입"></div>
+                        <div class="ib-field ib-field-span2"><label>검색</label><input id="missions-filter-keyword" type="text" placeholder="name / mission_key / target_label"></div>
+                        <button class="ib-btn ib-btn-primary" onclick="instanceBonusApp.loadMissions()"><i class="fas fa-search"></i> 검색</button>
+                        <button class="ib-btn ib-btn-secondary" onclick="instanceBonusApp.resetMissionFilter()">초기화</button>
+                    </div>
+                    <div class="ib-table-wrap">
+                        <table class="ib-table">
+                            <thead><tr><th>ID</th><th>map_id</th><th>mission_key</th><th>이름</th><th>mission_type</th><th>objective_type</th><th>target_label</th><th>target_count</th><th>time_limit</th><th>활성</th><th>게시</th><th>버전</th><th>업데이트</th><th>관리</th></tr></thead>
+                            <tbody id="missions-table"></tbody>
+                        </table>
+                    </div>
+                    <div class="ib-pagination" id="missions-pagination"></div>
+                </article>
+                <article class="ib-card ib-form-card" id="mission-form-card" style="display:none;">
+                    <div class="ib-card-header"><h3 id="mission-form-title">미션 등록</h3></div>
+                    <form id="mission-form" class="ib-form-grid"></form>
+                </article>
+            </section>
+
+            <section class="ib-panel" data-panel="themes">
+                <article class="ib-card">
+                    <div class="ib-card-header"><h3>테마 목록</h3><button class="ib-btn ib-btn-primary" onclick="instanceBonusApp.openThemeForm()"><i class="fas fa-plus"></i> 테마 추가</button></div>
+                    <div class="ib-toolbar ib-toolbar-grid">
+                        <div class="ib-field"><label>map_id</label><input id="themes-filter-map-id" type="number" placeholder="맵 ID"></div>
+                        <div class="ib-field"><label>게시 상태</label><select id="themes-filter-publish"><option value="">전체</option><option value="draft">draft</option><option value="review">review</option><option value="published">published</option><option value="archived">archived</option></select></div>
+                        <div class="ib-field"><label>활성</label><select id="themes-filter-enabled"><option value="">전체</option><option value="1">사용</option><option value="0">비활성</option></select></div>
+                        <div class="ib-field ib-field-span2"><label>검색</label><input id="themes-filter-keyword" type="text" placeholder="name / theme_key"></div>
+                        <button class="ib-btn ib-btn-primary" onclick="instanceBonusApp.loadThemes()"><i class="fas fa-search"></i> 검색</button>
+                        <button class="ib-btn ib-btn-secondary" onclick="instanceBonusApp.resetThemeFilter()">초기화</button>
+                    </div>
+                    <div class="ib-table-wrap">
+                        <table class="ib-table">
+                            <thead><tr><th>ID</th><th>map_id</th><th>theme_key</th><th>이름</th><th>briefing_style</th><th>가중치</th><th>활성</th><th>게시</th><th>버전</th><th>업데이트</th><th>관리</th></tr></thead>
+                            <tbody id="themes-table"></tbody>
+                        </table>
+                    </div>
+                    <div class="ib-pagination" id="themes-pagination"></div>
+                </article>
+                <article class="ib-card ib-form-card" id="theme-form-card" style="display:none;">
+                    <div class="ib-card-header"><h3 id="theme-form-title">테마 등록</h3></div>
+                    <form id="theme-form" class="ib-form-grid"></form>
+                </article>
+            </section>
+
+            <section class="ib-panel" data-panel="theme-links">
+                <article class="ib-card">
+                    <div class="ib-card-header"><h3>테마-미션 연결</h3></div>
+                    <div class="ib-toolbar ib-toolbar-grid">
+                        <div class="ib-field"><label>테마 선택</label><select id="theme-link-theme-select"></select></div>
+                        <div class="ib-field ib-field-span2"><label>후보 미션 검색</label><input id="theme-link-keyword" type="text" placeholder="mission_key / 이름 / target_label"></div>
+                        <button class="ib-btn ib-btn-primary" onclick="instanceBonusApp.loadThemeLinks()"><i class="fas fa-link"></i> 불러오기</button>
+                    </div>
+                    <div class="ib-card-grid ib-two-col">
+                        <div class="ib-subcard">
+                            <h4>연결된 미션</h4>
+                            <div class="ib-table-wrap"><table class="ib-table"><thead><tr><th>미션</th><th>required</th><th>slot</th><th>weight</th><th>관리</th></tr></thead><tbody id="theme-link-table"></tbody></table></div>
+                        </div>
+                        <div class="ib-subcard">
+                            <h4>후보 미션 추가</h4>
+                            <div class="ib-table-wrap"><table class="ib-table"><thead><tr><th>미션</th><th>유형</th><th>추가</th></tr></thead><tbody id="theme-link-candidate-table"></tbody></table></div>
+                        </div>
+                    </div>
+                </article>
+            </section>
+
+            <section class="ib-panel" data-panel="rewards">
+                <article class="ib-card">
+                    <div class="ib-card-header"><h3>보상 프로파일</h3><button class="ib-btn ib-btn-primary" onclick="instanceBonusApp.openRewardForm()"><i class="fas fa-plus"></i> 프로파일 추가</button></div>
+                    <div class="ib-toolbar ib-toolbar-grid">
+                        <div class="ib-field"><label>map_id</label><input id="rewards-filter-map-id" type="number" placeholder="맵 ID"></div>
+                        <div class="ib-field"><label>게시 상태</label><select id="rewards-filter-publish"><option value="">전체</option><option value="draft">draft</option><option value="review">review</option><option value="published">published</option><option value="archived">archived</option></select></div>
+                        <div class="ib-field ib-field-span2"><label>검색</label><input id="rewards-filter-keyword" type="text" placeholder="profile_key / name"></div>
+                        <button class="ib-btn ib-btn-primary" onclick="instanceBonusApp.loadRewards()"><i class="fas fa-search"></i> 검색</button>
+                        <button class="ib-btn ib-btn-secondary" onclick="instanceBonusApp.resetRewardFilter()">초기화</button>
+                    </div>
+                    <div class="ib-table-wrap">
+                        <table class="ib-table"><thead><tr><th>ID</th><th>map_id</th><th>profile_key</th><th>이름</th><th>게시</th><th>버전</th><th>업데이트</th><th>관리</th></tr></thead><tbody id="rewards-table"></tbody></table>
+                    </div>
+                    <div class="ib-pagination" id="rewards-pagination"></div>
+                </article>
+                <article class="ib-card ib-form-card" id="reward-form-card" style="display:none;">
+                    <div class="ib-card-header"><h3 id="reward-form-title">보상 프로파일 등록</h3></div>
+                    <form id="reward-form" class="ib-form-grid"></form>
+                </article>
+            </section>
+
+            <section class="ib-panel" data-panel="runs">
+                <article class="ib-card">
+                    <div class="ib-card-header"><h3>런 로그</h3></div>
+                    <div class="ib-toolbar ib-toolbar-grid">
+                        <div class="ib-field"><label>map_id</label><input id="runs-filter-map-id" type="number" placeholder="맵 ID"></div>
+                        <div class="ib-field"><label>theme_id</label><input id="runs-filter-theme-id" type="number" placeholder="테마 ID"></div>
+                        <div class="ib-field"><label>mission_id</label><input id="runs-filter-mission-id" type="number" placeholder="미션 ID"></div>
+                        <div class="ib-field"><label>상태</label><input id="runs-filter-status" type="text" placeholder="status"></div>
+                        <div class="ib-field"><label>등급</label><input id="runs-filter-grade" type="text" placeholder="grade"></div>
+                        <div class="ib-field"><label>LLM 사용</label><select id="runs-filter-llm"><option value="">전체</option><option value="1">사용</option><option value="0">미사용</option></select></div>
+                        <div class="ib-field"><label>시작일</label><input id="runs-filter-from" type="date"></div>
+                        <div class="ib-field"><label>종료일</label><input id="runs-filter-to" type="date"></div>
+                        <div class="ib-field ib-field-span2"><label>검색</label><input id="runs-filter-keyword" type="text" placeholder="run_id / GUID / 캐릭터명 / 미션명 / 테마명"></div>
+                        <button class="ib-btn ib-btn-primary" onclick="instanceBonusApp.loadRuns()"><i class="fas fa-search"></i> 검색</button>
+                        <button class="ib-btn ib-btn-secondary" onclick="instanceBonusApp.resetRunFilter()">초기화</button>
+                    </div>
+                    <div class="ib-table-wrap">
+                        <table class="ib-table"><thead><tr><th>run_id</th><th>map_id</th><th>테마</th><th>미션</th><th>상태</th><th>등급</th><th>시작</th><th>종료</th><th>clear_time</th><th>deaths</th><th>wipes</th><th>score</th><th>vote</th><th>관리</th></tr></thead><tbody id="runs-table"></tbody></table>
+                    </div>
+                    <div class="ib-pagination" id="runs-pagination"></div>
+                </article>
+                <article class="ib-card" id="run-detail-card" style="display:none;">
+                    <div class="ib-card-header"><h3 id="run-detail-title">런 상세</h3></div>
+                    <div class="ib-tabs ib-subtabs">
+                        <button class="ib-tab active" data-run-tab="overview">개요</button>
+                        <button class="ib-tab" data-run-tab="members">참가자</button>
+                        <button class="ib-tab" data-run-tab="votes">투표</button>
+                        <button class="ib-tab" data-run-tab="rewards">보상</button>
+                        <button class="ib-tab" data-run-tab="events">이벤트</button>
+                        <button class="ib-tab" data-run-tab="llm">LLM 로그</button>
+                    </div>
+                    <div class="ib-run-detail" id="run-detail-body"></div>
+                </article>
+            </section>
+        </main>
+    </div>
+
+    <script src="app.js?v=1"></script>
+</body>
+</html>
