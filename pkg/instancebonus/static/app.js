@@ -54,6 +54,10 @@
     async function init() {
         bindTabs();
         bindRunTabs();
+        document.addEventListener('click', (event) => {
+            if (event.target.closest('.ib-map-picker')) return;
+            closeAllMapPickers();
+        });
         renderMapForm();
         renderMissionForm();
         renderThemeForm();
@@ -120,13 +124,6 @@
         });
     }
 
-    function fillMapSearchInput(searchId, mapId) {
-        const searchEl = document.getElementById(searchId);
-        if (!searchEl) return;
-        const selected = state.mapOptions.find((row) => Number(row.map_id) === Number(mapId));
-        searchEl.value = selected ? selected.map_name : '';
-    }
-
     function renderMapOptionsFromList(list, includeEmpty = true, emptyLabel = '전체') {
         const options = list.map((row) => {
             const suffix = row.max_players ? ` · 최대 ${row.max_players}명` : '';
@@ -136,43 +133,106 @@
         return `<option value="">${emptyLabel}</option>${options}`;
     }
 
+    function mapOptionLabel(value, emptyLabel) {
+        if (!value) return emptyLabel;
+        const selected = state.mapOptions.find((row) => String(row.map_id) === String(value));
+        if (!selected) return emptyLabel;
+        const suffix = selected.max_players ? ` · 최대 ${selected.max_players}명` : '';
+        return `${selected.map_name} (${selected.map_type})${suffix}`;
+    }
+
+    function closeAllMapPickers(exceptTarget = '') {
+        document.querySelectorAll('.ib-map-picker').forEach((picker) => {
+            const target = picker.dataset.target || '';
+            if (exceptTarget && target === exceptTarget) return;
+            picker.classList.remove('open');
+        });
+    }
+
+    function renderMapPicker(selectId, includeEmpty, emptyLabel, keyword = '') {
+        const select = document.getElementById(selectId);
+        const picker = document.querySelector(`.ib-map-picker[data-target="${selectId}"]`);
+        if (!select || !picker) return;
+        const currentValue = select.value;
+        const filtered = filteredMapOptions(keyword);
+        select.innerHTML = renderMapOptionsFromList(filtered, includeEmpty, emptyLabel);
+        if (currentValue) select.value = currentValue;
+        if (currentValue && !select.value) {
+            const selected = state.mapOptions.find((row) => String(row.map_id) === String(currentValue));
+            if (selected) {
+                select.innerHTML = renderMapOptionsFromList([selected, ...filtered], includeEmpty, emptyLabel);
+                select.value = currentValue;
+            }
+        }
+        const selectedLabel = mapOptionLabel(select.value, emptyLabel);
+        const selectedValue = select.value;
+        const optionItems = [];
+        if (includeEmpty) {
+            optionItems.push(`<button type="button" class="ib-map-picker-option ${selectedValue === '' ? 'active' : ''}" data-value="">${emptyLabel}</button>`);
+        }
+        filtered.forEach((row) => {
+            const suffix = row.max_players ? ` · 최대 ${row.max_players}명` : '';
+            const label = `${row.map_name} (${row.map_type})${suffix}`;
+            optionItems.push(`<button type="button" class="ib-map-picker-option ${String(selectedValue) === String(row.map_id) ? 'active' : ''}" data-value="${row.map_id}">${escapeHtml(label)}</button>`);
+        });
+        picker.innerHTML = `
+            <button type="button" class="ib-map-picker-trigger">
+                <span>${escapeHtml(selectedLabel)}</span>
+                <i class="fas fa-chevron-down"></i>
+            </button>
+            <div class="ib-map-picker-panel">
+                <div class="ib-map-picker-search-wrap">
+                    <i class="fas fa-search"></i>
+                    <input type="text" class="ib-map-picker-search" placeholder="던전/레이드 검색" value="${escapeHtml(keyword)}">
+                </div>
+                <div class="ib-map-picker-options">${optionItems.join('') || '<div class="ib-empty">검색 결과가 없습니다.</div>'}</div>
+            </div>`;
+
+        const trigger = picker.querySelector('.ib-map-picker-trigger');
+        const searchInput = picker.querySelector('.ib-map-picker-search');
+        trigger?.addEventListener('click', () => {
+            const willOpen = !picker.classList.contains('open');
+            closeAllMapPickers(willOpen ? selectId : '');
+            picker.classList.toggle('open', willOpen);
+            if (willOpen) {
+                setTimeout(() => searchInput?.focus(), 0);
+            }
+        });
+        searchInput?.addEventListener('input', () => {
+            renderMapPicker(selectId, includeEmpty, emptyLabel, searchInput.value);
+            const reopened = document.querySelector(`.ib-map-picker[data-target="${selectId}"]`);
+            reopened?.classList.add('open');
+            reopened?.querySelector('.ib-map-picker-search')?.focus();
+            const input = reopened?.querySelector('.ib-map-picker-search');
+            if (input) {
+                const end = input.value.length;
+                input.setSelectionRange(end, end);
+            }
+        });
+        picker.querySelectorAll('.ib-map-picker-option').forEach((option) => {
+            option.addEventListener('click', () => {
+                select.value = option.dataset.value || '';
+                renderMapPicker(selectId, includeEmpty, emptyLabel, '');
+                if (selectId === 'map-form-map-id') syncMapNameFromSelect();
+                picker.classList.remove('open');
+            });
+        });
+    }
+
     function applyMapOptions() {
         const mappings = [
-            ['maps-filter-map-id', 'maps-filter-map-id-search', true, '전체'],
-            ['missions-filter-map-id', 'missions-filter-map-id-search', true, '전체'],
-            ['themes-filter-map-id', 'themes-filter-map-id-search', true, '전체'],
-            ['rewards-filter-map-id', 'rewards-filter-map-id-search', true, '전체'],
-            ['runs-filter-map-id', 'runs-filter-map-id-search', true, '전체'],
-            ['map-form-map-id', 'map-form-map-id-search', false, '던전/레이드를 선택하세요'],
-            ['mission-form-map-id', 'mission-form-map-id-search', false, '던전/레이드를 선택하세요'],
-            ['theme-form-map-id', 'theme-form-map-id-search', false, '던전/레이드를 선택하세요'],
-            ['reward-form-map-id', 'reward-form-map-id-search', false, '던전/레이드를 선택하세요']
+            ['maps-filter-map-id', true, '전체'],
+            ['missions-filter-map-id', true, '전체'],
+            ['themes-filter-map-id', true, '전체'],
+            ['rewards-filter-map-id', true, '전체'],
+            ['runs-filter-map-id', true, '전체'],
+            ['map-form-map-id', false, '던전/레이드를 선택하세요'],
+            ['mission-form-map-id', false, '던전/레이드를 선택하세요'],
+            ['theme-form-map-id', false, '던전/레이드를 선택하세요'],
+            ['reward-form-map-id', false, '던전/레이드를 선택하세요']
         ];
-        mappings.forEach(([selectId, searchId, includeEmpty, emptyLabel]) => {
-            const el = document.getElementById(selectId);
-            const searchEl = document.getElementById(searchId);
-            if (!el || !searchEl) return;
-            const currentValue = el.value;
-            const list = filteredMapOptions(searchEl.value);
-            el.innerHTML = renderMapOptionsFromList(list, includeEmpty, emptyLabel);
-            if (currentValue) el.value = currentValue;
-            if (currentValue && !el.value) {
-                const selected = state.mapOptions.find((row) => String(row.map_id) === String(currentValue));
-                if (selected) {
-                    el.innerHTML = renderMapOptionsFromList([selected, ...list], includeEmpty, emptyLabel);
-                    el.value = currentValue;
-                }
-            }
-            if (!searchEl.dataset.bound) {
-                searchEl.addEventListener('input', () => {
-                    const selectedValue = el.value;
-                    const filtered = filteredMapOptions(searchEl.value);
-                    el.innerHTML = renderMapOptionsFromList(filtered, includeEmpty, emptyLabel);
-                    if (selectedValue) el.value = selectedValue;
-                    if (selectId === 'map-form-map-id') syncMapNameFromSelect();
-                });
-                searchEl.dataset.bound = '1';
-            }
+        mappings.forEach(([selectId, includeEmpty, emptyLabel]) => {
+            renderMapPicker(selectId, includeEmpty, emptyLabel, '');
         });
     }
 
@@ -280,7 +340,7 @@
         const form = document.getElementById('map-form');
         form.innerHTML = [
             formSection('기본 설정', '어떤 맵에서 시스템을 사용할지와 기본 제한값을 설정합니다.'),
-            `<div class="ib-field"><label>던전/레이드 선택</label><input id="map-form-map-id-search" type="text" placeholder="던전/레이드 검색"><select id="map-form-map-id" name="map_id"></select><small class="ib-help">게임에 등록된 인스턴스 던전/레이드 목록입니다.</small></div>`,
+            `<div class="ib-field"><label>던전/레이드 선택</label><div class="ib-map-picker" data-target="map-form-map-id" data-empty="던전/레이드를 선택하세요"></div><select id="map-form-map-id" name="map_id" hidden></select><small class="ib-help">게임에 등록된 인스턴스 던전/레이드 목록입니다.</small></div>`,
             `<div class="ib-field"><label>맵 이름</label><input id="map-form-map-name" type="text" name="map_name" readonly><small class="ib-help">선택한 맵 이름이 자동으로 입력됩니다.</small></div>`,
             ...mapFields.filter((field) => !['map_id', 'map_name'].includes(field.name)).map((field) => fieldTemplate(field)),
             `<div class="ib-field full"><div class="ib-actions"><button type="button" class="ib-btn ib-btn-primary" onclick="instanceBonusApp.saveMap(false)">저장 후 목록</button><button type="button" class="ib-btn ib-btn-ghost" onclick="instanceBonusApp.saveMap(true)">저장 후 계속 편집</button><button type="button" class="ib-btn ib-btn-secondary" onclick="instanceBonusApp.closeMapForm()">닫기</button></div></div>`
@@ -310,7 +370,6 @@
             form.elements.max_party_size.value = '5';
             form.elements.max_concurrent_missions.value = '1';
         }
-        fillMapSearchInput('map-form-map-id-search', form.elements.map_id.value);
         syncMapNameFromSelect();
     }
 
@@ -339,8 +398,6 @@
         if (!select || !input) return;
         const selected = state.mapOptions.find((row) => Number(row.map_id) === Number(select.value));
         input.value = selected ? selected.map_name : '';
-        const searchInput = document.getElementById('map-form-map-id-search');
-        if (searchInput && selected) searchInput.value = selected.map_name;
     }
 
     async function saveMap(keepEditing = false) {
@@ -399,7 +456,7 @@
         const form = document.getElementById('mission-form');
         const sections = [
             formSection('기본 정보', '운영자가 식별하는 미션 키와 화면 노출 이름, 설명을 설정합니다.'),
-            `<div class="ib-field"><label>던전/레이드 선택</label><input id="mission-form-map-id-search" type="text" placeholder="던전/레이드 검색"><select id="mission-form-map-id" name="map_id"></select><small class="ib-help">이 미션이 속할 던전/레이드를 고릅니다.</small></div>`,
+            `<div class="ib-field"><label>던전/레이드 선택</label><div class="ib-map-picker" data-target="mission-form-map-id" data-empty="던전/레이드를 선택하세요"></div><select id="mission-form-map-id" name="map_id" hidden></select><small class="ib-help">이 미션이 속할 던전/레이드를 고릅니다.</small></div>`,
             fieldTemplate({ name: 'mission_key', label: '미션 키', help: '중복되지 않는 내부 식별자입니다.' }),
             fieldTemplate({ name: 'name', label: '이름', help: '운영자/유저 화면에 표시되는 미션 이름입니다.' }),
             fieldTemplate({ name: 'description', label: '설명', type: 'textarea', full: true }),
@@ -453,7 +510,6 @@
             form.elements.publish_status.value = 'draft';
             form.elements.enabled.value = '1';
         }
-        fillMapSearchInput('mission-form-map-id-search', form.elements.map_id.value);
     }
 
     function closeMissionForm() {
@@ -524,7 +580,7 @@
         const form = document.getElementById('theme-form');
         const sections = [
             formSection('기본 정보', '테마 이름, 키, 설명과 브리핑 스타일을 정의합니다.'),
-            `<div class="ib-field"><label>던전/레이드 선택</label><input id="theme-form-map-id-search" type="text" placeholder="던전/레이드 검색"><select id="theme-form-map-id" name="map_id"></select><small class="ib-help">이 테마가 사용될 던전/레이드를 고릅니다.</small></div>`,
+            `<div class="ib-field"><label>던전/레이드 선택</label><div class="ib-map-picker" data-target="theme-form-map-id" data-empty="던전/레이드를 선택하세요"></div><select id="theme-form-map-id" name="map_id" hidden></select><small class="ib-help">이 테마가 사용될 던전/레이드를 고릅니다.</small></div>`,
             fieldTemplate({ name: 'theme_key', label: '테마 키', help: '운영자가 구분하기 쉬운 짧은 이름을 쓰면 됩니다.' }),
             fieldTemplate({ name: 'name', label: '이름' }),
             fieldTemplate({ name: 'description', label: '설명', type: 'textarea', full: true }),
@@ -564,7 +620,6 @@
             form.elements.publish_status.value = 'draft';
             form.elements.enabled.value = '1';
         }
-        fillMapSearchInput('theme-form-map-id-search', form.elements.map_id.value);
     }
 
     function closeThemeForm() {
@@ -699,7 +754,7 @@
         const form = document.getElementById('reward-form');
         form.innerHTML = `
             ${formSection('기본 정보', '등급별 보상 세트의 이름과 맵 연결 정보를 설정합니다.')}
-            <div class="ib-field"><label>던전/레이드 선택</label><input id="reward-form-map-id-search" type="text" placeholder="던전/레이드 검색"><select id="reward-form-map-id" name="map_id"></select><small class="ib-help">이 보상 세트가 사용될 던전/레이드를 고릅니다.</small></div>
+            <div class="ib-field"><label>던전/레이드 선택</label><div class="ib-map-picker" data-target="reward-form-map-id" data-empty="던전/레이드를 선택하세요"></div><select id="reward-form-map-id" name="map_id" hidden></select><small class="ib-help">이 보상 세트가 사용될 던전/레이드를 고릅니다.</small></div>
             <div class="ib-field"><label>보상 키</label><input type="text" name="profile_key"></div>
             <div class="ib-field"><label>이름</label><input type="text" name="name"></div>
             <div class="ib-field"><label>활성</label><select name="enabled"><option value="1">사용</option><option value="0">비활성</option></select></div>
@@ -731,7 +786,6 @@
         form.elements.enabled.value = data?.enabled ? '1' : '0';
         form.elements.description.value = data?.description ?? '';
         form.elements.publish_status.value = data?.publish_status ?? 'draft';
-        fillMapSearchInput('reward-form-map-id-search', form.elements.map_id.value);
         const box = document.getElementById('reward-items-box');
         box.innerHTML = '';
         (data?.items || []).forEach((item) => addRewardItemRow(item));

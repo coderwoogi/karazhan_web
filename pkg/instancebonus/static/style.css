@@ -107,6 +107,84 @@ button, input, select, textarea { font: inherit; }
     background: #fff;
     color: var(--ib-text);
 }
+.ib-map-picker {
+    position: relative;
+}
+.ib-map-picker-trigger {
+    width: 100%;
+    border: 1px solid var(--ib-line);
+    border-radius: 12px;
+    padding: 11px 12px;
+    background: #fff;
+    color: var(--ib-text);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    text-align: left;
+    font-weight: 500;
+}
+.ib-map-picker.open .ib-map-picker-trigger {
+    border-color: var(--ib-primary);
+    box-shadow: 0 0 0 4px rgba(52,87,213,.12);
+}
+.ib-map-picker-panel {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    right: 0;
+    z-index: 30;
+    background: #fff;
+    border: 1px solid var(--ib-line);
+    border-radius: 16px;
+    box-shadow: 0 16px 40px rgba(15,23,42,.12);
+    padding: 10px;
+    display: none;
+}
+.ib-map-picker.open .ib-map-picker-panel {
+    display: block;
+}
+.ib-map-picker-search-wrap {
+    position: relative;
+    margin-bottom: 8px;
+}
+.ib-map-picker-search-wrap i {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--ib-muted);
+    font-size: 13px;
+}
+.ib-map-picker-search {
+    width: 100%;
+    border: 1px solid var(--ib-line);
+    border-radius: 12px;
+    padding: 10px 12px 10px 34px;
+    background: #f8fafc;
+}
+.ib-map-picker-options {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 280px;
+    overflow: auto;
+}
+.ib-map-picker-option {
+    width: 100%;
+    border: 0;
+    border-radius: 12px;
+    background: #fff;
+    color: var(--ib-text);
+    padding: 10px 12px;
+    text-align: left;
+    font-weight: 500;
+}
+.ib-map-picker-option:hover,
+.ib-map-picker-option.active {
+    background: #eef4ff;
+    color: var(--ib-primary);
+}
 .ib-field textarea { min-height: 110px; resize: vertical; }
 .ib-table-wrap { overflow: auto; border: 1px solid var(--ib-line); border-radius: 16px; }
 .ib-table { width: 100%; border-collapse: collapse; min-width: 1100px; }
