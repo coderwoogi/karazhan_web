@@ -8,12 +8,10 @@
 :root{
   --bg:#0b1320;
   --panel:#111b2b;
-  --panel-soft:#16253a;
   --line:rgba(255,255,255,.08);
   --text:#edf3fb;
   --muted:#95a7bf;
   --gold:#c8a96a;
-  --blue:#6f95ff;
 }
 *{box-sizing:border-box}
 body{
@@ -22,10 +20,10 @@ body{
   background:radial-gradient(circle at top,#18304f 0%,transparent 30%), linear-gradient(180deg,#08111d 0%,#0f1725 100%);
   color:var(--text);
 }
-.wrap{max-width:1200px;margin:0 auto;padding:40px 24px 60px;}
+.wrap{max-width:1320px;margin:0 auto;padding:40px 24px 60px;}
 .hero{margin-bottom:28px;}
 .hero h1{margin:0;font-size:40px;letter-spacing:-0.04em;}
-.hero p{margin:10px 0 0;color:var(--muted);font-size:16px;line-height:1.7;max-width:720px;}
+.hero p{margin:10px 0 0;color:var(--muted);font-size:16px;line-height:1.7;max-width:760px;}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px;}
 .card{
   display:block;
@@ -37,34 +35,19 @@ body{
   padding:24px;
   transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease;
 }
-.card:hover{
-  transform:translateY(-4px);
-  border-color:rgba(200,169,106,.35);
-  box-shadow:0 18px 40px rgba(0,0,0,.22);
-}
-.badge{
-  display:inline-flex;
-  align-items:center;
-  gap:8px;
-  padding:6px 12px;
-  border-radius:999px;
-  background:rgba(200,169,106,.12);
-  color:#efd8a7;
-  font-size:12px;
-  font-weight:800;
-  margin-bottom:18px;
-}
+.card:hover{transform:translateY(-4px);border-color:rgba(200,169,106,.35);box-shadow:0 18px 40px rgba(0,0,0,.22);}
+.badge{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:999px;background:rgba(200,169,106,.12);color:#efd8a7;font-size:12px;font-weight:800;margin-bottom:18px;}
 .card h2{margin:0 0 10px;font-size:26px;letter-spacing:-0.03em;}
 .card p{margin:0 0 18px;color:var(--muted);line-height:1.7;}
 .list{display:grid;gap:8px;color:#d9e6fb;font-size:14px;}
-.footer-note{margin-top:26px;color:var(--muted);font-size:14px;}
+.footer-note{margin-top:26px;color:var(--muted);font-size:14px;line-height:1.7}
 </style>
 </head>
 <body>
 <div class="wrap">
   <section class="hero">
     <h1>던전/레이드 관리 디자인 시안</h1>
-    <p>실제 화면에 반영하지 않고, 브라우저에서 바로 비교해볼 수 있도록 만든 HTML/CSS 전용 미리보기입니다. 각 시안은 레이아웃 흐름과 정보 위계를 다르게 잡았고, 현재 운영 도구에 어떤 방향이 더 잘 맞는지 판단하는 용도로 보시면 됩니다.</p>
+    <p>실제 화면에는 반영하지 않고, 브라우저에서 비교만 할 수 있도록 만든 HTML/CSS 전용 미리보기입니다. 이번에는 단순히 배치만 다른 수준이 아니라, 운영툴형, 콘솔형, 문서형, 작전실형처럼 분위기와 정보 위계가 확실히 다른 안들로 준비했습니다.</p>
   </section>
 
   <section class="grid">
@@ -100,9 +83,42 @@ body{
         <div>운영자가 오래 써도 덜 피로한 구조</div>
       </div>
     </a>
+
+    <a class="card" href="./concept-4-command-center.html">
+      <div class="badge">시안 4 · 전술 지휘실형</div>
+      <h2>작전실 같은 몰입감</h2>
+      <p>어두운 배경과 발광 포인트, 지휘실 같은 대시보드 흐름으로 즉시 상황 파악에 강한 방향입니다.</p>
+      <div class="list">
+        <div>실시간 운영 느낌이 강함</div>
+        <div>상단 대시보드와 상세 편집의 대비가 큼</div>
+        <div>던전/레이드 화면에 개성이 잘 살아남</div>
+      </div>
+    </a>
+
+    <a class="card" href="./concept-5-editorial-board.html">
+      <div class="badge">시안 5 · 에디토리얼 보드형</div>
+      <h2>차분하고 읽기 쉬운 화면</h2>
+      <p>설명과 운영 문맥이 중요한 화면에 맞게 문서형 정보 위계와 여백 중심으로 정리한 방향입니다.</p>
+      <div class="list">
+        <div>가독성과 텍스트 읽기 편의성이 높음</div>
+        <div>긴 브리핑, 운영 팁, 설명에 유리</div>
+        <div>카드보다 문서형 구성에 가까움</div>
+      </div>
+    </a>
+
+    <a class="card" href="./concept-6-atlas-layout.html">
+      <div class="badge">시안 6 · 아틀라스 지도형</div>
+      <h2>맵 중심 탐색 구조</h2>
+      <p>던전/레이드 자체를 하나의 지역처럼 다루면서, 미션 목록과 편집 화면을 자연스럽게 연결하는 방향입니다.</p>
+      <div class="list">
+        <div>맵 기반 콘텐츠 관리와 잘 어울림</div>
+        <div>탐색과 편집의 흐름이 직관적임</div>
+        <div>기획서형 관리자 도구 느낌이 남</div>
+      </div>
+    </a>
   </section>
 
-  <div class="footer-note">권장 흐름: 전체 개편은 시안 1, 던전/레이드 같은 운영형 화면은 시안 3, 분위기 강조는 시안 2가 잘 맞습니다.</div>
+  <div class="footer-note">추천 기준: 가장 안전한 방향은 시안 1, 가장 개성이 강한 방향은 시안 2와 4, 운영 효율 중심은 시안 3, 설명과 문맥이 중요한 화면은 시안 5, 맵 중심 흐름은 시안 6이 잘 맞습니다.</div>
 </div>
 </body>
 </html>

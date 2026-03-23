@@ -1,0 +1,78 @@
+﻿<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>시안 5 - 에디토리얼 보드형</title>
+<style>
+:root{--paper:#f5f0e7;--ink:#1c150f;--muted:#6b5e53;--line:#d7c8b4;--accent:#7f3d28;--accent-soft:#efe2d4}
+*{box-sizing:border-box}
+body{margin:0;font-family:"SUIT","Noto Sans KR",sans-serif;background:linear-gradient(180deg,#ede6db 0%,#f7f2ea 100%);color:var(--ink)}
+.page{max-width:1380px;margin:0 auto;padding:32px 24px 48px}
+.top{display:grid;grid-template-columns:280px 1fr;gap:28px;margin-bottom:22px}
+.poster{background:linear-gradient(180deg,#2c1d18 0%,#5f392d 100%);color:#fff;border-radius:28px;padding:28px;min-height:260px;display:flex;flex-direction:column;justify-content:space-between;box-shadow:0 24px 50px rgba(74,44,28,.18)}
+.poster small{letter-spacing:.18em;text-transform:uppercase;opacity:.7;font-weight:800}.poster h1{margin:0;font-size:48px;line-height:.95;letter-spacing:-.05em;max-width:7ch}.poster p{margin:0;color:rgba(255,255,255,.82);line-height:1.8;max-width:36ch}
+.intro{padding:8px 2px}.intro h2{margin:0;font-size:34px;letter-spacing:-.04em}.intro p{margin:12px 0 0;color:var(--muted);line-height:1.9;max-width:70ch}.chips{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}.chip{padding:8px 12px;border-radius:999px;background:#fff;border:1px solid var(--line);font-weight:800;color:#5b473d}
+.layout{display:grid;grid-template-columns:240px 1fr;gap:24px}.nav{padding:18px 0}.nav h3{margin:0 0 10px;font-size:13px;color:#7a6a5b;text-transform:uppercase;letter-spacing:.12em}.nav a{display:block;padding:10px 12px;border-radius:14px;text-decoration:none;color:#3e3128;margin-bottom:6px}.nav a.active{background:#fff;border:1px solid var(--line);font-weight:800}
+.content{display:grid;grid-template-rows:auto 1fr;gap:16px}.toolbar,.surface{background:rgba(255,255,255,.76);border:1px solid rgba(155,126,93,.16);border-radius:26px;backdrop-filter:blur(10px)}
+.toolbar{padding:14px;display:grid;grid-template-columns:1.4fr 1fr 1fr auto auto;gap:12px}.field label{display:block;font-size:12px;color:#7b6859;margin-bottom:6px;font-weight:700}.field input,.field select{width:100%;padding:12px;border-radius:14px;border:1px solid var(--line);background:#fff;color:var(--ink)}.btn{padding:12px 16px;border-radius:14px;border:1px solid var(--line);background:#fff;font-weight:800}.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.surface{padding:22px;display:grid;grid-template-columns:1fr 360px;gap:24px}.section-title{display:flex;justify-content:space-between;align-items:end;margin-bottom:12px}.section-title h3{margin:0;font-size:24px}.section-title p{margin:0;color:var(--muted)}
+.rows{display:grid;gap:10px}.row{display:grid;grid-template-columns:1.4fr .7fr .7fr;gap:12px;padding:14px 16px;border-radius:18px;border:1px solid #eadccd;background:#fff}.row strong{font-size:15px}.row span{font-size:13px;color:var(--muted)}
+.editor{border-left:1px solid #eadccd;padding-left:24px}.editor h4{margin:0 0 14px;font-size:22px}.stack{display:grid;gap:12px}.stack textarea{width:100%;min-height:150px;padding:12px;border-radius:14px;border:1px solid var(--line);background:#fff}.note{padding:14px 16px;border-radius:18px;background:var(--accent-soft);color:#64493a;line-height:1.8;font-size:14px}
+.back{position:fixed;right:20px;bottom:20px;text-decoration:none;color:#fff;background:#3c281f;padding:12px 16px;border-radius:999px;font-weight:800;box-shadow:0 18px 36px rgba(0,0,0,.15)}
+@media (max-width:1200px){.top,.layout,.surface{grid-template-columns:1fr}.toolbar{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<div class="page">
+  <section class="top">
+    <div class="poster">
+      <small>Editorial Operations</small>
+      <h1>Dungeon Board</h1>
+      <p>보고서처럼 정돈된 정보 위계와 여백 중심의 구성을 통해, 관리자 화면을 더 차분하고 오래 보기 편한 형태로 풀어낸 시안입니다.</p>
+    </div>
+    <div class="intro">
+      <h2>던전/레이드 운영을 문서형으로 정리하는 방향</h2>
+      <p>숫자와 상태를 공격적으로 밀어붙이기보다, ‘설정 > 목록 > 편집’의 순서를 명확하게 정리하고 텍스트 가독성을 최우선으로 두는 디자인입니다. 화면 밀도를 낮추면서도 운영 정보는 놓치지 않는 쪽에 가깝습니다.</p>
+      <div class="chips"><div class="chip">가독성 중심</div><div class="chip">차분한 분위기</div><div class="chip">긴 텍스트에 유리</div></div>
+    </div>
+  </section>
+  <section class="layout">
+    <aside class="nav">
+      <h3>관리 메뉴</h3>
+      <a href="#">홈</a>
+      <a href="#" class="active">던전/레이드</a>
+      <a href="#">업데이트</a>
+      <a href="#">통계</a>
+    </aside>
+    <main class="content">
+      <div class="toolbar">
+        <div class="field"><label>던전/레이드</label><input value="마나 무덤" /></div>
+        <div class="field"><label>게시 상태</label><select><option>전체</option></select></div>
+        <div class="field"><label>활성 여부</label><select><option>전체</option></select></div>
+        <button class="btn">초기화</button>
+        <button class="btn primary">검색</button>
+      </div>
+      <div class="surface">
+        <section>
+          <div class="section-title"><h3>미션 목록</h3><p>최근 수정된 항목 우선</p></div>
+          <div class="rows">
+            <div class="row"><div><strong>에테리얼 사술사 토벌</strong><span>처치형 · 마나 무덤</span></div><div><strong>게시</strong><span>버전 1</span></div><div><strong>활성</strong><span>수정 3시간 전</span></div></div>
+            <div class="row"><div><strong>팬더모니우스 격파</strong><span>보스형 · 마나 무덤</span></div><div><strong>검토</strong><span>버전 1</span></div><div><strong>활성</strong><span>수정 1일 전</span></div></div>
+          </div>
+        </section>
+        <aside class="editor">
+          <h4>미션 편집</h4>
+          <div class="stack">
+            <div class="field"><label>미션 이름</label><input value="에테리얼 사술사 토벌" /></div>
+            <div class="field"><label>브리핑</label><textarea>지정된 적을 제한 시간 안에 처치하고, 전멸 없이 구간을 통과합니다.</textarea></div>
+            <div class="note">이 시안은 운영 화면을 “문서처럼 읽히는 구조”로 바꾸는 데 초점을 둡니다. 설명과 운영 팁이 많이 필요한 화면에 특히 잘 맞습니다.</div>
+          </div>
+        </aside>
+      </div>
+    </main>
+  </section>
+</div>
+<a class="back" href="./index.html">시안 목록</a>
+</body>
+</html>
