@@ -68,6 +68,11 @@ button, input, select, textarea { font: inherit; }
     margin-bottom: 14px;
 }
 .ib-card-header h3, .ib-subcard h4 { margin: 0; }
+.ib-section-copy {
+    margin: 6px 0 0;
+    color: var(--ib-muted);
+    font-size: 14px;
+}
 .ib-panel { display: none; }
 .ib-panel.active { display: block; }
 .ib-card-grid { display: grid; gap: 16px; }
@@ -99,7 +104,7 @@ button, input, select, textarea { font: inherit; }
 .ib-field-grow { flex: 1 1 auto; }
 .ib-field-span2 { grid-column: span 2; }
 .ib-toolbar > .ib-field.ib-map-field {
-    flex: 2 1 324px;
+    /* flex: 2 1 324px; */
     min-width: 324px;
 }
 .ib-toolbar-grid .ib-field.ib-map-field { grid-column: span 2; }
@@ -264,6 +269,52 @@ button, input, select, textarea { font: inherit; }
     padding: 12px 14px;
     background: #fff;
 }
+.ib-subcard-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+.ib-theme-link-toolbar {
+    grid-template-columns: 1.4fr 1.6fr auto auto;
+}
+.ib-theme-link-grid {
+    align-items: start;
+}
+.ib-theme-link-subcard {
+    border: 1px solid var(--ib-line);
+    border-radius: 18px;
+    padding: 16px;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+}
+.ib-theme-link-table {
+    min-width: 760px;
+}
+.ib-theme-link-status {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 68px;
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 800;
+}
+.ib-theme-link-status.on {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+.ib-theme-link-status.off {
+    background: #f1f5f9;
+    color: #64748b;
+}
+.ib-inline-input {
+    width: 92px;
+}
+.ib-inline-select {
+    min-width: 108px;
+}
 .ib-empty { padding: 24px; text-align: center; color: var(--ib-muted); }
 .ib-run-detail { margin-top: 14px; }
 .ib-detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
@@ -273,9 +324,11 @@ button, input, select, textarea { font: inherit; }
 .ib-help { color: var(--ib-muted); font-size: 13px; }
 @media (max-width: 1280px) {
     .ib-stat-grid, .ib-two-col, .ib-toolbar-grid, .ib-form-grid, .ib-detail-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .ib-theme-link-toolbar { grid-template-columns: 1fr 1fr; }
 }
 @media (max-width: 860px) {
     .ib-app { padding: 14px; }
     .ib-hero { padding: 18px; border-radius: 18px; }
     .ib-stat-grid, .ib-two-col, .ib-toolbar-grid, .ib-form-grid, .ib-detail-grid { grid-template-columns: 1fr; }
+    .ib-theme-link-toolbar { grid-template-columns: 1fr; }
 }

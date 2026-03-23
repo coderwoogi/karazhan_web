@@ -21,7 +21,8 @@
         currentRunTab: 'overview',
         currentRunId: null,
         themesCache: [],
-        missionsCache: []
+        missionsCache: [],
+        themeLinksCache: []
     };
     let applyingHistoryState = false;
 
@@ -756,6 +757,12 @@
         select.innerHTML = '<option value="">테마를 선택하세요</option>' + state.themesCache.map((row) => `<option value="${row.theme_id}">#${row.theme_id} ${escapeHtml(row.name)}</option>`).join('');
     }
 
+    function resetThemeLinkFilter() {
+        const keyword = document.getElementById('theme-link-keyword');
+        if (keyword) keyword.value = '';
+        loadThemeLinks();
+    }
+
     async function loadMissionCandidates() {
         const keyword = document.getElementById('theme-link-keyword')?.value.trim();
         const params = new URLSearchParams({ page: '1', limit: '50' });
@@ -768,27 +775,41 @@
     function renderThemeMissionCandidates() {
         const body = document.getElementById('theme-link-candidate-table');
         if (!body) return;
-        body.innerHTML = state.missionsCache.length ? state.missionsCache.map((row) => `
+        const linkedMissionIds = new Set((state.themeLinksCache || []).map((row) => Number(row.mission_id)));
+        const visibleCandidates = state.missionsCache.filter((row) => !linkedMissionIds.has(Number(row.mission_id)));
+        const countEl = document.getElementById('theme-link-candidate-count');
+        if (countEl) countEl.textContent = `${visibleCandidates.length}건`;
+        body.innerHTML = visibleCandidates.length ? visibleCandidates.map((row) => `
             <tr>
                 <td>${escapeHtml(row.name)}<div class="ib-help">${escapeHtml(row.mission_key)}</div></td>
                 <td>${escapeHtml(row.mission_type || '-')}</td>
+                <td><span class="ib-theme-link-status off">대기</span></td>
                 <td><button class="ib-btn ib-btn-primary" onclick="instanceBonusApp.addThemeMission(${row.mission_id})">추가</button></td>
-            </tr>`).join('') : '<tr><td colspan="3" class="ib-empty">후보 미션이 없습니다.</td></tr>';
+            </tr>`).join('') : '<tr><td colspan="4" class="ib-empty">추가 가능한 후보 미션이 없습니다.</td></tr>';
     }
 
     async function loadThemeLinks() {
         const themeId = document.getElementById('theme-link-theme-select')?.value;
         if (!themeId) {
+            state.themeLinksCache = [];
+            const candidateCountEl = document.getElementById('theme-link-candidate-count');
+            const linkedCountEl = document.getElementById('theme-link-linked-count');
+            if (candidateCountEl) candidateCountEl.textContent = '0건';
+            if (linkedCountEl) linkedCountEl.textContent = '0건';
             document.getElementById('theme-link-table').innerHTML = '<tr><td colspan="5" class="ib-empty">먼저 테마를 선택하세요.</td></tr>';
+            renderThemeMissionCandidates();
             return;
         }
         const items = await api(`/instance-bonus/themes/${themeId}/missions`);
-        document.getElementById('theme-link-table').innerHTML = items.length ? items.map((row) => `
+        state.themeLinksCache = items || [];
+        const linkedCountEl = document.getElementById('theme-link-linked-count');
+        if (linkedCountEl) linkedCountEl.textContent = `${state.themeLinksCache.length}건`;
+        document.getElementById('theme-link-table').innerHTML = state.themeLinksCache.length ? state.themeLinksCache.map((row) => `
             <tr>
                 <td>${escapeHtml(row.mission_name || `미션 #${row.mission_id}`)}<div class="ib-help">${escapeHtml(row.mission_key || '')}</div></td>
-                <td><select onchange="instanceBonusApp.updateThemeMission(${themeId}, ${row.mission_id}, 'required', this.value)"><option value="1" ${row.required ? 'selected' : ''}>필수</option><option value="0" ${!row.required ? 'selected' : ''}>선택</option></select></td>
-                <td><input type="number" value="${row.slot || 0}" onchange="instanceBonusApp.updateThemeMission(${themeId}, ${row.mission_id}, 'slot', this.value)"></td>
-                <td><input type="number" value="${row.weight || 0}" onchange="instanceBonusApp.updateThemeMission(${themeId}, ${row.mission_id}, 'weight', this.value)"></td>
+                <td><select class="ib-inline-select" onchange="instanceBonusApp.updateThemeMission(${themeId}, ${row.mission_id}, 'required', this.value)"><option value="1" ${row.required ? 'selected' : ''}>필수</option><option value="0" ${!row.required ? 'selected' : ''}>선택</option></select></td>
+                <td><input class="ib-inline-input" type="number" value="${row.slot || 0}" onchange="instanceBonusApp.updateThemeMission(${themeId}, ${row.mission_id}, 'slot', this.value)"></td>
+                <td><input class="ib-inline-input" type="number" value="${row.weight || 0}" onchange="instanceBonusApp.updateThemeMission(${themeId}, ${row.mission_id}, 'weight', this.value)"></td>
                 <td><button class="ib-btn ib-btn-danger" onclick="instanceBonusApp.removeThemeMission(${themeId}, ${row.mission_id})">삭제</button></td>
             </tr>`).join('') : '<tr><td colspan="5" class="ib-empty">연결된 미션이 없습니다.</td></tr>';
         renderThemeMissionCandidates();
@@ -797,8 +818,9 @@
     async function addThemeMission(missionId) {
         const themeId = document.getElementById('theme-link-theme-select')?.value;
         if (!themeId) throw new Error('테마를 먼저 선택하세요.');
-        await api(`/instance-bonus/themes/${themeId}/missions`, { method: 'POST', body: JSON.stringify({ mission_id: missionId, required: false, slot: 0, weight: 100 }) });
-        loadThemeLinks();
+        const nextSlot = (state.themeLinksCache?.length || 0) + 1;
+        await api(`/instance-bonus/themes/${themeId}/missions`, { method: 'POST', body: JSON.stringify({ mission_id: Number(missionId), required: 0, slot: nextSlot, weight: 100 }) });
+        await loadThemeLinks();
     }
 
     async function updateThemeMission(themeId, missionId, field, value) {
@@ -806,14 +828,14 @@
         const current = items.find((item) => Number(item.mission_id) === Number(missionId));
         if (!current) return;
         const payload = { mission_id: missionId, required: current.required, slot: current.slot, weight: current.weight };
-        payload[field] = field === 'required' ? value === '1' : Number(value || 0);
+        payload[field] = field === 'required' ? Number(value || 0) : Number(value || 0);
         await api(`/instance-bonus/themes/${themeId}/missions`, { method: 'POST', body: JSON.stringify(payload) });
-        loadThemeLinks();
+        await loadThemeLinks();
     }
 
     async function removeThemeMission(themeId, missionId) {
         await api(`/instance-bonus/themes/${themeId}/missions/${missionId}`, { method: 'DELETE' });
-        loadThemeLinks();
+        await loadThemeLinks();
     }
 
     function renderRewardForm() {

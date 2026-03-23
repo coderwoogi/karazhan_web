@@ -127,20 +127,40 @@
 
             <section class="ib-panel" data-panel="theme-links">
                 <article class="ib-card">
-                    <div class="ib-card-header"><h3>테마-미션 연결</h3></div>
-                    <div class="ib-toolbar ib-toolbar-grid">
-                        <div class="ib-field"><label>테마 선택</label><select id="theme-link-theme-select"></select></div>
-                        <div class="ib-field ib-field-span2"><label>후보 미션 검색</label><input id="theme-link-keyword" type="text" placeholder="미션 키 / 이름 / 목표 이름"></div>
-                        <button class="ib-btn ib-btn-primary" onclick="instanceBonusApp.loadThemeLinks()"><i class="fas fa-link"></i> 불러오기</button>
-                    </div>
-                    <div class="ib-card-grid ib-two-col">
-                        <div class="ib-subcard">
-                            <h4>연결된 미션</h4>
-                            <div class="ib-table-wrap"><table class="ib-table"><thead><tr><th>미션</th><th>필수 여부</th><th>순서</th><th>가중치</th><th>관리</th></tr></thead><tbody id="theme-link-table"></tbody></table></div>
+                    <div class="ib-card-header">
+                        <div>
+                            <h3>테마-미션 연결</h3>
+                            <p class="ib-section-copy">왼쪽에서 미션을 찾고, 오른쪽에서 현재 연결 상태와 순서를 바로 조정합니다.</p>
                         </div>
-                        <div class="ib-subcard">
-                            <h4>후보 미션 추가</h4>
-                            <div class="ib-table-wrap"><table class="ib-table"><thead><tr><th>미션</th><th>유형</th><th>추가</th></tr></thead><tbody id="theme-link-candidate-table"></tbody></table></div>
+                    </div>
+                    <div class="ib-toolbar ib-toolbar-grid ib-theme-link-toolbar">
+                        <div class="ib-field ib-field-span2">
+                            <label>테마 선택</label>
+                            <select id="theme-link-theme-select"></select>
+                        </div>
+                        <div class="ib-field ib-field-span2">
+                            <label>후보 미션 검색</label>
+                            <input id="theme-link-keyword" type="text" placeholder="미션 이름 / 미션 키 / 목표 이름">
+                        </div>
+                        <button class="ib-btn ib-btn-primary" onclick="instanceBonusApp.loadThemeLinks()"><i class="fas fa-link"></i> 불러오기</button>
+                        <button class="ib-btn ib-btn-secondary" onclick="instanceBonusApp.resetThemeLinkFilter()">초기화</button>
+                    </div>
+                    <div class="ib-card-grid ib-two-col ib-theme-link-grid">
+                        <div class="ib-subcard ib-theme-link-subcard">
+                            <div class="ib-subcard-head">
+                                <h4>후보 미션</h4>
+                                <span class="ib-badge off" id="theme-link-candidate-count">0건</span>
+                            </div>
+                            <p class="ib-help">현재 선택한 테마에 아직 연결되지 않은 미션을 바로 추가할 수 있습니다.</p>
+                            <div class="ib-table-wrap"><table class="ib-table ib-theme-link-table"><thead><tr><th>미션</th><th>유형</th><th>상태</th><th>추가</th></tr></thead><tbody id="theme-link-candidate-table"></tbody></table></div>
+                        </div>
+                        <div class="ib-subcard ib-theme-link-subcard">
+                            <div class="ib-subcard-head">
+                                <h4>연결된 미션</h4>
+                                <span class="ib-badge ok" id="theme-link-linked-count">0건</span>
+                            </div>
+                            <p class="ib-help">필수 여부, 순서, 가중치를 조정하면 즉시 저장됩니다.</p>
+                            <div class="ib-table-wrap"><table class="ib-table ib-theme-link-table"><thead><tr><th>미션</th><th>필수 여부</th><th>순서</th><th>가중치</th><th>관리</th></tr></thead><tbody id="theme-link-table"></tbody></table></div>
                         </div>
                     </div>
                 </article>
