@@ -59,6 +59,7 @@ button, input, select, textarea { font: inherit; }
 }
 .ib-card { padding: 18px; }
 .ib-subcard { padding: 16px; }
+.ib-view-hidden { display: none !important; }
 .ib-card-header {
     display: flex;
     align-items: center;

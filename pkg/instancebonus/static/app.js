@@ -150,6 +150,19 @@
         return `<div class="ib-table-wrap"><table class="ib-table"><thead><tr>${columns.map((col) => `<th>${col.label}</th>`).join('')}</tr></thead><tbody>${rows.map((row) => `<tr>${columns.map((col) => `<td>${escapeHtml(col.render ? col.render(row) : row[col.key])}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
     }
 
+    function toggleCrudView(prefix, mode) {
+        const listCard = document.getElementById(`${prefix}-list-card`);
+        const formCard = document.getElementById(`${prefix === 'maps' ? 'map' : prefix.slice(0, -1)}-form-card`);
+        if (!listCard || !formCard) return;
+        if (mode === 'form') {
+            listCard.classList.add('ib-view-hidden');
+            formCard.style.display = 'block';
+        } else {
+            listCard.classList.remove('ib-view-hidden');
+            formCard.style.display = 'none';
+        }
+    }
+
     async function loadDashboard() {
         const data = await api('/instance-bonus/dashboard');
         document.getElementById('dashboard-stats').innerHTML = [
@@ -183,7 +196,7 @@
 
     function openMapForm(data = null) {
         state.mapEditingId = data ? data.map_id : null;
-        document.getElementById('map-form-card').style.display = 'block';
+        toggleCrudView('maps', 'form');
         document.getElementById('map-form-title').textContent = data ? `맵 설정 수정 #${data.map_id}` : '맵 설정 등록';
         const form = document.getElementById('map-form');
         mapFields.forEach((field) => {
@@ -205,7 +218,7 @@
     }
 
     function closeMapForm() {
-        document.getElementById('map-form-card').style.display = 'none';
+        toggleCrudView('maps', 'list');
         state.mapEditingId = null;
     }
 
@@ -316,7 +329,7 @@
 
     function openMissionForm(data = null) {
         state.missionEditingId = data ? data.mission_id : null;
-        document.getElementById('mission-form-card').style.display = 'block';
+        toggleCrudView('missions', 'form');
         document.getElementById('mission-form-title').textContent = data ? `미션 수정 #${data.mission_id}` : '미션 등록';
         const form = document.getElementById('mission-form');
         missionFields.forEach(([name, , type]) => {
@@ -333,7 +346,7 @@
     }
 
     function closeMissionForm() {
-        document.getElementById('mission-form-card').style.display = 'none';
+        toggleCrudView('missions', 'list');
         state.missionEditingId = null;
     }
 
@@ -423,7 +436,7 @@
 
     function openThemeForm(data = null) {
         state.themeEditingId = data ? data.theme_id : null;
-        document.getElementById('theme-form-card').style.display = 'block';
+        toggleCrudView('themes', 'form');
         document.getElementById('theme-form-title').textContent = data ? `테마 수정 #${data.theme_id}` : '테마 등록';
         const form = document.getElementById('theme-form');
         themeFields.forEach(([name, , type]) => {
@@ -440,7 +453,7 @@
     }
 
     function closeThemeForm() {
-        document.getElementById('theme-form-card').style.display = 'none';
+        toggleCrudView('themes', 'list');
         state.themeEditingId = null;
     }
 
@@ -591,7 +604,7 @@
 
     function openRewardForm(data = null) {
         state.rewardEditingId = data ? data.reward_profile_id : null;
-        document.getElementById('reward-form-card').style.display = 'block';
+        toggleCrudView('rewards', 'form');
         document.getElementById('reward-form-title').textContent = data ? `보상 프로파일 수정 #${data.reward_profile_id}` : '보상 프로파일 등록';
         const form = document.getElementById('reward-form');
         form.elements.map_id.value = data?.map_id ?? '';
@@ -607,7 +620,7 @@
     }
 
     function closeRewardForm() {
-        document.getElementById('reward-form-card').style.display = 'none';
+        toggleCrudView('rewards', 'list');
         state.rewardEditingId = null;
     }
 
@@ -767,6 +780,10 @@
     }
 
     function refreshCurrent() {
+        toggleCrudView('maps', 'list');
+        toggleCrudView('missions', 'list');
+        toggleCrudView('themes', 'list');
+        toggleCrudView('rewards', 'list');
         switch (state.currentTab) {
             case 'dashboard': return loadDashboard();
             case 'maps': return loadMaps();
