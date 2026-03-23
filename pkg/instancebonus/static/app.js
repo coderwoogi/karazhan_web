@@ -182,7 +182,6 @@
             </button>
             <div class="ib-map-picker-panel">
                 <div class="ib-map-picker-search-wrap">
-                    <i class="fas fa-search"></i>
                     <input type="text" class="ib-map-picker-search" placeholder="던전/레이드 검색" value="${escapeHtml(keyword)}">
                 </div>
                 <div class="ib-map-picker-options">${optionItems.join('') || '<div class="ib-empty">검색 결과가 없습니다.</div>'}</div>
