@@ -46,6 +46,13 @@ type mapRunCount struct {
 	Name  string `json:"name"`
 }
 
+type mapOption struct {
+	MapID   int    `json:"map_id"`
+	MapName string `json:"map_name"`
+	MapType string `json:"map_type"`
+	Players int    `json:"max_players"`
+}
+
 type mapConfig struct {
 	MapID                int    `json:"map_id"`
 	MapName              string `json:"map_name"`
@@ -256,6 +263,7 @@ func RegisterRoutes(mux *http.ServeMux) {
 	})))
 
 	mux.HandleFunc("/instance-bonus/dashboard", handleDashboard)
+	mux.HandleFunc("/instance-bonus/map-options", handleMapOptions)
 	mux.HandleFunc("/instance-bonus/runtime/import", handleRuntimeImport)
 	mux.HandleFunc("/instance-bonus/maps", handleMaps)
 	mux.HandleFunc("/instance-bonus/maps/", handleMapByID)
@@ -582,6 +590,48 @@ func handleDashboard(w http.ResponseWriter, r *http.Request) {
 	_ = worldDB.QueryRow(`SELECT COUNT(*) FROM instance_bonus_mission_pool`).Scan(&resp.RuntimeMissionCount)
 	_ = worldDB.QueryRow(`SELECT COUNT(*) FROM instance_bonus_theme_pool`).Scan(&resp.RuntimeThemeCount)
 	writeJSON(w, http.StatusOK, resp)
+}
+
+func handleMapOptions(w http.ResponseWriter, r *http.Request) {
+	if !requireAdmin(w, r) || worldDB == nil {
+		return
+	}
+	if r.Method != http.MethodGet {
+		http.Error(w, "잘못된 요청 방식입니다.", http.StatusMethodNotAllowed)
+		return
+	}
+
+	rows, err := worldDB.Query(`
+		SELECT
+			m.ID,
+			COALESCE(NULLIF(m.MapName_Lang_koKR, ''), NULLIF(m.MapName_Lang_enUS, ''), CONCAT('맵 ', m.ID)) AS map_name,
+			CASE m.InstanceType
+				WHEN 1 THEN '던전'
+				WHEN 2 THEN '레이드'
+				WHEN 4 THEN '전장'
+				ELSE '기타'
+			END AS map_type,
+			COALESCE(m.MaxPlayers, 0) AS max_players
+		FROM map_dbc m
+		INNER JOIN instance_template it ON it.map = m.ID
+		ORDER BY
+			CASE m.InstanceType WHEN 2 THEN 0 WHEN 1 THEN 1 ELSE 2 END,
+			map_name ASC,
+			m.ID ASC`)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	items := make([]mapOption, 0)
+	for rows.Next() {
+		var item mapOption
+		if err := rows.Scan(&item.MapID, &item.MapName, &item.MapType, &item.Players); err == nil {
+			items = append(items, item)
+		}
+	}
+	writeJSON(w, http.StatusOK, items)
 }
 
 func handleRuntimeImport(w http.ResponseWriter, r *http.Request) {

@@ -1,6 +1,7 @@
 ﻿const instanceBonusApp = (() => {
     const state = {
         currentTab: 'dashboard',
+        mapOptions: [],
         mapsPage: 1,
         mapsCache: [],
         mapEditingId: null,
@@ -50,13 +51,14 @@
         { name: 'notes', label: '운영 메모', type: 'textarea', full: true, help: '운영자가 참고할 특이사항을 적습니다.' }
     ];
 
-    function init() {
+    async function init() {
         bindTabs();
         bindRunTabs();
         renderMapForm();
         renderMissionForm();
         renderThemeForm();
         renderRewardForm();
+        await loadMapOptions();
         refreshCurrent();
     }
 
@@ -101,6 +103,41 @@
 
     function escapeHtml(value) {
         return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    function renderMapOptions(includeEmpty = true, emptyLabel = '전체') {
+        const options = state.mapOptions.map((row) => {
+            const suffix = row.max_players ? ` · 최대 ${row.max_players}명` : '';
+            return `<option value="${row.map_id}">${escapeHtml(row.map_name)} (${escapeHtml(row.map_type)})${suffix}</option>`;
+        }).join('');
+        if (!includeEmpty) return options;
+        return `<option value="">${emptyLabel}</option>${options}`;
+    }
+
+    async function loadMapOptions() {
+        state.mapOptions = await api('/instance-bonus/map-options');
+        applyMapOptions();
+    }
+
+    function applyMapOptions() {
+        const mappings = [
+            ['maps-filter-map-id', true, '전체'],
+            ['missions-filter-map-id', true, '전체'],
+            ['themes-filter-map-id', true, '전체'],
+            ['rewards-filter-map-id', true, '전체'],
+            ['runs-filter-map-id', true, '전체'],
+            ['map-form-map-id', false, '던전/레이드를 선택하세요'],
+            ['mission-form-map-id', false, '던전/레이드를 선택하세요'],
+            ['theme-form-map-id', false, '던전/레이드를 선택하세요'],
+            ['reward-form-map-id', false, '던전/레이드를 선택하세요']
+        ];
+        mappings.forEach(([id, includeEmpty, emptyLabel]) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            const currentValue = el.value;
+            el.innerHTML = renderMapOptions(includeEmpty, emptyLabel);
+            if (currentValue) el.value = currentValue;
+        });
     }
 
     function badge(value) {
@@ -207,9 +244,13 @@
         const form = document.getElementById('map-form');
         form.innerHTML = [
             formSection('기본 설정', '어떤 맵에서 시스템을 사용할지와 기본 제한값을 설정합니다.'),
-            ...mapFields.map((field) => fieldTemplate(field)),
+            `<div class="ib-field"><label>던전/레이드 선택</label><select id="map-form-map-id" name="map_id"></select><small class="ib-help">게임에 등록된 인스턴스 던전/레이드 목록입니다.</small></div>`,
+            `<div class="ib-field"><label>맵 이름</label><input id="map-form-map-name" type="text" name="map_name" readonly><small class="ib-help">선택한 맵 이름이 자동으로 입력됩니다.</small></div>`,
+            ...mapFields.filter((field) => !['map_id', 'map_name'].includes(field.name)).map((field) => fieldTemplate(field)),
             `<div class="ib-field full"><div class="ib-actions"><button type="button" class="ib-btn ib-btn-primary" onclick="instanceBonusApp.saveMap(false)">저장 후 목록</button><button type="button" class="ib-btn ib-btn-ghost" onclick="instanceBonusApp.saveMap(true)">저장 후 계속 편집</button><button type="button" class="ib-btn ib-btn-secondary" onclick="instanceBonusApp.closeMapForm()">닫기</button></div></div>`
         ].join('');
+        applyMapOptions();
+        document.getElementById('map-form-map-id')?.addEventListener('change', syncMapNameFromSelect);
     }
 
     function openMapForm(data = null) {
@@ -233,6 +274,7 @@
             form.elements.max_party_size.value = '5';
             form.elements.max_concurrent_missions.value = '1';
         }
+        syncMapNameFromSelect();
     }
 
     function closeMapForm() {
@@ -252,6 +294,14 @@
         });
         if (!payload.map_id || payload.map_id <= 0) throw new Error('맵 ID는 필수입니다.');
         return payload;
+    }
+
+    function syncMapNameFromSelect() {
+        const select = document.getElementById('map-form-map-id');
+        const input = document.getElementById('map-form-map-name');
+        if (!select || !input) return;
+        const selected = state.mapOptions.find((row) => Number(row.map_id) === Number(select.value));
+        input.value = selected ? selected.map_name : '';
     }
 
     async function saveMap(keepEditing = false) {
@@ -279,7 +329,7 @@
         const body = document.getElementById('maps-table');
         body.innerHTML = state.mapsCache.length ? state.mapsCache.map((row) => `
             <tr>
-                <td>${row.map_id}</td>
+                <td>${escapeHtml(row.map_name || `맵 ${row.map_id}`)}<div class="ib-help">ID ${row.map_id}</div></td>
                 <td>${badge(row.enabled)}</td>
                 <td>${badge(row.allow_vote)}</td>
                 <td>${badge(row.allow_llm)}</td>
@@ -310,7 +360,7 @@
         const form = document.getElementById('mission-form');
         const sections = [
             formSection('기본 정보', '운영자가 식별하는 미션 키와 화면 노출 이름, 설명을 설정합니다.'),
-            fieldTemplate({ name: 'map_id', label: '맵 ID', type: 'number', help: '어느 던전/레이드에 속하는 미션인지 지정합니다.' }),
+            `<div class="ib-field"><label>던전/레이드 선택</label><select id="mission-form-map-id" name="map_id"></select><small class="ib-help">이 미션이 속할 던전/레이드를 고릅니다.</small></div>`,
             fieldTemplate({ name: 'mission_key', label: '미션 키', help: '중복되지 않는 내부 식별자입니다.' }),
             fieldTemplate({ name: 'name', label: '이름', help: '운영자/유저 화면에 표시되는 미션 이름입니다.' }),
             fieldTemplate({ name: 'description', label: '설명', type: 'textarea', full: true }),
@@ -345,6 +395,7 @@
             `<div class="ib-field full"><div class="ib-actions"><button type="button" class="ib-btn ib-btn-primary" onclick="instanceBonusApp.saveMission(false)">저장 후 목록</button><button type="button" class="ib-btn ib-btn-ghost" onclick="instanceBonusApp.saveMission(true)">저장 후 계속 편집</button><button type="button" class="ib-btn ib-btn-secondary" onclick="instanceBonusApp.closeMissionForm()">닫기</button></div></div>`
         ];
         form.innerHTML = sections.join('');
+        applyMapOptions();
     }
 
     function openMissionForm(data = null) {
@@ -433,7 +484,7 @@
         const form = document.getElementById('theme-form');
         const sections = [
             formSection('기본 정보', '테마 이름, 키, 설명과 브리핑 스타일을 정의합니다.'),
-            fieldTemplate({ name: 'map_id', label: '맵 ID', type: 'number' }),
+            `<div class="ib-field"><label>던전/레이드 선택</label><select id="theme-form-map-id" name="map_id"></select><small class="ib-help">이 테마가 사용될 던전/레이드를 고릅니다.</small></div>`,
             fieldTemplate({ name: 'theme_key', label: '테마 키', help: '운영자가 구분하기 쉬운 짧은 이름을 쓰면 됩니다.' }),
             fieldTemplate({ name: 'name', label: '이름' }),
             fieldTemplate({ name: 'description', label: '설명', type: 'textarea', full: true }),
@@ -454,6 +505,7 @@
             `<div class="ib-field full"><div class="ib-actions"><button type="button" class="ib-btn ib-btn-primary" onclick="instanceBonusApp.saveTheme(false)">저장 후 목록</button><button type="button" class="ib-btn ib-btn-ghost" onclick="instanceBonusApp.saveTheme(true)">저장 후 계속 편집</button><button type="button" class="ib-btn ib-btn-secondary" onclick="instanceBonusApp.closeThemeForm()">닫기</button></div></div>`
         ];
         form.innerHTML = sections.join('');
+        applyMapOptions();
     }
 
     function openThemeForm(data = null) {
@@ -606,7 +658,7 @@
         const form = document.getElementById('reward-form');
         form.innerHTML = `
             ${formSection('기본 정보', '등급별 보상 세트의 이름과 맵 연결 정보를 설정합니다.')}
-            <div class="ib-field"><label>맵 ID</label><input type="number" name="map_id"></div>
+            <div class="ib-field"><label>던전/레이드 선택</label><select id="reward-form-map-id" name="map_id"></select><small class="ib-help">이 보상 세트가 사용될 던전/레이드를 고릅니다.</small></div>
             <div class="ib-field"><label>보상 키</label><input type="text" name="profile_key"></div>
             <div class="ib-field"><label>이름</label><input type="text" name="name"></div>
             <div class="ib-field"><label>활성</label><select name="enabled"><option value="1">사용</option><option value="0">비활성</option></select></div>
@@ -615,6 +667,7 @@
             ${formSection('보상 항목', 'S/A/B/C/D 등급별 아이템, 수량, 확률을 관리합니다.')}
             <div class="ib-field full"><label>보상 항목</label><div id="reward-items-box"></div><div class="ib-actions" style="margin-top:10px;"><button type="button" class="ib-btn ib-btn-ghost" onclick="instanceBonusApp.addRewardItemRow()"><i class="fas fa-plus"></i> 항목 추가</button></div></div>
             <div class="ib-field full"><div class="ib-actions"><button type="button" class="ib-btn ib-btn-primary" onclick="instanceBonusApp.saveReward(false)">저장 후 목록</button><button type="button" class="ib-btn ib-btn-ghost" onclick="instanceBonusApp.saveReward(true)">저장 후 계속 편집</button><button type="button" class="ib-btn ib-btn-secondary" onclick="instanceBonusApp.closeRewardForm()">닫기</button></div></div>`;
+        applyMapOptions();
         addRewardItemRow();
     }
 
