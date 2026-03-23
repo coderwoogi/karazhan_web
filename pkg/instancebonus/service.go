@@ -649,24 +649,42 @@ func handleMapByID(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid map id", http.StatusBadRequest)
 		return
 	}
-	if r.Method != http.MethodPut {
+	switch r.Method {
+	case http.MethodGet:
+		var item mapConfig
+		err = worldDB.QueryRow(`SELECT map_id, IFNULL(map_name,''), enabled, allow_vote, allow_llm, default_time_limit_sec, min_party_size, max_party_size, max_concurrent_missions, IFNULL(notes,''), IFNULL(updated_by,''), DATE_FORMAT(updated_at, '%Y-%m-%d %H:%i:%s')
+			FROM instance_bonus_map_config WHERE map_id=?`, mapID).
+			Scan(&item.MapID, &item.MapName, &item.Enabled, &item.AllowVote, &item.AllowLLM, &item.DefaultTimeLimitSec, &item.MinPartySize, &item.MaxPartySize, &item.MaxConcurrentMission, &item.Notes, &item.UpdatedBy, &item.UpdatedAt)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		writeJSON(w, http.StatusOK, item)
+	case http.MethodPut:
+		var item mapConfig
+		if err := decodeJSON(r, &item); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		_, err = worldDB.Exec(`UPDATE instance_bonus_map_config
+			SET map_name=?, enabled=?, allow_vote=?, allow_llm=?, default_time_limit_sec=?, min_party_size=?, max_party_size=?, max_concurrent_missions=?, notes=?, updated_by=?, updated_at=CURRENT_TIMESTAMP
+			WHERE map_id=?`,
+			item.MapName, item.Enabled, item.AllowVote, item.AllowLLM, item.DefaultTimeLimitSec, item.MinPartySize, item.MaxPartySize, item.MaxConcurrentMission, item.Notes, currentUser(r), mapID)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"success": true})
+	case http.MethodDelete:
+		_, err = worldDB.Exec(`UPDATE instance_bonus_map_config SET enabled=0, updated_by=?, updated_at=CURRENT_TIMESTAMP WHERE map_id=?`, currentUser(r), mapID)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"success": true, "softDeleted": true})
+	default:
 		http.Error(w, "Invalid method", http.StatusMethodNotAllowed)
-		return
 	}
-	var item mapConfig
-	if err := decodeJSON(r, &item); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	_, err = worldDB.Exec(`UPDATE instance_bonus_map_config
-		SET map_name=?, enabled=?, allow_vote=?, allow_llm=?, default_time_limit_sec=?, min_party_size=?, max_party_size=?, max_concurrent_missions=?, notes=?, updated_by=?, updated_at=CURRENT_TIMESTAMP
-		WHERE map_id=?`,
-		item.MapName, item.Enabled, item.AllowVote, item.AllowLLM, item.DefaultTimeLimitSec, item.MinPartySize, item.MaxPartySize, item.MaxConcurrentMission, item.Notes, currentUser(r), mapID)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	writeJSON(w, http.StatusOK, map[string]any{"success": true})
 }
 
 func handleMissions(w http.ResponseWriter, r *http.Request) {

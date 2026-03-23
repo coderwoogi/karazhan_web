@@ -47,7 +47,7 @@
 
             <section class="ib-panel" data-panel="maps">
                 <article class="ib-card">
-                    <div class="ib-card-header"><h3>맵 설정 목록</h3></div>
+                    <div class="ib-card-header"><h3>맵 설정 목록</h3><button class="ib-btn ib-btn-primary" onclick="instanceBonusApp.openMapForm()"><i class="fas fa-plus"></i> 맵 설정 추가</button></div>
                     <div class="ib-toolbar">
                         <div class="ib-field"><label>map_id</label><input id="maps-filter-map-id" type="number" placeholder="맵 ID"></div>
                         <div class="ib-field"><label>사용 여부</label><select id="maps-filter-enabled"><option value="">전체</option><option value="1">사용</option><option value="0">비활성</option></select></div>
@@ -62,6 +62,10 @@
                         </table>
                     </div>
                     <div class="ib-pagination" id="maps-pagination"></div>
+                </article>
+                <article class="ib-card ib-form-card" id="map-form-card" style="display:none;">
+                    <div class="ib-card-header"><h3 id="map-form-title">맵 설정 등록</h3></div>
+                    <form id="map-form" class="ib-form-grid"></form>
                 </article>
             </section>
 

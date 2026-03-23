@@ -3,6 +3,7 @@
         currentTab: 'dashboard',
         mapsPage: 1,
         mapsCache: [],
+        mapEditingId: null,
         missionsPage: 1,
         themesPage: 1,
         rewardsPage: 1,
@@ -35,10 +36,23 @@
         ['publish_status', '게시 상태', 'select', false, ['draft','review','published','archived']]
     ];
     const publishStatuses = ['draft', 'review', 'published', 'archived'];
+    const mapFields = [
+        { name: 'map_id', label: 'map_id', type: 'number', help: '던전/레이드 맵 ID입니다.' },
+        { name: 'map_name', label: '맵 이름', help: '운영 화면에서 확인할 이름입니다.' },
+        { name: 'default_time_limit_sec', label: '기본 시간 제한(초)', type: 'number' },
+        { name: 'max_concurrent_missions', label: '최대 동시 미션 수', type: 'number' },
+        { name: 'min_party_size', label: '최소 파티 수', type: 'number' },
+        { name: 'max_party_size', label: '최대 파티 수', type: 'number' },
+        { name: 'enabled', label: '활성', type: 'checkbox' },
+        { name: 'allow_vote', label: '투표 허용', type: 'checkbox' },
+        { name: 'allow_llm', label: 'LLM 허용', type: 'checkbox' },
+        { name: 'notes', label: '운영 메모', type: 'textarea', full: true, help: '운영자가 참고할 특이사항을 적습니다.' }
+    ];
 
     function init() {
         bindTabs();
         bindRunTabs();
+        renderMapForm();
         renderMissionForm();
         renderThemeForm();
         renderRewardForm();
@@ -158,6 +172,68 @@
         loadMaps();
     }
 
+    function renderMapForm() {
+        const form = document.getElementById('map-form');
+        form.innerHTML = [
+            formSection('기본 설정', '어떤 맵에서 시스템을 사용할지와 기본 제한값을 설정합니다.'),
+            ...mapFields.map((field) => fieldTemplate(field)),
+            `<div class="ib-field full"><div class="ib-actions"><button type="button" class="ib-btn ib-btn-primary" onclick="instanceBonusApp.saveMap()">저장</button><button type="button" class="ib-btn ib-btn-secondary" onclick="instanceBonusApp.closeMapForm()">닫기</button></div></div>`
+        ].join('');
+    }
+
+    function openMapForm(data = null) {
+        state.mapEditingId = data ? data.map_id : null;
+        document.getElementById('map-form-card').style.display = 'block';
+        document.getElementById('map-form-title').textContent = data ? `맵 설정 수정 #${data.map_id}` : '맵 설정 등록';
+        const form = document.getElementById('map-form');
+        mapFields.forEach((field) => {
+            const el = form.elements[field.name];
+            if (!el) return;
+            const value = data ? data[field.name] : '';
+            if (field.type === 'checkbox') el.value = value ? '1' : '0';
+            else el.value = value ?? '';
+            if (field.name === 'map_id') el.disabled = !!data;
+        });
+        if (!data) {
+            form.elements.enabled.value = '1';
+            form.elements.allow_vote.value = '1';
+            form.elements.allow_llm.value = '0';
+            form.elements.min_party_size.value = '1';
+            form.elements.max_party_size.value = '5';
+            form.elements.max_concurrent_missions.value = '1';
+        }
+    }
+
+    function closeMapForm() {
+        document.getElementById('map-form-card').style.display = 'none';
+        state.mapEditingId = null;
+    }
+
+    function mapPayload() {
+        const form = document.getElementById('map-form');
+        const payload = {};
+        mapFields.forEach((field) => {
+            const el = form.elements[field.name];
+            if (!el) return;
+            if (field.type === 'number') payload[field.name] = Number(el.value || 0);
+            else if (field.type === 'checkbox') payload[field.name] = el.value === '1';
+            else payload[field.name] = el.value;
+        });
+        if (!payload.map_id || payload.map_id <= 0) throw new Error('map_id는 필수입니다.');
+        return payload;
+    }
+
+    async function saveMap() {
+        const payload = mapPayload();
+        if (state.mapEditingId) {
+            await api(`/instance-bonus/maps/${state.mapEditingId}`, { method: 'PUT', body: JSON.stringify(payload) });
+        } else {
+            await api('/instance-bonus/maps', { method: 'POST', body: JSON.stringify(payload) });
+        }
+        closeMapForm();
+        loadMaps();
+    }
+
     async function loadMaps(page = state.mapsPage) {
         state.mapsPage = page;
         const params = new URLSearchParams({ page: String(page), limit: '20' });
@@ -178,7 +254,7 @@
                 <td>${row.min_party_size || 0} ~ ${row.max_party_size || 0}</td>
                 <td>${row.max_concurrent_missions || 0}</td>
                 <td>${escapeHtml(row.updated_by || '-')}</td>
-                <td><div class="ib-actions"><button class="ib-btn ib-btn-ghost" onclick="instanceBonusApp.editMapById(${row.map_id})">수정</button></div></td>
+                <td><div class="ib-actions"><button class="ib-btn ib-btn-ghost" onclick="instanceBonusApp.editMapById(${row.map_id})">수정</button><button class="ib-btn ib-btn-danger" onclick="instanceBonusApp.deleteMap(${row.map_id})">삭제</button></div></td>
             </tr>`).join('') : '<tr><td colspan="9" class="ib-empty">등록된 맵 설정이 없습니다.</td></tr>';
         renderPagination('maps-pagination', data.page || 1, data.total || 0, data.limit || 20, 'loadMaps');
     }
@@ -186,16 +262,14 @@
     async function editMapById(mapID) {
         const row = state.mapsCache.find((item) => Number(item.map_id) === Number(mapID));
         if (!row) return;
-        const next = { ...row };
-        if (!confirm(`map_id ${row.map_id} 설정을 수정하시겠습니까?`)) return;
-        next.enabled = confirm('시스템 사용 여부를 활성화하시겠습니까?');
-        next.allow_llm = confirm('LLM 사용을 허용하시겠습니까?');
-        next.allow_vote = confirm('투표 기능을 허용하시겠습니까?');
-        next.default_time_limit_sec = Number(prompt('기본 시간 제한(초)', row.default_time_limit_sec || 0) || row.default_time_limit_sec || 0);
-        next.min_party_size = Number(prompt('최소 파티 크기', row.min_party_size || 1) || row.min_party_size || 1);
-        next.max_party_size = Number(prompt('최대 파티 크기', row.max_party_size || 5) || row.max_party_size || 5);
-        next.max_concurrent_missions = Number(prompt('최대 동시 미션 수', row.max_concurrent_missions || 1) || row.max_concurrent_missions || 1);
-        await api(`/instance-bonus/maps/${row.map_id}`, { method: 'PUT', body: JSON.stringify(next) });
+        openMapForm(row);
+    }
+
+    async function deleteMap(mapID) {
+        const row = state.mapsCache.find((item) => Number(item.map_id) === Number(mapID));
+        if (!row) return;
+        if (!confirm(`map_id ${mapID} 설정을 비활성화하시겠습니까?\n기존 런타임 테이블은 건드리지 않고 enabled만 0으로 변경합니다.`)) return;
+        await api(`/instance-bonus/maps/${mapID}`, { method: 'DELETE' });
         loadMaps(state.mapsPage);
     }
 
@@ -710,7 +784,11 @@
         refreshCurrent,
         loadMaps,
         resetMapsFilter,
+        openMapForm,
+        closeMapForm,
+        saveMap,
         editMapById,
+        deleteMap,
         loadMissions,
         resetMissionFilter,
         openMissionForm,
