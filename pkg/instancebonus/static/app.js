@@ -1,6 +1,12 @@
 ﻿const instanceBonusApp = (() => {
     const state = {
         currentTab: 'dashboard',
+        views: {
+            maps: 'list',
+            missions: 'list',
+            themes: 'list',
+            rewards: 'list'
+        },
         mapOptions: [],
         mapsPage: 1,
         mapsCache: [],
@@ -17,6 +23,7 @@
         themesCache: [],
         missionsCache: []
     };
+    let applyingHistoryState = false;
 
     const missionFields = [
         ['map_id', '맵 ID', 'number'], ['mission_key', '미션 키'], ['name', '이름'], ['description', '설명', 'textarea', true],
@@ -54,6 +61,7 @@
     async function init() {
         bindTabs();
         bindRunTabs();
+        bindHistory();
         document.addEventListener('click', (event) => {
             if (event.target.closest('.ib-map-picker')) return;
             closeAllMapPickers();
@@ -63,17 +71,61 @@
         renderThemeForm();
         renderRewardForm();
         await loadMapOptions();
+        replaceHistoryState();
         refreshCurrent();
+    }
+
+    function currentHistoryState() {
+        return {
+            instanceBonus: true,
+            tab: state.currentTab,
+            views: { ...state.views }
+        };
+    }
+
+    function replaceHistoryState() {
+        history.replaceState(currentHistoryState(), '', location.href);
+    }
+
+    function pushHistoryState() {
+        if (applyingHistoryState) return;
+        history.pushState(currentHistoryState(), '', location.href);
+    }
+
+    function bindHistory() {
+        window.addEventListener('popstate', (event) => {
+            const nextState = event.state;
+            if (!nextState || !nextState.instanceBonus) return;
+            applyingHistoryState = true;
+            state.currentTab = nextState.tab || 'dashboard';
+            state.views = { ...state.views, ...(nextState.views || {}) };
+            applyTabState();
+            applyCrudStates();
+            refreshCurrent();
+            applyingHistoryState = false;
+        });
+    }
+
+    function applyTabState() {
+        document.querySelectorAll('.ib-tabs .ib-tab[data-tab]').forEach((el) => el.classList.remove('active'));
+        document.querySelectorAll('.ib-panel').forEach((el) => el.classList.remove('active'));
+        document.querySelector(`.ib-tabs .ib-tab[data-tab="${state.currentTab}"]`)?.classList.add('active');
+        document.querySelector(`.ib-panel[data-panel="${state.currentTab}"]`)?.classList.add('active');
+    }
+
+    function applyCrudStates() {
+        toggleCrudView('maps', state.views.maps, { push: false });
+        toggleCrudView('missions', state.views.missions, { push: false });
+        toggleCrudView('themes', state.views.themes, { push: false });
+        toggleCrudView('rewards', state.views.rewards, { push: false });
     }
 
     function bindTabs() {
         document.querySelectorAll('.ib-tabs .ib-tab[data-tab]').forEach((btn) => {
             btn.addEventListener('click', () => {
-                document.querySelectorAll('.ib-tabs .ib-tab[data-tab]').forEach((el) => el.classList.remove('active'));
-                document.querySelectorAll('.ib-panel').forEach((el) => el.classList.remove('active'));
-                btn.classList.add('active');
                 state.currentTab = btn.dataset.tab;
-                document.querySelector(`.ib-panel[data-panel="${btn.dataset.tab}"]`)?.classList.add('active');
+                applyTabState();
+                pushHistoryState();
                 refreshCurrent();
             });
         });
@@ -295,16 +347,20 @@
         return `<div class="ib-table-wrap"><table class="ib-table"><thead><tr>${columns.map((col) => `<th>${col.label}</th>`).join('')}</tr></thead><tbody>${rows.map((row) => `<tr>${columns.map((col) => `<td>${escapeHtml(col.render ? col.render(row) : row[col.key])}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
     }
 
-    function toggleCrudView(prefix, mode) {
+    function toggleCrudView(prefix, mode, options = {}) {
         const listCard = document.getElementById(`${prefix}-list-card`);
         const formCard = document.getElementById(`${prefix === 'maps' ? 'map' : prefix.slice(0, -1)}-form-card`);
         if (!listCard || !formCard) return;
+        state.views[prefix] = mode;
         if (mode === 'form') {
             listCard.classList.add('ib-view-hidden');
             formCard.style.display = 'block';
         } else {
             listCard.classList.remove('ib-view-hidden');
             formCard.style.display = 'none';
+        }
+        if (options.push !== false) {
+            pushHistoryState();
         }
     }
 
@@ -972,10 +1028,8 @@
     }
 
     function refreshCurrent() {
-        toggleCrudView('maps', 'list');
-        toggleCrudView('missions', 'list');
-        toggleCrudView('themes', 'list');
-        toggleCrudView('rewards', 'list');
+        applyTabState();
+        applyCrudStates();
         switch (state.currentTab) {
             case 'dashboard': return loadDashboard();
             case 'maps': return loadMaps();
