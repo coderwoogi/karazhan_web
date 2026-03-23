@@ -150,11 +150,11 @@ button, input, select, textarea { font: inherit; }
 }
 .ib-map-picker-search-wrap i {
     position: absolute;
-    left: 12px;
+    left: 14px;
     top: 50%;
     transform: translateY(-50%);
     color: var(--ib-muted);
-    font-size: 13px;
+    font-size: 14px;
     pointer-events: none;
     z-index: 1;
 }
@@ -162,9 +162,10 @@ button, input, select, textarea { font: inherit; }
     width: 100%;
     border: 1px solid var(--ib-line);
     border-radius: 12px;
-    padding: 10px 12px 10px 40px;
+    padding: 10px 12px 10px 46px;
     background: #f8fafc;
     line-height: 1.4;
+    text-indent: 0;
 }
 .ib-map-picker-options {
     display: flex;
