@@ -27,7 +27,6 @@ var nonDungeonMapIDs = map[int]bool{
 	169: true,
 	489: true,
 	529: true,
-	559: true,
 	562: true,
 	566: true,
 	572: true,
@@ -57,33 +56,33 @@ var instanceMapNames = map[int]string{
 	229: "검은바위 첨탑",
 	230: "검은바위 나락",
 	249: "오닉시아의 둥지",
-	269: "검은 늪",
+	269: "검은날개 둥지",
 	289: "스칼로맨스",
 	309: "줄구룹",
 	329: "스트라솔름",
 	349: "마라우돈",
-	389: "성난불길 협곡",
-	409: "화산 심장부",
-	429: "혈투의 전장",
+	389: "혈투의 전장",
+	409: "안퀴라즈 폐허",
+	429: "안퀴라즈 사원",
 	469: "검은날개 둥지",
-	509: "안퀴라즈 폐허",
+	509: "폐허가 된 아웃랜드",
 	531: "안퀴라즈 사원",
 	532: "카라잔",
 	533: "낙스라마스",
 	534: "하이잘 정상",
-	540: "부서진 손의 전당",
+	540: "불타는 성전의 관문",
 	542: "피의 용광로",
 	543: "지옥불 성루",
 	544: "마그테리돈의 둥지",
 	545: "증기 저장고",
 	546: "지하수렁",
-	547: "강제 노역소",
+	547: "강제 수용소",
 	548: "불뱀 제단",
 	550: "폭풍우 요새",
-	552: "알카트라즈",
+	552: "폭풍우 요새",
 	553: "신록의 정원",
 	554: "메카나르",
-	555: "어둠의 미궁",
+	555: "으스러진 손의 전당",
 	556: "세데크 전당",
 	557: "마나 무덤",
 	558: "아키나이 납골당",
@@ -97,8 +96,8 @@ var instanceMapNames = map[int]string{
 	578: "마력의 눈",
 	580: "태양샘 고원",
 	585: "마법학자의 정원",
-	595: "옛 스트라솔름",
-	599: "돌의 전당",
+	595: "안카헤트: 고대 왕국",
+	599: "시간의 동굴",
 	600: "드락타론 성채",
 	601: "아졸네룹",
 	602: "번개의 전당",
@@ -108,13 +107,13 @@ var instanceMapNames = map[int]string{
 	615: "흑요석 성소",
 	616: "영원의 눈",
 	619: "안카헤트: 고대 왕국",
-	624: "아카본 석실",
+	624: "얼음왕관 성채",
 	631: "얼음왕관 성채",
 	632: "영혼의 제련소",
-	649: "십자군의 시험장",
-	650: "용사의 시험장",
-	658: "사론의 구덩이",
-	668: "투영의 전당",
+	649: "시험의 십자군",
+	650: "시험의 용사",
+	658: "얼음울음 요새",
+	668: "황혼의 전당",
 	724: "루비 성소",
 }
 
@@ -695,7 +694,7 @@ func handleMapOptions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.Method != http.MethodGet {
-		http.Error(w, "잘못된 요청 방식입니다.", http.StatusMethodNotAllowed)
+		http.Error(w, "?섎せ???붿껌 諛⑹떇?낅땲??", http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -776,9 +775,7 @@ func mapTypeLabel(mapID, parentMap, instanceType int) string {
 	case 1:
 		return "던전"
 	}
-	if parentMap != 0 {
-		return "레이드"
-	}
+	_ = parentMap
 	return "던전"
 }
 
@@ -802,7 +799,7 @@ func handleRuntimeImport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.Method != http.MethodPost {
-		http.Error(w, "잘못된 요청 방식입니다.", http.StatusMethodNotAllowed)
+		http.Error(w, "?섎せ???붿껌 諛⑹떇?낅땲??", http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -979,7 +976,7 @@ func handleMaps(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"success": true})
 	default:
-		http.Error(w, "잘못된 요청 방식입니다.", http.StatusMethodNotAllowed)
+		http.Error(w, "?섎せ???붿껌 諛⑹떇?낅땲??", http.StatusMethodNotAllowed)
 	}
 }
 
@@ -989,7 +986,7 @@ func handleMapByID(w http.ResponseWriter, r *http.Request) {
 	}
 	mapID, err := mustIDFromPath(r.URL.Path, "/instance-bonus/maps/")
 	if err != nil {
-		http.Error(w, "잘못된 맵 ID입니다.", http.StatusBadRequest)
+		http.Error(w, "?섎せ??留?ID?낅땲??", http.StatusBadRequest)
 		return
 	}
 	switch r.Method {
@@ -1026,7 +1023,7 @@ func handleMapByID(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"success": true, "softDeleted": true})
 	default:
-		http.Error(w, "잘못된 요청 방식입니다.", http.StatusMethodNotAllowed)
+		http.Error(w, "?섎せ???붿껌 諛⑹떇?낅땲??", http.StatusMethodNotAllowed)
 	}
 }
 
@@ -1107,7 +1104,7 @@ func handleMissions(w http.ResponseWriter, r *http.Request) {
 		id, _ := res.LastInsertId()
 		writeJSON(w, http.StatusOK, map[string]any{"success": true, "mission_id": id})
 	default:
-		http.Error(w, "잘못된 요청 방식입니다.", http.StatusMethodNotAllowed)
+		http.Error(w, "?섎せ???붿껌 諛⑹떇?낅땲??", http.StatusMethodNotAllowed)
 	}
 }
 
@@ -1117,7 +1114,7 @@ func handleMissionByID(w http.ResponseWriter, r *http.Request) {
 	}
 	id, err := mustIDFromPath(r.URL.Path, "/instance-bonus/missions/")
 	if err != nil {
-		http.Error(w, "잘못된 미션 ID입니다.", http.StatusBadRequest)
+		http.Error(w, "?섎せ??誘몄뀡 ID?낅땲??", http.StatusBadRequest)
 		return
 	}
 	switch r.Method {
@@ -1159,7 +1156,7 @@ func handleMissionByID(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"success": true})
 	default:
-		http.Error(w, "잘못된 요청 방식입니다.", http.StatusMethodNotAllowed)
+		http.Error(w, "?섎せ???붿껌 諛⑹떇?낅땲??", http.StatusMethodNotAllowed)
 	}
 }
 func handleThemes(w http.ResponseWriter, r *http.Request) {
@@ -1226,7 +1223,7 @@ func handleThemes(w http.ResponseWriter, r *http.Request) {
 		id, _ := res.LastInsertId()
 		writeJSON(w, http.StatusOK, map[string]any{"success": true, "theme_id": id})
 	default:
-		http.Error(w, "잘못된 요청 방식입니다.", http.StatusMethodNotAllowed)
+		http.Error(w, "?섎せ???붿껌 諛⑹떇?낅땲??", http.StatusMethodNotAllowed)
 	}
 }
 
@@ -1238,12 +1235,12 @@ func handleThemeRoutes(w http.ResponseWriter, r *http.Request) {
 	path = strings.Trim(path, "/")
 	parts := strings.Split(path, "/")
 	if len(parts) == 0 || parts[0] == "" {
-		http.Error(w, "잘못된 테마 ID입니다.", http.StatusBadRequest)
+		http.Error(w, "?섎せ???뚮쭏 ID?낅땲??", http.StatusBadRequest)
 		return
 	}
 	themeID, err := strconv.ParseInt(parts[0], 10, 64)
 	if err != nil {
-		http.Error(w, "잘못된 테마 ID입니다.", http.StatusBadRequest)
+		http.Error(w, "?섎せ???뚮쭏 ID?낅땲??", http.StatusBadRequest)
 		return
 	}
 	if len(parts) == 1 {
@@ -1279,7 +1276,7 @@ func handleThemeRoutes(w http.ResponseWriter, r *http.Request) {
 			}
 			writeJSON(w, http.StatusOK, map[string]any{"success": true})
 		default:
-			http.Error(w, "잘못된 요청 방식입니다.", http.StatusMethodNotAllowed)
+			http.Error(w, "?섎せ???붿껌 諛⑹떇?낅땲??", http.StatusMethodNotAllowed)
 		}
 		return
 	}
@@ -1322,17 +1319,17 @@ func handleThemeRoutes(w http.ResponseWriter, r *http.Request) {
 			}
 			writeJSON(w, http.StatusOK, map[string]any{"success": true})
 		default:
-			http.Error(w, "잘못된 요청 방식입니다.", http.StatusMethodNotAllowed)
+			http.Error(w, "?섎せ???붿껌 諛⑹떇?낅땲??", http.StatusMethodNotAllowed)
 		}
 		return
 	}
 	missionID, err := strconv.ParseInt(parts[2], 10, 64)
 	if err != nil {
-		http.Error(w, "잘못된 미션 ID입니다.", http.StatusBadRequest)
+		http.Error(w, "?섎せ??誘몄뀡 ID?낅땲??", http.StatusBadRequest)
 		return
 	}
 	if r.Method != http.MethodDelete {
-		http.Error(w, "잘못된 요청 방식입니다.", http.StatusMethodNotAllowed)
+		http.Error(w, "?섎せ???붿껌 諛⑹떇?낅땲??", http.StatusMethodNotAllowed)
 		return
 	}
 	_, err = worldDB.Exec(`DELETE FROM instance_bonus_theme_mission_link WHERE theme_id=? AND mission_id=?`, themeID, missionID)
@@ -1401,7 +1398,7 @@ func handleRewardProfiles(w http.ResponseWriter, r *http.Request) {
 		replaceRewardProfileItems(id, item.Items)
 		writeJSON(w, http.StatusOK, map[string]any{"success": true, "reward_profile_id": id})
 	default:
-		http.Error(w, "잘못된 요청 방식입니다.", http.StatusMethodNotAllowed)
+		http.Error(w, "?섎せ???붿껌 諛⑹떇?낅땲??", http.StatusMethodNotAllowed)
 	}
 }
 
@@ -1452,7 +1449,7 @@ func handleRewardProfileByID(w http.ResponseWriter, r *http.Request) {
 		replaceRewardProfileItems(id, item.Items)
 		writeJSON(w, http.StatusOK, map[string]any{"success": true})
 	default:
-		http.Error(w, "잘못된 요청 방식입니다.", http.StatusMethodNotAllowed)
+		http.Error(w, "?섎せ???붿껌 諛⑹떇?낅땲??", http.StatusMethodNotAllowed)
 	}
 }
 
@@ -1494,7 +1491,7 @@ func handleRuns(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.Method != http.MethodGet {
-		http.Error(w, "잘못된 요청 방식입니다.", http.StatusMethodNotAllowed)
+		http.Error(w, "?섎せ???붿껌 諛⑹떇?낅땲??", http.StatusMethodNotAllowed)
 		return
 	}
 	page, limit, offset := parsePage(r)
@@ -1560,12 +1557,12 @@ func handleRunRoutes(w http.ResponseWriter, r *http.Request) {
 	path = strings.Trim(path, "/")
 	parts := strings.Split(path, "/")
 	if len(parts) == 0 || parts[0] == "" {
-		http.Error(w, "잘못된 런 ID입니다.", http.StatusBadRequest)
+		http.Error(w, "?섎せ????ID?낅땲??", http.StatusBadRequest)
 		return
 	}
 	runID, err := strconv.ParseInt(parts[0], 10, 64)
 	if err != nil {
-		http.Error(w, "잘못된 런 ID입니다.", http.StatusBadRequest)
+		http.Error(w, "?섎せ????ID?낅땲??", http.StatusBadRequest)
 		return
 	}
 	if len(parts) == 1 {
