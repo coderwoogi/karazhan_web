@@ -99,8 +99,8 @@ button, input, select, textarea { font: inherit; }
 .ib-field-grow { flex: 1 1 auto; }
 .ib-field-span2 { grid-column: span 2; }
 .ib-toolbar > .ib-field.ib-map-field {
-    flex: 2 1 360px;
-    min-width: 360px;
+    flex: 2 1 324px;
+    min-width: 324px;
 }
 .ib-toolbar-grid .ib-field.ib-map-field { grid-column: span 2; }
 .ib-field label { font-size: 13px; color: var(--ib-muted); font-weight: 700; }
