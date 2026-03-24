@@ -19,6 +19,7 @@
         missionEditingId: null,
         themeEditingId: null,
         rewardEditingId: null,
+        currentRunMeta: null,
         currentRunTab: 'overview',
         currentRunId: null,
         themesCache: [],
@@ -74,6 +75,7 @@
         renderThemeForm();
         renderRewardForm();
         await loadMapOptions();
+        await loadMaps(1, true);
         replaceHistoryState();
         refreshCurrent();
     }
@@ -194,6 +196,12 @@
         if (!selected) return emptyLabel;
         const suffix = selected.max_players ? ` · 최대 ${selected.max_players}명` : '';
         return `${selected.map_name} (${selected.map_type})${suffix}`;
+    }
+
+    function mapNameById(mapId) {
+        const row = state.mapOptions.find((item) => String(item.map_id) === String(mapId));
+        if (!row) return `맵 ${mapId}`;
+        return `${row.map_name} (${row.map_type})`;
     }
 
     function closeAllMapPickers(exceptTarget = '') {
@@ -486,7 +494,7 @@
         }
     }
 
-    async function loadMaps(page = state.mapsPage) {
+    async function loadMaps(page = state.mapsPage, silent = false) {
         state.mapsPage = page;
         const params = new URLSearchParams({ page: String(page), limit: '20' });
         const mapId = document.getElementById('maps-filter-map-id')?.value.trim();
@@ -495,6 +503,7 @@
         if (enabled !== '') params.set('enabled', enabled);
         const data = await api(`/instance-bonus/maps?${params.toString()}`);
         state.mapsCache = data.items || [];
+        if (silent) return data;
         const body = document.getElementById('maps-table');
         body.innerHTML = state.mapsCache.length ? state.mapsCache.map((row) => `
             <tr>
@@ -977,6 +986,17 @@
         });
         const data = await api(`/instance-bonus/daily-usage?${params.toString()}`);
         const body = document.getElementById('daily-usage-table');
+        const notice = document.getElementById('daily-usage-notice');
+        const limitedMaps = (state.mapsCache || []).filter((row) => Number(row.daily_limit_per_player || 0) > 0);
+        if (notice) {
+            if (!(data.items || []).length && limitedMaps.length === 0) {
+                notice.style.display = 'block';
+                notice.textContent = '현재 활성 던전/레이드의 일일 제한 값이 모두 0(무제한)이라 사용량 기록이 쌓이지 않고 있습니다.';
+            } else {
+                notice.style.display = 'none';
+                notice.textContent = '';
+            }
+        }
         body.innerHTML = (data.items || []).length ? data.items.map((row) => `
             <tr>
                 <td>${escapeHtml(row.usage_date || '-')}</td>
@@ -1008,9 +1028,20 @@
         });
         const data = await api(`/instance-bonus/runs?${params.toString()}`);
         const body = document.getElementById('runs-table');
+        const notice = document.getElementById('runs-notice');
+        const hasLegacyRows = (data.items || []).some((row) => row.source === 'legacy_live');
+        if (notice) {
+            if (hasLegacyRows) {
+                notice.style.display = 'block';
+                notice.textContent = '현재는 기존 실시간 미션 기록을 함께 표시하고 있습니다. 참가자/투표/보상/이벤트/LLM 상세는 서버가 새 로그 테이블에 기록할 때부터 누적됩니다.';
+            } else {
+                notice.style.display = 'none';
+                notice.textContent = '';
+            }
+        }
         body.innerHTML = (data.items || []).length ? data.items.map((row) => `
             <tr>
-                <td>${row.run_id}</td><td>${row.map_id}</td><td>${escapeHtml(row.theme_name || '-')}</td><td>${escapeHtml(row.mission_name || '-')}</td>
+                <td>${row.run_id}</td><td>${escapeHtml(mapNameById(row.map_id))}<div class="ib-help">ID ${row.map_id}</div></td><td>${escapeHtml(row.theme_name || '-')}</td><td>${escapeHtml(row.mission_name || '-')}</td>
                 <td>${escapeHtml(row.status || '-')} ${row.source === 'legacy_live' ? '<div class="ib-help">기존 실시간 기록</div>' : ''}</td><td>${escapeHtml(row.grade || '-')}</td><td>${escapeHtml(row.started_at || '-')}</td><td>${escapeHtml(row.ended_at || '-')}</td>
                 <td>${row.clear_time_sec || 0}</td><td>${row.deaths || 0}</td><td>${row.wipes || 0}</td><td>${row.score || 0}</td><td>${row.vote_yes || 0} / ${row.vote_no || 0}</td>
                 <td><button class="ib-btn ib-btn-ghost" onclick="instanceBonusApp.loadRunDetail(${row.run_id})">상세</button></td>
@@ -1021,6 +1052,7 @@
     async function loadRunDetail(runId) {
         state.currentRunId = runId;
         state.currentRunTab = 'overview';
+        state.currentRunMeta = null;
         document.querySelectorAll('.ib-subtabs .ib-tab').forEach((el) => el.classList.toggle('active', el.dataset.runTab === 'overview'));
         document.getElementById('run-detail-card').style.display = 'block';
         document.getElementById('run-detail-title').textContent = `런 상세 #${runId}`;
@@ -1031,13 +1063,18 @@
         const body = document.getElementById('run-detail-body');
         if (tab === 'overview') {
             const row = await api(`/instance-bonus/runs/${runId}`);
+            state.currentRunMeta = row;
             body.innerHTML = `<div class="ib-detail-grid">${[
-                ['기록 번호', row.run_id], ['맵 ID', row.map_id], ['테마', row.theme_name || '-'], ['미션', row.mission_name || '-'],
+                ['기록 번호', row.run_id], ['던전/레이드', mapNameById(row.map_id)], ['테마', row.theme_name || '-'], ['미션', row.mission_name || '-'],
                 ['기록 출처', row.source === 'legacy_live' ? '기존 실시간 미션 기록' : '상세 런 로그'],
                 ['상태', row.status || '-'], ['등급', row.grade || '-'], ['시작 시각', row.started_at || '-'], ['종료 시각', row.ended_at || '-'],
                 ['클리어 시간(초)', row.clear_time_sec || 0], ['사망 수', row.deaths || 0], ['전멸 수', row.wipes || 0], ['점수', row.score || 0],
                 ['찬성 수', row.vote_yes || 0], ['반대 수', row.vote_no || 0], ['LLM 사용', row.llm_used ? '예' : '아니오'], ['대체 선택 사용', row.fallback_used ? '예' : '아니오'], ['실패 사유', row.failure_reason || '-']
             ].map(([k,v]) => `<div class="ib-detail-row"><div class="ib-kv"><strong>${escapeHtml(k)}</strong><span>${escapeHtml(v)}</span></div></div>`).join('')}</div>`;
+            return;
+        }
+        if (state.currentRunMeta?.source === 'legacy_live') {
+            body.innerHTML = '<div class="ib-empty">현재 선택한 기록은 기존 실시간 미션 기록입니다. 이 구조에서는 참가자, 투표, 보상, 이벤트, LLM 상세 로그가 별도 테이블에 저장되지 않아 표시할 수 없습니다.</div>';
             return;
         }
         const map = { members: 'members', votes: 'votes', rewards: 'rewards', events: 'events', llm: 'llm' };

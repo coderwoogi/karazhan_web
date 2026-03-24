@@ -192,6 +192,7 @@
                 <article class="ib-card">
                     <div class="ib-card-header"><h3>일일 사용량 조회</h3></div>
                     <p class="ib-help">일일 제한 값이 0(무제한)인 던전은 사용량 기록이 쌓이지 않습니다.</p>
+                    <div id="daily-usage-notice" class="ib-inline-notice" style="display:none;"></div>
                     <div class="ib-toolbar ib-toolbar-grid">
                         <div class="ib-field"><label>사용 날짜</label><input id="daily-usage-filter-date" type="date"></div>
                         <div class="ib-field ib-map-field"><label>던전/레이드</label><div class="ib-map-picker" data-target="daily-usage-filter-map-id" data-empty="전체"></div><select id="daily-usage-filter-map-id" hidden></select></div>
@@ -214,6 +215,7 @@
                 <article class="ib-card">
                     <div class="ib-card-header"><h3>런 로그</h3></div>
                     <p class="ib-help">상세 로그 테이블이 비어 있으면 기존 실시간 미션 기록을 함께 보여줍니다.</p>
+                    <div id="runs-notice" class="ib-inline-notice" style="display:none;"></div>
                     <div class="ib-toolbar ib-toolbar-grid">
                         <div class="ib-field ib-map-field"><label>던전/레이드</label><div class="ib-map-picker" data-target="runs-filter-map-id" data-empty="전체"></div><select id="runs-filter-map-id" hidden></select></div>
                         <div class="ib-field"><label>테마 ID</label><input id="runs-filter-theme-id" type="number" placeholder="테마 ID"></div>
