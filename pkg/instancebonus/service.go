@@ -272,6 +272,7 @@ type runHistoryRow struct {
 	MissionName   string `json:"mission_name"`
 	Status        string `json:"status"`
 	Grade         string `json:"grade"`
+	Source        string `json:"source"`
 	StartedAt     string `json:"started_at"`
 	EndedAt       string `json:"ended_at"`
 	ClearTimeSec  int    `json:"clear_time_sec"`
@@ -504,6 +505,7 @@ func ensureSchema() {
             item_entry INT UNSIGNED NOT NULL DEFAULT 0,
             item_count INT UNSIGNED NOT NULL DEFAULT 1,
             chance DECIMAL(5,2) NOT NULL DEFAULT 100.00,
+            sort_order INT UNSIGNED NOT NULL DEFAULT 0,
             updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             KEY idx_reward_profile_grade (reward_profile_id, grade)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci`,
@@ -618,6 +620,7 @@ func ensureSchema() {
 		}
 	}
 	runSchemaAlter(`ALTER TABLE instance_bonus_map_config ADD COLUMN daily_limit_per_player INT UNSIGNED NOT NULL DEFAULT 0 AFTER allow_vote`)
+	runSchemaAlter(`ALTER TABLE instance_bonus_reward_profile_item ADD COLUMN sort_order INT UNSIGNED NOT NULL DEFAULT 0 AFTER chance`)
 }
 
 func runSchemaAlter(stmt string) {
@@ -1742,8 +1745,12 @@ func handleRuns(w http.ResponseWriter, r *http.Request) {
 	where := " WHERE " + strings.Join(conds, " AND ")
 	var total int
 	_ = worldDB.QueryRow(`SELECT COUNT(*) FROM instance_bonus_run_history`+where, args...).Scan(&total)
+	if total == 0 {
+		handleLegacyRuns(w, r, page, limit, offset)
+		return
+	}
 	rows, err := worldDB.Query(`
-		SELECT run_id, instance_id, map_id, theme_id, IFNULL(theme_name,''), mission_id, IFNULL(mission_name,''), status, grade,
+		SELECT run_id, instance_id, map_id, theme_id, IFNULL(theme_name,''), mission_id, IFNULL(mission_name,''), status, grade, 'history',
 		       DATE_FORMAT(started_at, '%Y-%m-%d %H:%i:%s'), DATE_FORMAT(ended_at, '%Y-%m-%d %H:%i:%s'),
 		       clear_time_sec, deaths, wipes, score, vote_yes, vote_no, llm_used, fallback_used, IFNULL(failure_reason,'')
 		FROM instance_bonus_run_history`+where+` ORDER BY started_at DESC, run_id DESC LIMIT ? OFFSET ?`, append(args, limit, offset)...)
@@ -1755,8 +1762,67 @@ func handleRuns(w http.ResponseWriter, r *http.Request) {
 	items := make([]runHistoryRow, 0)
 	for rows.Next() {
 		var row runHistoryRow
-		_ = rows.Scan(&row.RunID, &row.InstanceID, &row.MapID, &row.ThemeID, &row.ThemeName, &row.MissionID, &row.MissionName, &row.Status, &row.Grade,
+		_ = rows.Scan(&row.RunID, &row.InstanceID, &row.MapID, &row.ThemeID, &row.ThemeName, &row.MissionID, &row.MissionName, &row.Status, &row.Grade, &row.Source,
 			&row.StartedAt, &row.EndedAt, &row.ClearTimeSec, &row.Deaths, &row.Wipes, &row.Score, &row.VoteYes, &row.VoteNo, &row.LLMUsed, &row.FallbackUsed, &row.FailureReason)
+		items = append(items, row)
+	}
+	writeJSON(w, http.StatusOK, pageResult{Items: items, Page: page, Limit: limit, Total: total})
+}
+
+func handleLegacyRuns(w http.ResponseWriter, r *http.Request, page, limit, offset int) {
+	args := []any{}
+	conds := []string{"1=1"}
+
+	if mapID := strings.TrimSpace(r.URL.Query().Get("map_id")); mapID != "" {
+		conds = append(conds, "CAST(map_id AS CHAR) = ?")
+		args = append(args, mapID)
+	}
+	if themeID := strings.TrimSpace(r.URL.Query().Get("theme_id")); themeID != "" {
+		conds = append(conds, "CAST(theme_id AS CHAR) = ?")
+		args = append(args, themeID)
+	}
+	if missionID := strings.TrimSpace(r.URL.Query().Get("mission_id")); missionID != "" {
+		conds = append(conds, "CAST(mission_id AS CHAR) = ?")
+		args = append(args, missionID)
+	}
+	if status := strings.TrimSpace(r.URL.Query().Get("status")); status != "" {
+		switch status {
+		case "success", "completed", "성공":
+			conds = append(conds, "completed = 1")
+		case "failed", "실패":
+			conds = append(conds, "failed = 1")
+		case "pending", "running", "진행중":
+			conds = append(conds, "completed = 0 AND failed = 0")
+		}
+	}
+	if keyword := strings.TrimSpace(r.URL.Query().Get("keyword")); keyword != "" {
+		conds = append(conds, `(CAST(instance_id AS CHAR) LIKE ? OR theme_name LIKE ? OR title LIKE ? OR target_label LIKE ?)`)
+		args = append(args, "%"+keyword+"%", "%"+keyword+"%", "%"+keyword+"%", "%"+keyword+"%")
+	}
+
+	where := " WHERE " + strings.Join(conds, " AND ")
+	var total int
+	_ = worldDB.QueryRow(`SELECT COUNT(*) FROM instance_bonus_mission_live`+where, args...).Scan(&total)
+	rows, err := worldDB.Query(`
+		SELECT -CAST(instance_id AS SIGNED), instance_id, map_id, theme_id, IFNULL(theme_name,''), mission_id, IFNULL(title,''), 
+		       CASE WHEN completed=1 THEN 'success' WHEN failed=1 THEN 'failed' ELSE 'running' END,
+		       '',
+		       'legacy_live',
+		       FROM_UNIXTIME(start_time, '%Y-%m-%d %H:%i:%s'),
+		       CASE WHEN completed=1 OR failed=1 THEN FROM_UNIXTIME(updated_at, '%Y-%m-%d %H:%i:%s') ELSE '' END,
+		       CASE WHEN completed=1 AND updated_at >= start_time THEN updated_at - start_time ELSE 0 END,
+		       0, 0, 0, 0, 0, 0,
+		       CASE WHEN failed=1 THEN '실패' WHEN completed=1 THEN '' ELSE '진행 중' END
+		FROM instance_bonus_mission_live`+where+` ORDER BY updated_at DESC, instance_id DESC LIMIT ? OFFSET ?`, append(args, limit, offset)...)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+	items := make([]runHistoryRow, 0)
+	for rows.Next() {
+		var row runHistoryRow
+		_ = rows.Scan(&row.RunID, &row.InstanceID, &row.MapID, &row.ThemeID, &row.ThemeName, &row.MissionID, &row.MissionName, &row.Status, &row.Grade, &row.Source, &row.StartedAt, &row.EndedAt, &row.ClearTimeSec, &row.Deaths, &row.Wipes, &row.Score, &row.VoteYes, &row.VoteNo, &row.LLMUsed, &row.FallbackUsed, &row.FailureReason)
 		items = append(items, row)
 	}
 	writeJSON(w, http.StatusOK, pageResult{Items: items, Page: page, Limit: limit, Total: total})
@@ -1899,18 +1965,39 @@ func handleRunRoutes(w http.ResponseWriter, r *http.Request) {
 	}
 	if len(parts) == 1 {
 		var row runHistoryRow
-		err = worldDB.QueryRow(`
-			SELECT run_id, instance_id, map_id, theme_id, IFNULL(theme_name,''), mission_id, IFNULL(mission_name,''), status, grade,
-			       DATE_FORMAT(started_at, '%Y-%m-%d %H:%i:%s'), DATE_FORMAT(ended_at, '%Y-%m-%d %H:%i:%s'),
-			       clear_time_sec, deaths, wipes, score, vote_yes, vote_no, llm_used, fallback_used, IFNULL(failure_reason,'')
-			FROM instance_bonus_run_history WHERE run_id=?`, runID).
-			Scan(&row.RunID, &row.InstanceID, &row.MapID, &row.ThemeID, &row.ThemeName, &row.MissionID, &row.MissionName, &row.Status, &row.Grade,
-				&row.StartedAt, &row.EndedAt, &row.ClearTimeSec, &row.Deaths, &row.Wipes, &row.Score, &row.VoteYes, &row.VoteNo, &row.LLMUsed, &row.FallbackUsed, &row.FailureReason)
+		if runID < 0 {
+			err = worldDB.QueryRow(`
+				SELECT -CAST(instance_id AS SIGNED), instance_id, map_id, theme_id, IFNULL(theme_name,''), mission_id, IFNULL(title,''),
+				       CASE WHEN completed=1 THEN 'success' WHEN failed=1 THEN 'failed' ELSE 'running' END,
+				       '',
+				       'legacy_live',
+				       FROM_UNIXTIME(start_time, '%Y-%m-%d %H:%i:%s'),
+				       CASE WHEN completed=1 OR failed=1 THEN FROM_UNIXTIME(updated_at, '%Y-%m-%d %H:%i:%s') ELSE '' END,
+				       CASE WHEN completed=1 AND updated_at >= start_time THEN updated_at - start_time ELSE 0 END,
+				       0, 0, 0, 0, 0, 0,
+				       CASE WHEN failed=1 THEN '실패' WHEN completed=1 THEN '' ELSE '진행 중' END
+				FROM instance_bonus_mission_live WHERE instance_id=?`, -runID).
+				Scan(&row.RunID, &row.InstanceID, &row.MapID, &row.ThemeID, &row.ThemeName, &row.MissionID, &row.MissionName, &row.Status, &row.Grade, &row.Source,
+					&row.StartedAt, &row.EndedAt, &row.ClearTimeSec, &row.Deaths, &row.Wipes, &row.Score, &row.VoteYes, &row.VoteNo, &row.LLMUsed, &row.FallbackUsed, &row.FailureReason)
+		} else {
+			err = worldDB.QueryRow(`
+				SELECT run_id, instance_id, map_id, theme_id, IFNULL(theme_name,''), mission_id, IFNULL(mission_name,''), status, grade,
+				       'history',
+				       DATE_FORMAT(started_at, '%Y-%m-%d %H:%i:%s'), DATE_FORMAT(ended_at, '%Y-%m-%d %H:%i:%s'),
+				       clear_time_sec, deaths, wipes, score, vote_yes, vote_no, llm_used, fallback_used, IFNULL(failure_reason,'')
+				FROM instance_bonus_run_history WHERE run_id=?`, runID).
+				Scan(&row.RunID, &row.InstanceID, &row.MapID, &row.ThemeID, &row.ThemeName, &row.MissionID, &row.MissionName, &row.Status, &row.Grade, &row.Source,
+					&row.StartedAt, &row.EndedAt, &row.ClearTimeSec, &row.Deaths, &row.Wipes, &row.Score, &row.VoteYes, &row.VoteNo, &row.LLMUsed, &row.FallbackUsed, &row.FailureReason)
+		}
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusNotFound)
 			return
 		}
 		writeJSON(w, http.StatusOK, row)
+		return
+	}
+	if runID < 0 {
+		writeJSON(w, http.StatusOK, []any{})
 		return
 	}
 	switch parts[1] {

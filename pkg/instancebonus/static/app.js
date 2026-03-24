@@ -1011,7 +1011,7 @@
         body.innerHTML = (data.items || []).length ? data.items.map((row) => `
             <tr>
                 <td>${row.run_id}</td><td>${row.map_id}</td><td>${escapeHtml(row.theme_name || '-')}</td><td>${escapeHtml(row.mission_name || '-')}</td>
-                <td>${escapeHtml(row.status || '-')}</td><td>${escapeHtml(row.grade || '-')}</td><td>${escapeHtml(row.started_at || '-')}</td><td>${escapeHtml(row.ended_at || '-')}</td>
+                <td>${escapeHtml(row.status || '-')} ${row.source === 'legacy_live' ? '<div class="ib-help">기존 실시간 기록</div>' : ''}</td><td>${escapeHtml(row.grade || '-')}</td><td>${escapeHtml(row.started_at || '-')}</td><td>${escapeHtml(row.ended_at || '-')}</td>
                 <td>${row.clear_time_sec || 0}</td><td>${row.deaths || 0}</td><td>${row.wipes || 0}</td><td>${row.score || 0}</td><td>${row.vote_yes || 0} / ${row.vote_no || 0}</td>
                 <td><button class="ib-btn ib-btn-ghost" onclick="instanceBonusApp.loadRunDetail(${row.run_id})">상세</button></td>
             </tr>`).join('') : '<tr><td colspan="14" class="ib-empty">런 로그가 없습니다.</td></tr>';
@@ -1033,6 +1033,7 @@
             const row = await api(`/instance-bonus/runs/${runId}`);
             body.innerHTML = `<div class="ib-detail-grid">${[
                 ['기록 번호', row.run_id], ['맵 ID', row.map_id], ['테마', row.theme_name || '-'], ['미션', row.mission_name || '-'],
+                ['기록 출처', row.source === 'legacy_live' ? '기존 실시간 미션 기록' : '상세 런 로그'],
                 ['상태', row.status || '-'], ['등급', row.grade || '-'], ['시작 시각', row.started_at || '-'], ['종료 시각', row.ended_at || '-'],
                 ['클리어 시간(초)', row.clear_time_sec || 0], ['사망 수', row.deaths || 0], ['전멸 수', row.wipes || 0], ['점수', row.score || 0],
                 ['찬성 수', row.vote_yes || 0], ['반대 수', row.vote_no || 0], ['LLM 사용', row.llm_used ? '예' : '아니오'], ['대체 선택 사용', row.fallback_used ? '예' : '아니오'], ['실패 사유', row.failure_reason || '-']
