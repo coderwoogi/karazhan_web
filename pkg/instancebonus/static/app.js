@@ -396,7 +396,7 @@
     async function importRuntimeData() {
         if (!confirm('기존 게임 런타임 테이블의 미션/테마 데이터를 v2 관리 화면으로 가져오시겠습니까?\n기존 런타임 테이블은 수정하지 않습니다.')) return;
         const result = await api('/instance-bonus/runtime/import', { method: 'POST', body: '{}' });
-        alert(`가져오기가 완료되었습니다.\n맵 설정 ${result.importedMaps}건\n미션 ${result.importedMissions}건\n테마 ${result.importedThemes}건\n연결 ${result.importedLinks}건`);
+        alert(`가져오기가 완료되었습니다.\n맵 설정 ${result.importedMaps}건\n미션 ${result.importedMissions}건\n테마 ${result.importedThemes}건\n연결 ${result.importedLinks}건\n보상 프로파일 ${result.importedRewards || 0}건`);
         refreshCurrent();
     }
 

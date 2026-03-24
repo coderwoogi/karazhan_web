@@ -46,11 +46,11 @@ var instanceMapNames = map[int]string{
 	34:  "스톰윈드 지하감옥",
 	36:  "죽음의 폐광",
 	43:  "통곡의 동굴",
-	47:  "가라앉은 사원",
+	47:  "가시덩굴 우리",
 	48:  "검은심연 나락",
 	70:  "울다만",
 	90:  "놈리건",
-	109: "가시덩굴 우리",
+	109: "가라앉은 사원",
 	129: "가시덩굴 구릉",
 	189: "붉은십자군 수도원",
 	209: "줄파락",
@@ -657,10 +657,10 @@ func currentUser(r *http.Request) string {
 
 func normalizeDailyLimit(value int) (int, error) {
 	if value < 0 {
-		return 0, fmt.Errorf("異붽?誘몄뀡 ?쇱씪 ?쒗븳? 0 ?댁긽?댁뼱???⑸땲??")
+		return 0, fmt.Errorf("?곕떽?沃섎챷????깆뵬 ??쀫립?? 0 ??곴맒??곷선????몃빍??")
 	}
 	if value > 100 {
-		return 0, fmt.Errorf("異붽?誘몄뀡 ?쇱씪 ?쒗븳? 100 ?댄븯濡쒕쭔 ?ㅼ젙?????덉뒿?덈떎.")
+		return 0, fmt.Errorf("?곕떽?沃섎챷????깆뵬 ??쀫립?? 100 ??꾨릭嚥≪뮆彛???쇱젟??????됰뮸??덈뼄.")
 	}
 	return value, nil
 }
@@ -747,7 +747,7 @@ func handleMapOptions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.Method != http.MethodGet {
-		http.Error(w, "??濡?굘????븐슙???꾩렮維????낅퉵??", http.StatusMethodNotAllowed)
+		http.Error(w, "??嚥?援????釉먯뒜???袁⑸젻泳?????낇돲??", http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -844,7 +844,7 @@ func mapDisplayName(mapID int, configName, nameKO, nameEN, scriptName string) st
 	if strings.TrimSpace(scriptName) != "" {
 		return strings.ReplaceAll(strings.TrimPrefix(scriptName, "instance_"), "_", " ")
 	}
-	return fmt.Sprintf("留?%d", mapID)
+	return fmt.Sprintf("맵 %d", mapID)
 }
 
 func mapNameForID(mapID int) string {
@@ -852,7 +852,7 @@ func mapNameForID(mapID int) string {
 		return override
 	}
 	if worldDB == nil {
-		return fmt.Sprintf("留?%d", mapID)
+		return fmt.Sprintf("맵 %d", mapID)
 	}
 	var configName, nameKO, nameEN, scriptName string
 	_ = worldDB.QueryRow(`
@@ -870,6 +870,7 @@ type importSummary struct {
 	ImportedMissions int `json:"importedMissions"`
 	ImportedThemes   int `json:"importedThemes"`
 	ImportedLinks    int `json:"importedLinks"`
+	ImportedRewards  int `json:"importedRewards"`
 }
 
 func importLegacyData(updatedBy string) (importSummary, error) {
@@ -888,7 +889,7 @@ func importLegacyData(updatedBy string) (importSummary, error) {
 				INSERT INTO instance_bonus_map_config (
 					map_id, map_name, enabled, allow_vote, allow_llm, default_time_limit_sec, min_party_size, max_party_size, max_concurrent_missions, notes, updated_by
 				)
-				SELECT ?, ?, 1, 1, 0, 1800, 1, 5, 1, '湲곗〈 寃뚯엫 ?뚯씠釉붿뿉??媛?몄삩 ?ㅼ젙', ?
+				SELECT ?, ?, 1, 1, 0, 1800, 1, 5, 1, '疫꿸퀣??野껊슣?????뵠?됰뗄肉??揶쎛?紐꾩궔 ??쇱젟', ?
 				WHERE NOT EXISTS (SELECT 1 FROM instance_bonus_map_config WHERE map_id=?)`,
 				mapID, mapNameForID(mapID), updatedBy, mapID,
 			)
@@ -915,10 +916,10 @@ func importLegacyData(updatedBy string) (importSummary, error) {
 					reward_profile_id, difficulty_weight, min_party_size, max_party_size, min_avg_item_level, max_avg_item_level, required_tank, required_healer,
 					enabled, publish_status, version, updated_by
 				)
-				SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '湲곕낯 ?ㅽ뙣', 0, 0, 0, 0, 0, 100, 1, 5, 0, 9999, 0, 0, ?, 'published', 1, ?
+				SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '疫꿸퀡????쎈솭', 0, 0, 0, 0, 0, 100, 1, 5, 0, 9999, 0, 0, ?, 'published', 1, ?
 				WHERE NOT EXISTS (SELECT 1 FROM instance_bonus_mission WHERE mission_id=?)`,
 				missionID, mapID, fmt.Sprintf("legacy_map%d_mission%d", mapID, missionID), title, fallback, fallback,
-				fmt.Sprintf("湲곗〈?좏삎%d", missionType), "???泥섏튂", targetEntry, targetLabel, targetCount, timeLimitSec, enabled, updatedBy, missionID,
+				fmt.Sprintf("기존 미션 유형 %d", missionType), "기본 목표", targetEntry, targetLabel, targetCount, timeLimitSec, enabled, updatedBy, missionID,
 			)
 			if execErr != nil {
 				return summary, execErr
@@ -941,7 +942,7 @@ func importLegacyData(updatedBy string) (importSummary, error) {
 					theme_id, map_id, theme_key, name, description, briefing_style, min_party_size, max_party_size, min_avg_item_level, max_avg_item_level,
 					required_tank, required_healer, weight, enabled, publish_status, version, updated_by
 				)
-				SELECT ?, ?, ?, ?, ?, '湲곕낯 釉뚮━??, ?, ?, ?, ?, ?, ?, ?, ?, 'published', 1, ?
+				SELECT ?, ?, ?, ?, ?, '疫꿸퀡???됰슢???, ?, ?, ?, ?, ?, ?, ?, ?, 'published', 1, ?
 				WHERE NOT EXISTS (SELECT 1 FROM instance_bonus_theme WHERE theme_id=?)`,
 				themeID, mapID, themeKey, name, description, minPartySize, maxPartySize, minAvgItemLevel, maxAvgItemLevel, requiredTank, requiredHealer, weight, enabled, updatedBy, themeID,
 			)
@@ -980,6 +981,89 @@ func importLegacyData(updatedBy string) (importSummary, error) {
 		}
 	}
 
+	rewardRows, err := worldDB.Query(`
+		SELECT rt.map_id, rt.theme_id, rt.grade, rt.reward_item_1, rt.reward_count_1, rt.reward_item_2, rt.reward_count_2,
+		       IFNULL(tp.name, CONCAT('테마 ', rt.theme_id)) AS theme_name
+		FROM instance_bonus_reward_tier rt
+		LEFT JOIN instance_bonus_theme_pool tp ON tp.map_id = rt.map_id AND tp.theme_id = rt.theme_id
+		ORDER BY rt.map_id ASC, rt.theme_id ASC, FIELD(rt.grade,'S','A','B','C','D')`)
+	if err == nil {
+		defer rewardRows.Close()
+		type rewardTierRow struct {
+			MapID     int
+			ThemeID   int
+			Grade     string
+			Item1     int
+			Count1    int
+			Item2     int
+			Count2    int
+			ThemeName string
+		}
+		rewardMap := map[string][]rewardTierRow{}
+		for rewardRows.Next() {
+			var row rewardTierRow
+			_ = rewardRows.Scan(&row.MapID, &row.ThemeID, &row.Grade, &row.Item1, &row.Count1, &row.Item2, &row.Count2, &row.ThemeName)
+			key := fmt.Sprintf("%d:%d", row.MapID, row.ThemeID)
+			rewardMap[key] = append(rewardMap[key], row)
+		}
+		for _, rowsByTheme := range rewardMap {
+			if len(rowsByTheme) == 0 {
+				continue
+			}
+			first := rowsByTheme[0]
+			profileID := int64(first.ThemeID)
+			profileKey := fmt.Sprintf("legacy_map%d_theme%d_reward", first.MapID, first.ThemeID)
+			profileName := strings.TrimSpace(first.ThemeName)
+			if profileName == "" {
+				profileName = fmt.Sprintf("테마 %d 보상", first.ThemeID)
+			} else {
+				profileName = profileName + " 보상"
+			}
+			res, execErr := worldDB.Exec(`
+				INSERT INTO instance_bonus_reward_profile (
+					reward_profile_id, map_id, profile_key, name, description, enabled, publish_status, version, updated_by
+				)
+				SELECT ?, ?, ?, ?, ?, 1, 'published', 1, ?
+				WHERE NOT EXISTS (SELECT 1 FROM instance_bonus_reward_profile WHERE reward_profile_id=?)`,
+				profileID, first.MapID, profileKey, profileName, "기존 게임 런타임 보상 테이블에서 가져온 보상 프로파일입니다.", updatedBy, profileID,
+			)
+			if execErr != nil {
+				return summary, execErr
+			}
+			if n, _ := res.RowsAffected(); n > 0 {
+				summary.ImportedRewards += int(n)
+			}
+
+			items := make([]rewardProfileItem, 0)
+			sortOrder := 1
+			for _, row := range rowsByTheme {
+				if row.Item1 > 0 && row.Count1 > 0 {
+					items = append(items, rewardProfileItem{
+						Grade:     row.Grade,
+						ItemEntry: row.Item1,
+						ItemCount: row.Count1,
+						Chance:    100,
+						SortOrder: sortOrder,
+					})
+					sortOrder++
+				}
+				if row.Item2 > 0 && row.Count2 > 0 {
+					items = append(items, rewardProfileItem{
+						Grade:     row.Grade,
+						ItemEntry: row.Item2,
+						ItemCount: row.Count2,
+						Chance:    100,
+						SortOrder: sortOrder,
+					})
+					sortOrder++
+				}
+			}
+			if err := replaceRewardProfileItems(profileID, items); err != nil {
+				return summary, err
+			}
+		}
+	}
+
 	return summary, nil
 }
 
@@ -1004,7 +1088,7 @@ func handleRuntimeImport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.Method != http.MethodPost {
-		http.Error(w, "?섎せ???붿껌 諛⑹떇?낅땲??", http.StatusMethodNotAllowed)
+		http.Error(w, "??롢걵???遺욧퍕 獄쎻뫗???낅빍??", http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -1100,7 +1184,7 @@ func handleMaps(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"success": true})
 	default:
-		http.Error(w, "??濡?굘????븐슙???꾩렮維????낅퉵??", http.StatusMethodNotAllowed)
+		http.Error(w, "??嚥?援????釉먯뒜???袁⑸젻泳?????낇돲??", http.StatusMethodNotAllowed)
 	}
 }
 
@@ -1110,7 +1194,7 @@ func handleMapByID(w http.ResponseWriter, r *http.Request) {
 	}
 	mapID, err := mustIDFromPath(r.URL.Path, "/instance-bonus/maps/")
 	if err != nil {
-		http.Error(w, "??濡?굘??嶺?ID???낅퉵??", http.StatusBadRequest)
+		http.Error(w, "??嚥?援??癲?ID????낇돲??", http.StatusBadRequest)
 		return
 	}
 	switch r.Method {
@@ -1152,7 +1236,7 @@ func handleMapByID(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"success": true, "softDeleted": true})
 	default:
-		http.Error(w, "??濡?굘????븐슙???꾩렮維????낅퉵??", http.StatusMethodNotAllowed)
+		http.Error(w, "??嚥?援????釉먯뒜???袁⑸젻泳?????낇돲??", http.StatusMethodNotAllowed)
 	}
 }
 
@@ -1233,7 +1317,7 @@ func handleMissions(w http.ResponseWriter, r *http.Request) {
 		id, _ := res.LastInsertId()
 		writeJSON(w, http.StatusOK, map[string]any{"success": true, "mission_id": id})
 	default:
-		http.Error(w, "??濡?굘????븐슙???꾩렮維????낅퉵??", http.StatusMethodNotAllowed)
+		http.Error(w, "??嚥?援????釉먯뒜???袁⑸젻泳?????낇돲??", http.StatusMethodNotAllowed)
 	}
 }
 
@@ -1243,7 +1327,7 @@ func handleMissionByID(w http.ResponseWriter, r *http.Request) {
 	}
 	id, err := mustIDFromPath(r.URL.Path, "/instance-bonus/missions/")
 	if err != nil {
-		http.Error(w, "??濡?굘??亦껋꼶梨??ID???낅퉵??", http.StatusBadRequest)
+		http.Error(w, "??嚥?援??雅?퍔瑗띰㎖??ID????낇돲??", http.StatusBadRequest)
 		return
 	}
 	switch r.Method {
@@ -1285,7 +1369,7 @@ func handleMissionByID(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"success": true})
 	default:
-		http.Error(w, "??濡?굘????븐슙???꾩렮維????낅퉵??", http.StatusMethodNotAllowed)
+		http.Error(w, "??嚥?援????釉먯뒜???袁⑸젻泳?????낇돲??", http.StatusMethodNotAllowed)
 	}
 }
 func handleThemes(w http.ResponseWriter, r *http.Request) {
@@ -1352,7 +1436,7 @@ func handleThemes(w http.ResponseWriter, r *http.Request) {
 		id, _ := res.LastInsertId()
 		writeJSON(w, http.StatusOK, map[string]any{"success": true, "theme_id": id})
 	default:
-		http.Error(w, "??濡?굘????븐슙???꾩렮維????낅퉵??", http.StatusMethodNotAllowed)
+		http.Error(w, "??嚥?援????釉먯뒜???袁⑸젻泳?????낇돲??", http.StatusMethodNotAllowed)
 	}
 }
 
@@ -1364,12 +1448,12 @@ func handleThemeRoutes(w http.ResponseWriter, r *http.Request) {
 	path = strings.Trim(path, "/")
 	parts := strings.Split(path, "/")
 	if len(parts) == 0 || parts[0] == "" {
-		http.Error(w, "??濡?굘?????異?ID???낅퉵??", http.StatusBadRequest)
+		http.Error(w, "??嚥?援???????ID????낇돲??", http.StatusBadRequest)
 		return
 	}
 	themeID, err := strconv.ParseInt(parts[0], 10, 64)
 	if err != nil {
-		http.Error(w, "??濡?굘?????異?ID???낅퉵??", http.StatusBadRequest)
+		http.Error(w, "??嚥?援???????ID????낇돲??", http.StatusBadRequest)
 		return
 	}
 	if len(parts) == 1 {
@@ -1405,7 +1489,7 @@ func handleThemeRoutes(w http.ResponseWriter, r *http.Request) {
 			}
 			writeJSON(w, http.StatusOK, map[string]any{"success": true})
 		default:
-			http.Error(w, "??濡?굘????븐슙???꾩렮維????낅퉵??", http.StatusMethodNotAllowed)
+			http.Error(w, "??嚥?援????釉먯뒜???袁⑸젻泳?????낇돲??", http.StatusMethodNotAllowed)
 		}
 		return
 	}
@@ -1448,17 +1532,17 @@ func handleThemeRoutes(w http.ResponseWriter, r *http.Request) {
 			}
 			writeJSON(w, http.StatusOK, map[string]any{"success": true})
 		default:
-			http.Error(w, "??濡?굘????븐슙???꾩렮維????낅퉵??", http.StatusMethodNotAllowed)
+			http.Error(w, "??嚥?援????釉먯뒜???袁⑸젻泳?????낇돲??", http.StatusMethodNotAllowed)
 		}
 		return
 	}
 	missionID, err := strconv.ParseInt(parts[2], 10, 64)
 	if err != nil {
-		http.Error(w, "??濡?굘??亦껋꼶梨??ID???낅퉵??", http.StatusBadRequest)
+		http.Error(w, "??嚥?援??雅?퍔瑗띰㎖??ID????낇돲??", http.StatusBadRequest)
 		return
 	}
 	if r.Method != http.MethodDelete {
-		http.Error(w, "??濡?굘????븐슙???꾩렮維????낅퉵??", http.StatusMethodNotAllowed)
+		http.Error(w, "??嚥?援????釉먯뒜???袁⑸젻泳?????낇돲??", http.StatusMethodNotAllowed)
 		return
 	}
 	_, err = worldDB.Exec(`DELETE FROM instance_bonus_theme_mission_link WHERE theme_id=? AND mission_id=?`, themeID, missionID)
@@ -1527,7 +1611,7 @@ func handleRewardProfiles(w http.ResponseWriter, r *http.Request) {
 		replaceRewardProfileItems(id, item.Items)
 		writeJSON(w, http.StatusOK, map[string]any{"success": true, "reward_profile_id": id})
 	default:
-		http.Error(w, "??濡?굘????븐슙???꾩렮維????낅퉵??", http.StatusMethodNotAllowed)
+		http.Error(w, "??嚥?援????釉먯뒜???袁⑸젻泳?????낇돲??", http.StatusMethodNotAllowed)
 	}
 }
 
@@ -1578,7 +1662,7 @@ func handleRewardProfileByID(w http.ResponseWriter, r *http.Request) {
 		replaceRewardProfileItems(id, item.Items)
 		writeJSON(w, http.StatusOK, map[string]any{"success": true})
 	default:
-		http.Error(w, "??濡?굘????븐슙???꾩렮維????낅퉵??", http.StatusMethodNotAllowed)
+		http.Error(w, "??嚥?援????釉먯뒜???袁⑸젻泳?????낇돲??", http.StatusMethodNotAllowed)
 	}
 }
 
@@ -1620,7 +1704,7 @@ func handleRuns(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.Method != http.MethodGet {
-		http.Error(w, "??濡?굘????븐슙???꾩렮維????낅퉵??", http.StatusMethodNotAllowed)
+		http.Error(w, "??嚥?援????釉먯뒜???袁⑸젻泳?????낇돲??", http.StatusMethodNotAllowed)
 		return
 	}
 	page, limit, offset := parsePage(r)
@@ -1683,7 +1767,7 @@ func handleDailyUsage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.Method != http.MethodGet {
-		http.Error(w, "허용되지 않은 요청 방식입니다.", http.StatusMethodNotAllowed)
+		http.Error(w, "?덉슜?섏? ?딆? ?붿껌 諛⑹떇?낅땲??", http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -1748,7 +1832,7 @@ func handleDailyUsageReset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.Method != http.MethodPost {
-		http.Error(w, "허용되지 않은 요청 방식입니다.", http.StatusMethodNotAllowed)
+		http.Error(w, "?덉슜?섏? ?딆? ?붿껌 諛⑹떇?낅땲??", http.StatusMethodNotAllowed)
 		return
 	}
 	var payload struct {
@@ -1761,7 +1845,7 @@ func handleDailyUsageReset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if strings.TrimSpace(payload.UsageDate) == "" || payload.MapID <= 0 || payload.GUID <= 0 {
-		http.Error(w, "날짜, 던전/레이드, 플레이어 정보가 모두 필요합니다.", http.StatusBadRequest)
+		http.Error(w, "?좎쭨, ?섏쟾/?덉씠?? ?뚮젅?댁뼱 ?뺣낫媛 紐⑤몢 ?꾩슂?⑸땲??", http.StatusBadRequest)
 		return
 	}
 	if _, err := worldDB.Exec(`DELETE FROM instance_bonus_player_daily_usage WHERE usage_date=? AND map_id=? AND guid=?`, payload.UsageDate, payload.MapID, payload.GUID); err != nil {
@@ -1805,12 +1889,12 @@ func handleRunRoutes(w http.ResponseWriter, r *http.Request) {
 	path = strings.Trim(path, "/")
 	parts := strings.Split(path, "/")
 	if len(parts) == 0 || parts[0] == "" {
-		http.Error(w, "??濡?굘????ID???낅퉵??", http.StatusBadRequest)
+		http.Error(w, "??嚥?援????ID????낇돲??", http.StatusBadRequest)
 		return
 	}
 	runID, err := strconv.ParseInt(parts[0], 10, 64)
 	if err != nil {
-		http.Error(w, "??濡?굘????ID???낅퉵??", http.StatusBadRequest)
+		http.Error(w, "??嚥?援????ID????낇돲??", http.StatusBadRequest)
 		return
 	}
 	if len(parts) == 1 {
