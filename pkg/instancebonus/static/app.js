@@ -11,6 +11,7 @@
         mapsPage: 1,
         mapsCache: [],
         mapEditingId: null,
+        dailyUsagePage: 1,
         missionsPage: 1,
         themesPage: 1,
         rewardsPage: 1,
@@ -49,6 +50,7 @@
     const mapFields = [
         { name: 'map_id', label: '맵 ID', type: 'number', help: '던전이나 레이드 맵 번호입니다.' },
         { name: 'map_name', label: '맵 이름', help: '운영 화면에서 확인할 이름입니다.' },
+        { name: 'daily_limit_per_player', label: '추가미션 일일 제한(1인당)', type: 'number', help: '해당 던전에서 플레이어 1명이 하루에 추가미션 보상을 받을 수 있는 최대 횟수입니다. 0이면 제한 없음' },
         { name: 'default_time_limit_sec', label: '기본 시간 제한(초)', type: 'number' },
         { name: 'max_concurrent_missions', label: '최대 동시 미션 수', type: 'number' },
         { name: 'min_party_size', label: '최소 파티 수', type: 'number' },
@@ -288,6 +290,7 @@
             ['missions-filter-map-id', true, '전체'],
             ['themes-filter-map-id', true, '전체'],
             ['rewards-filter-map-id', true, '전체'],
+            ['daily-usage-filter-map-id', true, '전체'],
             ['runs-filter-map-id', true, '전체'],
             ['map-form-map-id', false, '던전/레이드를 선택하세요'],
             ['mission-form-map-id', false, '던전/레이드를 선택하세요'],
@@ -433,6 +436,7 @@
             form.elements.enabled.value = '1';
             form.elements.allow_vote.value = '1';
             form.elements.allow_llm.value = '0';
+            form.elements.daily_limit_per_player.value = '0';
             form.elements.min_party_size.value = '1';
             form.elements.max_party_size.value = '5';
             form.elements.max_concurrent_missions.value = '1';
@@ -452,10 +456,12 @@
             const el = form.elements[field.name];
             if (!el) return;
             if (field.type === 'number') payload[field.name] = Number(el.value || 0);
-            else if (field.type === 'checkbox') payload[field.name] = el.value === '1';
+            else if (field.type === 'checkbox') payload[field.name] = Number(el.value || 0);
             else payload[field.name] = el.value;
         });
         if (!payload.map_id || payload.map_id <= 0) throw new Error('맵 ID는 필수입니다.');
+        if (payload.daily_limit_per_player < 0) throw new Error('추가미션 일일 제한은 0 이상이어야 합니다.');
+        if (payload.daily_limit_per_player > 100) throw new Error('추가미션 일일 제한은 100 이하로만 설정할 수 있습니다.');
         return payload;
     }
 
@@ -495,13 +501,14 @@
                 <td>${escapeHtml(row.map_name || `맵 ${row.map_id}`)}<div class="ib-help">ID ${row.map_id}</div></td>
                 <td>${badge(row.enabled)}</td>
                 <td>${badge(row.allow_vote)}</td>
+                <td>${row.daily_limit_per_player === 0 ? '무제한' : `${row.daily_limit_per_player}회`}</td>
                 <td>${badge(row.allow_llm)}</td>
                 <td>${row.default_time_limit_sec || 0}</td>
                 <td>${row.min_party_size || 0} ~ ${row.max_party_size || 0}</td>
                 <td>${row.max_concurrent_missions || 0}</td>
                 <td>${escapeHtml(row.updated_by || '-')}</td>
                 <td><div class="ib-actions"><button class="ib-btn ib-btn-ghost" onclick="instanceBonusApp.editMapById(${row.map_id})">수정</button><button class="ib-btn ib-btn-danger" onclick="instanceBonusApp.deleteMap(${row.map_id})">삭제</button></div></td>
-            </tr>`).join('') : '<tr><td colspan="9" class="ib-empty">등록된 맵 설정이 없습니다.</td></tr>';
+            </tr>`).join('') : '<tr><td colspan="10" class="ib-empty">등록된 맵 설정이 없습니다.</td></tr>';
         renderPagination('maps-pagination', data.page || 1, data.total || 0, data.limit || 20, 'loadMaps');
     }
 
@@ -952,6 +959,46 @@
         loadRuns();
     }
 
+    function resetDailyUsageFilter() {
+        ['daily-usage-filter-date', 'daily-usage-filter-map-id', 'daily-usage-filter-guid', 'daily-usage-filter-keyword'].forEach((id) => {
+            const el = document.getElementById(id);
+            if (el) el.value = '';
+        });
+        state.dailyUsagePage = 1;
+        loadDailyUsage();
+    }
+
+    async function loadDailyUsage(page = state.dailyUsagePage) {
+        state.dailyUsagePage = page;
+        const params = new URLSearchParams({ page: String(page), limit: '20' });
+        [['usage_date', 'daily-usage-filter-date'], ['map_id', 'daily-usage-filter-map-id'], ['guid', 'daily-usage-filter-guid'], ['keyword', 'daily-usage-filter-keyword']].forEach(([key, id]) => {
+            const value = document.getElementById(id)?.value.trim();
+            if (value) params.set(key, value);
+        });
+        const data = await api(`/instance-bonus/daily-usage?${params.toString()}`);
+        const body = document.getElementById('daily-usage-table');
+        body.innerHTML = (data.items || []).length ? data.items.map((row) => `
+            <tr>
+                <td>${escapeHtml(row.usage_date || '-')}</td>
+                <td>${escapeHtml(row.map_name || `맵 ${row.map_id}`)}<div class="ib-help">ID ${row.map_id}</div></td>
+                <td>${escapeHtml(row.character_name || '-')}</td>
+                <td>${row.guid || 0}</td>
+                <td>${row.success_count || 0}</td>
+                <td>${escapeHtml(row.updated_at || '-')}</td>
+                <td><button class="ib-btn ib-btn-danger" onclick='instanceBonusApp.resetDailyUsage(${JSON.stringify(row.usage_date || "")}, ${Number(row.map_id || 0)}, ${Number(row.guid || 0)}, ${JSON.stringify(row.character_name || "-")})'>초기화</button></td>
+            </tr>`).join('') : '<tr><td colspan="7" class="ib-empty">조회된 일일 사용량이 없습니다.</td></tr>';
+        renderPagination('daily-usage-pagination', data.page || 1, data.total || 0, data.limit || 20, 'loadDailyUsage');
+    }
+
+    async function resetDailyUsage(usageDate, mapId, guid, characterName) {
+        if (!confirm(`${characterName}의 ${usageDate} 사용량 기록을 초기화하시겠습니까?`)) return;
+        await api('/instance-bonus/daily-usage/reset', {
+            method: 'POST',
+            body: JSON.stringify({ usage_date: usageDate, map_id: Number(mapId), guid: Number(guid) })
+        });
+        loadDailyUsage(state.dailyUsagePage);
+    }
+
     async function loadRuns(page = state.runsPage) {
         state.runsPage = page;
         const params = new URLSearchParams({ page: String(page), limit: '20' });
@@ -1059,6 +1106,7 @@
             case 'themes': return loadThemes();
             case 'theme-links': return Promise.all([loadThemes(1), loadMissionCandidates()]).then(() => loadThemeLinks().catch(() => {}));
             case 'rewards': return loadRewards();
+            case 'daily-usage': return loadDailyUsage();
             case 'runs': return loadRuns();
             default: return loadDashboard();
         }
@@ -1098,6 +1146,9 @@
         addRewardItemRow,
         saveReward,
         fetchReward,
+        loadDailyUsage,
+        resetDailyUsageFilter,
+        resetDailyUsage,
         loadRuns,
         resetRunFilter,
         loadRunDetail,

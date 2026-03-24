@@ -18,6 +18,7 @@ import (
 
 var worldDB *sql.DB
 var updateDB *sql.DB
+var charactersDB *sql.DB
 
 const menuID = "instance-bonus-admin"
 
@@ -45,11 +46,11 @@ var instanceMapNames = map[int]string{
 	34:  "스톰윈드 지하감옥",
 	36:  "죽음의 폐광",
 	43:  "통곡의 동굴",
-	47:  "가시덩굴 우리",
+	47:  "가라앉은 사원",
 	48:  "검은심연 나락",
 	70:  "울다만",
 	90:  "놈리건",
-	109: "가라앉은 사원",
+	109: "가시덩굴 우리",
 	129: "가시덩굴 구릉",
 	189: "붉은십자군 수도원",
 	209: "줄파락",
@@ -62,17 +63,17 @@ var instanceMapNames = map[int]string{
 	329: "스트라솔름",
 	349: "마라우돈",
 	389: "혈투의 전장",
-	409: "안퀴라즈 폐허",
-	429: "안퀴라즈 사원",
+	409: "검은바위 첨탑 상층",
+	429: "혈투의 전장",
 	469: "검은날개 둥지",
-	509: "아웃랜드 레이드",
+	509: "안퀴라즈 폐허",
 	531: "안퀴라즈 사원",
 	532: "카라잔",
 	533: "낙스라마스",
 	534: "하이잘 정상",
-	540: "불타는 성전의 관문",
+	540: "지옥불 성루",
 	542: "피의 용광로",
-	543: "지옥불 성루",
+	543: "지옥불 성채",
 	544: "마그테리돈의 둥지",
 	545: "증기 저장고",
 	546: "지하수렁",
@@ -82,7 +83,7 @@ var instanceMapNames = map[int]string{
 	552: "폭풍우 요새",
 	553: "신록의 정원",
 	554: "메카나르",
-	555: "으스러진 손의 전당",
+	555: "알카트라즈",
 	556: "세데크 전당",
 	557: "마나 무덤",
 	558: "아키나이 납골당",
@@ -92,8 +93,8 @@ var instanceMapNames = map[int]string{
 	568: "줄아만",
 	574: "우트가드 성채",
 	575: "우트가드 첨탑",
-	576: "마력의 탑",
-	578: "마력의 눈",
+	576: "마력의 눈",
+	578: "마력의 탑",
 	580: "태양샘 고원",
 	585: "마법학자의 정원",
 	595: "안카헤트: 고대 왕국",
@@ -110,10 +111,10 @@ var instanceMapNames = map[int]string{
 	624: "얼음왕관 성채",
 	631: "얼음왕관 성채",
 	632: "영혼의 제련소",
-	649: "시험의 십자군",
-	650: "시험의 용사",
+	649: "투영의 전당",
+	650: "투영의 전당",
 	658: "얼음울음 요새",
-	668: "황혼의 전당",
+	668: "영혼의 제련소",
 	724: "루비 성소",
 }
 
@@ -155,6 +156,7 @@ type mapConfig struct {
 	MapName              string `json:"map_name"`
 	Enabled              int    `json:"enabled"`
 	AllowVote            int    `json:"allow_vote"`
+	DailyLimitPerPlayer  int    `json:"daily_limit_per_player"`
 	AllowLLM             int    `json:"allow_llm"`
 	DefaultTimeLimitSec  int    `json:"default_time_limit_sec"`
 	MinPartySize         int    `json:"min_party_size"`
@@ -283,6 +285,16 @@ type runHistoryRow struct {
 	FailureReason string `json:"failure_reason"`
 }
 
+type dailyUsageRow struct {
+	UsageDate     string `json:"usage_date"`
+	MapID         int    `json:"map_id"`
+	MapName       string `json:"map_name"`
+	GUID          int64  `json:"guid"`
+	CharacterName string `json:"character_name"`
+	SuccessCount  int    `json:"success_count"`
+	UpdatedAt     string `json:"updated_at"`
+}
+
 type runMemberRow struct {
 	MemberID      int64  `json:"member_id"`
 	RunID         int64  `json:"run_id"`
@@ -344,6 +356,10 @@ func RegisterRoutes(mux *http.ServeMux) {
 	if err != nil {
 		log.Printf("[instance-bonus] world db open error: %v", err)
 	}
+	charactersDB, err = sql.Open("mysql", config.CharactersDSNWithParams("parseTime=true"))
+	if err != nil {
+		log.Printf("[instance-bonus] characters db open error: %v", err)
+	}
 	updateDB, err = sql.Open("mysql", config.UpdateDSNWithParams("parseTime=true"))
 	if err != nil {
 		log.Printf("[instance-bonus] update db open error: %v", err)
@@ -372,6 +388,8 @@ func RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/instance-bonus/reward-profiles/", handleRewardProfileByID)
 	mux.HandleFunc("/instance-bonus/runs", handleRuns)
 	mux.HandleFunc("/instance-bonus/runs/", handleRunRoutes)
+	mux.HandleFunc("/instance-bonus/daily-usage", handleDailyUsage)
+	mux.HandleFunc("/instance-bonus/daily-usage/reset", handleDailyUsageReset)
 }
 
 func ensureSchema() {
@@ -384,6 +402,7 @@ func ensureSchema() {
             map_name VARCHAR(120) NOT NULL DEFAULT '',
             enabled TINYINT(1) NOT NULL DEFAULT 1,
             allow_vote TINYINT(1) NOT NULL DEFAULT 1,
+            daily_limit_per_player INT UNSIGNED NOT NULL DEFAULT 0,
             allow_llm TINYINT(1) NOT NULL DEFAULT 0,
             default_time_limit_sec INT NOT NULL DEFAULT 1800,
             min_party_size TINYINT UNSIGNED NOT NULL DEFAULT 1,
@@ -582,11 +601,35 @@ func ensureSchema() {
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             KEY idx_llm_log_run (run_id)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci`,
+		`CREATE TABLE IF NOT EXISTS instance_bonus_player_daily_usage (
+            usage_date DATE NOT NULL,
+            map_id INT UNSIGNED NOT NULL,
+            guid BIGINT UNSIGNED NOT NULL,
+            success_count INT UNSIGNED NOT NULL DEFAULT 0,
+            updated_at BIGINT UNSIGNED NOT NULL DEFAULT 0,
+            PRIMARY KEY (usage_date, map_id, guid),
+            KEY idx_instance_bonus_daily_usage_guid (guid, usage_date),
+            KEY idx_instance_bonus_daily_usage_map (map_id, usage_date)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci`,
 	}
 	for _, stmt := range stmts {
 		if _, err := worldDB.Exec(stmt); err != nil {
 			log.Printf("[instance-bonus] schema error: %v", err)
 		}
+	}
+	runSchemaAlter(`ALTER TABLE instance_bonus_map_config ADD COLUMN daily_limit_per_player INT UNSIGNED NOT NULL DEFAULT 0 AFTER allow_vote`)
+}
+
+func runSchemaAlter(stmt string) {
+	if worldDB == nil {
+		return
+	}
+	if _, err := worldDB.Exec(stmt); err != nil {
+		lower := strings.ToLower(err.Error())
+		if strings.Contains(lower, "duplicate column") || strings.Contains(lower, "already exists") {
+			return
+		}
+		log.Printf("[instance-bonus] schema alter skipped: %v", err)
 	}
 }
 
@@ -610,6 +653,16 @@ func currentUser(r *http.Request) string {
 		return strings.TrimSpace(c.Value)
 	}
 	return "system"
+}
+
+func normalizeDailyLimit(value int) (int, error) {
+	if value < 0 {
+		return 0, fmt.Errorf("異붽?誘몄뀡 ?쇱씪 ?쒗븳? 0 ?댁긽?댁뼱???⑸땲??")
+	}
+	if value > 100 {
+		return 0, fmt.Errorf("異붽?誘몄뀡 ?쇱씪 ?쒗븳? 100 ?댄븯濡쒕쭔 ?ㅼ젙?????덉뒿?덈떎.")
+	}
+	return value, nil
 }
 
 func parsePage(r *http.Request) (int, int, int) {
@@ -694,7 +747,7 @@ func handleMapOptions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.Method != http.MethodGet {
-		http.Error(w, "??롢걵???遺욧퍕 獄쎻뫗???낅빍??", http.StatusMethodNotAllowed)
+		http.Error(w, "??濡?굘????븐슙???꾩렮維????낅퉵??", http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -791,7 +844,7 @@ func mapDisplayName(mapID int, configName, nameKO, nameEN, scriptName string) st
 	if strings.TrimSpace(scriptName) != "" {
 		return strings.ReplaceAll(strings.TrimPrefix(scriptName, "instance_"), "_", " ")
 	}
-	return fmt.Sprintf("맵 %d", mapID)
+	return fmt.Sprintf("留?%d", mapID)
 }
 
 func mapNameForID(mapID int) string {
@@ -799,7 +852,7 @@ func mapNameForID(mapID int) string {
 		return override
 	}
 	if worldDB == nil {
-		return fmt.Sprintf("맵 %d", mapID)
+		return fmt.Sprintf("留?%d", mapID)
 	}
 	var configName, nameKO, nameEN, scriptName string
 	_ = worldDB.QueryRow(`
@@ -835,7 +888,7 @@ func importLegacyData(updatedBy string) (importSummary, error) {
 				INSERT INTO instance_bonus_map_config (
 					map_id, map_name, enabled, allow_vote, allow_llm, default_time_limit_sec, min_party_size, max_party_size, max_concurrent_missions, notes, updated_by
 				)
-				SELECT ?, ?, 1, 1, 0, 1800, 1, 5, 1, '기존 게임 테이블에서 가져온 설정', ?
+				SELECT ?, ?, 1, 1, 0, 1800, 1, 5, 1, '湲곗〈 寃뚯엫 ?뚯씠釉붿뿉??媛?몄삩 ?ㅼ젙', ?
 				WHERE NOT EXISTS (SELECT 1 FROM instance_bonus_map_config WHERE map_id=?)`,
 				mapID, mapNameForID(mapID), updatedBy, mapID,
 			)
@@ -862,10 +915,10 @@ func importLegacyData(updatedBy string) (importSummary, error) {
 					reward_profile_id, difficulty_weight, min_party_size, max_party_size, min_avg_item_level, max_avg_item_level, required_tank, required_healer,
 					enabled, publish_status, version, updated_by
 				)
-				SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '기본 실패', 0, 0, 0, 0, 0, 100, 1, 5, 0, 9999, 0, 0, ?, 'published', 1, ?
+				SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '湲곕낯 ?ㅽ뙣', 0, 0, 0, 0, 0, 100, 1, 5, 0, 9999, 0, 0, ?, 'published', 1, ?
 				WHERE NOT EXISTS (SELECT 1 FROM instance_bonus_mission WHERE mission_id=?)`,
 				missionID, mapID, fmt.Sprintf("legacy_map%d_mission%d", mapID, missionID), title, fallback, fallback,
-				fmt.Sprintf("기존유형%d", missionType), "대상 처치", targetEntry, targetLabel, targetCount, timeLimitSec, enabled, updatedBy, missionID,
+				fmt.Sprintf("湲곗〈?좏삎%d", missionType), "???泥섏튂", targetEntry, targetLabel, targetCount, timeLimitSec, enabled, updatedBy, missionID,
 			)
 			if execErr != nil {
 				return summary, execErr
@@ -888,7 +941,7 @@ func importLegacyData(updatedBy string) (importSummary, error) {
 					theme_id, map_id, theme_key, name, description, briefing_style, min_party_size, max_party_size, min_avg_item_level, max_avg_item_level,
 					required_tank, required_healer, weight, enabled, publish_status, version, updated_by
 				)
-				SELECT ?, ?, ?, ?, ?, '기본 브리핑', ?, ?, ?, ?, ?, ?, ?, ?, 'published', 1, ?
+				SELECT ?, ?, ?, ?, ?, '湲곕낯 釉뚮━??, ?, ?, ?, ?, ?, ?, ?, ?, 'published', 1, ?
 				WHERE NOT EXISTS (SELECT 1 FROM instance_bonus_theme WHERE theme_id=?)`,
 				themeID, mapID, themeKey, name, description, minPartySize, maxPartySize, minAvgItemLevel, maxAvgItemLevel, requiredTank, requiredHealer, weight, enabled, updatedBy, themeID,
 			)
@@ -951,7 +1004,7 @@ func handleRuntimeImport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.Method != http.MethodPost {
-		http.Error(w, "잘못된 요청 방식입니다.", http.StatusMethodNotAllowed)
+		http.Error(w, "?섎せ???붿껌 諛⑹떇?낅땲??", http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -978,14 +1031,24 @@ func handleMaps(w http.ResponseWriter, r *http.Request) {
 	case http.MethodGet:
 		page, limit, offset := parsePage(r)
 		mapFilter := strings.TrimSpace(r.URL.Query().Get("map_id"))
+		enabledFilter := strings.TrimSpace(r.URL.Query().Get("enabled"))
 		query := `SELECT map_id, IFNULL(map_name,''), enabled, allow_vote, allow_llm, default_time_limit_sec, min_party_size, max_party_size, max_concurrent_missions, IFNULL(notes,''), IFNULL(updated_by,''), DATE_FORMAT(updated_at, '%Y-%m-%d %H:%i:%s') FROM instance_bonus_map_config`
 		countQuery := `SELECT COUNT(*) FROM instance_bonus_map_config`
 		args := []any{}
-		where := ""
+		conds := []string{}
 		if mapFilter != "" {
-			where = " WHERE CAST(map_id AS CHAR) LIKE ?"
+			conds = append(conds, "CAST(map_id AS CHAR) LIKE ?")
 			args = append(args, "%"+mapFilter+"%")
 		}
+		if enabledFilter == "0" || enabledFilter == "1" {
+			conds = append(conds, "CAST(enabled AS CHAR)=?")
+			args = append(args, enabledFilter)
+		}
+		where := ""
+		if len(conds) > 0 {
+			where = " WHERE " + strings.Join(conds, " AND ")
+		}
+		query = `SELECT map_id, IFNULL(map_name,''), enabled, allow_vote, daily_limit_per_player, allow_llm, default_time_limit_sec, min_party_size, max_party_size, max_concurrent_missions, IFNULL(notes,''), IFNULL(updated_by,''), DATE_FORMAT(updated_at, '%Y-%m-%d %H:%i:%s') FROM instance_bonus_map_config`
 		var total int
 		_ = worldDB.QueryRow(countQuery+where, args...).Scan(&total)
 		rows, err := worldDB.Query(query+where+` ORDER BY map_id ASC LIMIT ? OFFSET ?`, append(args, limit, offset)...)
@@ -997,7 +1060,7 @@ func handleMaps(w http.ResponseWriter, r *http.Request) {
 		items := make([]mapConfig, 0)
 		for rows.Next() {
 			var item mapConfig
-			_ = rows.Scan(&item.MapID, &item.MapName, &item.Enabled, &item.AllowVote, &item.AllowLLM, &item.DefaultTimeLimitSec, &item.MinPartySize, &item.MaxPartySize, &item.MaxConcurrentMission, &item.Notes, &item.UpdatedBy, &item.UpdatedAt)
+			_ = rows.Scan(&item.MapID, &item.MapName, &item.Enabled, &item.AllowVote, &item.DailyLimitPerPlayer, &item.AllowLLM, &item.DefaultTimeLimitSec, &item.MinPartySize, &item.MaxPartySize, &item.MaxConcurrentMission, &item.Notes, &item.UpdatedBy, &item.UpdatedAt)
 			items = append(items, item)
 		}
 		writeJSON(w, http.StatusOK, pageResult{Items: items, Page: page, Limit: limit, Total: total})
@@ -1017,21 +1080,27 @@ func handleMaps(w http.ResponseWriter, r *http.Request) {
 		if item.MinPartySize <= 0 {
 			item.MinPartySize = 1
 		}
+		if normalizedLimit, err := normalizeDailyLimit(item.DailyLimitPerPlayer); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		} else {
+			item.DailyLimitPerPlayer = normalizedLimit
+		}
 		_, err := worldDB.Exec(`INSERT INTO instance_bonus_map_config
-			(map_id, map_name, enabled, allow_vote, allow_llm, default_time_limit_sec, min_party_size, max_party_size, max_concurrent_missions, notes, updated_by)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			(map_id, map_name, enabled, allow_vote, daily_limit_per_player, allow_llm, default_time_limit_sec, min_party_size, max_party_size, max_concurrent_missions, notes, updated_by)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 			ON DUPLICATE KEY UPDATE
-				map_name=VALUES(map_name), enabled=VALUES(enabled), allow_vote=VALUES(allow_vote), allow_llm=VALUES(allow_llm),
+				map_name=VALUES(map_name), enabled=VALUES(enabled), allow_vote=VALUES(allow_vote), daily_limit_per_player=VALUES(daily_limit_per_player), allow_llm=VALUES(allow_llm),
 				default_time_limit_sec=VALUES(default_time_limit_sec), min_party_size=VALUES(min_party_size), max_party_size=VALUES(max_party_size),
 				max_concurrent_missions=VALUES(max_concurrent_missions), notes=VALUES(notes), updated_by=VALUES(updated_by), updated_at=CURRENT_TIMESTAMP`,
-			item.MapID, item.MapName, item.Enabled, item.AllowVote, item.AllowLLM, item.DefaultTimeLimitSec, item.MinPartySize, item.MaxPartySize, item.MaxConcurrentMission, item.Notes, currentUser(r))
+			item.MapID, item.MapName, item.Enabled, item.AllowVote, item.DailyLimitPerPlayer, item.AllowLLM, item.DefaultTimeLimitSec, item.MinPartySize, item.MaxPartySize, item.MaxConcurrentMission, item.Notes, currentUser(r))
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"success": true})
 	default:
-		http.Error(w, "??롢걵???遺욧퍕 獄쎻뫗???낅빍??", http.StatusMethodNotAllowed)
+		http.Error(w, "??濡?굘????븐슙???꾩렮維????낅퉵??", http.StatusMethodNotAllowed)
 	}
 }
 
@@ -1041,15 +1110,15 @@ func handleMapByID(w http.ResponseWriter, r *http.Request) {
 	}
 	mapID, err := mustIDFromPath(r.URL.Path, "/instance-bonus/maps/")
 	if err != nil {
-		http.Error(w, "??롢걵??筌?ID??낅빍??", http.StatusBadRequest)
+		http.Error(w, "??濡?굘??嶺?ID???낅퉵??", http.StatusBadRequest)
 		return
 	}
 	switch r.Method {
 	case http.MethodGet:
 		var item mapConfig
-		err = worldDB.QueryRow(`SELECT map_id, IFNULL(map_name,''), enabled, allow_vote, allow_llm, default_time_limit_sec, min_party_size, max_party_size, max_concurrent_missions, IFNULL(notes,''), IFNULL(updated_by,''), DATE_FORMAT(updated_at, '%Y-%m-%d %H:%i:%s')
+		err = worldDB.QueryRow(`SELECT map_id, IFNULL(map_name,''), enabled, allow_vote, daily_limit_per_player, allow_llm, default_time_limit_sec, min_party_size, max_party_size, max_concurrent_missions, IFNULL(notes,''), IFNULL(updated_by,''), DATE_FORMAT(updated_at, '%Y-%m-%d %H:%i:%s')
 			FROM instance_bonus_map_config WHERE map_id=?`, mapID).
-			Scan(&item.MapID, &item.MapName, &item.Enabled, &item.AllowVote, &item.AllowLLM, &item.DefaultTimeLimitSec, &item.MinPartySize, &item.MaxPartySize, &item.MaxConcurrentMission, &item.Notes, &item.UpdatedBy, &item.UpdatedAt)
+			Scan(&item.MapID, &item.MapName, &item.Enabled, &item.AllowVote, &item.DailyLimitPerPlayer, &item.AllowLLM, &item.DefaultTimeLimitSec, &item.MinPartySize, &item.MaxPartySize, &item.MaxConcurrentMission, &item.Notes, &item.UpdatedBy, &item.UpdatedAt)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusNotFound)
 			return
@@ -1061,10 +1130,15 @@ func handleMapByID(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+		item.DailyLimitPerPlayer, err = normalizeDailyLimit(item.DailyLimitPerPlayer)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 		_, err = worldDB.Exec(`UPDATE instance_bonus_map_config
-			SET map_name=?, enabled=?, allow_vote=?, allow_llm=?, default_time_limit_sec=?, min_party_size=?, max_party_size=?, max_concurrent_missions=?, notes=?, updated_by=?, updated_at=CURRENT_TIMESTAMP
+			SET map_name=?, enabled=?, allow_vote=?, daily_limit_per_player=?, allow_llm=?, default_time_limit_sec=?, min_party_size=?, max_party_size=?, max_concurrent_missions=?, notes=?, updated_by=?, updated_at=CURRENT_TIMESTAMP
 			WHERE map_id=?`,
-			item.MapName, item.Enabled, item.AllowVote, item.AllowLLM, item.DefaultTimeLimitSec, item.MinPartySize, item.MaxPartySize, item.MaxConcurrentMission, item.Notes, currentUser(r), mapID)
+			item.MapName, item.Enabled, item.AllowVote, item.DailyLimitPerPlayer, item.AllowLLM, item.DefaultTimeLimitSec, item.MinPartySize, item.MaxPartySize, item.MaxConcurrentMission, item.Notes, currentUser(r), mapID)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -1078,7 +1152,7 @@ func handleMapByID(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"success": true, "softDeleted": true})
 	default:
-		http.Error(w, "??롢걵???遺욧퍕 獄쎻뫗???낅빍??", http.StatusMethodNotAllowed)
+		http.Error(w, "??濡?굘????븐슙???꾩렮維????낅퉵??", http.StatusMethodNotAllowed)
 	}
 }
 
@@ -1159,7 +1233,7 @@ func handleMissions(w http.ResponseWriter, r *http.Request) {
 		id, _ := res.LastInsertId()
 		writeJSON(w, http.StatusOK, map[string]any{"success": true, "mission_id": id})
 	default:
-		http.Error(w, "??롢걵???遺욧퍕 獄쎻뫗???낅빍??", http.StatusMethodNotAllowed)
+		http.Error(w, "??濡?굘????븐슙???꾩렮維????낅퉵??", http.StatusMethodNotAllowed)
 	}
 }
 
@@ -1169,7 +1243,7 @@ func handleMissionByID(w http.ResponseWriter, r *http.Request) {
 	}
 	id, err := mustIDFromPath(r.URL.Path, "/instance-bonus/missions/")
 	if err != nil {
-		http.Error(w, "??롢걵??沃섎챷??ID??낅빍??", http.StatusBadRequest)
+		http.Error(w, "??濡?굘??亦껋꼶梨??ID???낅퉵??", http.StatusBadRequest)
 		return
 	}
 	switch r.Method {
@@ -1211,7 +1285,7 @@ func handleMissionByID(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"success": true})
 	default:
-		http.Error(w, "??롢걵???遺욧퍕 獄쎻뫗???낅빍??", http.StatusMethodNotAllowed)
+		http.Error(w, "??濡?굘????븐슙???꾩렮維????낅퉵??", http.StatusMethodNotAllowed)
 	}
 }
 func handleThemes(w http.ResponseWriter, r *http.Request) {
@@ -1278,7 +1352,7 @@ func handleThemes(w http.ResponseWriter, r *http.Request) {
 		id, _ := res.LastInsertId()
 		writeJSON(w, http.StatusOK, map[string]any{"success": true, "theme_id": id})
 	default:
-		http.Error(w, "??롢걵???遺욧퍕 獄쎻뫗???낅빍??", http.StatusMethodNotAllowed)
+		http.Error(w, "??濡?굘????븐슙???꾩렮維????낅퉵??", http.StatusMethodNotAllowed)
 	}
 }
 
@@ -1290,12 +1364,12 @@ func handleThemeRoutes(w http.ResponseWriter, r *http.Request) {
 	path = strings.Trim(path, "/")
 	parts := strings.Split(path, "/")
 	if len(parts) == 0 || parts[0] == "" {
-		http.Error(w, "??롢걵?????춳 ID??낅빍??", http.StatusBadRequest)
+		http.Error(w, "??濡?굘?????異?ID???낅퉵??", http.StatusBadRequest)
 		return
 	}
 	themeID, err := strconv.ParseInt(parts[0], 10, 64)
 	if err != nil {
-		http.Error(w, "??롢걵?????춳 ID??낅빍??", http.StatusBadRequest)
+		http.Error(w, "??濡?굘?????異?ID???낅퉵??", http.StatusBadRequest)
 		return
 	}
 	if len(parts) == 1 {
@@ -1331,7 +1405,7 @@ func handleThemeRoutes(w http.ResponseWriter, r *http.Request) {
 			}
 			writeJSON(w, http.StatusOK, map[string]any{"success": true})
 		default:
-			http.Error(w, "??롢걵???遺욧퍕 獄쎻뫗???낅빍??", http.StatusMethodNotAllowed)
+			http.Error(w, "??濡?굘????븐슙???꾩렮維????낅퉵??", http.StatusMethodNotAllowed)
 		}
 		return
 	}
@@ -1374,17 +1448,17 @@ func handleThemeRoutes(w http.ResponseWriter, r *http.Request) {
 			}
 			writeJSON(w, http.StatusOK, map[string]any{"success": true})
 		default:
-			http.Error(w, "??롢걵???遺욧퍕 獄쎻뫗???낅빍??", http.StatusMethodNotAllowed)
+			http.Error(w, "??濡?굘????븐슙???꾩렮維????낅퉵??", http.StatusMethodNotAllowed)
 		}
 		return
 	}
 	missionID, err := strconv.ParseInt(parts[2], 10, 64)
 	if err != nil {
-		http.Error(w, "??롢걵??沃섎챷??ID??낅빍??", http.StatusBadRequest)
+		http.Error(w, "??濡?굘??亦껋꼶梨??ID???낅퉵??", http.StatusBadRequest)
 		return
 	}
 	if r.Method != http.MethodDelete {
-		http.Error(w, "??롢걵???遺욧퍕 獄쎻뫗???낅빍??", http.StatusMethodNotAllowed)
+		http.Error(w, "??濡?굘????븐슙???꾩렮維????낅퉵??", http.StatusMethodNotAllowed)
 		return
 	}
 	_, err = worldDB.Exec(`DELETE FROM instance_bonus_theme_mission_link WHERE theme_id=? AND mission_id=?`, themeID, missionID)
@@ -1453,7 +1527,7 @@ func handleRewardProfiles(w http.ResponseWriter, r *http.Request) {
 		replaceRewardProfileItems(id, item.Items)
 		writeJSON(w, http.StatusOK, map[string]any{"success": true, "reward_profile_id": id})
 	default:
-		http.Error(w, "??롢걵???遺욧퍕 獄쎻뫗???낅빍??", http.StatusMethodNotAllowed)
+		http.Error(w, "??濡?굘????븐슙???꾩렮維????낅퉵??", http.StatusMethodNotAllowed)
 	}
 }
 
@@ -1504,7 +1578,7 @@ func handleRewardProfileByID(w http.ResponseWriter, r *http.Request) {
 		replaceRewardProfileItems(id, item.Items)
 		writeJSON(w, http.StatusOK, map[string]any{"success": true})
 	default:
-		http.Error(w, "??롢걵???遺욧퍕 獄쎻뫗???낅빍??", http.StatusMethodNotAllowed)
+		http.Error(w, "??濡?굘????븐슙???꾩렮維????낅퉵??", http.StatusMethodNotAllowed)
 	}
 }
 
@@ -1546,7 +1620,7 @@ func handleRuns(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.Method != http.MethodGet {
-		http.Error(w, "??롢걵???遺욧퍕 獄쎻뫗???낅빍??", http.StatusMethodNotAllowed)
+		http.Error(w, "??濡?굘????븐슙???꾩렮維????낅퉵??", http.StatusMethodNotAllowed)
 		return
 	}
 	page, limit, offset := parsePage(r)
@@ -1604,6 +1678,125 @@ func handleRuns(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, pageResult{Items: items, Page: page, Limit: limit, Total: total})
 }
 
+func handleDailyUsage(w http.ResponseWriter, r *http.Request) {
+	if !requireAdmin(w, r) || worldDB == nil {
+		return
+	}
+	if r.Method != http.MethodGet {
+		http.Error(w, "허용되지 않은 요청 방식입니다.", http.StatusMethodNotAllowed)
+		return
+	}
+
+	page, limit, offset := parsePage(r)
+	args := []any{}
+	conds := []string{"1=1"}
+
+	if usageDate := strings.TrimSpace(r.URL.Query().Get("usage_date")); usageDate != "" {
+		conds = append(conds, "u.usage_date = ?")
+		args = append(args, usageDate)
+	}
+	if mapID := strings.TrimSpace(r.URL.Query().Get("map_id")); mapID != "" {
+		conds = append(conds, "CAST(u.map_id AS CHAR) = ?")
+		args = append(args, mapID)
+	}
+	if guid := strings.TrimSpace(r.URL.Query().Get("guid")); guid != "" {
+		conds = append(conds, "CAST(u.guid AS CHAR) LIKE ?")
+		args = append(args, "%"+guid+"%")
+	}
+	if keyword := strings.TrimSpace(r.URL.Query().Get("keyword")); keyword != "" {
+		conds = append(conds, `(CAST(u.guid AS CHAR) LIKE ? OR IFNULL(c.name,'') LIKE ? OR IFNULL(cfg.map_name,'') LIKE ?)`)
+		args = append(args, "%"+keyword+"%", "%"+keyword+"%", "%"+keyword+"%")
+	}
+
+	where := " WHERE " + strings.Join(conds, " AND ")
+	countQuery := `SELECT COUNT(*)
+		FROM instance_bonus_player_daily_usage u
+		LEFT JOIN instance_bonus_map_config cfg ON cfg.map_id = u.map_id
+		LEFT JOIN ` + charactersQualified("characters") + ` c ON c.guid = u.guid`
+	var total int
+	_ = worldDB.QueryRow(countQuery+where, args...).Scan(&total)
+
+	query := `SELECT DATE_FORMAT(u.usage_date, '%Y-%m-%d'), u.map_id, IFNULL(cfg.map_name,''), u.guid, IFNULL(c.name,''), u.success_count, FROM_UNIXTIME(u.updated_at, '%Y-%m-%d %H:%i:%s')
+		FROM instance_bonus_player_daily_usage u
+		LEFT JOIN instance_bonus_map_config cfg ON cfg.map_id = u.map_id
+		LEFT JOIN ` + charactersQualified("characters") + ` c ON c.guid = u.guid`
+	rows, err := worldDB.Query(query+where+` ORDER BY u.usage_date DESC, u.map_id ASC, u.success_count DESC, u.guid ASC LIMIT ? OFFSET ?`, append(args, limit, offset)...)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	items := make([]dailyUsageRow, 0)
+	for rows.Next() {
+		var row dailyUsageRow
+		if err := rows.Scan(&row.UsageDate, &row.MapID, &row.MapName, &row.GUID, &row.CharacterName, &row.SuccessCount, &row.UpdatedAt); err == nil {
+			if strings.TrimSpace(row.MapName) == "" {
+				row.MapName = mapDisplayName(row.MapID, "", "", "", "")
+			}
+			if strings.TrimSpace(row.CharacterName) == "" {
+				row.CharacterName = "-"
+			}
+			items = append(items, row)
+		}
+	}
+	writeJSON(w, http.StatusOK, pageResult{Items: items, Page: page, Limit: limit, Total: total})
+}
+
+func handleDailyUsageReset(w http.ResponseWriter, r *http.Request) {
+	if !requireAdmin(w, r) || worldDB == nil {
+		return
+	}
+	if r.Method != http.MethodPost {
+		http.Error(w, "허용되지 않은 요청 방식입니다.", http.StatusMethodNotAllowed)
+		return
+	}
+	var payload struct {
+		UsageDate string `json:"usage_date"`
+		MapID     int    `json:"map_id"`
+		GUID      int64  `json:"guid"`
+	}
+	if err := decodeJSON(r, &payload); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if strings.TrimSpace(payload.UsageDate) == "" || payload.MapID <= 0 || payload.GUID <= 0 {
+		http.Error(w, "날짜, 던전/레이드, 플레이어 정보가 모두 필요합니다.", http.StatusBadRequest)
+		return
+	}
+	if _, err := worldDB.Exec(`DELETE FROM instance_bonus_player_daily_usage WHERE usage_date=? AND map_id=? AND guid=?`, payload.UsageDate, payload.MapID, payload.GUID); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"success": true})
+}
+func charactersQualified(table string) string {
+	if charactersDB == nil {
+		return table
+	}
+	dsn := config.CharactersDSN()
+	if dsn == "" {
+		return table
+	}
+	dbName := dsnDatabaseName(dsn)
+	if dbName == "" {
+		return table
+	}
+	return dbName + "." + table
+}
+
+func dsnDatabaseName(dsn string) string {
+	base := strings.TrimSpace(dsn)
+	if idx := strings.Index(base, "?"); idx >= 0 {
+		base = base[:idx]
+	}
+	lastSlash := strings.LastIndex(base, "/")
+	if lastSlash < 0 || lastSlash == len(base)-1 {
+		return ""
+	}
+	return strings.TrimSpace(base[lastSlash+1:])
+}
+
 func handleRunRoutes(w http.ResponseWriter, r *http.Request) {
 	if !requireAdmin(w, r) || worldDB == nil {
 		return
@@ -1612,12 +1805,12 @@ func handleRunRoutes(w http.ResponseWriter, r *http.Request) {
 	path = strings.Trim(path, "/")
 	parts := strings.Split(path, "/")
 	if len(parts) == 0 || parts[0] == "" {
-		http.Error(w, "??롢걵????ID??낅빍??", http.StatusBadRequest)
+		http.Error(w, "??濡?굘????ID???낅퉵??", http.StatusBadRequest)
 		return
 	}
 	runID, err := strconv.ParseInt(parts[0], 10, 64)
 	if err != nil {
-		http.Error(w, "??롢걵????ID??낅빍??", http.StatusBadRequest)
+		http.Error(w, "??濡?굘????ID???낅퉵??", http.StatusBadRequest)
 		return
 	}
 	if len(parts) == 1 {

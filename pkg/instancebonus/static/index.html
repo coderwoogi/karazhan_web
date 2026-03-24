@@ -27,6 +27,7 @@
             <button class="ib-tab" data-tab="themes">테마 관리</button>
             <button class="ib-tab" data-tab="theme-links">테마-미션 연결</button>
             <button class="ib-tab" data-tab="rewards">보상 프로파일</button>
+            <button class="ib-tab" data-tab="daily-usage">일일 사용량</button>
             <button class="ib-tab" data-tab="runs">런 로그</button>
         </nav>
 
@@ -61,7 +62,7 @@
                     </div>
                     <div class="ib-table-wrap">
                         <table class="ib-table">
-                            <thead><tr><th>던전/레이드</th><th>사용</th><th>투표</th><th>LLM</th><th>기본 시간</th><th>파티 크기</th><th>최대 미션</th><th>수정자</th><th>관리</th></tr></thead>
+                            <thead><tr><th>던전/레이드</th><th>사용</th><th>투표</th><th>일일 제한</th><th>LLM</th><th>기본 시간</th><th>파티 크기</th><th>최대 미션</th><th>수정자</th><th>관리</th></tr></thead>
                             <tbody id="maps-table"></tbody>
                         </table>
                     </div>
@@ -184,6 +185,27 @@
                 <article class="ib-card ib-form-card" id="reward-form-card" style="display:none;">
                     <div class="ib-card-header"><h3 id="reward-form-title">보상 프로파일 등록</h3><button class="ib-btn ib-btn-secondary" onclick="instanceBonusApp.closeRewardForm()"><i class="fas fa-list"></i> 목록으로</button></div>
                     <form id="reward-form" class="ib-form-grid"></form>
+                </article>
+            </section>
+
+            <section class="ib-panel" data-panel="daily-usage">
+                <article class="ib-card">
+                    <div class="ib-card-header"><h3>일일 사용량 조회</h3></div>
+                    <div class="ib-toolbar ib-toolbar-grid">
+                        <div class="ib-field"><label>사용 날짜</label><input id="daily-usage-filter-date" type="date"></div>
+                        <div class="ib-field ib-map-field"><label>던전/레이드</label><div class="ib-map-picker" data-target="daily-usage-filter-map-id" data-empty="전체"></div><select id="daily-usage-filter-map-id" hidden></select></div>
+                        <div class="ib-field"><label>플레이어 번호</label><input id="daily-usage-filter-guid" type="text" placeholder="캐릭터 GUID"></div>
+                        <div class="ib-field ib-field-span2"><label>검색</label><input id="daily-usage-filter-keyword" type="text" placeholder="캐릭터명 / GUID / 던전 이름"></div>
+                        <button class="ib-btn ib-btn-primary" onclick="instanceBonusApp.loadDailyUsage()"><i class="fas fa-search"></i> 검색</button>
+                        <button class="ib-btn ib-btn-secondary" onclick="instanceBonusApp.resetDailyUsageFilter()">초기화</button>
+                    </div>
+                    <div class="ib-table-wrap">
+                        <table class="ib-table">
+                            <thead><tr><th>날짜</th><th>던전/레이드</th><th>캐릭터명</th><th>플레이어 번호</th><th>성공 횟수</th><th>최근 갱신</th><th>관리</th></tr></thead>
+                            <tbody id="daily-usage-table"></tbody>
+                        </table>
+                    </div>
+                    <div class="ib-pagination" id="daily-usage-pagination"></div>
                 </article>
             </section>
 
