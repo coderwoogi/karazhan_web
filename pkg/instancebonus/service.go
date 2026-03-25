@@ -624,6 +624,9 @@ func ensureSchema() {
 	}
 	runSchemaAlter(`ALTER TABLE instance_bonus_map_config ADD COLUMN daily_limit_per_player INT UNSIGNED NOT NULL DEFAULT 0 AFTER allow_vote`)
 	runSchemaAlter(`ALTER TABLE instance_bonus_map_config ADD COLUMN max_concurrent_missions TINYINT UNSIGNED NOT NULL DEFAULT 3 AFTER max_party_size`)
+	runSchemaAlter(`ALTER TABLE instance_bonus_map_config ADD COLUMN notes TEXT NULL AFTER max_concurrent_missions`)
+	runSchemaAlter(`ALTER TABLE instance_bonus_map_config ADD COLUMN updated_by VARCHAR(60) NOT NULL DEFAULT '' AFTER notes`)
+	runSchemaAlter(`ALTER TABLE instance_bonus_map_config ADD COLUMN updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER updated_by`)
 	runSchemaAlter(`ALTER TABLE instance_bonus_reward_profile_item ADD COLUMN sort_order INT UNSIGNED NOT NULL DEFAULT 0 AFTER chance`)
 }
 
