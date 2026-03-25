@@ -20,7 +20,7 @@ const ItemPicker = {
         const input = document.getElementById('item-picker-search');
         const results = document.getElementById('item-picker-results');
         if (input) input.value = '';
-        if (results) results.innerHTML = '<div class="ib-empty">??? ?? ?? ??? ??? ?????.</div>';
+        if (results) results.innerHTML = '<div class="ib-empty">아이템 이름 또는 아이템 번호로 검색하세요.</div>';
         if (input) setTimeout(() => input.focus(), 30);
     },
 
@@ -35,11 +35,11 @@ const ItemPicker = {
         if (!resultsContainer) return;
 
         if (!query || query.length < 2) {
-            resultsContainer.innerHTML = '<div class="ib-empty">? ?? ?? ?????.</div>';
+            resultsContainer.innerHTML = '<div class="ib-empty">두 글자 이상 입력하세요.</div>';
             return;
         }
 
-        resultsContainer.innerHTML = '<div class="ib-empty">?? ?...</div>';
+        resultsContainer.innerHTML = '<div class="ib-empty">검색 중...</div>';
 
         try {
             const res = await fetch(`/api/content/item/search?q=${encodeURIComponent(query)}`, { credentials: 'include' });
@@ -47,7 +47,7 @@ const ItemPicker = {
             const items = await res.json();
 
             if (!Array.isArray(items) || items.length === 0) {
-                resultsContainer.innerHTML = '<div class="ib-empty">?? ??? ????.</div>';
+                resultsContainer.innerHTML = '<div class="ib-empty">검색 결과가 없습니다.</div>';
                 return;
             }
 
@@ -60,7 +60,7 @@ const ItemPicker = {
                         <div id="ip-icon-${entry}" class="item-icon-small"></div>
                         <div class="item-search-info">
                             <div class="item-search-name ib-item-quality-${quality}">${escapeHtml(name)}</div>
-                            <div class="item-search-entry">??? ??: ${entry}</div>
+                            <div class="item-search-entry">아이템 번호: ${entry}</div>
                         </div>
                     </div>
                 `;
@@ -68,7 +68,7 @@ const ItemPicker = {
 
             items.forEach(item => this.loadIcon(item.entry));
         } catch (error) {
-            resultsContainer.innerHTML = '<div class="ib-empty">??? ??? ??????.</div>';
+            resultsContainer.innerHTML = '<div class="ib-empty">아이템 검색에 실패했습니다.</div>';
         }
     },
 
