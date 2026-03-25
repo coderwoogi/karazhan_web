@@ -46,23 +46,34 @@ const ItemPicker = {
             `/instance-bonus/item-search?q=${encodeURIComponent(query)}`
         ];
 
+        const fetchWithTimeout = async (url, timeoutMs = 4000) => {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), timeoutMs);
+            try {
+                const res = await fetch(url, { credentials: 'include', signal: controller.signal });
+                if (!res.ok) return null;
+                const data = await res.json();
+                if (Array.isArray(data)) return data;
+                if (Array.isArray(data?.items)) return data.items;
+                if (Array.isArray(data?.data)) return data.data;
+                return null;
+            } finally {
+                clearTimeout(timer);
+            }
+        };
+
         let items = null;
         for (const url of endpoints) {
             try {
-                const res = await fetch(url, { credentials: 'include' });
-                if (!res.ok) continue;
-                const data = await res.json();
-                if (Array.isArray(data)) {
-                    items = data;
-                    break;
-                }
+                items = await fetchWithTimeout(url);
+                if (Array.isArray(items)) break;
             } catch (error) {
                 // Try the next available search route.
             }
         }
 
         if (!Array.isArray(items)) {
-            resultsContainer.innerHTML = '<div class="ib-empty">\uC544\uC774\uD15C \uAC80\uC0C9\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4. \uC11C\uBC84\uB97C \uB2E4\uC2DC \uC2DC\uC791\uD55C \uB4A4 \uB2E4\uC2DC \uC2DC\uB3C4\uD574\uC8FC\uC138\uC694.</div>';
+            resultsContainer.innerHTML = '<div class="ib-empty">\uC544\uC774\uD15C \uAC80\uC0C9\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.</div>';
             return;
         }
 
@@ -71,7 +82,7 @@ const ItemPicker = {
             return;
         }
 
-        resultsContainer.innerHTML = items.map(item => {
+        resultsContainer.innerHTML = items.slice(0, 20).map(item => {
             const entry = Number(item.entry || 0);
             const name = String(item.name || '');
             const quality = Number(item.quality || 0);
@@ -86,7 +97,7 @@ const ItemPicker = {
             `;
         }).join('');
 
-        items.forEach(item => this.loadIcon(item.entry));
+        items.slice(0, 20).forEach(item => this.loadIcon(item.entry));
     },
 
     async loadIcon(entry) {
