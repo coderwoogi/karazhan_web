@@ -758,9 +758,22 @@ func handleLogs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "text/event-stream")
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, "streaming not supported", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/event-stream; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("X-Accel-Buffering", "no")
+	w.Header().Set("Content-Encoding", "identity")
+
+	if _, err := io.WriteString(w, ": connected\n\n"); err != nil {
+		return
+	}
+	flusher.Flush()
 
 	// 1. Send recent log history from file (to show past logs)
 	historyLines, err := readLogTail(proc.LogPath, 4096) // Read last 4KB
@@ -769,9 +782,10 @@ func handleLogs(w http.ResponseWriter, r *http.Request) {
 			if line == "" {
 				continue
 			}
-			fmt.Fprintf(w, "data: %s\n\n", line)
+			if err := writeSSEMessage(w, flusher, line); err != nil {
+				return
+			}
 		}
-		w.(http.Flusher).Flush()
 	}
 
 	// 2. Subscribe to new logs
@@ -784,20 +798,46 @@ func handleLogs(w http.ResponseWriter, r *http.Request) {
 		proc.ClientMux.Lock()
 		delete(proc.Clients, clientChan)
 		proc.ClientMux.Unlock()
-		close(clientChan)
 	}()
 
 	notify := r.Context().Done()
+	heartbeat := time.NewTicker(15 * time.Second)
+	defer heartbeat.Stop()
 
 	for {
 		select {
-		case msg := <-clientChan:
-			fmt.Fprintf(w, "data: %s\n\n", msg)
-			w.(http.Flusher).Flush()
+		case msg, ok := <-clientChan:
+			if !ok {
+				return
+			}
+			if err := writeSSEMessage(w, flusher, msg); err != nil {
+				return
+			}
+		case <-heartbeat.C:
+			if _, err := io.WriteString(w, ": ping\n\n"); err != nil {
+				return
+			}
+			flusher.Flush()
 		case <-notify:
 			return
 		}
 	}
+}
+
+func writeSSEMessage(w http.ResponseWriter, flusher http.Flusher, msg string) error {
+	msg = strings.ReplaceAll(msg, "\r\n", "\n")
+	msg = strings.ReplaceAll(msg, "\r", "\n")
+	for _, line := range strings.Split(msg, "\n") {
+		if _, err := fmt.Fprintf(w, "data: %s\n", line); err != nil {
+			return err
+		}
+	}
+	_, err := io.WriteString(w, "\n")
+	if err != nil {
+		return err
+	}
+	flusher.Flush()
+	return nil
 }
 
 func readLogTail(path string, size int64) ([]string, error) {
