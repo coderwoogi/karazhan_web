@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"karazhan/pkg/auth"
 	"karazhan/pkg/config"
 	"log"
 	"net/http"
@@ -38,10 +39,7 @@ type ItemTooltipResponse struct {
 }
 
 func handleItemSearch(w http.ResponseWriter, r *http.Request) {
-	// Reuse the common item search for admin tools that need item selection.
-	// Account/content screens already use this endpoint, and instance-bonus-admin
-	// also needs it for reward profile editing.
-	if !CheckMenuPermission(w, r, "account") && !CheckMenuPermission(w, r, "content") && !CheckMenuPermission(w, r, "instance-bonus-admin") {
+	if !hasItemSearchPermission(w, r) {
 		return
 	}
 
@@ -86,6 +84,49 @@ func handleItemSearch(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(results)
+}
+
+func hasItemSearchPermission(w http.ResponseWriter, r *http.Request) bool {
+	cookie, err := r.Cookie("session_user")
+	if err != nil || cookie.Value == "" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{"status": "unauthorized", "message": "로그인이 필요합니다."})
+		return false
+	}
+
+	authDB, err := sql.Open("mysql", config.AuthDSN())
+	if err != nil {
+		http.Error(w, "Auth DB Connection Error", http.StatusInternalServerError)
+		return false
+	}
+	defer authDB.Close()
+
+	var userID int
+	if err := authDB.QueryRow("SELECT id FROM account WHERE UPPER(TRIM(username)) = UPPER(TRIM(?))", cookie.Value).Scan(&userID); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{"status": "unauthorized", "message": "로그인 정보가 올바르지 않습니다."})
+		return false
+	}
+
+	webRank := 0
+	updateDB, err := sql.Open("mysql", config.UpdateDSN())
+	if err == nil {
+		defer updateDB.Close()
+		_ = updateDB.QueryRow("SELECT IFNULL(web_rank, 0) FROM user_profiles WHERE user_id = ?", userID).Scan(&webRank)
+	}
+
+	if auth.HasPermission(webRank, "menu", "account") ||
+		auth.HasPermission(webRank, "menu", "content") ||
+		auth.HasPermission(webRank, "menu", "instance-bonus-admin") {
+		return true
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusForbidden)
+	json.NewEncoder(w).Encode(map[string]string{"status": "forbidden", "message": "권한이 부족합니다."})
+	return false
 }
 
 func handleItemTooltip(w http.ResponseWriter, r *http.Request) {
