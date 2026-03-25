@@ -322,13 +322,71 @@ button, input, select, textarea { font: inherit; }
 .ib-kv { display: flex; justify-content: space-between; gap: 14px; }
 .ib-kv strong { color: var(--ib-muted); }
 .ib-help { color: var(--ib-muted); font-size: 13px; }
+.ib-inline-notice {
+    margin-bottom: 12px;
+    padding: 12px 14px;
+    border: 1px solid #d9e3f2;
+    border-radius: 14px;
+    background: linear-gradient(180deg, #fbfdff 0%, #f4f8ff 100%);
+    color: #475569;
+    font-size: 13px;
+    line-height: 1.6;
+}
+.ib-reward-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 12px 0 14px;
+}
+.ib-reward-items {
+    display: grid;
+    gap: 14px;
+}
+.ib-reward-item-card {
+    border: 1px solid var(--ib-line);
+    border-radius: 18px;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+    padding: 16px;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.04);
+}
+.ib-reward-item-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+.ib-reward-grade-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 110px;
+    border-radius: 999px;
+    padding: 7px 12px;
+    font-size: 12px;
+    font-weight: 900;
+}
+.ib-reward-grade-chip.grade-S { background: #fef3c7; color: #92400e; }
+.ib-reward-grade-chip.grade-A { background: #dbeafe; color: #1d4ed8; }
+.ib-reward-grade-chip.grade-B { background: #dcfce7; color: #166534; }
+.ib-reward-grade-chip.grade-C { background: #ede9fe; color: #6d28d9; }
+.ib-reward-grade-chip.grade-D { background: #f1f5f9; color: #475569; }
+.ib-reward-item-grid {
+    display: grid;
+    grid-template-columns: 120px minmax(0, 1.8fr) 120px 140px 140px;
+    gap: 12px;
+    align-items: start;
+}
 @media (max-width: 1280px) {
     .ib-stat-grid, .ib-two-col, .ib-toolbar-grid, .ib-form-grid, .ib-detail-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .ib-theme-link-toolbar { grid-template-columns: 1fr 1fr; }
+    .ib-reward-item-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 860px) {
     .ib-app { padding: 14px; }
     .ib-hero { padding: 18px; border-radius: 18px; }
     .ib-stat-grid, .ib-two-col, .ib-toolbar-grid, .ib-form-grid, .ib-detail-grid { grid-template-columns: 1fr; }
     .ib-theme-link-toolbar { grid-template-columns: 1fr; }
+    .ib-reward-item-grid { grid-template-columns: 1fr; }
+    .ib-reward-item-head { align-items: flex-start; flex-direction: column; }
 }

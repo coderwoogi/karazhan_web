@@ -859,24 +859,84 @@
         form.innerHTML = `
             ${formSection('기본 정보', '등급별 보상 세트의 이름과 맵 연결 정보를 설정합니다.')}
             <div class="ib-field"><label>던전/레이드 선택</label><div class="ib-map-picker" data-target="reward-form-map-id" data-empty="던전/레이드를 선택하세요"></div><select id="reward-form-map-id" name="map_id" hidden></select><small class="ib-help">이 보상 세트가 사용될 던전/레이드를 고릅니다.</small></div>
-            <div class="ib-field"><label>보상 키</label><input type="text" name="profile_key"></div>
-            <div class="ib-field"><label>이름</label><input type="text" name="name"></div>
+            <div class="ib-field"><label>보상 키</label><input type="text" name="profile_key" placeholder="예: mana_tombs_reward_profile"></div>
+            <div class="ib-field"><label>이름</label><input type="text" name="name" placeholder="예: 마나 무덤 기본 보상"></div>
             <div class="ib-field"><label>활성</label><select name="enabled"><option value="1">사용</option><option value="0">비활성</option></select></div>
-            <div class="ib-field full"><label>설명</label><textarea name="description"></textarea></div>
             <div class="ib-field"><label>게시 상태</label><select name="publish_status"><option value="draft">초안</option><option value="review">검토</option><option value="published">게시</option><option value="archived">보관</option></select></div>
+            <div class="ib-field full"><label>설명</label><textarea name="description" placeholder="운영자가 보상 세트의 용도와 차이를 구분할 수 있도록 적습니다."></textarea></div>
             ${formSection('보상 항목', 'S/A/B/C/D 등급별 아이템, 수량, 확률을 관리합니다.')}
-            <div class="ib-field full"><label>보상 항목</label><div id="reward-items-box"></div><div class="ib-actions" style="margin-top:10px;"><button type="button" class="ib-btn ib-btn-ghost" onclick="instanceBonusApp.addRewardItemRow()"><i class="fas fa-plus"></i> 항목 추가</button></div></div>
+            <div class="ib-field full">
+                <label>보상 항목</label>
+                <div class="ib-inline-notice">각 보상 항목은 한 줄씩 추가됩니다. 같은 등급에 아이템을 여러 개 주고 싶으면 같은 등급으로 여러 줄을 추가하면 됩니다.</div>
+                <div class="ib-reward-toolbar">
+                    <button type="button" class="ib-btn ib-btn-ghost" onclick="instanceBonusApp.seedDefaultRewardRows()"><i class="fas fa-layer-group"></i> S/A/B/C/D 기본 줄 만들기</button>
+                    <button type="button" class="ib-btn ib-btn-primary" onclick="instanceBonusApp.addRewardItemRow()"><i class="fas fa-plus"></i> 항목 추가</button>
+                </div>
+                <div id="reward-items-box" class="ib-reward-items"></div>
+            </div>
             <div class="ib-field full"><div class="ib-actions"><button type="button" class="ib-btn ib-btn-primary" onclick="instanceBonusApp.saveReward(false)">저장 후 목록</button><button type="button" class="ib-btn ib-btn-ghost" onclick="instanceBonusApp.saveReward(true)">저장 후 계속 편집</button><button type="button" class="ib-btn ib-btn-secondary" onclick="instanceBonusApp.closeRewardForm()">닫기</button></div></div>`;
         applyMapOptions();
-        addRewardItemRow();
+        seedDefaultRewardRows();
     }
 
     function rewardItemRow(item = {}) {
-        return `<div class="ib-detail-row reward-item-row"><div class="ib-detail-grid"><div class="ib-field"><label>등급</label><select class="reward-grade"><option value="S" ${item.grade === 'S' ? 'selected' : ''}>S</option><option value="A" ${item.grade === 'A' ? 'selected' : ''}>A</option><option value="B" ${item.grade === 'B' ? 'selected' : ''}>B</option><option value="C" ${item.grade === 'C' ? 'selected' : ''}>C</option><option value="D" ${item.grade === 'D' ? 'selected' : ''}>D</option></select></div><div class="ib-field"><label>아이템 번호</label><input class="reward-item-entry" type="number" value="${item.item_entry || 0}"></div><div class="ib-field"><label>수량</label><input class="reward-item-count" type="number" value="${item.item_count || 1}"></div><div class="ib-field"><label>확률</label><input class="reward-item-chance" type="number" value="${item.chance || 100}" step="0.01"></div><div class="ib-field"><label>정렬</label><input class="reward-item-sort" type="number" value="${item.sort_order || 0}"></div><div class="ib-field"><label>관리</label><button type="button" class="ib-btn ib-btn-danger" onclick="this.closest('.reward-item-row').remove()">삭제</button></div></div></div>`;
+        const grade = item.grade || 'S';
+        const gradeLabel = `${grade} 등급 보상`;
+        return `<div class="reward-item-row ib-reward-item-card">
+            <div class="ib-reward-item-head">
+                <div class="ib-reward-grade-chip grade-${grade}">${gradeLabel}</div>
+                <button type="button" class="ib-btn ib-btn-danger" onclick="this.closest('.reward-item-row').remove()">삭제</button>
+            </div>
+            <div class="ib-reward-item-grid">
+                <div class="ib-field">
+                    <label>등급</label>
+                    <select class="reward-grade" onchange="instanceBonusApp.refreshRewardGradeLabel(this)">
+                        <option value="S" ${grade === 'S' ? 'selected' : ''}>S</option>
+                        <option value="A" ${grade === 'A' ? 'selected' : ''}>A</option>
+                        <option value="B" ${grade === 'B' ? 'selected' : ''}>B</option>
+                        <option value="C" ${grade === 'C' ? 'selected' : ''}>C</option>
+                        <option value="D" ${grade === 'D' ? 'selected' : ''}>D</option>
+                    </select>
+                </div>
+                <div class="ib-field ib-field-grow">
+                    <label>아이템 번호</label>
+                    <input class="reward-item-entry" type="number" value="${item.item_entry ?? ''}" placeholder="예: 49426">
+                    <small class="ib-help">실제 보상 아이템 번호를 입력합니다.</small>
+                </div>
+                <div class="ib-field">
+                    <label>수량</label>
+                    <input class="reward-item-count" type="number" value="${item.item_count ?? 1}" min="1">
+                </div>
+                <div class="ib-field">
+                    <label>확률(%)</label>
+                    <input class="reward-item-chance" type="number" value="${item.chance ?? 100}" step="0.01" min="0" max="100">
+                </div>
+                <div class="ib-field">
+                    <label>정렬</label>
+                    <input class="reward-item-sort" type="number" value="${item.sort_order ?? ''}" placeholder="자동이면 비워도 됩니다.">
+                </div>
+            </div>
+        </div>`;
     }
 
     function addRewardItemRow(item = {}) {
         document.getElementById('reward-items-box').insertAdjacentHTML('beforeend', rewardItemRow(item));
+    }
+
+    function seedDefaultRewardRows() {
+        const box = document.getElementById('reward-items-box');
+        if (!box || box.children.length) return;
+        ['S', 'A', 'B', 'C', 'D'].forEach((grade, index) => addRewardItemRow({ grade, item_count: 1, chance: 100, sort_order: index + 1 }));
+    }
+
+    function refreshRewardGradeLabel(selectEl) {
+        const row = selectEl.closest('.reward-item-row');
+        if (!row) return;
+        const grade = selectEl.value || 'S';
+        const chip = row.querySelector('.ib-reward-grade-chip');
+        if (!chip) return;
+        chip.className = `ib-reward-grade-chip grade-${grade}`;
+        chip.textContent = `${grade} 등급 보상`;
     }
 
     function openRewardForm(data = null) {
@@ -893,7 +953,7 @@
         const box = document.getElementById('reward-items-box');
         box.innerHTML = '';
         (data?.items || []).forEach((item) => addRewardItemRow(item));
-        if (!(data?.items || []).length) addRewardItemRow();
+        if (!(data?.items || []).length) seedDefaultRewardRows();
     }
 
     function closeRewardForm() {
@@ -1184,6 +1244,8 @@
         addRewardItemRow,
         saveReward,
         fetchReward,
+        seedDefaultRewardRows,
+        refreshRewardGradeLabel,
         loadDailyUsage,
         resetDailyUsageFilter,
         resetDailyUsage,
