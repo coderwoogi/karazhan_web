@@ -256,6 +256,8 @@ type rewardProfileItem struct {
 	RewardProfileID int64   `json:"reward_profile_id"`
 	Grade           string  `json:"grade"`
 	ItemEntry       int     `json:"item_entry"`
+	ItemName        string  `json:"item_name"`
+	Quality         int     `json:"quality"`
 	ItemCount       int     `json:"item_count"`
 	Chance          float64 `json:"chance"`
 	SortOrder       int     `json:"sort_order"`
@@ -1682,12 +1684,28 @@ func handleRewardProfileByID(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusNotFound)
 			return
 		}
-		rows, _ := worldDB.Query(`SELECT item_id, reward_profile_id, grade, item_entry, item_count, chance, sort_order, DATE_FORMAT(updated_at, '%Y-%m-%d %H:%i:%s') FROM instance_bonus_reward_profile_item WHERE reward_profile_id=? ORDER BY FIELD(grade,'S','A','B','C','D'), sort_order ASC, item_id ASC`, id)
+		rows, _ := worldDB.Query(`
+			SELECT
+				ri.item_id,
+				ri.reward_profile_id,
+				ri.grade,
+				ri.item_entry,
+				COALESCE(NULLIF(itl.Name, ''), it.name, CAST(ri.item_entry AS CHAR)) AS item_name,
+				IFNULL(it.Quality, 0) AS quality,
+				ri.item_count,
+				ri.chance,
+				ri.sort_order,
+				DATE_FORMAT(ri.updated_at, '%Y-%m-%d %H:%i:%s')
+			FROM instance_bonus_reward_profile_item ri
+			LEFT JOIN item_template it ON it.entry = ri.item_entry
+			LEFT JOIN item_template_locale itl ON itl.ID = it.entry AND itl.locale = 'koKR'
+			WHERE ri.reward_profile_id=?
+			ORDER BY FIELD(ri.grade,'S','A','B','C','D'), ri.sort_order ASC, ri.item_id ASC`, id)
 		if rows != nil {
 			defer rows.Close()
 			for rows.Next() {
 				var sub rewardProfileItem
-				_ = rows.Scan(&sub.ItemID, &sub.RewardProfileID, &sub.Grade, &sub.ItemEntry, &sub.ItemCount, &sub.Chance, &sub.SortOrder, &sub.UpdatedAt)
+				_ = rows.Scan(&sub.ItemID, &sub.RewardProfileID, &sub.Grade, &sub.ItemEntry, &sub.ItemName, &sub.Quality, &sub.ItemCount, &sub.Chance, &sub.SortOrder, &sub.UpdatedAt)
 				item.Items = append(item.Items, sub)
 			}
 		}

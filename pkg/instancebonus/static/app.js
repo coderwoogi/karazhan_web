@@ -1104,12 +1104,32 @@ function openRewardForm(data = null) {
         box.innerHTML = '';
         (data?.items || []).forEach((item) => addRewardItemRow(item));
         if (!(data?.items || []).length) seedDefaultRewardRows();
+        hydrateRewardItemPreviews();
     }
 
     function closeRewardForm() {
         toggleCrudView('rewards', 'list');
         state.rewardEditingId = null;
     }
+    async function hydrateRewardItemPreviews() {
+        const rows = [...document.querySelectorAll('.reward-item-row')];
+        for (const row of rows) {
+            const entryEl = row.querySelector('.reward-item-entry');
+            const previewEl = row.querySelector('.ib-item-name-preview');
+            if (!entryEl || !previewEl) continue;
+            const entry = Number(entryEl.value || 0);
+            if (entry <= 0) continue;
+            const hasIcon = previewEl.querySelector('img');
+            if (hasIcon) continue;
+            const iconUrl = await fetchRewardItemIcon(entry);
+            if (!iconUrl) continue;
+            const current = previewEl.innerHTML || previewEl.textContent || '';
+            if (!current.trim()) continue;
+            const safeText = previewEl.querySelector('.ib-item-inline-text') ? previewEl.querySelector('.ib-item-inline-text').textContent : previewEl.textContent;
+            previewEl.innerHTML = `<span class="ib-item-inline-icon"><img src="${escapeHtml(iconUrl)}" alt="" style="width:100%;height:100%;object-fit:cover;"></span><span class="ib-item-inline-text">${escapeHtml(safeText || '')}</span>`;
+        }
+    }
+
 
     function rewardPayload() {
         const form = document.getElementById('reward-form');
