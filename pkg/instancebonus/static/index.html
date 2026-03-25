@@ -250,37 +250,25 @@
         </main>
     </div>
 
-    <div class="ib-modal-backdrop" id="reward-item-search-modal" style="display:none;">
-        <div class="ib-modal-card">
+    <div id="item-picker-modal" class="ib-modal-backdrop" style="display:none; z-index:12050;">
+        <div class="ib-modal-card ib-item-picker-modal">
             <div class="ib-card-header">
-                <h3>보상 아이템 검색</h3>
-                <button class="ib-btn ib-btn-secondary" type="button" onclick="instanceBonusApp.closeRewardItemSearchModal()">닫기</button>
+                <h3 id="ip-modal-title">아이템 선택</h3>
+                <button type="button" class="ib-btn ib-btn-secondary" onclick="ItemPicker.close()">닫기</button>
             </div>
-            <div class="ib-toolbar">
-                <div class="ib-field ib-field-grow">
-                    <label>아이템 검색</label>
-                    <input id="reward-item-search-query" type="text" placeholder="아이템 이름을 2글자 이상 입력하세요.">
-                </div>
-                <button class="ib-btn ib-btn-primary" type="button" onclick="instanceBonusApp.searchRewardItems()"><i class="fas fa-search"></i> 검색</button>
+            <div class="ib-item-picker-searchbox">
+                <input type="text" id="item-picker-search" class="ib-item-picker-input" placeholder="검색어 또는 아이템 번호를 입력하세요..." autocomplete="off">
             </div>
-            <div class="ib-table-wrap">
-                <table class="ib-table">
-                    <thead>
-                        <tr>
-                            <th>아이템 번호</th>
-                            <th>이름</th>
-                            <th>등급</th>
-                            <th>선택</th>
-                        </tr>
-                    </thead>
-                    <tbody id="reward-item-search-results">
-                        <tr><td colspan="4" class="ib-empty">검색어를 입력하세요.</td></tr>
-                    </tbody>
-                </table>
+            <div id="item-picker-results" class="ib-item-picker-results">
+                <div class="ib-empty">검색어를 입력하세요.</div>
+            </div>
+            <div class="ib-item-picker-footer">
+                <span>아이템을 클릭하여 선택하세요.</span>
+                <button type="button" onclick="ItemPicker.close()" class="ib-btn ib-btn-secondary">닫기</button>
             </div>
         </div>
     </div>
 
-    <script src="app.js?v=20260323_2"></script>
+    <script src="app.js?v=20260325_1"></script>
 </body>
 </html>
