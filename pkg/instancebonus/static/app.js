@@ -35,41 +35,58 @@ const ItemPicker = {
         if (!resultsContainer) return;
 
         if (!query || query.length < 2) {
-            resultsContainer.innerHTML = '<div class="ib-empty">두 글자 이상 입력하세요.</div>';
+            resultsContainer.innerHTML = '<div class="ib-empty">\uB450 \uAE00\uC790 \uC774\uC0C1 \uC785\uB825\uD558\uC138\uC694.</div>';
             return;
         }
 
-        resultsContainer.innerHTML = '<div class="ib-empty">검색 중...</div>';
+        resultsContainer.innerHTML = '<div class="ib-empty">\uAC80\uC0C9 \uC911...</div>';
 
-        try {
-            const res = await fetch(`/instance-bonus/item-search?q=${encodeURIComponent(query)}`, { credentials: 'include' });
-            if (!res.ok) throw new Error('search failed');
-            const items = await res.json();
+        const endpoints = [
+            `/api/content/item/search?q=${encodeURIComponent(query)}`,
+            `/instance-bonus/item-search?q=${encodeURIComponent(query)}`
+        ];
 
-            if (!Array.isArray(items) || items.length === 0) {
-                resultsContainer.innerHTML = '<div class="ib-empty">검색 결과가 없습니다.</div>';
-                return;
+        let items = null;
+        for (const url of endpoints) {
+            try {
+                const res = await fetch(url, { credentials: 'include' });
+                if (!res.ok) continue;
+                const data = await res.json();
+                if (Array.isArray(data)) {
+                    items = data;
+                    break;
+                }
+            } catch (error) {
+                // Try the next available search route.
             }
-
-            resultsContainer.innerHTML = items.map(item => {
-                const entry = Number(item.entry || 0);
-                const name = String(item.name || '');
-                const quality = Number(item.quality || 0);
-                return `
-                    <div class="item-search-row" onclick="ItemPicker.selectItem(${entry}, ${JSON.stringify(name)}, ${quality})">
-                        <div id="ip-icon-${entry}" class="item-icon-small"></div>
-                        <div class="item-search-info">
-                            <div class="item-search-name ib-item-quality-${quality}">${escapeHtml(name)}</div>
-                            <div class="item-search-entry">아이템 번호: ${entry}</div>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-
-            items.forEach(item => this.loadIcon(item.entry));
-        } catch (error) {
-            resultsContainer.innerHTML = '<div class="ib-empty">아이템 검색에 실패했습니다.</div>';
         }
+
+        if (!Array.isArray(items)) {
+            resultsContainer.innerHTML = '<div class="ib-empty">\uC544\uC774\uD15C \uAC80\uC0C9\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4. \uC11C\uBC84\uB97C \uB2E4\uC2DC \uC2DC\uC791\uD55C \uB4A4 \uB2E4\uC2DC \uC2DC\uB3C4\uD574\uC8FC\uC138\uC694.</div>';
+            return;
+        }
+
+        if (items.length === 0) {
+            resultsContainer.innerHTML = '<div class="ib-empty">\uAC80\uC0C9 \uACB0\uACFC\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.</div>';
+            return;
+        }
+
+        resultsContainer.innerHTML = items.map(item => {
+            const entry = Number(item.entry || 0);
+            const name = String(item.name || '');
+            const quality = Number(item.quality || 0);
+            return `
+                <div class="item-search-row" onclick="ItemPicker.selectItem(${entry}, decodeURIComponent('${encodeURIComponent(name)}'), ${quality})">
+                    <div id="ip-icon-${entry}" class="item-icon-small"></div>
+                    <div class="item-search-info">
+                        <div class="item-search-name ib-item-quality-${quality}">${escapeHtml(name)}</div>
+                        <div class="item-search-entry">\uC544\uC774\uD15C \uBC88\uD638: ${entry}</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        items.forEach(item => this.loadIcon(item.entry));
     },
 
     async loadIcon(entry) {
@@ -997,6 +1014,9 @@ const instanceBonusApp = (() => {
         const itemName = item.item_name || '';
         const qualityClass = Number.isFinite(Number(item.quality)) ? `ib-item-quality-${Number(item.quality)}` : '';
         const iconMarkup = item.icon_url ? `<span class="ib-item-inline-icon"><img src="${escapeHtml(item.icon_url)}" alt="" style="width:100%;height:100%;object-fit:cover;"></span>` : '';
+        const itemPreview = itemName
+            ? `${iconMarkup}<span class="ib-item-inline-text">${escapeHtml(itemName)}</span>`
+            : '\uC544\uC774\uD15C\uC744 \uC120\uD0DD\uD558\uC138\uC694.';
         return `<tr class="reward-item-row" data-grade="${grade}">
             <td>
                 <select class="reward-grade ib-inline-select" onchange="instanceBonusApp.refreshRewardGradeLabel(this)">
@@ -1010,7 +1030,7 @@ const instanceBonusApp = (() => {
             <td>
                 <div class="ib-reward-item-cell">
                     <input class="reward-item-entry" type="hidden" value="${item.item_entry ?? ''}">
-                    <div class="ib-item-name-preview ${qualityClass}">${itemName ? `${iconMarkup}<span class="ib-item-inline-text">${escapeHtml(itemName)}</span>` : '\uC544\uC774\uD15C을 \uC120\uD0DD\uD558\uC138\uC694.'}</div>
+                    <div class="ib-item-name-preview ${qualityClass}">${itemPreview}</div>
                     <div class="ib-reward-entry-actions">
                         <button type="button" class="ib-btn ib-btn-secondary" onclick="instanceBonusApp.openRewardItemSearchModal(this)">\uBCC0\uACBD</button>
                     </div>
