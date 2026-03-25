@@ -522,3 +522,17 @@ button, input, select, textarea { font: inherit; }
     .ib-reward-item-head { align-items: flex-start; flex-direction: column; }
     .ib-reward-entry-row { grid-template-columns: 1fr; }
 }
+
+.ib-reward-table-wrap { margin-top: 8px; }
+.ib-reward-table { min-width: 980px; }
+.ib-reward-table td { vertical-align: middle; }
+.ib-reward-table td:nth-child(1) { width: 110px; }
+.ib-reward-table td:nth-child(3), .ib-reward-table td:nth-child(4), .ib-reward-table td:nth-child(5) { width: 120px; }
+.ib-reward-table td:nth-child(6) { width: 110px; }
+.ib-reward-item-cell { display: flex; flex-direction: column; gap: 6px; min-width: 280px; }
+.ib-reward-table .reward-item-entry,
+.ib-reward-table .reward-item-count,
+.ib-reward-table .reward-item-chance,
+.ib-reward-table .reward-item-sort { width: 100%; }
+.ib-reward-table .ib-item-name-preview { margin-top: 0; }
+.ib-reward-table .ib-btn { white-space: nowrap; }
