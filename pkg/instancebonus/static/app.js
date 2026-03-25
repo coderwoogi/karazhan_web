@@ -42,7 +42,7 @@ const ItemPicker = {
         resultsContainer.innerHTML = '<div class="ib-empty">검색 중...</div>';
 
         try {
-            const res = await fetch(`/api/content/item/search?q=${encodeURIComponent(query)}`, { credentials: 'include' });
+            const res = await fetch(`/instance-bonus/item-search?q=${encodeURIComponent(query)}`, { credentials: 'include' });
             if (!res.ok) throw new Error('search failed');
             const items = await res.json();
 
@@ -1009,11 +1009,11 @@ const instanceBonusApp = (() => {
             </td>
             <td>
                 <div class="ib-reward-item-cell">
-                    <div class="ib-reward-entry-row">
-                        <input class="reward-item-entry" type="number" value="${item.item_entry ?? ''}" placeholder="\uC608: 49426" oninput="instanceBonusApp.clearRewardItemPreview(this)">
-                        <button type="button" class="ib-btn ib-btn-secondary" onclick="instanceBonusApp.openRewardItemSearchModal(this)">\uAC80\uC0C9</button>
+                    <input class="reward-item-entry" type="hidden" value="${item.item_entry ?? ''}">
+                    <div class="ib-item-name-preview ${qualityClass}">${itemName ? `${iconMarkup}<span class="ib-item-inline-text">${escapeHtml(itemName)}</span>` : '\uC544\uC774\uD15C을 \uC120\uD0DD\uD558\uC138\uC694.'}</div>
+                    <div class="ib-reward-entry-actions">
+                        <button type="button" class="ib-btn ib-btn-secondary" onclick="instanceBonusApp.openRewardItemSearchModal(this)">\uBCC0\uACBD</button>
                     </div>
-                    <div class="ib-item-name-preview ${qualityClass}">${itemName ? `${iconMarkup}<span class="ib-item-inline-text">${escapeHtml(itemName)}</span>` : '\uC544\uC774\uD15C \uAC80\uC0C9\uC73C\uB85C \uC120\uD0DD\uD558\uBA74 \uC774\uB984\uACFC \uC544\uC774\uCF58\uC774 \uD568\uAED8 \uD45C\uC2DC\uB429\uB2C8\uB2E4.'}</div>
                 </div>
             </td>
             <td><input class="reward-item-count" type="number" value="${item.item_count ?? 1}" min="1"></td>
@@ -1072,7 +1072,7 @@ const instanceBonusApp = (() => {
         if (!row) return;
         const previewEl = row.querySelector('.ib-item-name-preview');
         if (!previewEl) return;
-        previewEl.textContent = '\uC544\uC774\uD15C \uAC80\uC0C9\uC73C\uB85C \uC120\uD0DD\uD558\uBA74 \uC774\uB984\uACFC \uC544\uC774\uCF58\uC774 \uD568\uAED8 \uD45C\uC2DC\uB429\uB2C8\uB2E4.';
+        previewEl.textContent = '\uC544\uC774\uD15C\uC744 \uC120\uD0DD\uD558\uC138\uC694.';
         previewEl.className = 'ib-item-name-preview';
     }
 

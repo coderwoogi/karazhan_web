@@ -378,6 +378,7 @@ func RegisterRoutes(mux *http.ServeMux) {
 
 	mux.HandleFunc("/instance-bonus/dashboard", handleDashboard)
 	mux.HandleFunc("/instance-bonus/map-options", handleMapOptions)
+	mux.HandleFunc("/instance-bonus/item-search", handleItemSearch)
 	mux.HandleFunc("/instance-bonus/runtime/import", handleRuntimeImport)
 	mux.HandleFunc("/instance-bonus/maps", handleMaps)
 	mux.HandleFunc("/instance-bonus/maps/", handleMapByID)
@@ -743,6 +744,50 @@ func handleDashboard(w http.ResponseWriter, r *http.Request) {
 	_ = worldDB.QueryRow(`SELECT COUNT(*) FROM instance_bonus_mission_pool`).Scan(&resp.RuntimeMissionCount)
 	_ = worldDB.QueryRow(`SELECT COUNT(*) FROM instance_bonus_theme_pool`).Scan(&resp.RuntimeThemeCount)
 	writeJSON(w, http.StatusOK, resp)
+}
+
+func handleItemSearch(w http.ResponseWriter, r *http.Request) {
+	if !requireAdmin(w, r) || worldDB == nil {
+		return
+	}
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	query := strings.TrimSpace(r.URL.Query().Get("q"))
+	if len([]rune(query)) < 2 {
+		http.Error(w, "query too short", http.StatusBadRequest)
+		return
+	}
+
+	rows, err := worldDB.Query(`
+		SELECT it.entry, COALESCE(NULLIF(itl.Name, ''), it.name) AS name, it.Quality
+		FROM item_template it
+		LEFT JOIN item_template_locale itl ON it.entry = itl.ID AND itl.locale = 'koKR'
+		WHERE it.name LIKE ? OR itl.Name LIKE ? OR CAST(it.entry AS CHAR) LIKE ?
+		ORDER BY it.entry DESC
+		LIMIT 50`, "%"+query+"%", "%"+query+"%", "%"+query+"%")
+	if err != nil {
+		http.Error(w, "query error", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	type itemSearchResult struct {
+		Entry   int    `json:"entry"`
+		Name    string `json:"name"`
+		Quality int    `json:"quality"`
+	}
+	items := make([]itemSearchResult, 0, 32)
+	for rows.Next() {
+		var item itemSearchResult
+		if err := rows.Scan(&item.Entry, &item.Name, &item.Quality); err != nil {
+			continue
+		}
+		items = append(items, item)
+	}
+	writeJSON(w, http.StatusOK, items)
 }
 
 func handleMapOptions(w http.ResponseWriter, r *http.Request) {

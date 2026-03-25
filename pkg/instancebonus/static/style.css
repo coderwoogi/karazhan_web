@@ -536,3 +536,11 @@ button, input, select, textarea { font: inherit; }
 .ib-reward-table .reward-item-sort { width: 100%; }
 .ib-reward-table .ib-item-name-preview { margin-top: 0; }
 .ib-reward-table .ib-btn { white-space: nowrap; }
+
+.ib-reward-entry-actions {
+    display: flex;
+    justify-content: flex-start;
+}
+.ib-reward-table .reward-item-entry {
+    display: none;
+}
