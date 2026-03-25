@@ -250,6 +250,37 @@
         </main>
     </div>
 
+    <div class="ib-modal-backdrop" id="reward-item-search-modal" style="display:none;">
+        <div class="ib-modal-card">
+            <div class="ib-card-header">
+                <h3>보상 아이템 검색</h3>
+                <button class="ib-btn ib-btn-secondary" type="button" onclick="instanceBonusApp.closeRewardItemSearchModal()">닫기</button>
+            </div>
+            <div class="ib-toolbar">
+                <div class="ib-field ib-field-grow">
+                    <label>아이템 검색</label>
+                    <input id="reward-item-search-query" type="text" placeholder="아이템 이름을 2글자 이상 입력하세요.">
+                </div>
+                <button class="ib-btn ib-btn-primary" type="button" onclick="instanceBonusApp.searchRewardItems()"><i class="fas fa-search"></i> 검색</button>
+            </div>
+            <div class="ib-table-wrap">
+                <table class="ib-table">
+                    <thead>
+                        <tr>
+                            <th>아이템 번호</th>
+                            <th>이름</th>
+                            <th>등급</th>
+                            <th>선택</th>
+                        </tr>
+                    </thead>
+                    <tbody id="reward-item-search-results">
+                        <tr><td colspan="4" class="ib-empty">검색어를 입력하세요.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
     <script src="app.js?v=20260323_2"></script>
 </body>
 </html>

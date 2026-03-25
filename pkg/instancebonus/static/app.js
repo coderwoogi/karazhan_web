@@ -19,6 +19,7 @@
         missionEditingId: null,
         themeEditingId: null,
         rewardEditingId: null,
+        rewardSearchTarget: null,
         currentRunMeta: null,
         currentRunTab: 'overview',
         currentRunId: null,
@@ -882,6 +883,8 @@
     function rewardItemRow(item = {}) {
         const grade = item.grade || 'S';
         const gradeLabel = `${grade} 등급 보상`;
+        const itemName = item.item_name || '';
+        const qualityClass = Number.isFinite(Number(item.quality)) ? `ib-item-quality-${Number(item.quality)}` : '';
         return `<div class="reward-item-row ib-reward-item-card">
             <div class="ib-reward-item-head">
                 <div class="ib-reward-grade-chip grade-${grade}">${gradeLabel}</div>
@@ -900,7 +903,11 @@
                 </div>
                 <div class="ib-field ib-field-grow">
                     <label>아이템 번호</label>
-                    <input class="reward-item-entry" type="number" value="${item.item_entry ?? ''}" placeholder="예: 49426">
+                    <div class="ib-reward-entry-row">
+                        <input class="reward-item-entry" type="number" value="${item.item_entry ?? ''}" placeholder="예: 49426" oninput="instanceBonusApp.clearRewardItemPreview(this)">
+                        <button type="button" class="ib-btn ib-btn-secondary" onclick="instanceBonusApp.openRewardItemSearchModal(this)">검색</button>
+                    </div>
+                    <div class="ib-item-name-preview ${qualityClass}">${escapeHtml(itemName || '아이템 검색으로 선택하면 이름이 함께 표시됩니다.')}</div>
                     <small class="ib-help">실제 보상 아이템 번호를 입력합니다.</small>
                 </div>
                 <div class="ib-field">
@@ -937,6 +944,95 @@
         if (!chip) return;
         chip.className = `ib-reward-grade-chip grade-${grade}`;
         chip.textContent = `${grade} 등급 보상`;
+    }
+
+    function openRewardItemSearchModal(buttonEl) {
+        const row = buttonEl.closest('.reward-item-row');
+        if (!row) return;
+        state.rewardSearchTarget = row;
+        const modal = document.getElementById('reward-item-search-modal');
+        const query = document.getElementById('reward-item-search-query');
+        const results = document.getElementById('reward-item-search-results');
+        if (query) query.value = '';
+        if (results) results.innerHTML = '<tr><td colspan="4" class="ib-empty">검색어를 입력하세요.</td></tr>';
+        if (modal) modal.style.display = 'flex';
+        if (query) setTimeout(() => query.focus(), 50);
+    }
+
+    function closeRewardItemSearchModal() {
+        state.rewardSearchTarget = null;
+        const modal = document.getElementById('reward-item-search-modal');
+        if (modal) modal.style.display = 'none';
+    }
+
+    async function searchRewardItems() {
+        const q = ((document.getElementById('reward-item-search-query') || {}).value || '').trim();
+        const tbody = document.getElementById('reward-item-search-results');
+        if (!tbody) return;
+        if (q.length < 2) {
+            tbody.innerHTML = '<tr><td colspan="4" class="ib-empty">2글자 이상 입력하세요.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = '<tr><td colspan="4" class="ib-empty">검색 중...</td></tr>';
+        try {
+            const res = await fetch(`/api/content/item/search?q=${encodeURIComponent(q)}`, { credentials: 'include' });
+            if (!res.ok) throw new Error('HTTP');
+            const items = await res.json();
+            if (!Array.isArray(items) || !items.length) {
+                tbody.innerHTML = '<tr><td colspan="4" class="ib-empty">검색 결과가 없습니다.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = items.slice(0, 30).map((item) => {
+                const quality = Number(item.quality || 0);
+                const qualityLabel = rewardItemQualityLabel(quality);
+                return `
+                    <tr>
+                        <td>${Number(item.entry || 0)}</td>
+                        <td class="ib-item-quality-${quality}">${escapeHtml(item.name || '')}</td>
+                        <td>${escapeHtml(qualityLabel)}</td>
+                        <td><button type="button" class="ib-btn ib-btn-primary" onclick="instanceBonusApp.selectRewardSearchItem(${Number(item.entry || 0)}, ${JSON.stringify(String(item.name || ''))}, ${quality})">선택</button></td>
+                    </tr>
+                `;
+            }).join('');
+        } catch (e) {
+            tbody.innerHTML = '<tr><td colspan="4" class="ib-empty">아이템 검색에 실패했습니다.</td></tr>';
+        }
+    }
+
+    function selectRewardSearchItem(entry, name, quality) {
+        const row = state.rewardSearchTarget;
+        if (!row) return;
+        const entryEl = row.querySelector('.reward-item-entry');
+        const previewEl = row.querySelector('.ib-item-name-preview');
+        if (entryEl) entryEl.value = Number(entry || 0) || '';
+        if (previewEl) {
+            previewEl.textContent = String(name || '');
+            previewEl.className = `ib-item-name-preview ib-item-quality-${Number(quality || 0)}`;
+        }
+        closeRewardItemSearchModal();
+    }
+
+    function clearRewardItemPreview(inputEl) {
+        const row = inputEl.closest('.reward-item-row');
+        if (!row) return;
+        const previewEl = row.querySelector('.ib-item-name-preview');
+        if (!previewEl) return;
+        previewEl.textContent = '아이템 검색으로 선택하면 이름이 함께 표시됩니다.';
+        previewEl.className = 'ib-item-name-preview';
+    }
+
+    function rewardItemQualityLabel(quality) {
+        switch (Number(quality || 0)) {
+            case 0: return '일반';
+            case 1: return '고급';
+            case 2: return '희귀';
+            case 3: return '영웅';
+            case 4: return '전설';
+            case 5: return '유물';
+            case 6: return '계승품';
+            case 7: return '토큰';
+            default: return '-';
+        }
     }
 
     function openRewardForm(data = null) {
@@ -1246,6 +1342,11 @@
         fetchReward,
         seedDefaultRewardRows,
         refreshRewardGradeLabel,
+        openRewardItemSearchModal,
+        closeRewardItemSearchModal,
+        searchRewardItems,
+        selectRewardSearchItem,
+        clearRewardItemPreview,
         loadDailyUsage,
         resetDailyUsageFilter,
         resetDailyUsage,
