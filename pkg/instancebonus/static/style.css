@@ -501,7 +501,7 @@ button, input, select, textarea { font: inherit; }
     min-width: 0;
 }
 .ib-item-quality-0 { color: #9ca3af; }
-.ib-item-quality-1 { color: #ffffff; text-shadow: 0 0 0 transparent; }
+.ib-item-quality-1 { color: #9ca3af; text-shadow: none; }
 .ib-item-quality-2 { color: #1eff00; }
 .ib-item-quality-3 { color: #0070dd; }
 .ib-item-quality-4 { color: #a335ee; }
