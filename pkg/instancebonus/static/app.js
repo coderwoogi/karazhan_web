@@ -956,38 +956,38 @@ const instanceBonusApp = (() => {
     function renderRewardForm() {
         const form = document.getElementById('reward-form');
         form.innerHTML = `
-            ${formSection('?? ??', '?? ???? ??? ??? ??/???? ?????.')}
-            <div class="ib-field"><label>??/??? ??</label><div class="ib-map-picker" data-target="reward-form-map-id" data-empty="??/???? ?????"></div><select id="reward-form-map-id" name="map_id" hidden></select><small class="ib-help">? ?? ????? ??? ??/???? ????.</small></div>
-            <div class="ib-field"><label>?? ?</label><input type="text" name="profile_key" placeholder="?: mana_tombs_reward_profile"></div>
-            <div class="ib-field"><label>??</label><input type="text" name="name" placeholder="?: ?? ?? ?? ??"></div>
-            <div class="ib-field"><label>??</label><select name="enabled"><option value="1">??</option><option value="0">???</option></select></div>
-            <div class="ib-field"><label>?? ??</label><select name="publish_status"><option value="draft">??</option><option value="review">??</option><option value="published">??</option><option value="archived">??</option></select></div>
-            <div class="ib-field full"><label>??</label><textarea name="description" placeholder="???? ?? ????? ??? ??? ??? ? ??? ????."></textarea></div>
-            ${formSection('?? ??', '??? ?? ???? ? ??? ??? ?????.')}
+            ${formSection('\uAE30\uBCF8 \uC815\uBCF4', '\uBCF4\uC0C1 \uD504\uB85C\uD30C\uC77C \uC774\uB984\uACFC \uC5F0\uACB0\uD560 \uB358\uC804/\uB808\uC774\uB4DC\uB97C \uC124\uC815\uD569\uB2C8\uB2E4.')}
+            <div class="ib-field"><label>\uB358\uC804/\uB808\uC774\uB4DC \uC120\uD0DD</label><div class="ib-map-picker" data-target="reward-form-map-id" data-empty="\uB358\uC804/\uB808\uC774\uB4DC\uB97C \uC120\uD0DD\uD558\uC138\uC694"></div><select id="reward-form-map-id" name="map_id" hidden></select><small class="ib-help">\uC774 \uBCF4\uC0C1 \uD504\uB85C\uD30C\uC77C\uC774 \uC801\uC6A9\uB420 \uB358\uC804/\uB808\uC774\uB4DC\uB97C \uACE0\uB985\uB2C8\uB2E4.</small></div>
+            <div class="ib-field"><label>\uBCF4\uC0C1 \uD0A4</label><input type="text" name="profile_key" placeholder="\uC608: mana_tombs_reward_profile"></div>
+            <div class="ib-field"><label>\uC774\uB984</label><input type="text" name="name" placeholder="\uC608: \uB9C8\uB098 \uBB34\uB364 \uAE30\uBCF8 \uBCF4\uC0C1"></div>
+            <div class="ib-field"><label>\uD65C\uC131</label><select name="enabled"><option value="1">\uC0AC\uC6A9</option><option value="0">\uBE44\uD65C\uC131</option></select></div>
+            <div class="ib-field"><label>\uAC8C\uC2DC \uC0C1\uD0DC</label><select name="publish_status"><option value="draft">\uCD08\uC548</option><option value="review">\uAC80\uD1A0</option><option value="published">\uAC8C\uC2DC</option><option value="archived">\uBCF4\uAD00</option></select></div>
+            <div class="ib-field full"><label>\uC124\uBA85</label><textarea name="description" placeholder="\uC6B4\uC601\uC790\uAC00 \uBCF4\uC0C1 \uD504\uB85C\uD30C\uC77C\uC758 \uC6A9\uB3C4\uC640 \uCC28\uC774\uB97C \uAD6C\uBD84\uD560 \uC218 \uC788\uB3C4\uB85D \uC801\uC2B5\uB2C8\uB2E4."></textarea></div>
+            ${formSection('\uBCF4\uC0C1 \uD56D\uBAA9', '\uB4F1\uAE09\uBCC4 \uBCF4\uC0C1 \uC544\uC774\uD15C\uC744 \uD45C \uD615\uD0DC\uB85C \uC815\uB9AC\uD574 \uAD00\uB9AC\uD569\uB2C8\uB2E4.')}
             <div class="ib-field full">
-                <label>?? ??</label>
-                <div class="ib-inline-notice">??? ?? ???? ?? ??? ?? ?? ? ? ????. ?? ??? ?? ???? ??? ?? ???? ?? ?? ?????.</div>
+                <label>\uBCF4\uC0C1 \uD56D\uBAA9</label>
+                <div class="ib-inline-notice">\uC544\uC774\uD15C \uAC80\uC0C9 \uBC84\uD2BC\uC73C\uB85C \uAE30\uC874 \uC544\uC774\uD15C \uAC80\uC0C9 \uCC3D\uC744 \uC5F4 \uC218 \uC788\uC2B5\uB2C8\uB2E4. \uAC19\uC740 \uB4F1\uAE09\uC5D0 \uC5EC\uB7EC \uC544\uC774\uD15C\uC744 \uC8FC\uB824\uBA74 \uAC19\uC740 \uB4F1\uAE09\uC73C\uB85C \uC5EC\uB7EC \uC904\uC744 \uCD94\uAC00\uD558\uC138\uC694.</div>
                 <div class="ib-reward-toolbar">
-                    <button type="button" class="ib-btn ib-btn-ghost" onclick="instanceBonusApp.seedDefaultRewardRows()"><i class="fas fa-layer-group"></i> S/A/B/C/D ?? ? ???</button>
-                    <button type="button" class="ib-btn ib-btn-primary" onclick="instanceBonusApp.addRewardItemRow()"><i class="fas fa-plus"></i> ?? ??</button>
+                    <button type="button" class="ib-btn ib-btn-ghost" onclick="instanceBonusApp.seedDefaultRewardRows()"><i class="fas fa-layer-group"></i> S/A/B/C/D \uAE30\uBCF8 \uC904 \uB9CC\uB4E4\uAE30</button>
+                    <button type="button" class="ib-btn ib-btn-primary" onclick="instanceBonusApp.addRewardItemRow()"><i class="fas fa-plus"></i> \uD56D\uBAA9 \uCD94\uAC00</button>
                 </div>
                 <div class="ib-table-wrap ib-reward-table-wrap">
                     <table class="ib-table ib-reward-table">
                         <thead>
                             <tr>
-                                <th>??</th>
-                                <th>?? ???</th>
-                                <th>??</th>
-                                <th>??(%)</th>
-                                <th>??</th>
-                                <th>??</th>
+                                <th>\uB4F1\uAE09</th>
+                                <th>\uBCF4\uC0C1 \uC544\uC774\uD15C</th>
+                                <th>\uC218\uB7C9</th>
+                                <th>\uD655\uB960(%)</th>
+                                <th>\uC815\uB82C</th>
+                                <th>\uAD00\uB9AC</th>
                             </tr>
                         </thead>
                         <tbody id="reward-items-box"></tbody>
                     </table>
                 </div>
             </div>
-            <div class="ib-field full"><div class="ib-actions"><button type="button" class="ib-btn ib-btn-primary" onclick="instanceBonusApp.saveReward(false)">?? ? ??</button><button type="button" class="ib-btn ib-btn-ghost" onclick="instanceBonusApp.saveReward(true)">?? ? ?? ??</button><button type="button" class="ib-btn ib-btn-secondary" onclick="instanceBonusApp.closeRewardForm()">??</button></div></div>`;
+            <div class="ib-field full"><div class="ib-actions"><button type="button" class="ib-btn ib-btn-primary" onclick="instanceBonusApp.saveReward(false)">\uC800\uC7A5 \uD6C4 \uBAA9\uB85D</button><button type="button" class="ib-btn ib-btn-ghost" onclick="instanceBonusApp.saveReward(true)">\uC800\uC7A5 \uD6C4 \uACC4\uC18D \uD3B8\uC9D1</button><button type="button" class="ib-btn ib-btn-secondary" onclick="instanceBonusApp.closeRewardForm()">\uB2EB\uAE30</button></div></div>`;
         applyMapOptions();
         seedDefaultRewardRows();
     }
@@ -1010,16 +1010,16 @@ const instanceBonusApp = (() => {
             <td>
                 <div class="ib-reward-item-cell">
                     <div class="ib-reward-entry-row">
-                        <input class="reward-item-entry" type="number" value="${item.item_entry ?? ''}" placeholder="?: 49426" oninput="instanceBonusApp.clearRewardItemPreview(this)">
-                        <button type="button" class="ib-btn ib-btn-secondary" onclick="instanceBonusApp.openRewardItemSearchModal(this)">??</button>
+                        <input class="reward-item-entry" type="number" value="${item.item_entry ?? ''}" placeholder="\uC608: 49426" oninput="instanceBonusApp.clearRewardItemPreview(this)">
+                        <button type="button" class="ib-btn ib-btn-secondary" onclick="instanceBonusApp.openRewardItemSearchModal(this)">\uAC80\uC0C9</button>
                     </div>
-                    <div class="ib-item-name-preview ${qualityClass}">${itemName ? `${iconMarkup}<span class="ib-item-inline-text">${escapeHtml(itemName)}</span>` : '??? ???? ???? ??? ???? ?? ?????.'}</div>
+                    <div class="ib-item-name-preview ${qualityClass}">${itemName ? `${iconMarkup}<span class="ib-item-inline-text">${escapeHtml(itemName)}</span>` : '\uC544\uC774\uD15C \uAC80\uC0C9\uC73C\uB85C \uC120\uD0DD\uD558\uBA74 \uC774\uB984\uACFC \uC544\uC774\uCF58\uC774 \uD568\uAED8 \uD45C\uC2DC\uB429\uB2C8\uB2E4.'}</div>
                 </div>
             </td>
             <td><input class="reward-item-count" type="number" value="${item.item_count ?? 1}" min="1"></td>
             <td><input class="reward-item-chance" type="number" value="${item.chance ?? 100}" step="0.01" min="0" max="100"></td>
-            <td><input class="reward-item-sort" type="number" value="${item.sort_order ?? ''}" placeholder="??"></td>
-            <td><button type="button" class="ib-btn ib-btn-danger" onclick="this.closest('.reward-item-row').remove()">??</button></td>
+            <td><input class="reward-item-sort" type="number" value="${item.sort_order ?? ''}" placeholder="\uC790\uB3D9"></td>
+            <td><button type="button" class="ib-btn ib-btn-danger" onclick="this.closest('.reward-item-row').remove()">\uC0AD\uC81C</button></td>
         </tr>`;
     }
 
@@ -1072,7 +1072,7 @@ const instanceBonusApp = (() => {
         if (!row) return;
         const previewEl = row.querySelector('.ib-item-name-preview');
         if (!previewEl) return;
-        previewEl.textContent = '??? ???? ???? ??? ???? ?? ?????.';
+        previewEl.textContent = '\uC544\uC774\uD15C \uAC80\uC0C9\uC73C\uB85C \uC120\uD0DD\uD558\uBA74 \uC774\uB984\uACFC \uC544\uC774\uCF58\uC774 \uD568\uAED8 \uD45C\uC2DC\uB429\uB2C8\uB2E4.';
         previewEl.className = 'ib-item-name-preview';
     }
 
@@ -1089,7 +1089,7 @@ const instanceBonusApp = (() => {
         }
     }
 
-    function openRewardForm(data = null) {
+function openRewardForm(data = null) {
         state.rewardEditingId = data ? data.reward_profile_id : null;
         toggleCrudView('rewards', 'form');
         document.getElementById('reward-form-title').textContent = data ? `보상 프로파일 수정 #${data.reward_profile_id}` : '보상 프로파일 등록';
