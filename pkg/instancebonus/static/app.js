@@ -1,3 +1,7 @@
+function escapeItemPickerHtml(value) {
+    return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
 const ItemPicker = {
     callback: null,
     searchTimeout: null,
@@ -90,7 +94,7 @@ const ItemPicker = {
                 <div class="item-search-row" onclick="ItemPicker.selectItem(${entry}, decodeURIComponent('${encodeURIComponent(name)}'), ${quality})">
                     <div id="ip-icon-${entry}" class="item-icon-small"></div>
                     <div class="item-search-info">
-                        <div class="item-search-name ib-item-quality-${quality}">${escapeHtml(name)}</div>
+                        <div class="item-search-name ib-item-quality-${quality}">${escapeItemPickerHtml(name)}</div>
                         <div class="item-search-entry">\uC544\uC774\uD15C \uBC88\uD638: ${entry}</div>
                     </div>
                 </div>
@@ -110,7 +114,7 @@ const ItemPicker = {
             if (!res.ok) return;
             const data = await res.json();
             if (data && data.url) {
-                container.innerHTML = `<img src="${escapeHtml(String(data.url))}" alt="" style="width:100%; height:100%; object-fit:cover; border-radius:4px;">`;
+                container.innerHTML = `<img src="${escapeItemPickerHtml(String(data.url))}" alt="" style="width:100%; height:100%; object-fit:cover; border-radius:4px;">`;
             }
         } catch (error) {
             container.innerHTML = '';
