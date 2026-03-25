@@ -38,10 +38,10 @@ type ItemTooltipResponse struct {
 }
 
 func handleItemSearch(w http.ResponseWriter, r *http.Request) {
-	// Require at least content or remote permission to search items,
-	// or create a dedicated 'item_search' permission.
-	// For now, let's allow anyone with basic admin access ('account' or better)
-	if !CheckMenuPermission(w, r, "account") && !CheckMenuPermission(w, r, "content") {
+	// Reuse the common item search for admin tools that need item selection.
+	// Account/content screens already use this endpoint, and instance-bonus-admin
+	// also needs it for reward profile editing.
+	if !CheckMenuPermission(w, r, "account") && !CheckMenuPermission(w, r, "content") && !CheckMenuPermission(w, r, "instance-bonus-admin") {
 		return
 	}
 
