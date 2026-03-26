@@ -839,7 +839,7 @@ const instanceBonusApp = (() => {
             fieldTemplate({ name: 'allowed_wipe_count', label: '허용 전멸 수', type: 'number', help: '이 횟수를 넘겨 전멸하면 미션을 실패시킵니다.' }),
 
             formSection('보상 설정', '미션 완료 시 연결할 보상과 선택 비중을 정합니다.'),
-            fieldTemplate({ name: 'reward_profile_id', label: '보상 프로파일 ID', type: 'number', help: '완료 시 연결할 보상 프로파일 번호입니다.' }),
+            `<div class="ib-field"><label>보상 프로파일</label><select id="mission-form-reward-profile-id" name="reward_profile_id"><option value="0">먼저 던전/레이드를 선택하세요.</option></select><small class="ib-help">선택한 던전/레이드에 연결된 보상 프로파일을 목록에서 고릅니다.</small></div>`,
             fieldTemplate({ name: 'difficulty_weight', label: '난이도 가중치', type: 'number', help: '미션 선택 시 상대적인 등장 비율이나 난이도 보정을 위한 값입니다.' }),
 
             formSection('파티 조건 및 게시 상태', '어떤 파티에서 이 미션을 쓸 수 있는지와 운영 상태를 정합니다.'),
@@ -855,7 +855,10 @@ const instanceBonusApp = (() => {
         ];
         form.innerHTML = sections.join('');
         applyMapOptions();
-        document.getElementById('mission-form-map-id')?.addEventListener('change', syncMissionDifficultyHint);
+        document.getElementById('mission-form-map-id')?.addEventListener('change', async () => {
+            syncMissionDifficultyHint();
+            await syncMissionRewardProfileOptions();
+        });
     }
     function openMissionForm(data = null) {
         state.missionEditingId = data ? data.mission_id : null;
@@ -881,6 +884,7 @@ const instanceBonusApp = (() => {
         );
         form.elements.difficulty_mask.value = String(normalizeMapDifficultyValue(missionDifficultyValue, mapTypeForValue(form.elements.map_id?.value || 0), true));
         syncMissionDifficultyHint();
+        syncMissionRewardProfileOptions(data?.reward_profile_id || 0);
     }
 
     function closeMissionForm() {
@@ -916,6 +920,30 @@ const instanceBonusApp = (() => {
         hint.textContent = mapId
             ? `현재 선택 난이도: ${difficultyLabel(difficulty, mapTypeForValue(mapId), true)}`
             : '선택한 던전/레이드의 난이도가 여기에 표시됩니다.';
+    }
+
+    async function syncMissionRewardProfileOptions(selectedId = null) {
+        const select = document.getElementById('mission-form-reward-profile-id');
+        const mapSelect = document.getElementById('mission-form-map-id');
+        if (!select || !mapSelect) return;
+        const mapId = Number(mapSelect.value || 0);
+        const preservedValue = selectedId ?? Number(select.value || 0);
+        if (!mapId) {
+            select.innerHTML = '<option value="0">먼저 던전/레이드를 선택하세요.</option>';
+            select.value = '0';
+            return;
+        }
+        const params = new URLSearchParams({ page: '1', limit: '200', map_id: String(mapId) });
+        const data = await api(`/instance-bonus/reward-profiles?${params.toString()}`);
+        const items = Array.isArray(data?.items) ? data.items : [];
+        if (!items.length) {
+            select.innerHTML = '<option value="0">등록된 보상 프로파일이 없습니다.</option>';
+            select.value = '0';
+            return;
+        }
+        select.innerHTML = `<option value="0">보상 프로파일을 선택하세요.</option>${items.map((row) => `<option value="${row.reward_profile_id}">${escapeHtml(row.name || `보상 #${row.reward_profile_id}`)}</option>`).join('')}`;
+        const targetValue = items.some((row) => Number(row.reward_profile_id) === Number(preservedValue)) ? String(preservedValue) : '0';
+        select.value = targetValue;
     }
 
 
