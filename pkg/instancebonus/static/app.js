@@ -183,8 +183,8 @@ const instanceBonusApp = (() => {
         { name: 'map_id', label: '맵 ID', type: 'number', help: '던전이나 레이드 맵 번호입니다.' },
         { name: 'map_name', label: '맵 이름', help: '운영 화면에서 확인할 이름입니다.' },
         { name: 'daily_limit_per_player', label: '추가미션 일일 제한(1인당)', type: 'number', help: '해당 던전에서 플레이어 1명이 하루에 추가미션 보상을 받을 수 있는 최대 횟수입니다. 0이면 제한 없음' },
-        { name: 'default_time_limit_sec', label: '기본 시간 제한(초)', type: 'number' },
-        { name: 'max_concurrent_missions', label: '최대 동시 미션 수', type: 'number' },
+        { name: 'default_time_limit_sec', label: '기본 시간(초)', type: 'number', help: '이 던전이나 레이드에서 공통으로 사용할 기본 제한 시간입니다. 미션에 개별 제한 시간을 넣지 않으면 이 값이 사용됩니다.' },
+        { name: 'max_concurrent_missions', label: '한 번에 제시할 최대 미션 수', type: 'number', help: '한 번의 진행에서 동시에 제시되거나 활성화될 수 있는 추가미션의 최대 개수입니다.' },
         { name: 'min_party_size', label: '최소 파티 수', type: 'number' },
         { name: 'max_party_size', label: '최대 파티 수', type: 'number' },
         { name: 'enabled', label: '활성', type: 'checkbox' },
@@ -548,7 +548,7 @@ const instanceBonusApp = (() => {
     function renderMapForm() {
         const form = document.getElementById('map-form');
         form.innerHTML = [
-            formSection('기본 설정', '어떤 맵에서 시스템을 사용할지와 기본 제한값을 설정합니다.'),
+            formSection('기본 설정', '어떤 맵에서 시스템을 사용할지와 공통 기본값을 설정합니다. 미션마다 개별 제한 시간을 따로 넣지 않으면 여기 설정한 기본 시간이 사용됩니다.'),
             `<div class="ib-field"><label>던전/레이드 선택</label><div class="ib-map-picker" data-target="map-form-map-id" data-empty="던전/레이드를 선택하세요"></div><select id="map-form-map-id" name="map_id" hidden></select><small class="ib-help">게임에 등록된 인스턴스 던전/레이드 목록입니다.</small></div>`,
             `<div class="ib-field"><label>맵 이름</label><input id="map-form-map-name" type="text" name="map_name" readonly><small class="ib-help">선택한 맵 이름이 자동으로 입력됩니다.</small></div>`,
             ...mapFields.filter((field) => !['map_id', 'map_name'].includes(field.name)).map((field) => fieldTemplate(field)),
@@ -682,7 +682,7 @@ const instanceBonusApp = (() => {
             fieldTemplate({ name: 'target_entry', label: '대상 번호', type: 'number' }),
             fieldTemplate({ name: 'target_label', label: '대상 이름' }),
             fieldTemplate({ name: 'target_count', label: '목표 수량', type: 'number' }),
-            fieldTemplate({ name: 'time_limit_sec', label: '제한 시간(초)', type: 'number' }),
+            fieldTemplate({ name: 'time_limit_sec', label: '미션 개별 제한 시간(초)', type: 'number', help: '이 미션에만 따로 적용할 제한 시간입니다. 0으로 두거나 비워두면 맵 설정의 기본 시간이 사용됩니다.' }),
             fieldTemplate({ name: 'failure_condition_type', label: '실패 조건' }),
             fieldTemplate({ name: 'required_boss_entry', label: '필수 보스 번호', type: 'number' }),
             fieldTemplate({ name: 'required_before_boss_entry', label: '선행 보스 번호', type: 'number' }),
