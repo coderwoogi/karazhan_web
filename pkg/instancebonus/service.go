@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 
 	_ "github.com/go-sql-driver/mysql"
 )
@@ -19,6 +20,8 @@ import (
 var worldDB *sql.DB
 var updateDB *sql.DB
 var charactersDB *sql.DB
+var authDB *sql.DB
+var columnTypeCache sync.Map
 
 const menuID = "instance-bonus-admin"
 
@@ -365,6 +368,10 @@ func RegisterRoutes(mux *http.ServeMux) {
 	if err != nil {
 		log.Printf("[instance-bonus] characters db open error: %v", err)
 	}
+	authDB, err = sql.Open("mysql", config.AuthDSNWithParams("parseTime=true"))
+	if err != nil {
+		log.Printf("[instance-bonus] auth db open error: %v", err)
+	}
 	updateDB, err = sql.Open("mysql", config.UpdateDSNWithParams("parseTime=true"))
 	if err != nil {
 		log.Printf("[instance-bonus] update db open error: %v", err)
@@ -677,6 +684,59 @@ func currentUser(r *http.Request) string {
 		return strings.TrimSpace(c.Value)
 	}
 	return "system"
+}
+
+func currentUserID(r *http.Request) int64 {
+	user := strings.TrimSpace(currentUser(r))
+	if user == "" || user == "system" || authDB == nil {
+		return 0
+	}
+	var accountID int64
+	err := authDB.QueryRow(`SELECT id FROM account WHERE UPPER(username)=UPPER(?) LIMIT 1`, user).Scan(&accountID)
+	if err != nil {
+		return 0
+	}
+	return accountID
+}
+
+func isNumericColumn(tableName, columnName string) bool {
+	cacheKey := tableName + "." + columnName
+	if cached, ok := columnTypeCache.Load(cacheKey); ok {
+		return cached.(bool)
+	}
+	if worldDB == nil {
+		columnTypeCache.Store(cacheKey, false)
+		return false
+	}
+	var dataType string
+	err := worldDB.QueryRow(`
+		SELECT LOWER(DATA_TYPE)
+		FROM information_schema.COLUMNS
+		WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?
+		LIMIT 1
+	`, tableName, columnName).Scan(&dataType)
+	if err != nil {
+		columnTypeCache.Store(cacheKey, false)
+		return false
+	}
+	numeric := map[string]bool{
+		"tinyint":   true,
+		"smallint":  true,
+		"mediumint": true,
+		"int":       true,
+		"bigint":    true,
+		"decimal":   true,
+		"numeric":   true,
+	}[dataType]
+	columnTypeCache.Store(cacheKey, numeric)
+	return numeric
+}
+
+func updatedByValue(tableName string, r *http.Request) any {
+	if isNumericColumn(tableName, "updated_by") {
+		return currentUserID(r)
+	}
+	return currentUser(r)
 }
 
 func normalizeDailyLimit(value int) (int, error) {
@@ -1252,7 +1312,7 @@ func handleMaps(w http.ResponseWriter, r *http.Request) {
 				map_name=VALUES(map_name), enabled=VALUES(enabled), allow_vote=VALUES(allow_vote), daily_limit_per_player=VALUES(daily_limit_per_player), allow_llm=VALUES(allow_llm),
 				default_time_limit_sec=VALUES(default_time_limit_sec), min_party_size=VALUES(min_party_size), max_party_size=VALUES(max_party_size),
 				max_concurrent_missions=VALUES(max_concurrent_missions), notes=VALUES(notes), updated_by=VALUES(updated_by), updated_at=CURRENT_TIMESTAMP`,
-			item.MapID, item.MapName, item.Enabled, item.AllowVote, item.DailyLimitPerPlayer, item.AllowLLM, item.DefaultTimeLimitSec, item.MinPartySize, item.MaxPartySize, item.MaxConcurrentMission, item.Notes, currentUser(r))
+			item.MapID, item.MapName, item.Enabled, item.AllowVote, item.DailyLimitPerPlayer, item.AllowLLM, item.DefaultTimeLimitSec, item.MinPartySize, item.MaxPartySize, item.MaxConcurrentMission, item.Notes, updatedByValue("instance_bonus_map_config", r))
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -1308,14 +1368,14 @@ func handleMapByID(w http.ResponseWriter, r *http.Request) {
 		_, err = worldDB.Exec(`UPDATE instance_bonus_map_config
 			SET map_name=?, enabled=?, allow_vote=?, daily_limit_per_player=?, allow_llm=?, default_time_limit_sec=?, min_party_size=?, max_party_size=?, max_concurrent_missions=?, notes=?, updated_by=?, updated_at=CURRENT_TIMESTAMP
 			WHERE map_id=?`,
-			item.MapName, item.Enabled, item.AllowVote, item.DailyLimitPerPlayer, item.AllowLLM, item.DefaultTimeLimitSec, item.MinPartySize, item.MaxPartySize, item.MaxConcurrentMission, item.Notes, currentUser(r), mapID)
+			item.MapName, item.Enabled, item.AllowVote, item.DailyLimitPerPlayer, item.AllowLLM, item.DefaultTimeLimitSec, item.MinPartySize, item.MaxPartySize, item.MaxConcurrentMission, item.Notes, updatedByValue("instance_bonus_map_config", r), mapID)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"success": true})
 	case http.MethodDelete:
-		_, err = worldDB.Exec(`UPDATE instance_bonus_map_config SET enabled=0, updated_by=?, updated_at=CURRENT_TIMESTAMP WHERE map_id=?`, currentUser(r), mapID)
+		_, err = worldDB.Exec(`UPDATE instance_bonus_map_config SET enabled=0, updated_by=?, updated_at=CURRENT_TIMESTAMP WHERE map_id=?`, updatedByValue("instance_bonus_map_config", r), mapID)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -1365,14 +1425,17 @@ func handleMapDifficultyContent(w http.ResponseWriter, r *http.Request, mapID in
 		http.Error(w, "난이도 값이 올바르지 않습니다", http.StatusBadRequest)
 		return
 	}
-	if err := updateDifficultyManagedItem(mapID, kind, itemID, payload.DifficultyMask, payload.Enabled, currentUser(r)); err != nil {
+	if err := updateDifficultyManagedItem(mapID, kind, itemID, payload.DifficultyMask, payload.Enabled, updatedByValue(map[string]string{
+		"missions": "instance_bonus_mission",
+		"themes":   "instance_bonus_theme",
+	}[kind], r)); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"success": true})
 }
 
-func updateDifficultyManagedItem(mapID int, kind string, itemID int64, difficultyMask int, enabled *int, updatedBy string) error {
+func updateDifficultyManagedItem(mapID int, kind string, itemID int64, difficultyMask int, enabled *int, updatedBy any) error {
 	table := ""
 	idColumn := ""
 	switch kind {
@@ -1507,7 +1570,7 @@ func handleMissions(w http.ResponseWriter, r *http.Request) {
 			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
 			item.MapID, item.DifficultyMask, item.MissionKey, item.Name, item.Description, item.BriefingText, item.MissionType, item.ObjectiveType, item.TargetEntry, item.TargetLabel, item.TargetCount, item.TimeLimitSec, item.FailureConditionType,
 			item.RequiredBossEntry, item.RequiredBeforeBossEntry, item.AllowedDeathCount, item.AllowedWipeCount, item.RewardProfileID, item.DifficultyWeight, item.MinPartySize, item.MaxPartySize, item.MinAvgItemLevel,
-			item.MaxAvgItemLevel, item.RequiredTank, item.RequiredHealer, item.Enabled, item.PublishStatus, currentUser(r))
+			item.MaxAvgItemLevel, item.RequiredTank, item.RequiredHealer, item.Enabled, item.PublishStatus, updatedByValue("instance_bonus_mission", r))
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -1560,7 +1623,7 @@ func handleMissionByID(w http.ResponseWriter, r *http.Request) {
 			WHERE mission_id=?`,
 			item.MapID, item.DifficultyMask, item.MissionKey, item.Name, item.Description, item.BriefingText, item.MissionType, item.ObjectiveType, item.TargetEntry, item.TargetLabel, item.TargetCount, item.TimeLimitSec, item.FailureConditionType,
 			item.RequiredBossEntry, item.RequiredBeforeBossEntry, item.AllowedDeathCount, item.AllowedWipeCount, item.RewardProfileID, item.DifficultyWeight, item.MinPartySize, item.MaxPartySize, item.MinAvgItemLevel,
-			item.MaxAvgItemLevel, item.RequiredTank, item.RequiredHealer, item.Enabled, item.PublishStatus, currentUser(r), id)
+			item.MaxAvgItemLevel, item.RequiredTank, item.RequiredHealer, item.Enabled, item.PublishStatus, updatedByValue("instance_bonus_mission", r), id)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -1626,7 +1689,7 @@ func handleThemes(w http.ResponseWriter, r *http.Request) {
 		res, err := worldDB.Exec(`INSERT INTO instance_bonus_theme
 			(map_id, difficulty_mask, theme_key, name, description, briefing_style, min_party_size, max_party_size, min_avg_item_level, max_avg_item_level, required_tank, required_healer, weight, enabled, publish_status, version, updated_by)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
-			item.MapID, item.DifficultyMask, item.ThemeKey, item.Name, item.Description, item.BriefingStyle, item.MinPartySize, item.MaxPartySize, item.MinAvgItemLevel, item.MaxAvgItemLevel, item.RequiredTank, item.RequiredHealer, item.Weight, item.Enabled, item.PublishStatus, currentUser(r))
+			item.MapID, item.DifficultyMask, item.ThemeKey, item.Name, item.Description, item.BriefingStyle, item.MinPartySize, item.MaxPartySize, item.MinAvgItemLevel, item.MaxAvgItemLevel, item.RequiredTank, item.RequiredHealer, item.Weight, item.Enabled, item.PublishStatus, updatedByValue("instance_bonus_theme", r))
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -1680,7 +1743,7 @@ func handleThemeRoutes(w http.ResponseWriter, r *http.Request) {
 			_, err = worldDB.Exec(`UPDATE instance_bonus_theme SET
 				map_id=?, difficulty_mask=?, theme_key=?, name=?, description=?, briefing_style=?, min_party_size=?, max_party_size=?, min_avg_item_level=?, max_avg_item_level=?, required_tank=?, required_healer=?, weight=?, enabled=?, publish_status=?, version=version+1, updated_by=?, updated_at=CURRENT_TIMESTAMP
 				WHERE theme_id=?`,
-				item.MapID, item.DifficultyMask, item.ThemeKey, item.Name, item.Description, item.BriefingStyle, item.MinPartySize, item.MaxPartySize, item.MinAvgItemLevel, item.MaxAvgItemLevel, item.RequiredTank, item.RequiredHealer, item.Weight, item.Enabled, item.PublishStatus, currentUser(r), themeID)
+				item.MapID, item.DifficultyMask, item.ThemeKey, item.Name, item.Description, item.BriefingStyle, item.MinPartySize, item.MaxPartySize, item.MinAvgItemLevel, item.MaxAvgItemLevel, item.RequiredTank, item.RequiredHealer, item.Weight, item.Enabled, item.PublishStatus, updatedByValue("instance_bonus_theme", r), themeID)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
@@ -1723,7 +1786,7 @@ func handleThemeRoutes(w http.ResponseWriter, r *http.Request) {
 			_, err := worldDB.Exec(`INSERT INTO instance_bonus_theme_mission_link (theme_id, mission_id, slot, required, weight, updated_by)
 				VALUES (?, ?, ?, ?, ?, ?)
 				ON DUPLICATE KEY UPDATE slot=VALUES(slot), required=VALUES(required), weight=VALUES(weight), updated_by=VALUES(updated_by), updated_at=CURRENT_TIMESTAMP`,
-				themeID, item.MissionID, item.Slot, item.Required, item.Weight, currentUser(r))
+				themeID, item.MissionID, item.Slot, item.Required, item.Weight, updatedByValue("instance_bonus_theme_mission_link", r))
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
@@ -1800,7 +1863,7 @@ func handleRewardProfiles(w http.ResponseWriter, r *http.Request) {
 		}
 		res, err := worldDB.Exec(`INSERT INTO instance_bonus_reward_profile (map_id, profile_key, name, description, enabled, publish_status, version, updated_by)
 			VALUES (?, ?, ?, ?, ?, ?, 1, ?)`,
-			item.MapID, item.ProfileKey, item.Name, item.Description, item.Enabled, item.PublishStatus, currentUser(r))
+			item.MapID, item.ProfileKey, item.Name, item.Description, item.Enabled, item.PublishStatus, updatedByValue("instance_bonus_reward_profile", r))
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -1868,7 +1931,7 @@ func handleRewardProfileByID(w http.ResponseWriter, r *http.Request) {
 			item.PublishStatus = "draft"
 		}
 		_, err = worldDB.Exec(`UPDATE instance_bonus_reward_profile SET map_id=?, profile_key=?, name=?, description=?, enabled=?, publish_status=?, version=version+1, updated_by=?, updated_at=CURRENT_TIMESTAMP WHERE reward_profile_id=?`,
-			item.MapID, item.ProfileKey, item.Name, item.Description, item.Enabled, item.PublishStatus, currentUser(r), id)
+			item.MapID, item.ProfileKey, item.Name, item.Description, item.Enabled, item.PublishStatus, updatedByValue("instance_bonus_reward_profile", r), id)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

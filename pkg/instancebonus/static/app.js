@@ -463,10 +463,10 @@ const instanceBonusApp = (() => {
             ['rewards-filter-map-id', true, '전체'],
             ['daily-usage-filter-map-id', true, '전체'],
             ['runs-filter-map-id', true, '전체'],
-            ['map-form-map-id', false, '던전/레이드를 선택하세요'],
-            ['mission-form-map-id', false, '던전/레이드를 선택하세요'],
-            ['theme-form-map-id', false, '던전/레이드를 선택하세요'],
-            ['reward-form-map-id', false, '던전/레이드를 선택하세요']
+            ['map-form-map-id', false, '던전/레이드'],
+            ['mission-form-map-id', false, '던전/레이드'],
+            ['theme-form-map-id', false, '던전/레이드'],
+            ['reward-form-map-id', false, '던전/레이드']
         ];
         mappings.forEach(([selectId, includeEmpty, emptyLabel]) => {
             renderMapPicker(selectId, includeEmpty, emptyLabel, '');
@@ -581,7 +581,7 @@ const instanceBonusApp = (() => {
         const form = document.getElementById('map-form');
         form.innerHTML = [
             formSection('맵 공통 설정', '맵 자체의 기본 규칙을 정하는 화면입니다. 여기서 정한 기본값은 미션이 별도 값을 가지지 않을 때 공통 기준으로 사용됩니다.'),
-            `<div class="ib-field"><label>던전/레이드 선택</label><div class="ib-map-picker" data-target="map-form-map-id" data-empty="던전/레이드를 선택하세요"></div><select id="map-form-map-id" name="map_id" hidden></select><small class="ib-help">추가미션을 적용할 던전이나 레이드를 선택하세요.</small></div>`,
+            `<div class="ib-field"><label>던전/레이드 선택</label><div class="ib-map-picker" data-target="map-form-map-id" data-empty="던전/레이드"></div><select id="map-form-map-id" name="map_id" hidden></select><small class="ib-help">추가미션을 적용할 던전이나 레이드를 선택하세요.</small></div>`,
             `<div class="ib-field"><label>맵 이름</label><input id="map-form-map-name" type="text" name="map_name" readonly><small class="ib-help">선택한 맵의 이름이 자동으로 채워집니다.</small></div>`,
             `<div class="ib-field full"><div id="map-difficulty-manager" class="ib-map-difficulty-manager"></div></div>`,
             ...mapFields.filter((field) => !['map_id', 'map_name'].includes(field.name)).map((field) => fieldTemplate(field)),
@@ -684,26 +684,19 @@ const instanceBonusApp = (() => {
         if (!container) return;
         const mapId = Number(document.getElementById('map-form-map-id')?.value || 0);
         if (!mapId) {
-            container.innerHTML = '<div class="ib-empty">먼저 던전/레이드를 선택하면 작업할 난이도를 고를 수 있습니다.</div>';
+            container.innerHTML = '';
             return;
         }
         state.mapDifficulty.mapId = mapId;
         const selected = currentMapDifficultyOption();
         const options = difficultyOptionsForMapType(state.mapDifficulty.mapType || '던전');
         container.innerHTML = `
-            <div class="ib-difficulty-header">
-                <div>
-                    <h4>난이도 설정</h4>
-                    <p>${escapeHtml(mapNameById(mapId))}에서 사용할 작업 난이도를 선택하세요. 미션과 테마는 다음 단계 화면에서 이 맵을 골라 추가합니다.</p>
-                </div>
-            </div>
-            <div class="ib-difficulty-selector">
+            <div class="ib-field">
                 <label>난이도 선택</label>
                 <select id="map-difficulty-select" onchange="instanceBonusApp.selectMapDifficulty(this.value)">
                     ${options.map((item) => `<option value="${item.value}" ${item.value === selected.value ? 'selected' : ''}>${escapeHtml(item.label)}</option>`).join('')}
                 </select>
-            </div>
-            <div class="ib-static-note">현재 선택된 난이도는 <strong>${escapeHtml(selected.label)}</strong>입니다. 이 값은 이후 미션 관리와 테마 관리에서 같은 맵을 선택할 때 작업 기준으로 이어집니다.</div>`;
+            </div>`;
     }
 
     function selectMapDifficulty(value) {
