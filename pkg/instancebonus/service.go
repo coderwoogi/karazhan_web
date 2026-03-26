@@ -1,7 +1,9 @@
 package instancebonus
 
 import (
+	"crypto/sha1"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"karazhan/pkg/config"
@@ -10,6 +12,7 @@ import (
 	"math"
 	"net/http"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -25,6 +28,7 @@ var authDB *sql.DB
 var columnTypeCache sync.Map
 var columnExistsCache sync.Map
 var operatorNameCache sync.Map
+var autoKeyUnsafeChars = regexp.MustCompile(`[^a-z0-9]+`)
 
 const menuID = "instance-bonus-admin"
 
@@ -812,6 +816,106 @@ func rewardChanceForStorage(chance float64) any {
 		return int(math.Round(chance * 100))
 	}
 	return chance
+}
+
+func slugKeyPart(value string) string {
+	slug := strings.ToLower(strings.TrimSpace(value))
+	slug = autoKeyUnsafeChars.ReplaceAllString(slug, "_")
+	slug = strings.Trim(slug, "_")
+	return slug
+}
+
+func shortKeyHash(parts ...string) string {
+	sum := sha1.Sum([]byte(strings.Join(parts, "|")))
+	return hex.EncodeToString(sum[:])[:8]
+}
+
+func buildMissionBaseKey(mapID int, name string) string {
+	nameSlug := slugKeyPart(name)
+	if nameSlug == "" {
+		nameSlug = fmt.Sprintf("mission_map_%d", mapID)
+	}
+	if mapID > 0 && !strings.Contains(nameSlug, fmt.Sprintf("map_%d", mapID)) {
+		return fmt.Sprintf("%s_map_%d", nameSlug, mapID)
+	}
+	return nameSlug
+}
+
+func buildRewardProfileBaseKey(mapID int, name string) string {
+	nameSlug := slugKeyPart(name)
+	if nameSlug == "" {
+		nameSlug = fmt.Sprintf("reward_map_%d", mapID)
+	}
+	if mapID > 0 && !strings.Contains(nameSlug, fmt.Sprintf("map_%d", mapID)) {
+		return fmt.Sprintf("%s_map_%d", nameSlug, mapID)
+	}
+	return nameSlug
+}
+
+func uniqueMissionKey(base string, excludeID int64) string {
+	if worldDB == nil {
+		return base
+	}
+	candidate := base
+	for index := 0; index < 1000; index++ {
+		var count int
+		query := `SELECT COUNT(*) FROM instance_bonus_mission WHERE mission_key=?`
+		args := []any{candidate}
+		if excludeID > 0 {
+			query += ` AND mission_id<>?`
+			args = append(args, excludeID)
+		}
+		_ = worldDB.QueryRow(query, args...).Scan(&count)
+		if count == 0 {
+			return candidate
+		}
+		candidate = fmt.Sprintf("%s_%d", base, index+2)
+	}
+	return fmt.Sprintf("%s_%s", base, shortKeyHash(base, strconv.FormatInt(excludeID, 10)))
+}
+
+func uniqueRewardProfileKey(base string, excludeID int64) string {
+	if worldDB == nil {
+		return base
+	}
+	candidate := base
+	for index := 0; index < 1000; index++ {
+		var count int
+		query := `SELECT COUNT(*) FROM instance_bonus_reward_profile WHERE profile_key=?`
+		args := []any{candidate}
+		if excludeID > 0 {
+			query += ` AND reward_profile_id<>?`
+			args = append(args, excludeID)
+		}
+		_ = worldDB.QueryRow(query, args...).Scan(&count)
+		if count == 0 {
+			return candidate
+		}
+		candidate = fmt.Sprintf("%s_%d", base, index+2)
+	}
+	return fmt.Sprintf("%s_%s", base, shortKeyHash(base, strconv.FormatInt(excludeID, 10)))
+}
+
+func ensureMissionKey(item *missionRow, excludeID int64) {
+	if strings.TrimSpace(item.MissionKey) != "" {
+		item.MissionKey = uniqueMissionKey(slugKeyPart(item.MissionKey), excludeID)
+		if item.MissionKey == "" {
+			item.MissionKey = uniqueMissionKey(buildMissionBaseKey(item.MapID, item.Name), excludeID)
+		}
+		return
+	}
+	item.MissionKey = uniqueMissionKey(buildMissionBaseKey(item.MapID, item.Name), excludeID)
+}
+
+func ensureRewardProfileKey(item *rewardProfile, excludeID int64) {
+	if strings.TrimSpace(item.ProfileKey) != "" {
+		item.ProfileKey = uniqueRewardProfileKey(slugKeyPart(item.ProfileKey), excludeID)
+		if item.ProfileKey == "" {
+			item.ProfileKey = uniqueRewardProfileKey(buildRewardProfileBaseKey(item.MapID, item.Name), excludeID)
+		}
+		return
+	}
+	item.ProfileKey = uniqueRewardProfileKey(buildRewardProfileBaseKey(item.MapID, item.Name), excludeID)
 }
 
 func syncLegacyRewardProfiles() {
@@ -1756,10 +1860,11 @@ func handleMissions(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		if strings.TrimSpace(item.MissionKey) == "" || strings.TrimSpace(item.Name) == "" {
-			http.Error(w, "\ubbf8\uc158 \ud0a4\uc640 \uc774\ub984\uc740 \ud544\uc218\uc785\ub2c8\ub2e4.", http.StatusBadRequest)
+		if strings.TrimSpace(item.Name) == "" {
+			http.Error(w, "\ubbf8\uc158 \uc774\ub984\uc740 \ud544\uc218\uc785\ub2c8\ub2e4.", http.StatusBadRequest)
 			return
 		}
+		ensureMissionKey(&item, 0)
 		if item.PublishStatus == "" {
 			item.PublishStatus = "draft"
 		}
@@ -1776,7 +1881,7 @@ func handleMissions(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		id, _ := res.LastInsertId()
-		writeJSON(w, http.StatusOK, map[string]any{"success": true, "mission_id": id})
+		writeJSON(w, http.StatusOK, map[string]any{"success": true, "mission_id": id, "mission_key": item.MissionKey})
 	default:
 		http.Error(w, "지원하지 않는 요청 방식입니다", http.StatusMethodNotAllowed)
 	}
@@ -1813,6 +1918,11 @@ func handleMissionByID(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+		if strings.TrimSpace(item.Name) == "" {
+			http.Error(w, "\ubbf8\uc158 \uc774\ub984\uc740 \ud544\uc218\uc785\ub2c8\ub2e4.", http.StatusBadRequest)
+			return
+		}
+		ensureMissionKey(&item, id)
 		if item.PublishStatus == "" {
 			item.PublishStatus = "draft"
 		}
@@ -2068,6 +2178,11 @@ func handleRewardProfiles(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+		if strings.TrimSpace(item.Name) == "" {
+			http.Error(w, "\ubcf4\uc0c1 \ud504\ub85c\ud30c\uc77c \uc774\ub984\uc740 \ud544\uc218\uc785\ub2c8\ub2e4.", http.StatusBadRequest)
+			return
+		}
+		ensureRewardProfileKey(&item, 0)
 		if item.PublishStatus == "" {
 			item.PublishStatus = "draft"
 		}
@@ -2080,7 +2195,7 @@ func handleRewardProfiles(w http.ResponseWriter, r *http.Request) {
 		}
 		id, _ := res.LastInsertId()
 		replaceRewardProfileItems(id, item.Items)
-		writeJSON(w, http.StatusOK, map[string]any{"success": true, "reward_profile_id": id})
+		writeJSON(w, http.StatusOK, map[string]any{"success": true, "reward_profile_id": id, "profile_key": item.ProfileKey})
 	default:
 		http.Error(w, "지원하지 않는 요청 방식입니다", http.StatusMethodNotAllowed)
 	}
@@ -2149,6 +2264,11 @@ func handleRewardProfileByID(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+		if strings.TrimSpace(item.Name) == "" {
+			http.Error(w, "\ubcf4\uc0c1 \ud504\ub85c\ud30c\uc77c \uc774\ub984\uc740 \ud544\uc218\uc785\ub2c8\ub2e4.", http.StatusBadRequest)
+			return
+		}
+		ensureRewardProfileKey(&item, id)
 		if item.PublishStatus == "" {
 			item.PublishStatus = "draft"
 		}

@@ -545,6 +545,10 @@ const instanceBonusApp = (() => {
         return `<div class="ib-field ${full ? 'full' : ''}"><label>${label}</label><input type="${type}" name="${name}">${helpHtml}</div>`;
     }
 
+    function autoKeyFieldTemplate(name, label, help) {
+        return `<div class="ib-field"><label>${label}</label><input type="text" name="${name}" readonly placeholder="저장 시 자동 생성"><small class="ib-help">${help}</small></div>`;
+    }
+
     function confirmPublishWorkflow(name) {
         const acknowledged = prompt(`${name}을(를) 게시 상태로 저장합니다.\n운영 중인 콘텐츠라면 검토 후 진행해야 합니다.\n계속하려면 게시 를 입력하세요.`, '');
         return acknowledged === '게시' || acknowledged === 'published';
@@ -816,7 +820,7 @@ const instanceBonusApp = (() => {
             formSection('기본 정보', '맵 설정에 먼저 등록한 던전이나 레이드를 고른 뒤, 그 맵에서 사용할 추가미션을 작성하는 화면입니다.'),
             `<div class="ib-field"><label>던전/레이드 선택</label><div class="ib-map-picker" data-target="mission-form-map-id" data-empty="던전/레이드를 선택하세요"></div><select id="mission-form-map-id" name="map_id" hidden></select><small class="ib-help">맵 설정에 먼저 등록한 던전이나 레이드만 선택할 수 있습니다.</small></div>`,
             `<input type="hidden" id="mission-form-difficulty-mask" name="difficulty_mask" value="0">`,
-            fieldTemplate({ name: 'mission_key', label: '미션 키', help: '내부 식별용 키입니다.' }),
+            autoKeyFieldTemplate('mission_key', '미션 키', '미션 키는 저장할 때 자동으로 생성됩니다. 수정 화면에서는 현재 생성된 키를 확인할 수 있습니다.'),
             `<div class="ib-field"><label>미션 이름</label><input type="text" name="name"><small id="mission-selected-difficulty" class="ib-help">선택한 던전/레이드의 난이도가 여기에 표시됩니다.</small></div>`,
             fieldTemplate({ name: 'description', label: '설명', type: 'textarea', full: true, help: '운영자가 미션 내용을 이해하기 위한 설명입니다.' }),
             fieldTemplate({ name: 'briefing_text', label: '브리핑 문구', type: 'textarea', full: true, help: '게임 안에 보여줄 안내 문구입니다.' }),
@@ -895,7 +899,8 @@ const instanceBonusApp = (() => {
             else data[name] = el.value;
         });
         data.difficulty_mask = Number(form.elements.difficulty_mask?.value || 0);
-        if (!data.mission_key || !data.name) throw new Error('미션 키와 이름은 필수입니다.');
+        data.mission_key = String(data.mission_key || '').trim();
+        if (!data.name) throw new Error('미션 이름은 필수입니다.');
         return data;
     }
 
@@ -917,10 +922,20 @@ const instanceBonusApp = (() => {
     async function saveMission(keepEditing = false) {
         const payload = missionPayload();
         if (payload.publish_status === 'published' && !confirmPublishWorkflow('誘몄뀡')) return;
-        if (state.missionEditingId) await api(`/instance-bonus/missions/${state.missionEditingId}`, { method: 'PUT', body: JSON.stringify(payload) });
-        else await api('/instance-bonus/missions', { method: 'POST', body: JSON.stringify(payload) });
+        let savedId = state.missionEditingId;
+        if (state.missionEditingId) {
+            await api(`/instance-bonus/missions/${state.missionEditingId}`, { method: 'PUT', body: JSON.stringify(payload) });
+        } else {
+            const result = await api('/instance-bonus/missions', { method: 'POST', body: JSON.stringify(payload) });
+            savedId = result?.mission_id || null;
+        }
         loadMissions();
         loadMissionCandidates();
+        if (keepEditing && savedId) {
+            const latest = await api(`/instance-bonus/missions/${savedId}`);
+            openMissionForm(latest);
+            return;
+        }
         if (!keepEditing) {
             closeMissionForm();
         }
@@ -1170,7 +1185,7 @@ const instanceBonusApp = (() => {
         form.innerHTML = `
             ${formSection('\uAE30\uBCF8 \uC815\uBCF4', '\uBCF4\uC0C1 \uD504\uB85C\uD30C\uC77C \uC774\uB984\uACFC \uC5F0\uACB0\uD560 \uB358\uC804/\uB808\uC774\uB4DC\uB97C \uC124\uC815\uD569\uB2C8\uB2E4.')}
             <div class="ib-field"><label>\uB358\uC804/\uB808\uC774\uB4DC \uC120\uD0DD</label><div class="ib-map-picker" data-target="reward-form-map-id" data-empty="\uB358\uC804/\uB808\uC774\uB4DC\uB97C \uC120\uD0DD\uD558\uC138\uC694"></div><select id="reward-form-map-id" name="map_id" hidden></select><small class="ib-help">\uC774 \uBCF4\uC0C1 \uD504\uB85C\uD30C\uC77C\uC774 \uC801\uC6A9\uB420 \uB358\uC804/\uB808\uC774\uB4DC\uB97C \uACE0\uB985\uB2C8\uB2E4.</small></div>
-            <div class="ib-field"><label>\uBCF4\uC0C1 \uD0A4</label><input type="text" name="profile_key" placeholder="\uC608: mana_tombs_reward_profile"><small class="ib-help">\uBCF4\uC0C1 \uD504\uB85C\uD30C\uC77C\uC744 \uAD6C\uBD84\uD560 \uACE0\uC720 \uD0A4\uC785\uB2C8\uB2E4. \uC601\uBB38 \uC18C\uBB38\uC790\uC640 \uBC11\uC904\uB97C \uC8FC\uB85C \uC0AC\uC6A9\uD558\uBA74 \uAD00\uB9AC\uD558\uAE30 \uC88B\uC2B5\uB2C8\uB2E4.</small></div>
+            ${autoKeyFieldTemplate('profile_key', '보상 키', '보상 키는 저장할 때 자동으로 생성됩니다. 수정 화면에서는 현재 생성된 키를 확인할 수 있습니다.')}
             <div class="ib-field"><label>\uC774\uB984</label><input type="text" name="name" placeholder="\uC608: \uB9C8\uB098 \uBB34\uB364 \uAE30\uBCF8 \uBCF4\uC0C1"><small class="ib-help">\uD654\uBA74\uC5D0\uC11C \uBC14\uB85C \uC774\uD574\uD560 \uC218 \uC788\uB294 \uBCF4\uC0C1 \uD504\uB85C\uD30C\uC77C \uC774\uB984\uC744 \uC801\uC5B4\uC8FC\uC138\uC694.</small></div>
             <div class="ib-field"><label>\uD65C\uC131</label><select name="enabled"><option value="1">\uC0AC\uC6A9</option><option value="0">\uBE44\uD65C\uC131</option></select><small class="ib-help">\uBE44\uD65C\uC131\uC73C\uB85C \uB450\uBA74 \uAE30\uC874 \uB370\uC774\uD130\uB294 \uB0A8\uAE30\uACE0 \uD604\uC7AC \uC6B4\uC601\uC5D0\uC11C\uB9CC \uC81C\uC678\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.</small></div>
             <div class="ib-field"><label>\uAC8C\uC2DC \uC0C1\uD0DC</label><select name="publish_status"><option value="draft">\uCD08\uC548</option><option value="review">\uAC80\uD1A0</option><option value="published">\uAC8C\uC2DC</option><option value="archived">\uBCF4\uAD00</option></select><small class="ib-help">\uCD08\uC548\uC740 \uC791\uC131 \uC911, \uAC80\uD1A0\uB294 \uD655\uC778 \uB300\uAE30, \uAC8C\uC2DC\uB294 \uC2E4\uC81C \uC0AC\uC6A9, \uBCF4\uAD00\uC740 \uC774\uC804 \uAE30\uB85D \uBCF4\uAD00 \uC6A9\uB3C4\uC785\uB2C8\uB2E4.</small></div>
@@ -1357,7 +1372,7 @@ function openRewardForm(data = null) {
         }));
         return {
             map_id: Number(form.elements.map_id.value || 0),
-            profile_key: form.elements.profile_key.value,
+            profile_key: String(form.elements.profile_key.value || '').trim(),
             name: form.elements.name.value,
             description: form.elements.description.value,
             enabled: form.elements.enabled.value === '1',
@@ -1368,11 +1383,21 @@ function openRewardForm(data = null) {
 
     async function saveReward(keepEditing = false) {
         const payload = rewardPayload();
-        if (!payload.profile_key || !payload.name) throw new Error('보상 키와 이름은 필수입니다.');
+        if (!payload.name) throw new Error('보상 프로파일 이름은 필수입니다.');
         if (payload.publish_status === 'published' && !confirmPublishWorkflow('보상 프로파일')) return;
-        if (state.rewardEditingId) await api(`/instance-bonus/reward-profiles/${state.rewardEditingId}`, { method: 'PUT', body: JSON.stringify(payload) });
-        else await api('/instance-bonus/reward-profiles', { method: 'POST', body: JSON.stringify(payload) });
+        let savedId = state.rewardEditingId;
+        if (state.rewardEditingId) {
+            await api(`/instance-bonus/reward-profiles/${state.rewardEditingId}`, { method: 'PUT', body: JSON.stringify(payload) });
+        } else {
+            const result = await api('/instance-bonus/reward-profiles', { method: 'POST', body: JSON.stringify(payload) });
+            savedId = result?.reward_profile_id || null;
+        }
         loadRewards();
+        if (keepEditing && savedId) {
+            const latest = await api(`/instance-bonus/reward-profiles/${savedId}`);
+            openRewardForm(latest);
+            return;
+        }
         if (!keepEditing) {
             closeRewardForm();
         }
