@@ -359,7 +359,9 @@ const instanceBonusApp = (() => {
         if (!keyword) return baseOptions;
         return baseOptions.filter((row) => {
             const maxPlayersText = row.max_players ? `최대 ${row.max_players}명` : '';
-            const raw = `${row.map_name} ${row.map_type} ${row.map_id} ${maxPlayersText}`.toLowerCase();
+            const configured = configuredMapById(row.map_id);
+            const difficultyText = configured ? difficultyLabel(configured.difficulty_mask, row.map_type, true) : '';
+            const raw = `${row.map_name} ${row.map_type} ${row.map_id} ${maxPlayersText} ${difficultyText}`.toLowerCase();
             return raw.includes(keyword);
         });
     }
@@ -428,7 +430,10 @@ const instanceBonusApp = (() => {
         }
         filtered.forEach((row) => {
             const suffix = row.max_players ? ` · 최대 ${row.max_players}명` : '';
-            const label = `${row.map_name} (${row.map_type})${suffix}`;
+            const configured = configuredMapById(row.map_id);
+            const normalizedDifficulty = configured ? normalizeMapDifficultyValue(configured.difficulty_mask, row.map_type, true) : 0;
+            const difficultyText = pickerOptions.includeDifficulty && normalizedDifficulty ? ` · ${difficultyLabel(normalizedDifficulty, row.map_type, true)}` : '';
+            const label = `${row.map_name} (${row.map_type})${suffix}${difficultyText}`;
             optionItems.push(`<button type="button" class="ib-map-picker-option ${String(selectedValue) === String(row.map_id) ? 'active' : ''}" data-value="${row.map_id}">${escapeHtml(label)}</button>`);
         });
         picker.innerHTML = `
