@@ -493,7 +493,7 @@ const instanceBonusApp = (() => {
             ['rewards-filter-map-id', true, '전체'],
             ['daily-usage-filter-map-id', true, '전체'],
             ['runs-filter-map-id', true, '전체'],
-            ['map-form-map-id', false, '던전/레이드'],
+            ['map-form-map-id', false, '던전/레이드를 선택해주세요.'],
             ['mission-form-map-id', false, '던전/레이드'],
             ['theme-form-map-id', false, '던전/레이드'],
             ['reward-form-map-id', false, '던전/레이드']
@@ -610,7 +610,7 @@ const instanceBonusApp = (() => {
         const form = document.getElementById('map-form');
         form.innerHTML = [
             formSection('맵 공통 설정', '맵 자체의 기본 규칙을 정하는 화면입니다. 여기서 정한 기본값은 미션이 별도 값을 가지지 않을 때 공통 기준으로 사용됩니다.'),
-            `<div class="ib-field"><label>던전/레이드 선택</label><div class="ib-map-picker" data-target="map-form-map-id" data-empty="던전/레이드"></div><select id="map-form-map-id" name="map_id" hidden></select><small class="ib-help">추가미션을 적용할 던전이나 레이드를 선택하세요.</small></div>`,
+            `<div class="ib-field"><label>던전/레이드 선택</label><div class="ib-map-picker" data-target="map-form-map-id" data-empty="던전/레이드를 선택해주세요."></div><select id="map-form-map-id" name="map_id" hidden></select><small class="ib-help">추가미션을 적용할 던전이나 레이드를 선택하세요.</small></div>`,
             `<div class="ib-field"><label>맵 이름</label><input id="map-form-map-name" type="text" name="map_name" readonly><small class="ib-help">선택한 맵의 이름이 자동으로 채워집니다.</small></div>`,
             `<div class="ib-field full"><div id="map-difficulty-manager" class="ib-map-difficulty-manager"></div></div>`,
             ...mapFields.filter((field) => !['map_id', 'map_name'].includes(field.name)).map((field) => fieldTemplate(field)),
@@ -643,6 +643,11 @@ const instanceBonusApp = (() => {
             form.elements.min_party_size.value = '1';
             form.elements.max_party_size.value = '5';
             form.elements.max_concurrent_missions.value = '1';
+        }
+        const mapSelect = document.getElementById('map-form-map-id');
+        if (mapSelect) {
+            mapSelect.value = data ? String(data.map_id || '') : '';
+            renderMapPicker('map-form-map-id', false, '던전/레이드를 선택해주세요.', '');
         }
         syncMapNameFromSelect();
         renderMapDifficultyManager();
