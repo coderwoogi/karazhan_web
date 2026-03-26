@@ -7,6 +7,7 @@ import (
 	"karazhan/pkg/config"
 	"karazhan/pkg/stats"
 	"log"
+	"math"
 	"net/http"
 	"path/filepath"
 	"sort"
@@ -22,6 +23,7 @@ var updateDB *sql.DB
 var charactersDB *sql.DB
 var authDB *sql.DB
 var columnTypeCache sync.Map
+var columnExistsCache sync.Map
 var operatorNameCache sync.Map
 
 const menuID = "instance-bonus-admin"
@@ -643,7 +645,13 @@ func ensureSchema() {
 	runSchemaAlter(`ALTER TABLE instance_bonus_map_config ADD COLUMN updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER updated_by`)
 	runSchemaAlter(`ALTER TABLE instance_bonus_mission ADD COLUMN difficulty_mask INT UNSIGNED NOT NULL DEFAULT 0 AFTER map_id`)
 	runSchemaAlter(`ALTER TABLE instance_bonus_theme ADD COLUMN difficulty_mask INT UNSIGNED NOT NULL DEFAULT 0 AFTER map_id`)
+	runSchemaAlter(`ALTER TABLE instance_bonus_reward_profile ADD COLUMN map_id INT UNSIGNED NOT NULL DEFAULT 0 AFTER reward_profile_id`)
+	runSchemaAlter(`ALTER TABLE instance_bonus_reward_profile ADD COLUMN profile_key VARCHAR(80) NOT NULL DEFAULT '' AFTER map_id`)
+	runSchemaAlter(`ALTER TABLE instance_bonus_reward_profile MODIFY COLUMN publish_status VARCHAR(20) NOT NULL DEFAULT 'draft'`)
+	runSchemaAlter(`ALTER TABLE instance_bonus_reward_profile_item ADD COLUMN item_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT UNIQUE FIRST`)
 	runSchemaAlter(`ALTER TABLE instance_bonus_reward_profile_item ADD COLUMN sort_order INT UNSIGNED NOT NULL DEFAULT 0 AFTER chance`)
+	runSchemaAlter(`ALTER TABLE instance_bonus_reward_profile_item ADD COLUMN updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER sort_order`)
+	syncLegacyRewardProfiles()
 }
 
 type mapDifficultyContentResponse struct {
@@ -702,14 +710,14 @@ func currentUserID(r *http.Request) int64 {
 	return accountID
 }
 
-func isNumericColumn(tableName, columnName string) bool {
+func columnDataType(tableName, columnName string) string {
 	cacheKey := tableName + "." + columnName
 	if cached, ok := columnTypeCache.Load(cacheKey); ok {
-		return cached.(bool)
+		return cached.(string)
 	}
 	if worldDB == nil {
-		columnTypeCache.Store(cacheKey, false)
-		return false
+		columnTypeCache.Store(cacheKey, "")
+		return ""
 	}
 	var dataType string
 	err := worldDB.QueryRow(`
@@ -719,9 +727,39 @@ func isNumericColumn(tableName, columnName string) bool {
 		LIMIT 1
 	`, tableName, columnName).Scan(&dataType)
 	if err != nil {
-		columnTypeCache.Store(cacheKey, false)
+		columnTypeCache.Store(cacheKey, "")
+		return ""
+	}
+	columnTypeCache.Store(cacheKey, dataType)
+	return dataType
+}
+
+func hasColumn(tableName, columnName string) bool {
+	cacheKey := tableName + "." + columnName
+	if cached, ok := columnExistsCache.Load(cacheKey); ok {
+		return cached.(bool)
+	}
+	if worldDB == nil {
+		columnExistsCache.Store(cacheKey, false)
 		return false
 	}
+	var exists int
+	err := worldDB.QueryRow(`
+		SELECT COUNT(*)
+		FROM information_schema.COLUMNS
+		WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?
+	`, tableName, columnName).Scan(&exists)
+	if err != nil {
+		columnExistsCache.Store(cacheKey, false)
+		return false
+	}
+	result := exists > 0
+	columnExistsCache.Store(cacheKey, result)
+	return result
+}
+
+func isNumericColumn(tableName, columnName string) bool {
+	dataType := columnDataType(tableName, columnName)
 	numeric := map[string]bool{
 		"tinyint":   true,
 		"smallint":  true,
@@ -731,8 +769,79 @@ func isNumericColumn(tableName, columnName string) bool {
 		"decimal":   true,
 		"numeric":   true,
 	}[dataType]
-	columnTypeCache.Store(cacheKey, numeric)
 	return numeric
+}
+
+func isIntegerColumn(tableName, columnName string) bool {
+	dataType := columnDataType(tableName, columnName)
+	return map[string]bool{
+		"tinyint":   true,
+		"smallint":  true,
+		"mediumint": true,
+		"int":       true,
+		"bigint":    true,
+	}[dataType]
+}
+
+func rewardProfileTimeExpr(columnName string) string {
+	if isIntegerColumn("instance_bonus_reward_profile", columnName) {
+		return fmt.Sprintf("CASE WHEN %s > 0 THEN DATE_FORMAT(FROM_UNIXTIME(%s), '%%Y-%%m-%%d %%H:%%i:%%s') ELSE '' END", columnName, columnName)
+	}
+	return fmt.Sprintf("DATE_FORMAT(%s, '%%Y-%%m-%%d %%H:%%i:%%s')", columnName)
+}
+
+func rewardProfileItemChanceExpr() string {
+	if isIntegerColumn("instance_bonus_reward_profile_item", "chance") {
+		return "CASE WHEN ri.chance > 100 THEN ri.chance / 100.0 ELSE ri.chance END"
+	}
+	return "ri.chance"
+}
+
+func rewardProfileItemTimeExpr() string {
+	if !hasColumn("instance_bonus_reward_profile_item", "updated_at") {
+		return "''"
+	}
+	if isIntegerColumn("instance_bonus_reward_profile_item", "updated_at") {
+		return "CASE WHEN ri.updated_at > 0 THEN DATE_FORMAT(FROM_UNIXTIME(ri.updated_at), '%Y-%m-%d %H:%i:%s') ELSE '' END"
+	}
+	return "DATE_FORMAT(ri.updated_at, '%Y-%m-%d %H:%i:%s')"
+}
+
+func rewardChanceForStorage(chance float64) any {
+	if isIntegerColumn("instance_bonus_reward_profile_item", "chance") {
+		return int(math.Round(chance * 100))
+	}
+	return chance
+}
+
+func syncLegacyRewardProfiles() {
+	if worldDB == nil {
+		return
+	}
+	_, _ = worldDB.Exec(`
+		UPDATE instance_bonus_reward_profile rp
+		JOIN (
+			SELECT reward_profile_id, MIN(map_id) AS map_id
+			FROM instance_bonus_mission
+			WHERE reward_profile_id > 0
+			GROUP BY reward_profile_id
+		) src ON src.reward_profile_id = rp.reward_profile_id
+		SET rp.map_id = src.map_id
+		WHERE IFNULL(rp.map_id, 0) = 0`)
+	_, _ = worldDB.Exec(`
+		UPDATE instance_bonus_reward_profile
+		SET profile_key = CONCAT('legacy_reward_', reward_profile_id)
+		WHERE IFNULL(profile_key, '') = ''`)
+	_, _ = worldDB.Exec(`
+		UPDATE instance_bonus_reward_profile
+		SET publish_status = CASE CAST(publish_status AS CHAR)
+			WHEN '0' THEN 'draft'
+			WHEN '1' THEN 'review'
+			WHEN '2' THEN 'published'
+			WHEN '3' THEN 'archived'
+			ELSE CAST(publish_status AS CHAR)
+		END
+		WHERE CAST(publish_status AS CHAR) IN ('0','1','2','3')`)
 }
 
 func updatedByValue(tableName string, r *http.Request) any {
@@ -1929,8 +2038,18 @@ func handleRewardProfiles(w http.ResponseWriter, r *http.Request) {
 		where := " WHERE " + strings.Join(conds, " AND ")
 		var total int
 		_ = worldDB.QueryRow(`SELECT COUNT(*) FROM instance_bonus_reward_profile`+where, args...).Scan(&total)
-		rows, err := worldDB.Query(`SELECT reward_profile_id, map_id, profile_key, name, IFNULL(description,''), enabled, publish_status, version, IFNULL(updated_by,''), DATE_FORMAT(updated_at, '%Y-%m-%d %H:%i:%s'), DATE_FORMAT(created_at, '%Y-%m-%d %H:%i:%s')
-			FROM instance_bonus_reward_profile`+where+` ORDER BY updated_at DESC, reward_profile_id DESC LIMIT ? OFFSET ?`, append(args, limit, offset)...)
+		query := fmt.Sprintf(`SELECT reward_profile_id, map_id, profile_key, name, IFNULL(description,''), enabled,
+			CASE CAST(publish_status AS CHAR)
+				WHEN '0' THEN 'draft'
+				WHEN '1' THEN 'review'
+				WHEN '2' THEN 'published'
+				WHEN '3' THEN 'archived'
+				ELSE CAST(publish_status AS CHAR)
+			END,
+			version, CAST(IFNULL(updated_by,'') AS CHAR), %s, %s
+			FROM instance_bonus_reward_profile%s ORDER BY reward_profile_id DESC LIMIT ? OFFSET ?`,
+			rewardProfileTimeExpr("updated_at"), rewardProfileTimeExpr("created_at"), where)
+		rows, err := worldDB.Query(query, append(args, limit, offset)...)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -1979,30 +2098,42 @@ func handleRewardProfileByID(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
 		var item rewardProfile
-		err = worldDB.QueryRow(`SELECT reward_profile_id, map_id, profile_key, name, IFNULL(description,''), enabled, publish_status, version, IFNULL(updated_by,''), DATE_FORMAT(updated_at, '%Y-%m-%d %H:%i:%s'), DATE_FORMAT(created_at, '%Y-%m-%d %H:%i:%s')
-			FROM instance_bonus_reward_profile WHERE reward_profile_id=?`, id).
+		query := fmt.Sprintf(`SELECT reward_profile_id, map_id, profile_key, name, IFNULL(description,''), enabled,
+			CASE CAST(publish_status AS CHAR)
+				WHEN '0' THEN 'draft'
+				WHEN '1' THEN 'review'
+				WHEN '2' THEN 'published'
+				WHEN '3' THEN 'archived'
+				ELSE CAST(publish_status AS CHAR)
+			END,
+			version, CAST(IFNULL(updated_by,'') AS CHAR), %s, %s
+			FROM instance_bonus_reward_profile WHERE reward_profile_id=?`,
+			rewardProfileTimeExpr("updated_at"), rewardProfileTimeExpr("created_at"))
+		err = worldDB.QueryRow(query, id).
 			Scan(&item.RewardProfileID, &item.MapID, &item.ProfileKey, &item.Name, &item.Description, &item.Enabled, &item.PublishStatus, &item.Version, &item.UpdatedBy, &item.UpdatedAt, &item.CreatedAt)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusNotFound)
 			return
 		}
-		rows, _ := worldDB.Query(`
+		itemRowsQuery := fmt.Sprintf(`
 			SELECT
-				ri.item_id,
+				ri.slot AS item_id,
 				ri.reward_profile_id,
 				ri.grade,
 				ri.item_entry,
 				COALESCE(NULLIF(itl.Name, ''), it.name, CAST(ri.item_entry AS CHAR)) AS item_name,
 				IFNULL(it.Quality, 0) AS quality,
 				ri.item_count,
-				ri.chance,
+				%s AS chance,
 				ri.sort_order,
-				DATE_FORMAT(ri.updated_at, '%Y-%m-%d %H:%i:%s')
+				%s
 			FROM instance_bonus_reward_profile_item ri
 			LEFT JOIN item_template it ON it.entry = ri.item_entry
 			LEFT JOIN item_template_locale itl ON itl.ID = it.entry AND itl.locale = 'koKR'
 			WHERE ri.reward_profile_id=?
-			ORDER BY FIELD(ri.grade,'S','A','B','C','D'), ri.sort_order ASC, ri.item_id ASC`, id)
+			ORDER BY FIELD(ri.grade,'S','A','B','C','D'), ri.sort_order ASC, ri.slot ASC`,
+			rewardProfileItemChanceExpr(), rewardProfileItemTimeExpr())
+		rows, _ := worldDB.Query(itemRowsQuery, id)
 		if rows != nil {
 			defer rows.Close()
 			for rows.Next() {
@@ -2049,17 +2180,35 @@ func replaceRewardProfileItems(profileID int64, items []rewardProfileItem) error
 		return err
 	}
 
+	slotByGrade := map[string]int{}
 	for _, item := range items {
 		grade := strings.TrimSpace(item.Grade)
 		if grade == "" || item.ItemEntry == 0 || item.ItemCount <= 0 {
 			continue
 		}
-		if _, err := tx.Exec(`
-			INSERT INTO instance_bonus_reward_profile_item (
-				reward_profile_id, grade, item_entry, item_count, chance, sort_order
-			) VALUES (?, ?, ?, ?, ?, ?)`,
-			profileID, grade, item.ItemEntry, item.ItemCount, item.Chance, item.SortOrder,
-		); err != nil {
+		slotByGrade[grade]++
+		sortOrder := item.SortOrder
+		if sortOrder <= 0 {
+			sortOrder = slotByGrade[grade]
+		}
+		chanceValue := rewardChanceForStorage(item.Chance)
+		var err error
+		if hasColumn("instance_bonus_reward_profile_item", "slot") {
+			_, err = tx.Exec(`
+				INSERT INTO instance_bonus_reward_profile_item (
+					reward_profile_id, grade, slot, item_entry, item_count, bind_type, chance, sort_order
+				) VALUES (?, ?, ?, ?, ?, 0, ?, ?)`,
+				profileID, grade, slotByGrade[grade], item.ItemEntry, item.ItemCount, chanceValue, sortOrder,
+			)
+		} else {
+			_, err = tx.Exec(`
+				INSERT INTO instance_bonus_reward_profile_item (
+					reward_profile_id, grade, item_entry, item_count, chance, sort_order
+				) VALUES (?, ?, ?, ?, ?, ?)`,
+				profileID, grade, item.ItemEntry, item.ItemCount, chanceValue, sortOrder,
+			)
+		}
+		if err != nil {
 			return err
 		}
 	}
