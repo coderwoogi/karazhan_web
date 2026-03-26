@@ -150,6 +150,7 @@ const instanceBonusApp = (() => {
         themeEditingId: null,
         rewardEditingId: null,
         rewardSearchTarget: null,
+        rewardProfileOptions: [],
         currentRunMeta: null,
         currentRunTab: 'overview',
         currentRunId: null,
@@ -238,6 +239,7 @@ const instanceBonusApp = (() => {
         renderRewardForm();
         await loadMapOptions();
         await loadConfiguredMapOptions();
+        await loadRewardProfileOptions();
         await loadMaps(1, true);
         replaceHistoryState();
         refreshCurrent();
@@ -340,6 +342,12 @@ const instanceBonusApp = (() => {
         const data = await api('/instance-bonus/maps?page=1&limit=200');
         state.configuredMaps = data.items || [];
         applyMapOptions();
+    }
+
+    async function loadRewardProfileOptions() {
+        const data = await api('/instance-bonus/reward-profiles?page=1&limit=500');
+        state.rewardProfileOptions = Array.isArray(data?.items) ? data.items : [];
+        return state.rewardProfileOptions;
     }
 
     function configuredMapOptions() {
@@ -933,9 +941,13 @@ const instanceBonusApp = (() => {
             select.value = '0';
             return;
         }
-        const params = new URLSearchParams({ page: '1', limit: '200', map_id: String(mapId) });
-        const data = await api(`/instance-bonus/reward-profiles?${params.toString()}`);
-        const items = Array.isArray(data?.items) ? data.items : [];
+        if (!state.rewardProfileOptions.length) {
+            await loadRewardProfileOptions();
+        }
+        let items = state.rewardProfileOptions.filter((row) => Number(row.map_id || 0) === mapId || Number(row.map_id || 0) === 0);
+        if (!items.length) {
+            items = state.rewardProfileOptions;
+        }
         if (!items.length) {
             select.innerHTML = '<option value="0">등록된 보상 프로파일이 없습니다.</option>';
             select.value = '0';
@@ -1420,6 +1432,7 @@ function openRewardForm(data = null) {
             const result = await api('/instance-bonus/reward-profiles', { method: 'POST', body: JSON.stringify(payload) });
             savedId = result?.reward_profile_id || null;
         }
+        await loadRewardProfileOptions();
         loadRewards();
         if (keepEditing && savedId) {
             const latest = await api(`/instance-bonus/reward-profiles/${savedId}`);
@@ -1445,6 +1458,9 @@ function openRewardForm(data = null) {
             if (value) params.set(key, value);
         });
         const data = await api(`/instance-bonus/reward-profiles?${params.toString()}`);
+        if (!params.get('map_id') && !params.get('publish_status') && !params.get('search') && Array.isArray(data?.items)) {
+            state.rewardProfileOptions = data.items;
+        }
         const body = document.getElementById('rewards-table');
         body.innerHTML = (data.items || []).length ? data.items.map((row) => `
             <tr>
