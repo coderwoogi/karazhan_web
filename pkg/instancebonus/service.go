@@ -1593,6 +1593,17 @@ func handleMissions(w http.ResponseWriter, r *http.Request) {
 				args = append(args, v)
 			}
 		}
+		if difficultyValue := strings.TrimSpace(r.URL.Query().Get("difficulty_mask")); difficultyValue != "" {
+			if difficultyValue == "0" {
+				conds = append(conds, "difficulty_mask = 0")
+			} else {
+				parsedDifficulty, convErr := strconv.Atoi(difficultyValue)
+				if convErr == nil && parsedDifficulty > 0 {
+					conds = append(conds, "(difficulty_mask = 0 OR (difficulty_mask & ?) <> 0)")
+					args = append(args, parsedDifficulty)
+				}
+			}
+		}
 		search := strings.TrimSpace(r.URL.Query().Get("search"))
 		if search != "" {
 			conds = append(conds, "(name LIKE ? OR mission_key LIKE ? OR target_label LIKE ?)")

@@ -134,7 +134,6 @@ const instanceBonusApp = (() => {
         views: {
             maps: 'list',
             missions: 'list',
-            themes: 'list',
             rewards: 'list'
         },
         mapOptions: [],
@@ -209,6 +208,49 @@ const instanceBonusApp = (() => {
         { value: 32, label: '25인 하드', group: 'raid' }
     ];
 
+    function difficultyLabel(value) {
+        const found = difficultyOptions.find((item) => Number(item.value) === Number(value));
+        return found ? found.label : `난이도 ${value}`;
+    }
+
+    function difficultyMaskLabels(mask, mapType = '') {
+        const parsed = Number(mask || 0);
+        if (parsed === 0) {
+            const options = difficultyOptionsForMapType(mapType || '던전');
+            return options.length ? ['전체 허용'] : ['전체 허용'];
+        }
+        return difficultyOptions
+            .filter((item) => (parsed & item.value) !== 0)
+            .map((item) => item.label);
+    }
+
+    function renderDifficultyBadgeList(mask, mapType = '') {
+        const labels = difficultyMaskLabels(mask, mapType);
+        if (!labels.length) return '<span class="ib-difficulty-pill all">전체 허용</span>';
+        return labels.map((label) => `<span class="ib-difficulty-pill">${escapeHtml(label)}</span>`).join('');
+    }
+
+    function buildDifficultyChecklist(name, selectedMask = 0, mapType = '') {
+        const parsed = Number(selectedMask || 0);
+        const options = difficultyOptionsForMapType(mapType || '던전');
+        return `
+            <div class="ib-difficulty-editor">
+                <div class="ib-difficulty-help">해당 미션이 사용될 난이도를 체크하세요. 아무 것도 체크하지 않으면 전체 허용으로 저장됩니다.</div>
+                <div class="ib-difficulty-checklist">
+                    ${options.map((item) => `
+                        <label class="ib-difficulty-toggle">
+                            <input type="checkbox" name="${name}" value="${item.value}" ${(parsed & item.value) !== 0 ? 'checked' : ''}>
+                            <span>${escapeHtml(item.label)}</span>
+                        </label>`).join('')}
+                </div>
+            </div>`;
+    }
+
+    function collectDifficultyMask(form, fieldName) {
+        const checks = [...form.querySelectorAll(`input[name="${fieldName}"]:checked`)];
+        return checks.reduce((sum, input) => sum + Number(input.value || 0), 0);
+    }
+
 
     async function init() {
         bindTabs();
@@ -220,7 +262,6 @@ const instanceBonusApp = (() => {
         });
         renderMapForm();
         renderMissionForm();
-        renderThemeForm();
         renderRewardForm();
         await loadMapOptions();
         await loadConfiguredMapOptions();
@@ -261,6 +302,9 @@ const instanceBonusApp = (() => {
     }
 
     function applyTabState() {
+        if (state.currentTab === 'themes' || state.currentTab === 'theme-links') {
+            state.currentTab = 'missions';
+        }
         document.querySelectorAll('.ib-tabs .ib-tab[data-tab]').forEach((el) => el.classList.remove('active'));
         document.querySelectorAll('.ib-panel').forEach((el) => el.classList.remove('active'));
         document.querySelector(`.ib-tabs .ib-tab[data-tab="${state.currentTab}"]`)?.classList.add('active');
@@ -270,7 +314,6 @@ const instanceBonusApp = (() => {
     function applyCrudStates() {
         toggleCrudView('maps', state.views.maps, { push: false });
         toggleCrudView('missions', state.views.missions, { push: false });
-        toggleCrudView('themes', state.views.themes, { push: false });
         toggleCrudView('rewards', state.views.rewards, { push: false });
     }
 
@@ -543,12 +586,11 @@ const instanceBonusApp = (() => {
         const data = await api('/instance-bonus/dashboard');
         document.getElementById('dashboard-guide').innerHTML = [
             '1. 먼저 맵 설정에서 어떤 던전이나 레이드를 운영할지 등록합니다.',
-            '2. 보상 프로파일에서 등급별 보상을 먼저 만듭니다.',
-            '3. 미션 관리에서 실제 추가미션을 작성합니다.',
-            '4. 테마 관리에서 미션을 묶을 테마를 만듭니다.',
-            '5. 테마-미션 연결에서 어떤 테마에 어떤 미션이 들어갈지 정리합니다.',
-            '6. 검토가 끝나면 게시 상태를 게시로 바꿔 실제 운영에 투입합니다.',
-            `현재 기존 게임 테이블에는 미션 ${data.runtimeMissionCount || 0}개, 테마 ${data.runtimeThemeCount || 0}개가 있고, 관리용 v2 테이블에는 미션 ${data.v2MissionCount || 0}개, 테마 ${data.v2ThemeCount || 0}개가 있습니다.`
+            '2. 맵 설정에서 해당 던전이나 레이드의 난이도를 정합니다.',
+            '3. 보상 프로파일에서 등급별 보상을 먼저 만듭니다.',
+            '4. 미션 관리에서 맵과 난이도에 맞는 추가미션을 작성합니다.',
+            '5. 검토가 끝나면 게시 상태를 게시로 바꿔 실제 운영에 투입합니다.',
+            `현재 기존 게임 테이블에는 미션 ${data.runtimeMissionCount || 0}개가 있고, 관리용 v2 테이블에는 미션 ${data.v2MissionCount || 0}개가 있습니다.`
         ].map((line) => `<div class="ib-list-item">${line}</div>`).join('');
         document.getElementById('dashboard-stats').innerHTML = [
             ['최근 실행 런 수', data.recentRuns || 0],
@@ -565,9 +607,9 @@ const instanceBonusApp = (() => {
     }
 
     async function importRuntimeData() {
-        if (!confirm('기존 게임 테이블의 미션과 테마 데이터를 v2 관리 화면으로 가져오시겠습니까?\n기존 게임 테이블 자체는 수정하지 않습니다.')) return;
+        if (!confirm('기존 게임 테이블의 미션과 보상 데이터를 관리 화면으로 가져오시겠습니까?\n기존 게임 테이블 자체는 수정하지 않습니다.')) return;
         const result = await api('/instance-bonus/runtime/import', { method: 'POST', body: '{}' });
-        alert(`가져오기가 완료되었습니다.\n맵 설정 ${result.importedMaps}건\n미션 ${result.importedMissions}건\n테마 ${result.importedThemes}건\n연결 ${result.importedLinks}건\n보상 프로파일 ${result.importedRewards || 0}건`);
+        alert(`가져오기가 완료되었습니다.\n맵 설정 ${result.importedMaps}건\n미션 ${result.importedMissions}건\n보상 프로파일 ${result.importedRewards || 0}건`);
         refreshCurrent();
     }
 
@@ -696,6 +738,7 @@ const instanceBonusApp = (() => {
                 <select id="map-difficulty-select" onchange="instanceBonusApp.selectMapDifficulty(this.value)">
                     ${options.map((item) => `<option value="${item.value}" ${item.value === selected.value ? 'selected' : ''}>${escapeHtml(item.label)}</option>`).join('')}
                 </select>
+                <small class="ib-help">이 맵에서 사용할 기본 난이도 유형입니다. 실제 추가미션은 미션 관리에서 이 맵을 선택해 등록합니다.</small>
             </div>`;
     }
 
@@ -704,17 +747,6 @@ const instanceBonusApp = (() => {
         renderMapDifficultyManager();
     }
 
-    function openMissionFormForMapDifficulty() {
-        const mapId = Number(document.getElementById('map-form-map-id')?.value || 0);
-        if (!mapId) return;
-        openMissionForm({ map_id: mapId, difficulty_mask: currentMapDifficultyOption().value, enabled: 1, publish_status: 'draft' });
-    }
-
-    function openThemeFormForMapDifficulty() {
-        const mapId = Number(document.getElementById('map-form-map-id')?.value || 0);
-        if (!mapId) return;
-        openThemeForm({ map_id: mapId, difficulty_mask: currentMapDifficultyOption().value, enabled: 1, publish_status: 'draft' });
-    }
     async function saveMap(keepEditing = false) {
         const payload = mapPayload();
         if (state.mapEditingId) {
@@ -751,7 +783,7 @@ const instanceBonusApp = (() => {
                 <td>${row.min_party_size || 0} ~ ${row.max_party_size || 0}</td>
                 <td>${row.max_concurrent_missions || 0}</td>
                 <td>${escapeHtml(row.updated_by || '-')}</td>
-                <td><div class="ib-actions"><button class="ib-btn ib-btn-primary" onclick="instanceBonusApp.editMapById(${row.map_id}, true)">난이도 작업</button><button class="ib-btn ib-btn-ghost" onclick="instanceBonusApp.editMapById(${row.map_id})">수정</button><button class="ib-btn ib-btn-danger" onclick="instanceBonusApp.deleteMap(${row.map_id})">삭제</button></div></td>
+                <td><div class="ib-actions"><button class="ib-btn ib-btn-ghost" onclick="instanceBonusApp.editMapById(${row.map_id})">수정</button><button class="ib-btn ib-btn-danger" onclick="instanceBonusApp.deleteMap(${row.map_id})">삭제</button></div></td>
             </tr>`).join('') : '<tr><td colspan="10" class="ib-empty">등록된 맵 설정이 없습니다.</td></tr>';
         renderPagination('maps-pagination', data.page || 1, data.total || 0, data.limit || 20, 'loadMaps');
     }
@@ -775,6 +807,7 @@ const instanceBonusApp = (() => {
         const sections = [
             formSection('기본 정보', '맵 설정에 먼저 등록한 던전이나 레이드를 고른 뒤, 그 맵에서 사용할 추가미션을 작성하는 화면입니다.'),
             `<div class="ib-field"><label>던전/레이드 선택</label><div class="ib-map-picker" data-target="mission-form-map-id" data-empty="던전/레이드를 선택하세요"></div><select id="mission-form-map-id" name="map_id" hidden></select><small class="ib-help">맵 설정에 먼저 등록한 던전이나 레이드만 선택할 수 있습니다.</small></div>`,
+            `<div class="ib-field full"><label>적용 난이도</label><div id="mission-difficulty-mask-box"></div><small class="ib-help">여기서 체크한 난이도에만 이 미션이 후보로 들어갑니다. 체크하지 않으면 전체 허용으로 저장됩니다.</small></div>`,
             fieldTemplate({ name: 'mission_key', label: '미션 키', help: '내부 식별용 키입니다.' }),
             fieldTemplate({ name: 'name', label: '미션 이름', help: '운영 화면과 게임 안에서 보일 이름입니다.' }),
             fieldTemplate({ name: 'description', label: '설명', type: 'textarea', full: true, help: '운영자가 미션 내용을 이해하기 위한 설명입니다.' }),
@@ -796,8 +829,6 @@ const instanceBonusApp = (() => {
             formSection('보상 설정', '미션 완료 시 연결할 보상과 선택 비중을 정합니다.'),
             fieldTemplate({ name: 'reward_profile_id', label: '보상 프로파일 ID', type: 'number', help: '완료 시 연결할 보상 프로파일 번호입니다.' }),
             fieldTemplate({ name: 'difficulty_weight', label: '난이도 가중치', type: 'number', help: '미션 선택 시 상대적인 등장 비율이나 난이도 보정을 위한 값입니다.' }),
-            `<input type="hidden" id="mission-form-difficulty-mask" name="difficulty_mask" value="0">`,
-            `<div class="ib-field full"><label>적용 난이도</label><div class="ib-static-note">이 값은 맵 설정에서 선택한 난이도를 따라 자동으로 들어갑니다. 미션 관리 화면에서는 따로 바꾸지 않습니다.</div></div>`,
 
             formSection('파티 조건 및 게시 상태', '어떤 파티에서 이 미션을 쓸 수 있는지와 운영 상태를 정합니다.'),
             fieldTemplate({ name: 'min_party_size', label: '최소 파티 수', type: 'number', help: '이보다 적은 인원에서는 미션을 사용하지 않습니다.' }),
@@ -812,12 +843,19 @@ const instanceBonusApp = (() => {
         ];
         form.innerHTML = sections.join('');
         applyMapOptions();
-        document.getElementById('mission-form-difficulty-mask').value = '0';
+        document.getElementById('mission-form-map-id')?.addEventListener('change', () => {
+            const currentMask = collectDifficultyMask(form, 'mission-form-difficulty-mask');
+            const mapType = mapTypeForValue(form.elements.map_id?.value || 0);
+            const difficultyBox = document.getElementById('mission-difficulty-mask-box');
+            if (difficultyBox) {
+                difficultyBox.innerHTML = buildDifficultyChecklist('mission-form-difficulty-mask', currentMask, mapType);
+            }
+        });
     }
     function openMissionForm(data = null) {
         state.missionEditingId = data ? data.mission_id : null;
         toggleCrudView('missions', 'form');
-        document.getElementById('mission-form-title').textContent = data ? `誘몄뀡 ?섏젙 #${data.mission_id}` : '誘몄뀡 ?깅줉';
+        document.getElementById('mission-form-title').textContent = data ? `미션 수정 #${data.mission_id}` : '미션 등록';
         const form = document.getElementById('mission-form');
         missionFields.forEach(([name, , type]) => {
             const el = form.elements[name];
@@ -831,12 +869,12 @@ const instanceBonusApp = (() => {
             form.elements.enabled.value = '1';
         }
         applyMapOptions();
-        const missionDifficultyValue = data?.difficulty_mask ?? (
-            state.mapDifficulty.mapId && Number(state.mapDifficulty.mapId) === Number(form.elements.map_id?.value || 0)
-                ? currentMapDifficultyOption().value
-                : 0
-        );
-        form.elements.difficulty_mask.value = String(missionDifficultyValue || 0);
+        const mapType = mapTypeForValue(form.elements.map_id?.value || 0);
+        const missionDifficultyValue = data?.difficulty_mask ?? 0;
+        const difficultyBox = document.getElementById('mission-difficulty-mask-box');
+        if (difficultyBox) {
+            difficultyBox.innerHTML = buildDifficultyChecklist('mission-form-difficulty-mask', missionDifficultyValue, mapType);
+        }
     }
 
     function closeMissionForm() {
@@ -854,8 +892,8 @@ const instanceBonusApp = (() => {
             else if (type === 'checkbox') data[name] = el.value === '1';
             else data[name] = el.value;
         });
-        data.difficulty_mask = Number(form.elements.difficulty_mask?.value || 0);
-        if (!data.mission_key || !data.name) throw new Error('誘몄뀡 ?ㅼ? ?대쫫? ?꾩닔?낅땲??');
+        data.difficulty_mask = collectDifficultyMask(form, 'mission-form-difficulty-mask');
+        if (!data.mission_key || !data.name) throw new Error('미션 키와 이름은 필수입니다.');
         return data;
     }
 
@@ -873,7 +911,7 @@ const instanceBonusApp = (() => {
     }
 
     function resetMissionFilter() {
-        ['missions-filter-map-id','missions-filter-publish','missions-filter-enabled','missions-filter-type','missions-filter-objective','missions-filter-keyword'].forEach((id) => { const el = document.getElementById(id); if (el) el.value = ''; });
+        ['missions-filter-map-id','missions-filter-difficulty','missions-filter-publish','missions-filter-enabled','missions-filter-type','missions-filter-objective','missions-filter-keyword'].forEach((id) => { const el = document.getElementById(id); if (el) el.value = ''; });
         state.missionsPage = 1;
         loadMissions();
     }
@@ -881,7 +919,7 @@ const instanceBonusApp = (() => {
     async function loadMissions(page = state.missionsPage) {
         state.missionsPage = page;
         const params = new URLSearchParams({ page: String(page), limit: '20' });
-        [['map_id','missions-filter-map-id'],['publish_status','missions-filter-publish'],['enabled','missions-filter-enabled'],['mission_type','missions-filter-type'],['objective_type','missions-filter-objective'],['search','missions-filter-keyword']].forEach(([key,id]) => {
+        [['map_id','missions-filter-map-id'],['difficulty_mask','missions-filter-difficulty'],['publish_status','missions-filter-publish'],['enabled','missions-filter-enabled'],['mission_type','missions-filter-type'],['objective_type','missions-filter-objective'],['search','missions-filter-keyword']].forEach(([key,id]) => {
             const value = document.getElementById(id)?.value.trim();
             if (value) params.set(key, value);
         });
@@ -890,12 +928,12 @@ const instanceBonusApp = (() => {
         const body = document.getElementById('missions-table');
         body.innerHTML = state.missionsCache.length ? state.missionsCache.map((row) => `
             <tr>
-                <td>${row.mission_id}</td><td>${row.map_id}</td><td>${escapeHtml(row.mission_key)}</td><td>${escapeHtml(row.name)}</td>
+                <td>${row.mission_id}</td><td>${escapeHtml(mapNameById(row.map_id))}</td><td>${escapeHtml(row.mission_key)}</td><td>${escapeHtml(row.name)}</td>
                 <td>${escapeHtml(row.mission_type)}</td><td>${escapeHtml(row.objective_type)}</td><td>${escapeHtml(row.target_label)}</td>
-                <td>${row.target_count || 0}</td><td>${row.time_limit_sec || 0}</td><td>${badge(row.enabled)}</td>
+                <td>${renderDifficultyBadgeList(row.difficulty_mask, mapTypeForValue(row.map_id))}</td><td>${row.target_count || 0}</td><td>${row.time_limit_sec || 0}</td><td>${badge(row.enabled)}</td>
                 <td>${publishBadge(row.publish_status)}</td><td>${row.version || 1}</td><td>${escapeHtml(row.updated_at || '-')}</td>
-                <td><div class="ib-actions"><button class="ib-btn ib-btn-ghost" onclick="instanceBonusApp.fetchMission(${row.mission_id})">?몄쭛</button></div></td>
-            </tr>`).join('') : '<tr><td colspan="14" class="ib-empty">?깅줉??誘몄뀡???놁뒿?덈떎. 湲곗〈 寃뚯엫 ?뚯씠釉붿뿉 ?ｌ뼱??誘몄뀡? ??쒕낫?쒖쓽 "湲곗〈 寃뚯엫 ?곗씠??媛?몄삤湲?瑜?癒쇱? ?뚮윭二쇱꽭??</td></tr>';
+                <td><div class="ib-actions"><button class="ib-btn ib-btn-ghost" onclick="instanceBonusApp.fetchMission(${row.mission_id})">수정</button></div></td>
+            </tr>`).join('') : '<tr><td colspan="15" class="ib-empty">등록된 미션이 없습니다. 대시보드에서 기존 게임 데이터를 가져오거나 새 미션을 추가하세요.</td></tr>';
         renderPagination('missions-pagination', data.page || 1, data.total || 0, data.limit || 20, 'loadMissions');
         loadMissionCandidates();
     }
@@ -1354,7 +1392,7 @@ function openRewardForm(data = null) {
     }
 
     function resetRunFilter() {
-        ['runs-filter-map-id','runs-filter-theme-id','runs-filter-mission-id','runs-filter-status','runs-filter-grade','runs-filter-llm','runs-filter-from','runs-filter-to','runs-filter-keyword'].forEach((id) => { const el = document.getElementById(id); if (el) el.value = ''; });
+        ['runs-filter-map-id','runs-filter-mission-id','runs-filter-status','runs-filter-grade','runs-filter-llm','runs-filter-from','runs-filter-to','runs-filter-keyword'].forEach((id) => { const el = document.getElementById(id); if (el) el.value = ''; });
         state.runsPage = 1;
         loadRuns();
     }
@@ -1382,7 +1420,7 @@ function openRewardForm(data = null) {
         if (notice) {
             if (!(data.items || []).length && limitedMaps.length === 0) {
                 notice.style.display = 'block';
-                notice.textContent = '?꾩옱 ?쒖꽦 ?섏쟾/?덉씠?쒖쓽 ?쇱씪 ?쒗븳 媛믪씠 紐⑤몢 0(臾댁젣???대씪 ?ъ슜??湲곕줉???볦씠吏 ?딄퀬 ?덉뒿?덈떎.';
+                notice.textContent = '현재 활성 던전과 레이드의 일일 제한 값이 모두 0(무제한)이라 사용량 기록이 쌓이지 않고 있습니다.';
             } else {
                 notice.style.display = 'none';
                 notice.textContent = '';
@@ -1396,13 +1434,13 @@ function openRewardForm(data = null) {
                 <td>${row.guid || 0}</td>
                 <td>${row.success_count || 0}</td>
                 <td>${escapeHtml(row.updated_at || '-')}</td>
-                <td><button class="ib-btn ib-btn-danger" onclick='instanceBonusApp.resetDailyUsage(${JSON.stringify(row.usage_date || "")}, ${Number(row.map_id || 0)}, ${Number(row.guid || 0)}, ${JSON.stringify(row.character_name || "-")})'>珥덇린??/button></td>
-            </tr>`).join('') : '<tr><td colspan="7" class="ib-empty">議고쉶???쇱씪 ?ъ슜?됱씠 ?놁뒿?덈떎.</td></tr>';
+                <td><button class="ib-btn ib-btn-danger" onclick='instanceBonusApp.resetDailyUsage(${JSON.stringify(row.usage_date || "")}, ${Number(row.map_id || 0)}, ${Number(row.guid || 0)}, ${JSON.stringify(row.character_name || "-")})'>초기화</button></td>
+            </tr>`).join('') : '<tr><td colspan="7" class="ib-empty">조회된 일일 사용량이 없습니다.</td></tr>';
         renderPagination('daily-usage-pagination', data.page || 1, data.total || 0, data.limit || 20, 'loadDailyUsage');
     }
 
     async function resetDailyUsage(usageDate, mapId, guid, characterName) {
-        if (!confirm(`${characterName}??${usageDate} ?ъ슜??湲곕줉??珥덇린?뷀븯?쒓쿋?듬땲源?`)) return;
+        if (!confirm(`${characterName}의 ${usageDate} 사용량 기록을 초기화하시겠습니까?`)) return;
         await api('/instance-bonus/daily-usage/reset', {
             method: 'POST',
             body: JSON.stringify({ usage_date: usageDate, map_id: Number(mapId), guid: Number(guid) })
@@ -1413,7 +1451,7 @@ function openRewardForm(data = null) {
     async function loadRuns(page = state.runsPage) {
         state.runsPage = page;
         const params = new URLSearchParams({ page: String(page), limit: '20' });
-        [['map_id','runs-filter-map-id'],['theme_id','runs-filter-theme-id'],['mission_id','runs-filter-mission-id'],['status','runs-filter-status'],['grade','runs-filter-grade'],['llm_used','runs-filter-llm'],['started_from','runs-filter-from'],['started_to','runs-filter-to'],['keyword','runs-filter-keyword']].forEach(([key,id]) => {
+        [['map_id','runs-filter-map-id'],['mission_id','runs-filter-mission-id'],['status','runs-filter-status'],['grade','runs-filter-grade'],['llm_used','runs-filter-llm'],['started_from','runs-filter-from'],['started_to','runs-filter-to'],['keyword','runs-filter-keyword']].forEach(([key,id]) => {
             const value = document.getElementById(id)?.value.trim();
             if (value) params.set(key, value);
         });
@@ -1424,7 +1462,7 @@ function openRewardForm(data = null) {
         if (notice) {
             if (hasLegacyRows) {
                 notice.style.display = 'block';
-                notice.textContent = '?꾩옱??湲곗〈 ?ㅼ떆媛?誘몄뀡 湲곕줉???④퍡 ?쒖떆?섍퀬 ?덉뒿?덈떎. 李멸????ы몴/蹂댁긽/?대깽??LLM ?곸꽭???쒕쾭媛 ??濡쒓렇 ?뚯씠釉붿뿉 湲곕줉???뚮????꾩쟻?⑸땲??';
+                notice.textContent = '현재는 기존 실시간 미션 기록을 함께 표시하고 있습니다. 참가자, 투표, 보상, 이벤트, LLM 상세는 서버가 별도 로그 테이블에 기록해야 누적됩니다.';
             } else {
                 notice.style.display = 'none';
                 notice.textContent = '';
@@ -1432,11 +1470,11 @@ function openRewardForm(data = null) {
         }
         body.innerHTML = (data.items || []).length ? data.items.map((row) => `
             <tr>
-                <td>${row.run_id}</td><td>${escapeHtml(mapNameById(row.map_id))}<div class="ib-help">ID ${row.map_id}</div></td><td>${escapeHtml(row.theme_name || '-')}</td><td>${escapeHtml(row.mission_name || '-')}</td>
-                <td>${escapeHtml(row.status || '-')} ${row.source === 'legacy_live' ? '<div class="ib-help">湲곗〈 ?ㅼ떆媛?湲곕줉</div>' : ''}</td><td>${escapeHtml(row.grade || '-')}</td><td>${escapeHtml(row.started_at || '-')}</td><td>${escapeHtml(row.ended_at || '-')}</td>
+                <td>${row.run_id}</td><td>${escapeHtml(mapNameById(row.map_id))}<div class="ib-help">ID ${row.map_id}</div></td><td>${escapeHtml(row.mission_name || '-')}</td>
+                <td>${escapeHtml(row.status || '-')} ${row.source === 'legacy_live' ? '<div class="ib-help">기존 실시간 기록</div>' : ''}</td><td>${escapeHtml(row.grade || '-')}</td><td>${escapeHtml(row.started_at || '-')}</td><td>${escapeHtml(row.ended_at || '-')}</td>
                 <td>${row.clear_time_sec || 0}</td><td>${row.deaths || 0}</td><td>${row.wipes || 0}</td><td>${row.score || 0}</td><td>${row.vote_yes || 0} / ${row.vote_no || 0}</td>
-                <td><button class="ib-btn ib-btn-ghost" onclick="instanceBonusApp.loadRunDetail(${row.run_id})">?곸꽭</button></td>
-            </tr>`).join('') : '<tr><td colspan="14" class="ib-empty">??濡쒓렇媛 ?놁뒿?덈떎.</td></tr>';
+                <td><button class="ib-btn ib-btn-ghost" onclick="instanceBonusApp.loadRunDetail(${row.run_id})">상세</button></td>
+            </tr>`).join('') : '<tr><td colspan="13" class="ib-empty">런 로그가 없습니다.</td></tr>';
         renderPagination('runs-pagination', data.page || 1, data.total || 0, data.limit || 20, 'loadRuns');
     }
 
@@ -1456,7 +1494,7 @@ function openRewardForm(data = null) {
             const row = await api(`/instance-bonus/runs/${runId}`);
             state.currentRunMeta = row;
             body.innerHTML = `<div class="ib-detail-grid">${[
-                ['기록 번호', row.run_id], ['던전/레이드', mapNameById(row.map_id)], ['테마', row.theme_name || '-'], ['미션', row.mission_name || '-'],
+                ['기록 번호', row.run_id], ['던전/레이드', mapNameById(row.map_id)], ['미션', row.mission_name || '-'],
                 ['기록 출처', row.source === 'legacy_live' ? '기존 실시간 미션 기록' : '상세 로그'],
                 ['상태', row.status || '-'], ['등급', row.grade || '-'], ['시작 시각', row.started_at || '-'], ['종료 시각', row.ended_at || '-'],
                 ['클리어 시간(초)', row.clear_time_sec || 0], ['사망 수', row.deaths || 0], ['전멸 수', row.wipes || 0], ['점수', row.score || 0],
@@ -1507,9 +1545,7 @@ function openRewardForm(data = null) {
             ],
             llm: [
                 { key: 'llm_log_id', label: 'LLM 기록 번호' },
-                { key: 'candidate_theme', label: '후보 테마' },
                 { key: 'candidate_mission', label: '후보 미션' },
-                { key: 'selected_theme', label: '선택 테마' },
                 { key: 'selected_mission', label: '선택 미션' },
                 { key: 'fallback_used', label: '대체 선택 사용', render: (row) => row.fallback_used ? '예' : '아니오' },
                 { key: 'created_at', label: '생성 시각' }
@@ -1531,8 +1567,6 @@ function openRewardForm(data = null) {
             case 'dashboard': return loadDashboard();
             case 'maps': return loadMaps();
             case 'missions': return loadMissions();
-            case 'themes': return loadThemes();
-            case 'theme-links': return Promise.all([loadThemes(1), loadMissionCandidates()]).then(() => loadThemeLinks().catch(() => {}));
             case 'rewards': return loadRewards();
             case 'daily-usage': return loadDailyUsage();
             case 'runs': return loadRuns();

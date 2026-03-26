@@ -13,7 +13,7 @@
             <div>
                 <p class="ib-eyebrow">추가 미션 운영 도구</p>
                 <h1>던전/레이드 콘텐츠 관리</h1>
-                <p class="ib-subtitle">던전 설정부터 미션, 테마, 보상, 실행 기록까지 한 화면에서 관리합니다.</p>
+                <p class="ib-subtitle">던전 설정부터 미션, 보상, 실행 기록까지 한 화면에서 관리합니다.</p>
             </div>
             <div class="ib-hero-actions">
                 <button class="ib-btn ib-btn-secondary" onclick="instanceBonusApp.refreshCurrent()"><i class="fas fa-rotate"></i> 새로고침</button>
@@ -24,8 +24,6 @@
             <button class="ib-tab active" data-tab="dashboard">대시보드</button>
             <button class="ib-tab" data-tab="maps">맵 설정</button>
             <button class="ib-tab" data-tab="missions">미션 관리</button>
-            <button class="ib-tab" data-tab="themes">테마 관리</button>
-            <button class="ib-tab" data-tab="theme-links">테마-미션 연결</button>
             <button class="ib-tab" data-tab="rewards">보상 프로파일</button>
             <button class="ib-tab" data-tab="daily-usage">일일 사용량</button>
             <button class="ib-tab" data-tab="runs">런 로그</button>
@@ -79,6 +77,7 @@
                     <div class="ib-card-header"><h3>미션 목록</h3><button class="ib-btn ib-btn-primary" onclick="instanceBonusApp.openMissionForm()"><i class="fas fa-plus"></i> 미션 추가</button></div>
                     <div class="ib-toolbar ib-toolbar-grid">
                         <div class="ib-field ib-map-field"><label>던전/레이드</label><div class="ib-map-picker" data-target="missions-filter-map-id" data-empty="전체"></div><select id="missions-filter-map-id" hidden></select></div>
+                        <div class="ib-field"><label>적용 난이도</label><select id="missions-filter-difficulty"><option value="">전체</option><option value="1">5인 일반</option><option value="2">5인 영웅</option><option value="4">10인 일반</option><option value="8">10인 하드</option><option value="16">25인 일반</option><option value="32">25인 하드</option><option value="0">전체 허용</option></select></div>
                         <div class="ib-field"><label>게시 상태</label><select id="missions-filter-publish"><option value="">전체</option><option value="draft">초안</option><option value="review">검토</option><option value="published">게시</option><option value="archived">보관</option></select></div>
                         <div class="ib-field"><label>활성</label><select id="missions-filter-enabled"><option value="">전체</option><option value="1">사용</option><option value="0">비활성</option></select></div>
                         <div class="ib-field"><label>미션 종류</label><input id="missions-filter-type" type="text" placeholder="미션 종류"></div>
@@ -89,7 +88,7 @@
                     </div>
                     <div class="ib-table-wrap">
                         <table class="ib-table">
-                            <thead><tr><th>ID</th><th>맵 ID</th><th>미션 키</th><th>이름</th><th>미션 종류</th><th>목표 방식</th><th>목표 이름</th><th>목표 수량</th><th>제한 시간</th><th>활성</th><th>게시</th><th>버전</th><th>업데이트</th><th>관리</th></tr></thead>
+                            <thead><tr><th>ID</th><th>던전/레이드</th><th>미션 키</th><th>이름</th><th>미션 종류</th><th>목표 방식</th><th>목표 이름</th><th>적용 난이도</th><th>목표 수량</th><th>제한 시간</th><th>활성</th><th>게시</th><th>버전</th><th>업데이트</th><th>관리</th></tr></thead>
                             <tbody id="missions-table"></tbody>
                         </table>
                     </div>
@@ -101,7 +100,7 @@
                 </article>
             </section>
 
-            <section class="ib-panel" data-panel="themes">
+            <section class="ib-panel" data-panel="themes" style="display:none;">
                 <article class="ib-card" id="themes-list-card">
                     <div class="ib-card-header"><h3>테마 목록</h3><button class="ib-btn ib-btn-primary" onclick="instanceBonusApp.openThemeForm()"><i class="fas fa-plus"></i> 테마 추가</button></div>
                     <div class="ib-toolbar ib-toolbar-grid">
@@ -126,7 +125,7 @@
                 </article>
             </section>
 
-            <section class="ib-panel" data-panel="theme-links">
+            <section class="ib-panel" data-panel="theme-links" style="display:none;">
                 <article class="ib-card">
                     <div class="ib-card-header">
                         <div>
@@ -218,19 +217,18 @@
                     <div id="runs-notice" class="ib-inline-notice" style="display:none;"></div>
                     <div class="ib-toolbar ib-toolbar-grid">
                         <div class="ib-field ib-map-field"><label>던전/레이드</label><div class="ib-map-picker" data-target="runs-filter-map-id" data-empty="전체"></div><select id="runs-filter-map-id" hidden></select></div>
-                        <div class="ib-field"><label>테마 ID</label><input id="runs-filter-theme-id" type="number" placeholder="테마 ID"></div>
                         <div class="ib-field"><label>미션 ID</label><input id="runs-filter-mission-id" type="number" placeholder="미션 ID"></div>
                         <div class="ib-field"><label>상태</label><input id="runs-filter-status" type="text" placeholder="예: 성공, 실패, 진행중"></div>
                         <div class="ib-field"><label>등급</label><input id="runs-filter-grade" type="text" placeholder="예: S, A, B"></div>
                         <div class="ib-field"><label>LLM 사용</label><select id="runs-filter-llm"><option value="">전체</option><option value="1">사용</option><option value="0">미사용</option></select></div>
                         <div class="ib-field"><label>시작일</label><input id="runs-filter-from" type="date"></div>
                         <div class="ib-field"><label>종료일</label><input id="runs-filter-to" type="date"></div>
-                        <div class="ib-field ib-field-span2"><label>검색</label><input id="runs-filter-keyword" type="text" placeholder="기록 번호 / 참가자 번호 / 캐릭터명 / 미션명 / 테마명"></div>
+                        <div class="ib-field ib-field-span2"><label>검색</label><input id="runs-filter-keyword" type="text" placeholder="기록 번호 / 참가자 번호 / 캐릭터명 / 미션명"></div>
                         <button class="ib-btn ib-btn-primary" onclick="instanceBonusApp.loadRuns()"><i class="fas fa-search"></i> 검색</button>
                         <button class="ib-btn ib-btn-secondary" onclick="instanceBonusApp.resetRunFilter()">초기화</button>
                     </div>
                     <div class="ib-table-wrap">
-                        <table class="ib-table"><thead><tr><th>기록 번호</th><th>맵 ID</th><th>테마</th><th>미션</th><th>상태</th><th>등급</th><th>시작</th><th>종료</th><th>클리어 시간</th><th>사망 수</th><th>전멸 수</th><th>점수</th><th>투표</th><th>관리</th></tr></thead><tbody id="runs-table"></tbody></table>
+                        <table class="ib-table"><thead><tr><th>기록 번호</th><th>던전/레이드</th><th>미션</th><th>상태</th><th>등급</th><th>시작</th><th>종료</th><th>클리어 시간</th><th>사망 수</th><th>전멸 수</th><th>점수</th><th>투표</th><th>관리</th></tr></thead><tbody id="runs-table"></tbody></table>
                     </div>
                     <div class="ib-pagination" id="runs-pagination"></div>
                 </article>
@@ -269,7 +267,7 @@
         </div>
     </div>
 
-    <script src="app.js?v=20260326_5"></script>
+    <script src="app.js?v=20260326_6"></script>
 </body>
 </html>
 
