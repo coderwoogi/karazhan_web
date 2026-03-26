@@ -185,11 +185,11 @@ const instanceBonusApp = (() => {
         { name: 'daily_limit_per_player', label: '추가미션 일일 제한(1인당)', type: 'number', help: '해당 던전에서 플레이어 1명이 하루에 추가미션 보상을 받을 수 있는 최대 횟수입니다. 0이면 제한 없음' },
         { name: 'default_time_limit_sec', label: '기본 시간(초)', type: 'number', help: '이 던전이나 레이드에서 공통으로 사용할 기본 제한 시간입니다. 미션에 개별 제한 시간을 넣지 않으면 이 값이 사용됩니다.' },
         { name: 'max_concurrent_missions', label: '한 번에 제시할 최대 미션 수', type: 'number', help: '한 번의 진행에서 동시에 제시되거나 활성화될 수 있는 추가미션의 최대 개수입니다.' },
-        { name: 'min_party_size', label: '최소 파티 수', type: 'number' },
-        { name: 'max_party_size', label: '최대 파티 수', type: 'number' },
-        { name: 'enabled', label: '활성', type: 'checkbox' },
-        { name: 'allow_vote', label: '투표 허용', type: 'checkbox' },
-        { name: 'allow_llm', label: 'LLM 허용', type: 'checkbox' },
+        { name: 'min_party_size', label: '최소 파티 수', type: 'number', help: '이 값보다 적은 인원으로는 추가미션이 제시되지 않도록 제한합니다.' },
+        { name: 'max_party_size', label: '최대 파티 수', type: 'number', help: '이 값보다 많은 인원 구성에는 이 맵 설정을 적용하지 않습니다.' },
+        { name: 'enabled', label: '활성', type: 'checkbox', help: '미사용으로 두면 이 던전/레이드에서는 추가미션 기능을 끕니다.' },
+        { name: 'allow_vote', label: '투표 허용', type: 'checkbox', help: '사용으로 두면 미션 수락 여부를 파티 투표로 결정할 수 있습니다.' },
+        { name: 'allow_llm', label: 'LLM 허용', type: 'checkbox', help: '사용으로 두면 미션 추천 과정에서 LLM 보조 선택을 사용할 수 있습니다.' },
         { name: 'notes', label: '운영 메모', type: 'textarea', full: true, help: '운영자가 참고할 특이사항을 적습니다.' }
     ];
 
@@ -673,34 +673,34 @@ const instanceBonusApp = (() => {
             `<div class="ib-field"><label>던전/레이드 선택</label><div class="ib-map-picker" data-target="mission-form-map-id" data-empty="던전/레이드를 선택하세요"></div><select id="mission-form-map-id" name="map_id" hidden></select><small class="ib-help">이 미션이 속할 던전/레이드를 고릅니다.</small></div>`,
             fieldTemplate({ name: 'mission_key', label: '미션 키', help: '중복되지 않는 내부 식별자입니다.' }),
             fieldTemplate({ name: 'name', label: '이름', help: '운영자/유저 화면에 표시되는 미션 이름입니다.' }),
-            fieldTemplate({ name: 'description', label: '설명', type: 'textarea', full: true }),
+            fieldTemplate({ name: 'description', label: '설명', type: 'textarea', full: true, help: '운영자가 이 미션의 목적을 빠르게 파악할 수 있도록 적습니다.' }),
             fieldTemplate({ name: 'briefing_text', label: '브리핑', type: 'textarea', full: true, help: '인게임 진입 시 노출될 짧은 안내 텍스트입니다.' }),
 
             formSection('목표 조건', '미션 성공/실패 판정을 위한 핵심 목표값을 설정합니다.'),
             fieldTemplate({ name: 'mission_type', label: '미션 종류', help: '예: 빠른 클리어, 보스 집중, 처치형 등으로 구분합니다.' }),
             fieldTemplate({ name: 'objective_type', label: '목표 방식', help: '예: 처치 수, 보스 처치, 무사고 클리어 같은 판정 기준입니다.' }),
-            fieldTemplate({ name: 'target_entry', label: '대상 번호', type: 'number' }),
-            fieldTemplate({ name: 'target_label', label: '대상 이름' }),
-            fieldTemplate({ name: 'target_count', label: '목표 수량', type: 'number' }),
+            fieldTemplate({ name: 'target_entry', label: '대상 번호', type: 'number', help: 'NPC, 오브젝트, 보스 등 판정 대상의 내부 번호입니다.' }),
+            fieldTemplate({ name: 'target_label', label: '대상 이름', help: '운영 화면과 브리핑에서 구분하기 쉬운 이름을 적습니다.' }),
+            fieldTemplate({ name: 'target_count', label: '목표 수량', type: 'number', help: '몇 마리를 처치하거나 몇 번 수행해야 하는지 적습니다.' }),
             fieldTemplate({ name: 'time_limit_sec', label: '미션 개별 제한 시간(초)', type: 'number', help: '이 미션에만 따로 적용할 제한 시간입니다. 0으로 두거나 비워두면 맵 설정의 기본 시간이 사용됩니다.' }),
-            fieldTemplate({ name: 'failure_condition_type', label: '실패 조건' }),
-            fieldTemplate({ name: 'required_boss_entry', label: '필수 보스 번호', type: 'number' }),
-            fieldTemplate({ name: 'required_before_boss_entry', label: '선행 보스 번호', type: 'number' }),
-            fieldTemplate({ name: 'allowed_death_count', label: '허용 사망 수', type: 'number' }),
-            fieldTemplate({ name: 'allowed_wipe_count', label: '허용 전멸 수', type: 'number' }),
+            fieldTemplate({ name: 'failure_condition_type', label: '실패 조건', help: '어떤 상황이 되면 미션을 실패로 볼지 구분하는 기준입니다.' }),
+            fieldTemplate({ name: 'required_boss_entry', label: '필수 보스 번호', type: 'number', help: '이 보스를 처치해야만 성공할 수 있는 미션일 때 사용합니다.' }),
+            fieldTemplate({ name: 'required_before_boss_entry', label: '선행 보스 번호', type: 'number', help: '특정 보스를 먼저 잡아야 진행 가능한 경우 사용합니다.' }),
+            fieldTemplate({ name: 'allowed_death_count', label: '허용 사망 수', type: 'number', help: '이 수치를 넘기면 실패 처리할 수 있습니다. 0이면 무사고 조건처럼 쓸 수 있습니다.' }),
+            fieldTemplate({ name: 'allowed_wipe_count', label: '허용 전멸 수', type: 'number', help: '이 수치를 넘는 전멸이 발생하면 실패 처리할 수 있습니다.' }),
 
             formSection('보상/난이도', '보상 프로파일과 미션 가중치를 연결합니다.'),
-            fieldTemplate({ name: 'reward_profile_id', label: '보상 프로파일 ID', type: 'number' }),
-            fieldTemplate({ name: 'difficulty_weight', label: '난이도 가중치', type: 'number' }),
+            fieldTemplate({ name: 'reward_profile_id', label: '보상 프로파일 ID', type: 'number', help: '이 미션 성공 시 연결해서 사용할 보상 묶음 번호입니다.' }),
+            fieldTemplate({ name: 'difficulty_weight', label: '난이도 가중치', type: 'number', help: '다른 미션과 비교해 얼마나 어렵게 볼지 수치로 정합니다. 높을수록 무겁게 반영됩니다.' }),
 
             formSection('파티 조건 및 게시', '파티 규모와 게시 워크플로우를 함께 관리합니다.'),
-            fieldTemplate({ name: 'min_party_size', label: '최소 파티 수', type: 'number' }),
-            fieldTemplate({ name: 'max_party_size', label: '최대 파티 수', type: 'number' }),
-            fieldTemplate({ name: 'min_avg_item_level', label: '최소 평균 템렙', type: 'number' }),
-            fieldTemplate({ name: 'max_avg_item_level', label: '최대 평균 템렙', type: 'number' }),
-            fieldTemplate({ name: 'required_tank', label: '탱커 필요', type: 'checkbox' }),
-            fieldTemplate({ name: 'required_healer', label: '힐러 필요', type: 'checkbox' }),
-            fieldTemplate({ name: 'enabled', label: '활성', type: 'checkbox' }),
+            fieldTemplate({ name: 'min_party_size', label: '최소 파티 수', type: 'number', help: '이보다 적은 인원 구성에는 이 미션을 제시하지 않습니다.' }),
+            fieldTemplate({ name: 'max_party_size', label: '최대 파티 수', type: 'number', help: '이보다 많은 인원 구성에는 이 미션을 제시하지 않습니다.' }),
+            fieldTemplate({ name: 'min_avg_item_level', label: '최소 평균 템렙', type: 'number', help: '파티 평균 아이템 레벨이 이 값보다 낮으면 제외할 수 있습니다.' }),
+            fieldTemplate({ name: 'max_avg_item_level', label: '최대 평균 템렙', type: 'number', help: '필요하다면 지나치게 높은 장비 구간에서 이 미션을 제외할 수 있습니다.' }),
+            fieldTemplate({ name: 'required_tank', label: '탱커 필요', type: 'checkbox', help: '탱커 역할이 있는 파티에서만 이 미션이 나오게 할 때 사용합니다.' }),
+            fieldTemplate({ name: 'required_healer', label: '힐러 필요', type: 'checkbox', help: '힐러 역할이 있는 파티에서만 이 미션이 나오게 할 때 사용합니다.' }),
+            fieldTemplate({ name: 'enabled', label: '활성', type: 'checkbox', help: '미사용으로 두면 목록에는 남기되 실제 운영에서 제외합니다.' }),
             fieldTemplate({ name: 'publish_status', label: '게시 상태', type: 'select', options: publishStatuses, help: '초안, 검토, 게시, 보관 단계로 관리합니다.' }),
             `<div class="ib-field full"><div class="ib-actions"><button type="button" class="ib-btn ib-btn-primary" onclick="instanceBonusApp.saveMission(false)">저장 후 목록</button><button type="button" class="ib-btn ib-btn-ghost" onclick="instanceBonusApp.saveMission(true)">저장 후 계속 편집</button><button type="button" class="ib-btn ib-btn-secondary" onclick="instanceBonusApp.closeMissionForm()">닫기</button></div></div>`
         ];
@@ -796,22 +796,22 @@ const instanceBonusApp = (() => {
             formSection('기본 정보', '테마 이름, 키, 설명과 브리핑 스타일을 정의합니다.'),
             `<div class="ib-field"><label>던전/레이드 선택</label><div class="ib-map-picker" data-target="theme-form-map-id" data-empty="던전/레이드를 선택하세요"></div><select id="theme-form-map-id" name="map_id" hidden></select><small class="ib-help">이 테마가 사용될 던전/레이드를 고릅니다.</small></div>`,
             fieldTemplate({ name: 'theme_key', label: '테마 키', help: '운영자가 구분하기 쉬운 짧은 이름을 쓰면 됩니다.' }),
-            fieldTemplate({ name: 'name', label: '이름' }),
-            fieldTemplate({ name: 'description', label: '설명', type: 'textarea', full: true }),
+            fieldTemplate({ name: 'name', label: '이름', help: '운영자와 유저 화면에 보여줄 테마 이름입니다.' }),
+            fieldTemplate({ name: 'description', label: '설명', type: 'textarea', full: true, help: '이 테마가 어떤 분위기와 목적을 가진 묶음인지 적습니다.' }),
             fieldTemplate({ name: 'briefing_style', label: '브리핑 스타일', help: '설명 문체나 안내 톤을 구분하는 이름입니다.' }),
 
             formSection('파티 조건', '테마가 어떤 파티에 적합한지 제한합니다.'),
-            fieldTemplate({ name: 'min_party_size', label: '최소 파티 수', type: 'number' }),
-            fieldTemplate({ name: 'max_party_size', label: '최대 파티 수', type: 'number' }),
-            fieldTemplate({ name: 'min_avg_item_level', label: '최소 평균 템렙', type: 'number' }),
-            fieldTemplate({ name: 'max_avg_item_level', label: '최대 평균 템렙', type: 'number' }),
-            fieldTemplate({ name: 'required_tank', label: '탱커 필요', type: 'checkbox' }),
-            fieldTemplate({ name: 'required_healer', label: '힐러 필요', type: 'checkbox' }),
+            fieldTemplate({ name: 'min_party_size', label: '최소 파티 수', type: 'number', help: '이보다 적은 인원 파티에는 이 테마를 적용하지 않습니다.' }),
+            fieldTemplate({ name: 'max_party_size', label: '최대 파티 수', type: 'number', help: '이보다 많은 인원 파티에는 이 테마를 적용하지 않습니다.' }),
+            fieldTemplate({ name: 'min_avg_item_level', label: '최소 평균 템렙', type: 'number', help: '이보다 낮은 파티는 이 테마 후보에서 제외할 수 있습니다.' }),
+            fieldTemplate({ name: 'max_avg_item_level', label: '최대 평균 템렙', type: 'number', help: '이보다 높은 파티는 이 테마 후보에서 제외할 수 있습니다.' }),
+            fieldTemplate({ name: 'required_tank', label: '탱커 필요', type: 'checkbox', help: '탱커가 있는 파티에만 이 테마를 허용할 때 사용합니다.' }),
+            fieldTemplate({ name: 'required_healer', label: '힐러 필요', type: 'checkbox', help: '힐러가 있는 파티에만 이 테마를 허용할 때 사용합니다.' }),
 
             formSection('가중치 및 게시', '테마 노출 가중치와 게시 상태를 관리합니다.'),
-            fieldTemplate({ name: 'weight', label: '가중치', type: 'number' }),
-            fieldTemplate({ name: 'enabled', label: '활성', type: 'checkbox' }),
-            fieldTemplate({ name: 'publish_status', label: '게시 상태', type: 'select', options: publishStatuses }),
+            fieldTemplate({ name: 'weight', label: '가중치', type: 'number', help: '테마 후보가 여러 개일 때 얼마나 자주 선택될지 비중을 정합니다.' }),
+            fieldTemplate({ name: 'enabled', label: '활성', type: 'checkbox', help: '미사용으로 두면 이 테마는 후보에서 빠집니다.' }),
+            fieldTemplate({ name: 'publish_status', label: '게시 상태', type: 'select', options: publishStatuses, help: '초안, 검토, 게시, 보관 단계로 운영 상태를 관리합니다.' }),
             `<div class="ib-field full"><div class="ib-actions"><button type="button" class="ib-btn ib-btn-primary" onclick="instanceBonusApp.saveTheme(false)">저장 후 목록</button><button type="button" class="ib-btn ib-btn-ghost" onclick="instanceBonusApp.saveTheme(true)">저장 후 계속 편집</button><button type="button" class="ib-btn ib-btn-secondary" onclick="instanceBonusApp.closeThemeForm()">닫기</button></div></div>`
         ];
         form.innerHTML = sections.join('');
@@ -990,11 +990,11 @@ const instanceBonusApp = (() => {
         form.innerHTML = `
             ${formSection('\uAE30\uBCF8 \uC815\uBCF4', '\uBCF4\uC0C1 \uD504\uB85C\uD30C\uC77C \uC774\uB984\uACFC \uC5F0\uACB0\uD560 \uB358\uC804/\uB808\uC774\uB4DC\uB97C \uC124\uC815\uD569\uB2C8\uB2E4.')}
             <div class="ib-field"><label>\uB358\uC804/\uB808\uC774\uB4DC \uC120\uD0DD</label><div class="ib-map-picker" data-target="reward-form-map-id" data-empty="\uB358\uC804/\uB808\uC774\uB4DC\uB97C \uC120\uD0DD\uD558\uC138\uC694"></div><select id="reward-form-map-id" name="map_id" hidden></select><small class="ib-help">\uC774 \uBCF4\uC0C1 \uD504\uB85C\uD30C\uC77C\uC774 \uC801\uC6A9\uB420 \uB358\uC804/\uB808\uC774\uB4DC\uB97C \uACE0\uB985\uB2C8\uB2E4.</small></div>
-            <div class="ib-field"><label>\uBCF4\uC0C1 \uD0A4</label><input type="text" name="profile_key" placeholder="\uC608: mana_tombs_reward_profile"></div>
-            <div class="ib-field"><label>\uC774\uB984</label><input type="text" name="name" placeholder="\uC608: \uB9C8\uB098 \uBB34\uB364 \uAE30\uBCF8 \uBCF4\uC0C1"></div>
-            <div class="ib-field"><label>\uD65C\uC131</label><select name="enabled"><option value="1">\uC0AC\uC6A9</option><option value="0">\uBE44\uD65C\uC131</option></select></div>
-            <div class="ib-field"><label>\uAC8C\uC2DC \uC0C1\uD0DC</label><select name="publish_status"><option value="draft">\uCD08\uC548</option><option value="review">\uAC80\uD1A0</option><option value="published">\uAC8C\uC2DC</option><option value="archived">\uBCF4\uAD00</option></select></div>
-            <div class="ib-field full"><label>\uC124\uBA85</label><textarea name="description" placeholder="\uC6B4\uC601\uC790\uAC00 \uBCF4\uC0C1 \uD504\uB85C\uD30C\uC77C\uC758 \uC6A9\uB3C4\uC640 \uCC28\uC774\uB97C \uAD6C\uBD84\uD560 \uC218 \uC788\uB3C4\uB85D \uC801\uC2B5\uB2C8\uB2E4."></textarea></div>
+            <div class="ib-field"><label>\uBCF4\uC0C1 \uD0A4</label><input type="text" name="profile_key" placeholder="\uC608: mana_tombs_reward_profile"><small class="ib-help">\uBCF4\uC0C1 \uD504\uB85C\uD30C\uC77C\uC744 \uAD6C\uBD84\uD560 \uACE0\uC720 \uD0A4\uC785\uB2C8\uB2E4. \uC601\uBB38 \uC18C\uBB38\uC790\uC640 \uBC11\uC904\uB97C \uC8FC\uB85C \uC0AC\uC6A9\uD558\uBA74 \uAD00\uB9AC\uD558\uAE30 \uC88B\uC2B5\uB2C8\uB2E4.</small></div>
+            <div class="ib-field"><label>\uC774\uB984</label><input type="text" name="name" placeholder="\uC608: \uB9C8\uB098 \uBB34\uB364 \uAE30\uBCF8 \uBCF4\uC0C1"><small class="ib-help">\uD654\uBA74\uC5D0\uC11C \uBC14\uB85C \uC774\uD574\uD560 \uC218 \uC788\uB294 \uBCF4\uC0C1 \uD504\uB85C\uD30C\uC77C \uC774\uB984\uC744 \uC801\uC5B4\uC8FC\uC138\uC694.</small></div>
+            <div class="ib-field"><label>\uD65C\uC131</label><select name="enabled"><option value="1">\uC0AC\uC6A9</option><option value="0">\uBE44\uD65C\uC131</option></select><small class="ib-help">\uBE44\uD65C\uC131\uC73C\uB85C \uB450\uBA74 \uAE30\uC874 \uB370\uC774\uD130\uB294 \uB0A8\uAE30\uACE0 \uD604\uC7AC \uC6B4\uC601\uC5D0\uC11C\uB9CC \uC81C\uC678\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.</small></div>
+            <div class="ib-field"><label>\uAC8C\uC2DC \uC0C1\uD0DC</label><select name="publish_status"><option value="draft">\uCD08\uC548</option><option value="review">\uAC80\uD1A0</option><option value="published">\uAC8C\uC2DC</option><option value="archived">\uBCF4\uAD00</option></select><small class="ib-help">\uCD08\uC548\uC740 \uC791\uC131 \uC911, \uAC80\uD1A0\uB294 \uD655\uC778 \uB300\uAE30, \uAC8C\uC2DC\uB294 \uC2E4\uC81C \uC0AC\uC6A9, \uBCF4\uAD00\uC740 \uC774\uC804 \uAE30\uB85D \uBCF4\uAD00 \uC6A9\uB3C4\uC785\uB2C8\uB2E4.</small></div>
+            <div class="ib-field full"><label>\uC124\uBA85</label><textarea name="description" placeholder="\uC6B4\uC601\uC790\uAC00 \uBCF4\uC0C1 \uD504\uB85C\uD30C\uC77C\uC758 \uC6A9\uB3C4\uC640 \uCC28\uC774\uB97C \uAD6C\uBD84\uD560 \uC218 \uC788\uB3C4\uB85D \uC801\uC2B5\uB2C8\uB2E4."></textarea><small class="ib-help">\uC5B4\uB5A4 \uD14C\uB9C8\uC5D0 \uC4F0\uB294 \uBCF4\uC0C1\uC778\uC9C0, \uAE30\uC874 \uBCF4\uC0C1\uACFC \uCC28\uC774\uAC00 \uBB34\uC5C7\uC778\uC9C0\uB97C \uBA54\uBAA8\uD558\uBA74 \uC6B4\uC601\uD560 \uB54C \uD5F7\uAC08\uB9AC\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4.</small></div>
             ${formSection('\uBCF4\uC0C1 \uD56D\uBAA9', '\uB4F1\uAE09\uBCC4 \uBCF4\uC0C1 \uC544\uC774\uD15C\uC744 \uD45C \uD615\uD0DC\uB85C \uC815\uB9AC\uD574 \uAD00\uB9AC\uD569\uB2C8\uB2E4.')}
             <div class="ib-field full">
                 <label>\uBCF4\uC0C1 \uD56D\uBAA9</label>
