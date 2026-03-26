@@ -524,11 +524,11 @@ button, input, select, textarea { font: inherit; }
 }
 
 .ib-reward-table-wrap { margin-top: 8px; }
-.ib-reward-table { min-width: 900px; }
+.ib-reward-table { min-width: 820px; }
 .ib-reward-table td { vertical-align: middle; }
 .ib-reward-table td:nth-child(1) { width: 96px; }
-.ib-reward-table td:nth-child(2) { width: 340px; }
-.ib-reward-table td:nth-child(3), .ib-reward-table td:nth-child(4), .ib-reward-table td:nth-child(5) { width: 100px; }
+.ib-reward-table td:nth-child(2) { width: 260px; }
+.ib-reward-table td:nth-child(3), .ib-reward-table td:nth-child(4), .ib-reward-table td:nth-child(5) { width: 96px; }
 .ib-reward-table td:nth-child(6) { width: 96px; }
 .ib-reward-item-cell {
     display: flex;

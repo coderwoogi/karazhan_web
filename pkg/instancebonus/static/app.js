@@ -1397,8 +1397,8 @@ function openRewardForm(data = null) {
             <tr>
                 <td>${row.reward_profile_id}</td><td>${row.map_id}</td><td>${escapeHtml(row.profile_key)}</td><td>${escapeHtml(row.name)}</td>
                 <td>${publishBadge(row.publish_status)}</td><td>${row.version || 1}</td><td>${escapeHtml(row.updated_at || '-')}</td>
-                <td><div class="ib-actions"><button class="ib-btn ib-btn-ghost" onclick="instanceBonusApp.fetchReward(${row.reward_profile_id})">?몄쭛</button></div></td>
-            </tr>`).join('') : '<tr><td colspan="8" class="ib-empty">?깅줉??蹂댁긽 ?꾨줈?뚯씪???놁뒿?덈떎.</td></tr>';
+                <td><div class="ib-actions"><button class="ib-btn ib-btn-ghost" onclick="instanceBonusApp.fetchReward(${row.reward_profile_id})">수정</button></div></td>
+            </tr>`).join('') : '<tr><td colspan="8" class="ib-empty">등록된 보상 프로파일이 없습니다.</td></tr>';
         renderPagination('rewards-pagination', data.page || 1, data.total || 0, data.limit || 20, 'loadRewards');
     }
 
