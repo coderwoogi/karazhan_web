@@ -200,9 +200,12 @@ const instanceBonusApp = (() => {
         { name: 'notes', label: '운영 메모', type: 'textarea', full: true, help: '운영자가 참고할 특이사항을 적습니다.' }
     ];
     const difficultyOptions = [
-        { value: 1, label: '5인', group: 'dungeon' },
-        { value: 4, label: '10인', group: 'raid' },
-        { value: 16, label: '25인', group: 'raid' }
+        { value: 1, label: '5인 노말', group: 'dungeon' },
+        { value: 2, label: '5인 하드', group: 'dungeon' },
+        { value: 4, label: '10인 노말', group: 'raid' },
+        { value: 8, label: '10인 하드', group: 'raid' },
+        { value: 16, label: '25인 노말', group: 'raid' },
+        { value: 32, label: '25인 하드', group: 'raid' }
     ];
 
     function difficultyLabel(value, mapType = '', useDefault = false) {
@@ -213,9 +216,7 @@ const instanceBonusApp = (() => {
 
     function normalizeMapDifficultyValue(value, mapType = '', useDefault = false) {
         const parsed = Number(value || 0);
-        if (parsed === 1 || parsed === 2) return 1;
-        if (parsed === 4 || parsed === 8) return 4;
-        if (parsed === 16 || parsed === 32) return 16;
+        if ([1, 2, 4, 8, 16, 32].includes(parsed)) return parsed;
         if (useDefault) {
             if (mapType === '레이드') return 4;
             if (mapType === '던전') return 1;
