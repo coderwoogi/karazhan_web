@@ -599,6 +599,22 @@ button, input, select, textarea { font: inherit; }
     flex-wrap: wrap;
 }
 
+.ib-difficulty-selector {
+    display: grid;
+    gap: 8px;
+    max-width: 320px;
+}
+
+.ib-difficulty-selector label {
+    font-size: 13px;
+    font-weight: 800;
+    color: #334155;
+}
+
+.ib-difficulty-selector select {
+    width: 100%;
+}
+
 .ib-difficulty-tabs {
     display: flex;
     flex-wrap: wrap;
@@ -688,9 +704,11 @@ button, input, select, textarea { font: inherit; }
 }
 
 .ib-difficulty-help,
-.ib-difficulty-muted-title {
+.ib-difficulty-muted-title,
+.ib-static-note {
     color: #64748b;
     font-size: 12px;
+    line-height: 1.6;
 }
 
 .ib-difficulty-muted-title {

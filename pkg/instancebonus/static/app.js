@@ -641,9 +641,6 @@ const instanceBonusApp = (() => {
         if (!select || !input) return;
         const selected = state.mapOptions.find((row) => Number(row.map_id) === Number(select.value));
         input.value = selected ? selected.map_name : '';
-        const mapType = selected?.map_type || '던전';
-        mountDifficultyEditor('mission-form-difficulty-mask', mapType, readDifficultyEditor('mission-form-difficulty-mask'));
-        mountDifficultyEditor('theme-form-difficulty-mask', mapType, readDifficultyEditor('theme-form-difficulty-mask'));
         if (select.id === 'map-form-map-id') {
             if (select.value) {
                 loadMapDifficultyContent(Number(select.value), { focus: state.mapDifficulty.focusAfterOpen }).catch(() => {
@@ -846,8 +843,11 @@ const instanceBonusApp = (() => {
                     <button type="button" class="ib-btn ib-btn-ghost" onclick="instanceBonusApp.openThemeFormForMapDifficulty()">테마 추가</button>
                 </div>
             </div>
-            <div class="ib-difficulty-tabs">
-                ${options.map((item) => `<button type="button" class="ib-difficulty-tab ${item.value === selected.value ? 'active' : ''}" onclick="instanceBonusApp.selectMapDifficulty(${item.value})">${escapeHtml(item.label)}</button>`).join('')}
+            <div class="ib-difficulty-selector">
+                <label>난이도 선택</label>
+                <select id="map-difficulty-select" onchange="instanceBonusApp.selectMapDifficulty(this.value)">
+                    ${options.map((item) => `<option value="${item.value}" ${item.value === selected.value ? 'selected' : ''}>${escapeHtml(item.label)}</option>`).join('')}
+                </select>
             </div>
             <div class="ib-card-grid ib-two-col ib-map-difficulty-grid">
                 <div class="ib-subcard">
@@ -960,10 +960,11 @@ const instanceBonusApp = (() => {
             fieldTemplate({ name: 'allowed_death_count', label: '허용 사망 수', type: 'number', help: '이 횟수를 넘겨 죽으면 미션을 실패시킵니다. 0이면 사망 허용이 없습니다.' }),
             fieldTemplate({ name: 'allowed_wipe_count', label: '허용 전멸 수', type: 'number', help: '이 횟수를 넘겨 전멸하면 미션을 실패시킵니다.' }),
 
-            formSection('보상과 난이도', '미션의 보상 연결과 적용 난이도를 정합니다.'),
+            formSection('보상 설정', '미션 완료 시 연결할 보상과 선택 비중을 정합니다.'),
             fieldTemplate({ name: 'reward_profile_id', label: '보상 프로파일 ID', type: 'number', help: '완료 시 연결할 보상 프로파일 번호입니다.' }),
             fieldTemplate({ name: 'difficulty_weight', label: '난이도 가중치', type: 'number', help: '미션 선택 시 상대적인 등장 비율이나 난이도 보정을 위한 값입니다.' }),
-            renderDifficultyEditor('mission-form-difficulty-mask', '이 미션이 어느 난이도에서 등장할지 체크로 선택하세요. 아무 것도 선택하지 않으면 전체 난이도 허용으로 저장됩니다.'),
+            `<input type="hidden" id="mission-form-difficulty-mask" name="difficulty_mask" value="0">`,
+            `<div class="ib-field full"><label>적용 난이도</label><div class="ib-static-note">이 값은 맵 설정 화면에서 현재 선택한 난이도를 따라갑니다. 미션 화면에서는 별도로 수정하지 않습니다.</div></div>`,
 
             formSection('파티 조건 및 게시 상태', '어떤 파티에서 이 미션을 쓸 수 있는지와 운영 상태를 정합니다.'),
             fieldTemplate({ name: 'min_party_size', label: '최소 파티 수', type: 'number', help: '이보다 적은 인원에서는 미션을 사용하지 않습니다.' }),
@@ -978,10 +979,7 @@ const instanceBonusApp = (() => {
         ];
         form.innerHTML = sections.join('');
         applyMapOptions();
-        document.getElementById('mission-form-map-id')?.addEventListener('change', (event) => {
-            mountDifficultyEditor('mission-form-difficulty-mask', mapTypeForValue(event.target.value), readDifficultyEditor('mission-form-difficulty-mask'));
-        });
-        mountDifficultyEditor('mission-form-difficulty-mask', '던전', 0);
+        document.getElementById('mission-form-difficulty-mask').value = '0';
     }
 
     function openMissionForm(data = null) {
@@ -1001,7 +999,12 @@ const instanceBonusApp = (() => {
             form.elements.enabled.value = '1';
         }
         applyMapOptions();
-        mountDifficultyEditor('mission-form-difficulty-mask', mapTypeForValue(form.elements.map_id?.value), data?.difficulty_mask || 0);
+        const missionDifficultyValue = data?.difficulty_mask ?? (
+            state.mapDifficulty.mapId && Number(state.mapDifficulty.mapId) === Number(form.elements.map_id?.value || 0)
+                ? currentMapDifficultyOption().value
+                : 0
+        );
+        form.elements.difficulty_mask.value = String(missionDifficultyValue || 0);
     }
 
     function closeMissionForm() {
@@ -1019,7 +1022,7 @@ const instanceBonusApp = (() => {
             else if (type === 'checkbox') data[name] = el.value === '1';
             else data[name] = el.value;
         });
-        data.difficulty_mask = readDifficultyEditor('mission-form-difficulty-mask');
+        data.difficulty_mask = Number(form.elements.difficulty_mask?.value || 0);
         if (!data.mission_key || !data.name) throw new Error('미션 키와 이름은 필수입니다.');
         return data;
     }
@@ -1088,19 +1091,17 @@ const instanceBonusApp = (() => {
             fieldTemplate({ name: 'required_tank', label: '탱커 필요', type: 'checkbox', help: '탱커 역할이 포함된 파티에서만 이 테마를 사용합니다.' }),
             fieldTemplate({ name: 'required_healer', label: '힐러 필요', type: 'checkbox', help: '힐러 역할이 포함된 파티에서만 이 테마를 사용합니다.' }),
 
-            formSection('가중치와 난이도', '테마 등장 비율과 적용 난이도를 정합니다.'),
+            formSection('가중치 설정', '테마 등장 비율을 정합니다.'),
             fieldTemplate({ name: 'weight', label: '가중치', type: 'number', help: '선택 후보 중 이 테마가 등장할 상대 비율입니다.' }),
-            renderDifficultyEditor('theme-form-difficulty-mask', '이 테마가 어느 난이도에서 등장할지 체크로 선택하세요. 아무 것도 선택하지 않으면 전체 난이도 허용으로 저장됩니다.'),
+            `<input type="hidden" id="theme-form-difficulty-mask" name="difficulty_mask" value="0">`,
+            `<div class="ib-field full"><label>적용 난이도</label><div class="ib-static-note">이 값은 맵 설정 화면에서 현재 선택한 난이도를 따라갑니다. 테마 화면에서는 별도로 수정하지 않습니다.</div></div>`,
             fieldTemplate({ name: 'enabled', label: '활성', type: 'checkbox', help: '비활성으로 두면 이 테마는 선택되지 않습니다.' }),
             fieldTemplate({ name: 'publish_status', label: '게시 상태', type: 'select', options: publishStatuses, help: '초안, 검토, 게시, 보관 상태로 운영할 수 있습니다.' }),
             `<div class="ib-field full"><div class="ib-actions"><button type="button" class="ib-btn ib-btn-primary" onclick="instanceBonusApp.saveTheme(false)">저장 후 목록</button><button type="button" class="ib-btn ib-btn-ghost" onclick="instanceBonusApp.saveTheme(true)">저장 후 계속 편집</button><button type="button" class="ib-btn ib-btn-secondary" onclick="instanceBonusApp.closeThemeForm()">목록으로</button></div></div>`
         ];
         form.innerHTML = sections.join('');
         applyMapOptions();
-        document.getElementById('theme-form-map-id')?.addEventListener('change', (event) => {
-            mountDifficultyEditor('theme-form-difficulty-mask', mapTypeForValue(event.target.value), readDifficultyEditor('theme-form-difficulty-mask'));
-        });
-        mountDifficultyEditor('theme-form-difficulty-mask', '던전', 0);
+        document.getElementById('theme-form-difficulty-mask').value = '0';
     }
 
     function openThemeForm(data = null) {
@@ -1120,7 +1121,12 @@ const instanceBonusApp = (() => {
             form.elements.enabled.value = '1';
         }
         applyMapOptions();
-        mountDifficultyEditor('theme-form-difficulty-mask', mapTypeForValue(form.elements.map_id?.value), data?.difficulty_mask || 0);
+        const themeDifficultyValue = data?.difficulty_mask ?? (
+            state.mapDifficulty.mapId && Number(state.mapDifficulty.mapId) === Number(form.elements.map_id?.value || 0)
+                ? currentMapDifficultyOption().value
+                : 0
+        );
+        form.elements.difficulty_mask.value = String(themeDifficultyValue || 0);
     }
 
     function closeThemeForm() {
@@ -1138,7 +1144,7 @@ const instanceBonusApp = (() => {
             else if (type === 'checkbox') data[name] = el.value === '1';
             else data[name] = el.value;
         });
-        data.difficulty_mask = readDifficultyEditor('theme-form-difficulty-mask');
+        data.difficulty_mask = Number(form.elements.difficulty_mask?.value || 0);
         if (!data.theme_key || !data.name) throw new Error('테마 키와 이름은 필수입니다.');
         return data;
     }
