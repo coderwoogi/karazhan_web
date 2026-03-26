@@ -807,7 +807,7 @@ const instanceBonusApp = (() => {
         const sections = [
             formSection('기본 정보', '맵 설정에 먼저 등록한 던전이나 레이드를 고른 뒤, 그 맵에서 사용할 추가미션을 작성하는 화면입니다.'),
             `<div class="ib-field"><label>던전/레이드 선택</label><div class="ib-map-picker" data-target="mission-form-map-id" data-empty="던전/레이드를 선택하세요"></div><select id="mission-form-map-id" name="map_id" hidden></select><small class="ib-help">맵 설정에 먼저 등록한 던전이나 레이드만 선택할 수 있습니다.</small></div>`,
-            `<div class="ib-field full"><label>적용 난이도</label><div id="mission-difficulty-mask-box"></div><small class="ib-help">여기서 체크한 난이도에만 이 미션이 후보로 들어갑니다. 체크하지 않으면 전체 허용으로 저장됩니다.</small></div>`,
+            `<input type="hidden" id="mission-form-difficulty-mask" name="difficulty_mask" value="0">`,
             fieldTemplate({ name: 'mission_key', label: '미션 키', help: '내부 식별용 키입니다.' }),
             fieldTemplate({ name: 'name', label: '미션 이름', help: '운영 화면과 게임 안에서 보일 이름입니다.' }),
             fieldTemplate({ name: 'description', label: '설명', type: 'textarea', full: true, help: '운영자가 미션 내용을 이해하기 위한 설명입니다.' }),
@@ -843,14 +843,6 @@ const instanceBonusApp = (() => {
         ];
         form.innerHTML = sections.join('');
         applyMapOptions();
-        document.getElementById('mission-form-map-id')?.addEventListener('change', () => {
-            const currentMask = collectDifficultyMask(form, 'mission-form-difficulty-mask');
-            const mapType = mapTypeForValue(form.elements.map_id?.value || 0);
-            const difficultyBox = document.getElementById('mission-difficulty-mask-box');
-            if (difficultyBox) {
-                difficultyBox.innerHTML = buildDifficultyChecklist('mission-form-difficulty-mask', currentMask, mapType);
-            }
-        });
     }
     function openMissionForm(data = null) {
         state.missionEditingId = data ? data.mission_id : null;
@@ -869,12 +861,12 @@ const instanceBonusApp = (() => {
             form.elements.enabled.value = '1';
         }
         applyMapOptions();
-        const mapType = mapTypeForValue(form.elements.map_id?.value || 0);
-        const missionDifficultyValue = data?.difficulty_mask ?? 0;
-        const difficultyBox = document.getElementById('mission-difficulty-mask-box');
-        if (difficultyBox) {
-            difficultyBox.innerHTML = buildDifficultyChecklist('mission-form-difficulty-mask', missionDifficultyValue, mapType);
-        }
+        const missionDifficultyValue = data?.difficulty_mask ?? (
+            state.mapDifficulty.mapId && Number(state.mapDifficulty.mapId) === Number(form.elements.map_id?.value || 0)
+                ? currentMapDifficultyOption().value
+                : 0
+        );
+        form.elements.difficulty_mask.value = String(missionDifficultyValue || 0);
     }
 
     function closeMissionForm() {
@@ -892,7 +884,7 @@ const instanceBonusApp = (() => {
             else if (type === 'checkbox') data[name] = el.value === '1';
             else data[name] = el.value;
         });
-        data.difficulty_mask = collectDifficultyMask(form, 'mission-form-difficulty-mask');
+        data.difficulty_mask = Number(form.elements.difficulty_mask?.value || 0);
         if (!data.mission_key || !data.name) throw new Error('미션 키와 이름은 필수입니다.');
         return data;
     }
@@ -911,7 +903,7 @@ const instanceBonusApp = (() => {
     }
 
     function resetMissionFilter() {
-        ['missions-filter-map-id','missions-filter-difficulty','missions-filter-publish','missions-filter-enabled','missions-filter-type','missions-filter-objective','missions-filter-keyword'].forEach((id) => { const el = document.getElementById(id); if (el) el.value = ''; });
+        ['missions-filter-map-id','missions-filter-publish','missions-filter-enabled','missions-filter-type','missions-filter-objective','missions-filter-keyword'].forEach((id) => { const el = document.getElementById(id); if (el) el.value = ''; });
         state.missionsPage = 1;
         loadMissions();
     }
@@ -919,7 +911,7 @@ const instanceBonusApp = (() => {
     async function loadMissions(page = state.missionsPage) {
         state.missionsPage = page;
         const params = new URLSearchParams({ page: String(page), limit: '20' });
-        [['map_id','missions-filter-map-id'],['difficulty_mask','missions-filter-difficulty'],['publish_status','missions-filter-publish'],['enabled','missions-filter-enabled'],['mission_type','missions-filter-type'],['objective_type','missions-filter-objective'],['search','missions-filter-keyword']].forEach(([key,id]) => {
+        [['map_id','missions-filter-map-id'],['publish_status','missions-filter-publish'],['enabled','missions-filter-enabled'],['mission_type','missions-filter-type'],['objective_type','missions-filter-objective'],['search','missions-filter-keyword']].forEach(([key,id]) => {
             const value = document.getElementById(id)?.value.trim();
             if (value) params.set(key, value);
         });
@@ -930,10 +922,10 @@ const instanceBonusApp = (() => {
             <tr>
                 <td>${row.mission_id}</td><td>${escapeHtml(mapNameById(row.map_id))}</td><td>${escapeHtml(row.mission_key)}</td><td>${escapeHtml(row.name)}</td>
                 <td>${escapeHtml(row.mission_type)}</td><td>${escapeHtml(row.objective_type)}</td><td>${escapeHtml(row.target_label)}</td>
-                <td>${renderDifficultyBadgeList(row.difficulty_mask, mapTypeForValue(row.map_id))}</td><td>${row.target_count || 0}</td><td>${row.time_limit_sec || 0}</td><td>${badge(row.enabled)}</td>
+                <td>${row.target_count || 0}</td><td>${row.time_limit_sec || 0}</td><td>${badge(row.enabled)}</td>
                 <td>${publishBadge(row.publish_status)}</td><td>${row.version || 1}</td><td>${escapeHtml(row.updated_at || '-')}</td>
                 <td><div class="ib-actions"><button class="ib-btn ib-btn-ghost" onclick="instanceBonusApp.fetchMission(${row.mission_id})">수정</button></div></td>
-            </tr>`).join('') : '<tr><td colspan="15" class="ib-empty">등록된 미션이 없습니다. 대시보드에서 기존 게임 데이터를 가져오거나 새 미션을 추가하세요.</td></tr>';
+            </tr>`).join('') : '<tr><td colspan="14" class="ib-empty">등록된 미션이 없습니다. 대시보드에서 기존 게임 데이터를 가져오거나 새 미션을 추가하세요.</td></tr>';
         renderPagination('missions-pagination', data.page || 1, data.total || 0, data.limit || 20, 'loadMissions');
         loadMissionCandidates();
     }

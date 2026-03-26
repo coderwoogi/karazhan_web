@@ -77,7 +77,6 @@
                     <div class="ib-card-header"><h3>미션 목록</h3><button class="ib-btn ib-btn-primary" onclick="instanceBonusApp.openMissionForm()"><i class="fas fa-plus"></i> 미션 추가</button></div>
                     <div class="ib-toolbar ib-toolbar-grid">
                         <div class="ib-field ib-map-field"><label>던전/레이드</label><div class="ib-map-picker" data-target="missions-filter-map-id" data-empty="전체"></div><select id="missions-filter-map-id" hidden></select></div>
-                        <div class="ib-field"><label>적용 난이도</label><select id="missions-filter-difficulty"><option value="">전체</option><option value="1">5인 일반</option><option value="2">5인 영웅</option><option value="4">10인 일반</option><option value="8">10인 하드</option><option value="16">25인 일반</option><option value="32">25인 하드</option><option value="0">전체 허용</option></select></div>
                         <div class="ib-field"><label>게시 상태</label><select id="missions-filter-publish"><option value="">전체</option><option value="draft">초안</option><option value="review">검토</option><option value="published">게시</option><option value="archived">보관</option></select></div>
                         <div class="ib-field"><label>활성</label><select id="missions-filter-enabled"><option value="">전체</option><option value="1">사용</option><option value="0">비활성</option></select></div>
                         <div class="ib-field"><label>미션 종류</label><input id="missions-filter-type" type="text" placeholder="미션 종류"></div>
@@ -88,7 +87,7 @@
                     </div>
                     <div class="ib-table-wrap">
                         <table class="ib-table">
-                            <thead><tr><th>ID</th><th>던전/레이드</th><th>미션 키</th><th>이름</th><th>미션 종류</th><th>목표 방식</th><th>목표 이름</th><th>적용 난이도</th><th>목표 수량</th><th>제한 시간</th><th>활성</th><th>게시</th><th>버전</th><th>업데이트</th><th>관리</th></tr></thead>
+                            <thead><tr><th>ID</th><th>던전/레이드</th><th>미션 키</th><th>이름</th><th>미션 종류</th><th>목표 방식</th><th>목표 이름</th><th>목표 수량</th><th>제한 시간</th><th>활성</th><th>게시</th><th>버전</th><th>업데이트</th><th>관리</th></tr></thead>
                             <tbody id="missions-table"></tbody>
                         </table>
                     </div>
@@ -267,7 +266,7 @@
         </div>
     </div>
 
-    <script src="app.js?v=20260326_6"></script>
+    <script src="app.js?v=20260326_7"></script>
 </body>
 </html>
 
