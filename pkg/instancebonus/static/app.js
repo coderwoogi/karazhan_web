@@ -584,7 +584,6 @@ const instanceBonusApp = (() => {
             `<div class="ib-field"><label>던전/레이드 선택</label><div class="ib-map-picker" data-target="map-form-map-id" data-empty="던전/레이드를 선택하세요"></div><select id="map-form-map-id" name="map_id" hidden></select><small class="ib-help">추가미션을 적용할 던전이나 레이드를 선택하세요.</small></div>`,
             `<div class="ib-field"><label>맵 이름</label><input id="map-form-map-name" type="text" name="map_name" readonly><small class="ib-help">선택한 맵의 이름이 자동으로 채워집니다.</small></div>`,
             ...mapFields.filter((field) => !['map_id', 'map_name'].includes(field.name)).map((field) => fieldTemplate(field)),
-            formSection('난이도 작업 선택', '맵 설정에서는 해당 던전이나 레이드에서 작업할 난이도 종류만 고릅니다. 실제 추가미션과 테마 등록은 미션 관리, 테마 관리 화면에서 진행합니다.'),
             `<div class="ib-field full"><div id="map-difficulty-manager" class="ib-map-difficulty-manager"></div></div>`,
             `<div class="ib-field full"><div class="ib-actions"><button type="button" class="ib-btn ib-btn-primary" onclick="instanceBonusApp.saveMap(false)">저장 후 목록</button><button type="button" class="ib-btn ib-btn-ghost" onclick="instanceBonusApp.saveMap(true)">저장 후 계속 편집</button><button type="button" class="ib-btn ib-btn-secondary" onclick="instanceBonusApp.closeMapForm()">목록으로</button></div></div>`
         ].join('');
@@ -694,12 +693,8 @@ const instanceBonusApp = (() => {
         container.innerHTML = `
             <div class="ib-difficulty-header">
                 <div>
-                    <h4>${escapeHtml(mapNameById(mapId))} 작업 타입</h4>
-                    <p>맵 설정에서는 맵과 난이도만 정합니다. 실제 미션과 테마는 다음 단계인 미션 관리와 테마 관리에서 이 맵을 기준으로 등록합니다.</p>
-                </div>
-                <div class="ib-difficulty-actions">
-                    <button type="button" class="ib-btn ib-btn-primary" onclick="instanceBonusApp.openMissionFormForMapDifficulty()">이 맵으로 미션 등록</button>
-                    <button type="button" class="ib-btn ib-btn-ghost" onclick="instanceBonusApp.openThemeFormForMapDifficulty()">이 맵으로 테마 등록</button>
+                    <h4>난이도 설정</h4>
+                    <p>${escapeHtml(mapNameById(mapId))}에서 사용할 작업 난이도를 선택하세요. 미션과 테마는 다음 단계 화면에서 이 맵을 골라 추가합니다.</p>
                 </div>
             </div>
             <div class="ib-difficulty-selector">
@@ -708,7 +703,7 @@ const instanceBonusApp = (() => {
                     ${options.map((item) => `<option value="${item.value}" ${item.value === selected.value ? 'selected' : ''}>${escapeHtml(item.label)}</option>`).join('')}
                 </select>
             </div>
-            <div class="ib-static-note">현재 선택된 난이도는 <strong>${escapeHtml(selected.label)}</strong>입니다. 맵 설정을 저장한 뒤 미션 관리에서 이 맵을 골라 미션을 만들고, 테마 관리에서 같은 맵의 테마를 추가하세요.</div>`;
+            <div class="ib-static-note">현재 선택된 난이도는 <strong>${escapeHtml(selected.label)}</strong>입니다. 이 값은 이후 미션 관리와 테마 관리에서 같은 맵을 선택할 때 작업 기준으로 이어집니다.</div>`;
     }
 
     function selectMapDifficulty(value) {
