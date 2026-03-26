@@ -158,6 +158,7 @@ type mapOption struct {
 type mapConfig struct {
 	MapID                int    `json:"map_id"`
 	MapName              string `json:"map_name"`
+	DifficultyMask       int    `json:"difficulty_mask"`
 	Enabled              int    `json:"enabled"`
 	AllowVote            int    `json:"allow_vote"`
 	DailyLimitPerPlayer  int    `json:"daily_limit_per_player"`
@@ -635,6 +636,7 @@ func ensureSchema() {
 		}
 	}
 	runSchemaAlter(`ALTER TABLE instance_bonus_map_config ADD COLUMN daily_limit_per_player INT UNSIGNED NOT NULL DEFAULT 0 AFTER allow_vote`)
+	runSchemaAlter(`ALTER TABLE instance_bonus_map_config ADD COLUMN difficulty_mask INT UNSIGNED NOT NULL DEFAULT 0 AFTER map_name`)
 	runSchemaAlter(`ALTER TABLE instance_bonus_map_config ADD COLUMN max_concurrent_missions TINYINT UNSIGNED NOT NULL DEFAULT 3 AFTER max_party_size`)
 	runSchemaAlter(`ALTER TABLE instance_bonus_map_config ADD COLUMN notes TEXT NULL AFTER max_concurrent_missions`)
 	runSchemaAlter(`ALTER TABLE instance_bonus_map_config ADD COLUMN updated_by VARCHAR(60) NOT NULL DEFAULT '' AFTER notes`)
@@ -1335,7 +1337,7 @@ func handleMaps(w http.ResponseWriter, r *http.Request) {
 		if len(conds) > 0 {
 			where = " WHERE " + strings.Join(conds, " AND ")
 		}
-		query = `SELECT map_id, IFNULL(map_name,''), enabled, allow_vote, daily_limit_per_player, allow_llm, default_time_limit_sec, min_party_size, max_party_size, max_concurrent_missions, IFNULL(notes,''), IFNULL(updated_by,''), DATE_FORMAT(updated_at, '%Y-%m-%d %H:%i:%s') FROM instance_bonus_map_config`
+		query = `SELECT map_id, IFNULL(map_name,''), difficulty_mask, enabled, allow_vote, daily_limit_per_player, allow_llm, default_time_limit_sec, min_party_size, max_party_size, max_concurrent_missions, IFNULL(notes,''), IFNULL(updated_by,''), DATE_FORMAT(updated_at, '%Y-%m-%d %H:%i:%s') FROM instance_bonus_map_config`
 		var total int
 		_ = worldDB.QueryRow(countQuery+where, args...).Scan(&total)
 		rows, err := worldDB.Query(query+where+` ORDER BY map_id ASC LIMIT ? OFFSET ?`, append(args, limit, offset)...)
@@ -1347,7 +1349,7 @@ func handleMaps(w http.ResponseWriter, r *http.Request) {
 		items := make([]mapConfig, 0)
 		for rows.Next() {
 			var item mapConfig
-			_ = rows.Scan(&item.MapID, &item.MapName, &item.Enabled, &item.AllowVote, &item.DailyLimitPerPlayer, &item.AllowLLM, &item.DefaultTimeLimitSec, &item.MinPartySize, &item.MaxPartySize, &item.MaxConcurrentMission, &item.Notes, &item.UpdatedBy, &item.UpdatedAt)
+			_ = rows.Scan(&item.MapID, &item.MapName, &item.DifficultyMask, &item.Enabled, &item.AllowVote, &item.DailyLimitPerPlayer, &item.AllowLLM, &item.DefaultTimeLimitSec, &item.MinPartySize, &item.MaxPartySize, &item.MaxConcurrentMission, &item.Notes, &item.UpdatedBy, &item.UpdatedAt)
 			item.UpdatedBy = operatorDisplayName(item.UpdatedBy)
 			items = append(items, item)
 		}
@@ -1374,14 +1376,18 @@ func handleMaps(w http.ResponseWriter, r *http.Request) {
 		} else {
 			item.DailyLimitPerPlayer = normalizedLimit
 		}
+		if item.DifficultyMask < 0 || item.DifficultyMask > 63 {
+			http.Error(w, "난이도 값이 올바르지 않습니다.", http.StatusBadRequest)
+			return
+		}
 		_, err := worldDB.Exec(`INSERT INTO instance_bonus_map_config
-			(map_id, map_name, enabled, allow_vote, daily_limit_per_player, allow_llm, default_time_limit_sec, min_party_size, max_party_size, max_concurrent_missions, notes, updated_by)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			(map_id, map_name, difficulty_mask, enabled, allow_vote, daily_limit_per_player, allow_llm, default_time_limit_sec, min_party_size, max_party_size, max_concurrent_missions, notes, updated_by)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 			ON DUPLICATE KEY UPDATE
-				map_name=VALUES(map_name), enabled=VALUES(enabled), allow_vote=VALUES(allow_vote), daily_limit_per_player=VALUES(daily_limit_per_player), allow_llm=VALUES(allow_llm),
+				map_name=VALUES(map_name), difficulty_mask=VALUES(difficulty_mask), enabled=VALUES(enabled), allow_vote=VALUES(allow_vote), daily_limit_per_player=VALUES(daily_limit_per_player), allow_llm=VALUES(allow_llm),
 				default_time_limit_sec=VALUES(default_time_limit_sec), min_party_size=VALUES(min_party_size), max_party_size=VALUES(max_party_size),
 				max_concurrent_missions=VALUES(max_concurrent_missions), notes=VALUES(notes), updated_by=VALUES(updated_by), updated_at=CURRENT_TIMESTAMP`,
-			item.MapID, item.MapName, item.Enabled, item.AllowVote, item.DailyLimitPerPlayer, item.AllowLLM, item.DefaultTimeLimitSec, item.MinPartySize, item.MaxPartySize, item.MaxConcurrentMission, item.Notes, updatedByValue("instance_bonus_map_config", r))
+			item.MapID, item.MapName, item.DifficultyMask, item.Enabled, item.AllowVote, item.DailyLimitPerPlayer, item.AllowLLM, item.DefaultTimeLimitSec, item.MinPartySize, item.MaxPartySize, item.MaxConcurrentMission, item.Notes, updatedByValue("instance_bonus_map_config", r))
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -1415,9 +1421,9 @@ func handleMapByID(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
 		var item mapConfig
-		err = worldDB.QueryRow(`SELECT map_id, IFNULL(map_name,''), enabled, allow_vote, daily_limit_per_player, allow_llm, default_time_limit_sec, min_party_size, max_party_size, max_concurrent_missions, IFNULL(notes,''), IFNULL(updated_by,''), DATE_FORMAT(updated_at, '%Y-%m-%d %H:%i:%s')
+		err = worldDB.QueryRow(`SELECT map_id, IFNULL(map_name,''), difficulty_mask, enabled, allow_vote, daily_limit_per_player, allow_llm, default_time_limit_sec, min_party_size, max_party_size, max_concurrent_missions, IFNULL(notes,''), IFNULL(updated_by,''), DATE_FORMAT(updated_at, '%Y-%m-%d %H:%i:%s')
 			FROM instance_bonus_map_config WHERE map_id=?`, mapID).
-			Scan(&item.MapID, &item.MapName, &item.Enabled, &item.AllowVote, &item.DailyLimitPerPlayer, &item.AllowLLM, &item.DefaultTimeLimitSec, &item.MinPartySize, &item.MaxPartySize, &item.MaxConcurrentMission, &item.Notes, &item.UpdatedBy, &item.UpdatedAt)
+			Scan(&item.MapID, &item.MapName, &item.DifficultyMask, &item.Enabled, &item.AllowVote, &item.DailyLimitPerPlayer, &item.AllowLLM, &item.DefaultTimeLimitSec, &item.MinPartySize, &item.MaxPartySize, &item.MaxConcurrentMission, &item.Notes, &item.UpdatedBy, &item.UpdatedAt)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusNotFound)
 			return
@@ -1435,10 +1441,14 @@ func handleMapByID(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+		if item.DifficultyMask < 0 || item.DifficultyMask > 63 {
+			http.Error(w, "난이도 값이 올바르지 않습니다.", http.StatusBadRequest)
+			return
+		}
 		_, err = worldDB.Exec(`UPDATE instance_bonus_map_config
-			SET map_name=?, enabled=?, allow_vote=?, daily_limit_per_player=?, allow_llm=?, default_time_limit_sec=?, min_party_size=?, max_party_size=?, max_concurrent_missions=?, notes=?, updated_by=?, updated_at=CURRENT_TIMESTAMP
+			SET map_name=?, difficulty_mask=?, enabled=?, allow_vote=?, daily_limit_per_player=?, allow_llm=?, default_time_limit_sec=?, min_party_size=?, max_party_size=?, max_concurrent_missions=?, notes=?, updated_by=?, updated_at=CURRENT_TIMESTAMP
 			WHERE map_id=?`,
-			item.MapName, item.Enabled, item.AllowVote, item.DailyLimitPerPlayer, item.AllowLLM, item.DefaultTimeLimitSec, item.MinPartySize, item.MaxPartySize, item.MaxConcurrentMission, item.Notes, updatedByValue("instance_bonus_map_config", r), mapID)
+			item.MapName, item.DifficultyMask, item.Enabled, item.AllowVote, item.DailyLimitPerPlayer, item.AllowLLM, item.DefaultTimeLimitSec, item.MinPartySize, item.MaxPartySize, item.MaxConcurrentMission, item.Notes, updatedByValue("instance_bonus_map_config", r), mapID)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

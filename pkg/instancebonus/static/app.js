@@ -209,6 +209,7 @@ const instanceBonusApp = (() => {
     ];
 
     function difficultyLabel(value) {
+        if (Number(value || 0) === 0) return '전체 허용';
         const found = difficultyOptions.find((item) => Number(item.value) === Number(value));
         return found ? found.label : `난이도 ${value}`;
     }
@@ -376,6 +377,10 @@ const instanceBonusApp = (() => {
         return filtered.length ? filtered : state.mapOptions;
     }
 
+    function configuredMapById(mapId) {
+        return state.configuredMaps.find((row) => Number(row.map_id) === Number(mapId)) || null;
+    }
+
     function filteredMapOptions(searchText, selectId = '') {
         const baseOptions = selectId === 'map-form-map-id' ? state.mapOptions : configuredMapOptions();
         const keyword = String(searchText || '').trim().toLowerCase();
@@ -390,7 +395,9 @@ const instanceBonusApp = (() => {
     function renderMapOptionsFromList(list, includeEmpty = true, emptyLabel = '전체') {
         const options = list.map((row) => {
             const suffix = row.max_players ? ` · 최대 ${row.max_players}명` : '';
-            return `<option value="${row.map_id}">${escapeHtml(row.map_name)} (${escapeHtml(row.map_type)})${suffix}</option>`;
+            const configured = configuredMapById(row.map_id);
+            const difficultyText = configured && Number(configured.difficulty_mask || 0) > 0 ? ` · ${difficultyLabel(configured.difficulty_mask)}` : '';
+            return `<option value="${row.map_id}">${escapeHtml(row.map_name)} (${escapeHtml(row.map_type)})${suffix}${escapeHtml(difficultyText)}</option>`;
         }).join('');
         if (!includeEmpty) return options;
         return `<option value="">${emptyLabel}</option>${options}`;
@@ -401,13 +408,17 @@ const instanceBonusApp = (() => {
         const selected = state.mapOptions.find((row) => String(row.map_id) === String(value));
         if (!selected) return emptyLabel;
         const suffix = selected.max_players ? ` · 최대 ${selected.max_players}명` : '';
-        return `${selected.map_name} (${selected.map_type})${suffix}`;
+        const configured = configuredMapById(selected.map_id);
+        const difficultyText = configured && Number(configured.difficulty_mask || 0) > 0 ? ` · ${difficultyLabel(configured.difficulty_mask)}` : '';
+        return `${selected.map_name} (${selected.map_type})${suffix}${difficultyText}`;
     }
 
     function mapNameById(mapId) {
         const row = state.mapOptions.find((item) => String(item.map_id) === String(mapId));
         if (!row) return `맵 ${mapId}`;
-        return `${row.map_name} (${row.map_type})`;
+        const configured = configuredMapById(mapId);
+        const difficultyText = configured && Number(configured.difficulty_mask || 0) > 0 ? ` · ${difficultyLabel(configured.difficulty_mask)}` : '';
+        return `${row.map_name} (${row.map_type})${difficultyText}`;
     }
 
     function closeAllMapPickers(exceptTarget = '') {
@@ -635,6 +646,7 @@ const instanceBonusApp = (() => {
     function openMapForm(data = null, options = {}) {
         state.mapEditingId = data ? data.map_id : null;
         state.mapDifficulty.focusAfterOpen = !!options.focusDifficulty;
+        state.mapDifficulty.selected = Number(data?.difficulty_mask || 0);
         toggleCrudView('maps', 'form');
         document.getElementById('map-form-title').textContent = data ? `맵 설정 수정 #${data.map_id}` : '맵 설정 등록';
         const form = document.getElementById('map-form');
@@ -675,6 +687,7 @@ const instanceBonusApp = (() => {
             else if (field.type === 'checkbox') payload[field.name] = Number(el.value || 0);
             else payload[field.name] = el.value;
         });
+        payload.difficulty_mask = Number(document.getElementById('map-difficulty-select')?.value || 0);
         if (!payload.map_id || payload.map_id <= 0) throw new Error('맵 ID는 필수입니다.');
         if (payload.daily_limit_per_player < 0) throw new Error('추가미션 일일 제한은 0 이상이어야 합니다.');
         if (payload.daily_limit_per_player > 100) throw new Error('추가미션 일일 제한은 100 이하로만 설정할 수 있습니다.');
@@ -775,6 +788,7 @@ const instanceBonusApp = (() => {
         body.innerHTML = state.mapsCache.length ? state.mapsCache.map((row) => `
             <tr>
                 <td>${escapeHtml(row.map_name || `맵 ${row.map_id}`)}<div class="ib-help">ID ${row.map_id}</div></td>
+                <td>${escapeHtml(difficultyLabel(row.difficulty_mask || 0))}</td>
                 <td>${badge(row.enabled)}</td>
                 <td>${badge(row.allow_vote)}</td>
                 <td>${row.daily_limit_per_player === 0 ? '무제한' : `${row.daily_limit_per_player}회`}</td>
@@ -784,7 +798,7 @@ const instanceBonusApp = (() => {
                 <td>${row.max_concurrent_missions || 0}</td>
                 <td>${escapeHtml(row.updated_by || '-')}</td>
                 <td><div class="ib-actions"><button class="ib-btn ib-btn-ghost" onclick="instanceBonusApp.editMapById(${row.map_id})">수정</button><button class="ib-btn ib-btn-danger" onclick="instanceBonusApp.deleteMap(${row.map_id})">삭제</button></div></td>
-            </tr>`).join('') : '<tr><td colspan="10" class="ib-empty">등록된 맵 설정이 없습니다.</td></tr>';
+            </tr>`).join('') : '<tr><td colspan="11" class="ib-empty">등록된 맵 설정이 없습니다.</td></tr>';
         renderPagination('maps-pagination', data.page || 1, data.total || 0, data.limit || 20, 'loadMaps');
     }
 
@@ -809,7 +823,7 @@ const instanceBonusApp = (() => {
             `<div class="ib-field"><label>던전/레이드 선택</label><div class="ib-map-picker" data-target="mission-form-map-id" data-empty="던전/레이드를 선택하세요"></div><select id="mission-form-map-id" name="map_id" hidden></select><small class="ib-help">맵 설정에 먼저 등록한 던전이나 레이드만 선택할 수 있습니다.</small></div>`,
             `<input type="hidden" id="mission-form-difficulty-mask" name="difficulty_mask" value="0">`,
             fieldTemplate({ name: 'mission_key', label: '미션 키', help: '내부 식별용 키입니다.' }),
-            fieldTemplate({ name: 'name', label: '미션 이름', help: '운영 화면과 게임 안에서 보일 이름입니다.' }),
+            `<div class="ib-field"><label>미션 이름</label><input type="text" name="name"><small id="mission-selected-difficulty" class="ib-help">선택한 던전/레이드의 난이도가 여기에 표시됩니다.</small></div>`,
             fieldTemplate({ name: 'description', label: '설명', type: 'textarea', full: true, help: '운영자가 미션 내용을 이해하기 위한 설명입니다.' }),
             fieldTemplate({ name: 'briefing_text', label: '브리핑 문구', type: 'textarea', full: true, help: '게임 안에 보여줄 안내 문구입니다.' }),
 
@@ -843,6 +857,7 @@ const instanceBonusApp = (() => {
         ];
         form.innerHTML = sections.join('');
         applyMapOptions();
+        document.getElementById('mission-form-map-id')?.addEventListener('change', syncMissionDifficultyHint);
     }
     function openMissionForm(data = null) {
         state.missionEditingId = data ? data.mission_id : null;
@@ -867,6 +882,7 @@ const instanceBonusApp = (() => {
                 : 0
         );
         form.elements.difficulty_mask.value = String(missionDifficultyValue || 0);
+        syncMissionDifficultyHint();
     }
 
     function closeMissionForm() {
@@ -887,6 +903,20 @@ const instanceBonusApp = (() => {
         data.difficulty_mask = Number(form.elements.difficulty_mask?.value || 0);
         if (!data.mission_key || !data.name) throw new Error('미션 키와 이름은 필수입니다.');
         return data;
+    }
+
+    function syncMissionDifficultyHint() {
+        const select = document.getElementById('mission-form-map-id');
+        const hint = document.getElementById('mission-selected-difficulty');
+        const hidden = document.getElementById('mission-form-difficulty-mask');
+        if (!hint || !hidden) return;
+        const mapId = Number(select?.value || 0);
+        const configured = configuredMapById(mapId);
+        const difficulty = Number(configured?.difficulty_mask || 0);
+        hidden.value = String(difficulty || 0);
+        hint.textContent = mapId
+            ? `현재 선택 난이도: ${difficultyLabel(difficulty)}`
+            : '선택한 던전/레이드의 난이도가 여기에 표시됩니다.';
     }
 
 
