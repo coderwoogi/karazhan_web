@@ -22,6 +22,7 @@ var updateDB *sql.DB
 var charactersDB *sql.DB
 var authDB *sql.DB
 var columnTypeCache sync.Map
+var operatorNameCache sync.Map
 
 const menuID = "instance-bonus-admin"
 
@@ -739,6 +740,73 @@ func updatedByValue(tableName string, r *http.Request) any {
 	return currentUser(r)
 }
 
+func operatorDisplayName(raw string) string {
+	value := strings.TrimSpace(raw)
+	if value == "" {
+		return "-"
+	}
+	if value == "system" {
+		return "시스템"
+	}
+	if cached, ok := operatorNameCache.Load(value); ok {
+		return cached.(string)
+	}
+	display := value
+	if updateDB != nil {
+		if accountID, err := strconv.ParseInt(value, 10, 64); err == nil && accountID > 0 {
+			if name := mainCharacterNameByAccountID(accountID); name != "" {
+				display = name
+			} else if username := usernameByAccountID(accountID); username != "" {
+				display = username
+			}
+		} else if authDB != nil {
+			if accountID := accountIDByUsername(value); accountID > 0 {
+				if name := mainCharacterNameByAccountID(accountID); name != "" {
+					display = name
+				}
+			}
+		}
+	}
+	operatorNameCache.Store(value, display)
+	return display
+}
+
+func mainCharacterNameByAccountID(accountID int64) string {
+	if updateDB == nil || accountID <= 0 {
+		return ""
+	}
+	var name string
+	err := updateDB.QueryRow(`SELECT NULLIF(TRIM(main_char_name), '') FROM user_profiles WHERE user_id=? LIMIT 1`, accountID).Scan(&name)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(name)
+}
+
+func usernameByAccountID(accountID int64) string {
+	if authDB == nil || accountID <= 0 {
+		return ""
+	}
+	var username string
+	err := authDB.QueryRow(`SELECT username FROM account WHERE id=? LIMIT 1`, accountID).Scan(&username)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(username)
+}
+
+func accountIDByUsername(username string) int64 {
+	if authDB == nil || strings.TrimSpace(username) == "" {
+		return 0
+	}
+	var accountID int64
+	err := authDB.QueryRow(`SELECT id FROM account WHERE UPPER(username)=UPPER(?) LIMIT 1`, username).Scan(&accountID)
+	if err != nil {
+		return 0
+	}
+	return accountID
+}
+
 func normalizeDailyLimit(value int) (int, error) {
 	if value < 0 {
 		return 0, fmt.Errorf("추가미션 일일 제한은 0 이상이어야 합니다")
@@ -1280,6 +1348,7 @@ func handleMaps(w http.ResponseWriter, r *http.Request) {
 		for rows.Next() {
 			var item mapConfig
 			_ = rows.Scan(&item.MapID, &item.MapName, &item.Enabled, &item.AllowVote, &item.DailyLimitPerPlayer, &item.AllowLLM, &item.DefaultTimeLimitSec, &item.MinPartySize, &item.MaxPartySize, &item.MaxConcurrentMission, &item.Notes, &item.UpdatedBy, &item.UpdatedAt)
+			item.UpdatedBy = operatorDisplayName(item.UpdatedBy)
 			items = append(items, item)
 		}
 		writeJSON(w, http.StatusOK, pageResult{Items: items, Page: page, Limit: limit, Total: total})
@@ -1353,6 +1422,7 @@ func handleMapByID(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusNotFound)
 			return
 		}
+		item.UpdatedBy = operatorDisplayName(item.UpdatedBy)
 		writeJSON(w, http.StatusOK, item)
 	case http.MethodPut:
 		var item mapConfig
