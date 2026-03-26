@@ -155,7 +155,14 @@ const instanceBonusApp = (() => {
         currentRunId: null,
         themesCache: [],
         missionsCache: [],
-        themeLinksCache: []
+        themeLinksCache: [],
+        mapDifficulty: {
+            mapId: null,
+            mapType: '',
+            selected: 0,
+            content: null,
+            focusAfterOpen: false
+        }
     };
     let applyingHistoryState = false;
 
@@ -192,6 +199,15 @@ const instanceBonusApp = (() => {
         { name: 'allow_llm', label: 'LLM 허용', type: 'checkbox', help: '사용으로 두면 미션 추천 과정에서 LLM 보조 선택을 사용할 수 있습니다.' },
         { name: 'notes', label: '운영 메모', type: 'textarea', full: true, help: '운영자가 참고할 특이사항을 적습니다.' }
     ];
+    const difficultyOptions = [
+        { value: 1, label: '\u0035\uC778 \uC77C\uBC18', group: 'dungeon' },
+        { value: 2, label: '\u0035\uC778 \uC601\uC6C5', group: 'dungeon' },
+        { value: 4, label: '\u0031\u0030\uC778 \uC77C\uBC18', group: 'raid' },
+        { value: 8, label: '\u0031\u0030\uC778 \uD558\uB4DC', group: 'raid' },
+        { value: 16, label: '\u0032\u0035\uC778 \uC77C\uBC18', group: 'raid' },
+        { value: 32, label: '\u0032\u0035\uC778 \uD558\uB4DC', group: 'raid' }
+    ];
+
 
     async function init() {
         bindTabs();
@@ -300,6 +316,7 @@ const instanceBonusApp = (() => {
     async function loadMapOptions() {
         state.mapOptions = await api('/instance-bonus/map-options');
         applyMapOptions();
+        mountDifficultyEditor('mission-form-difficulty-mask', '던전', 0);
     }
 
     function filteredMapOptions(searchText) {
@@ -417,7 +434,7 @@ const instanceBonusApp = (() => {
             option.addEventListener('click', () => {
                 select.value = option.dataset.value || '';
                 renderMapPicker(selectId, includeEmpty, emptyLabel, '');
-                if (selectId === 'map-form-map-id') syncMapNameFromSelect();
+                select.dispatchEvent(new Event('change', { bubbles: true }));
                 picker.classList.remove('open');
             });
         });
@@ -548,18 +565,21 @@ const instanceBonusApp = (() => {
     function renderMapForm() {
         const form = document.getElementById('map-form');
         form.innerHTML = [
-            formSection('기본 설정', '어떤 맵에서 시스템을 사용할지와 공통 기본값을 설정합니다. 미션마다 개별 제한 시간을 따로 넣지 않으면 여기 설정한 기본 시간이 사용됩니다.'),
-            `<div class="ib-field"><label>던전/레이드 선택</label><div class="ib-map-picker" data-target="map-form-map-id" data-empty="던전/레이드를 선택하세요"></div><select id="map-form-map-id" name="map_id" hidden></select><small class="ib-help">게임에 등록된 인스턴스 던전/레이드 목록입니다.</small></div>`,
-            `<div class="ib-field"><label>맵 이름</label><input id="map-form-map-name" type="text" name="map_name" readonly><small class="ib-help">선택한 맵 이름이 자동으로 입력됩니다.</small></div>`,
+            formSection('맵 공통 설정', '맵 자체의 기본 규칙을 정하는 화면입니다. 여기서 정한 기본값은 미션이 별도 값을 가지지 않을 때 공통 기준으로 사용됩니다.'),
+            `<div class="ib-field"><label>던전/레이드 선택</label><div class="ib-map-picker" data-target="map-form-map-id" data-empty="던전/레이드를 선택하세요"></div><select id="map-form-map-id" name="map_id" hidden></select><small class="ib-help">추가미션을 적용할 던전이나 레이드를 선택하세요.</small></div>`,
+            `<div class="ib-field"><label>맵 이름</label><input id="map-form-map-name" type="text" name="map_name" readonly><small class="ib-help">선택한 맵의 이름이 자동으로 채워집니다.</small></div>`,
             ...mapFields.filter((field) => !['map_id', 'map_name'].includes(field.name)).map((field) => fieldTemplate(field)),
-            `<div class="ib-field full"><div class="ib-actions"><button type="button" class="ib-btn ib-btn-primary" onclick="instanceBonusApp.saveMap(false)">저장 후 목록</button><button type="button" class="ib-btn ib-btn-ghost" onclick="instanceBonusApp.saveMap(true)">저장 후 계속 편집</button><button type="button" class="ib-btn ib-btn-secondary" onclick="instanceBonusApp.closeMapForm()">닫기</button></div></div>`
+            formSection('난이도별 미션/테마 관리', '이 맵에서 사용할 난이도별 미션과 테마를 관리합니다. 여기서 보이는 설정은 실제로 미션과 테마의 적용 난이도 값에 저장됩니다.'),
+            `<div class="ib-field full"><div id="map-difficulty-manager" class="ib-map-difficulty-manager"></div></div>`,
+            `<div class="ib-field full"><div class="ib-actions"><button type="button" class="ib-btn ib-btn-primary" onclick="instanceBonusApp.saveMap(false)">저장 후 목록</button><button type="button" class="ib-btn ib-btn-ghost" onclick="instanceBonusApp.saveMap(true)">저장 후 계속 편집</button><button type="button" class="ib-btn ib-btn-secondary" onclick="instanceBonusApp.closeMapForm()">목록으로</button></div></div>`
         ].join('');
         applyMapOptions();
         document.getElementById('map-form-map-id')?.addEventListener('change', syncMapNameFromSelect);
     }
 
-    function openMapForm(data = null) {
+    function openMapForm(data = null, options = {}) {
         state.mapEditingId = data ? data.map_id : null;
+        state.mapDifficulty.focusAfterOpen = !!options.focusDifficulty;
         toggleCrudView('maps', 'form');
         document.getElementById('map-form-title').textContent = data ? `맵 설정 수정 #${data.map_id}` : '맵 설정 등록';
         const form = document.getElementById('map-form');
@@ -579,13 +599,24 @@ const instanceBonusApp = (() => {
             form.elements.min_party_size.value = '1';
             form.elements.max_party_size.value = '5';
             form.elements.max_concurrent_missions.value = '1';
+            state.mapDifficulty.content = null;
         }
         syncMapNameFromSelect();
+        const selectedMapId = Number(form.elements.map_id?.value || 0);
+        if (selectedMapId) {
+            loadMapDifficultyContent(selectedMapId, { focus: state.mapDifficulty.focusAfterOpen }).catch(() => {
+                state.mapDifficulty.content = null;
+                renderMapDifficultyManager();
+            });
+        } else {
+            renderMapDifficultyManager();
+        }
     }
 
     function closeMapForm() {
         toggleCrudView('maps', 'list');
         state.mapEditingId = null;
+        state.mapDifficulty.focusAfterOpen = false;
     }
 
     function mapPayload() {
@@ -610,7 +641,247 @@ const instanceBonusApp = (() => {
         if (!select || !input) return;
         const selected = state.mapOptions.find((row) => Number(row.map_id) === Number(select.value));
         input.value = selected ? selected.map_name : '';
+        const mapType = selected?.map_type || '던전';
+        mountDifficultyEditor('mission-form-difficulty-mask', mapType, readDifficultyEditor('mission-form-difficulty-mask'));
+        mountDifficultyEditor('theme-form-difficulty-mask', mapType, readDifficultyEditor('theme-form-difficulty-mask'));
+        if (select.id === 'map-form-map-id') {
+            if (select.value) {
+                loadMapDifficultyContent(Number(select.value), { focus: state.mapDifficulty.focusAfterOpen }).catch(() => {
+                    state.mapDifficulty.content = null;
+                    renderMapDifficultyManager();
+                });
+            } else {
+                state.mapDifficulty.content = null;
+                renderMapDifficultyManager();
+            }
+        }
     }
+
+    function mapTypeForValue(mapId) {
+        const selected = state.mapOptions.find((row) => Number(row.map_id) === Number(mapId));
+        return selected?.map_type || '던전';
+    }
+
+    function difficultyOptionsForMapType(mapType) {
+        if (mapType === '레이드') return difficultyOptions.filter((item) => item.group === 'raid');
+        return difficultyOptions.filter((item) => item.group === 'dungeon');
+    }
+
+    function totalDifficultyMaskForMapType(mapType) {
+        return difficultyOptionsForMapType(mapType).reduce((sum, item) => sum + item.value, 0);
+    }
+
+    function normalizeDifficultyMask(mask, mapType) {
+        const parsed = Number(mask || 0);
+        if (!parsed) return 0;
+        const allowed = totalDifficultyMaskForMapType(mapType);
+        const filtered = parsed & allowed;
+        if (!filtered) return 0;
+        return filtered === allowed ? 0 : filtered;
+    }
+
+    function difficultyMaskMatches(mask, selectedDifficulty) {
+        const parsed = Number(mask || 0);
+        if (!selectedDifficulty) return true;
+        return parsed === 0 || (parsed & selectedDifficulty) !== 0;
+    }
+
+    function difficultyLabel(value) {
+        return difficultyOptions.find((item) => item.value === Number(value))?.label || `난이도 ${value}`;
+    }
+
+    function difficultyBadges(mask, mapType) {
+        const normalized = normalizeDifficultyMask(mask, mapType);
+        if (normalized === 0) {
+            return '<span class="ib-difficulty-pill all">전체 허용</span>';
+        }
+        return difficultyOptionsForMapType(mapType)
+            .filter((item) => (normalized & item.value) !== 0)
+            .map((item) => `<span class="ib-difficulty-pill">${escapeHtml(item.label)}</span>`)
+            .join('');
+    }
+
+    function renderDifficultyEditor(fieldId, helpText = '') {
+        return `<div class="ib-field full"><label>적용 난이도</label><div id="${fieldId}" class="ib-difficulty-editor" data-mask="0"></div>${helpText ? `<small class="ib-help">${helpText}</small>` : ''}</div>`;
+    }
+
+    function mountDifficultyEditor(fieldId, mapType, mask = 0) {
+        const container = document.getElementById(fieldId);
+        if (!container) return;
+        const effectiveMapType = mapType === '레이드' ? '레이드' : '던전';
+        const normalized = normalizeDifficultyMask(mask, effectiveMapType);
+        const options = difficultyOptionsForMapType(effectiveMapType);
+        container.dataset.mask = String(normalized);
+        container.dataset.mapType = effectiveMapType;
+        container.innerHTML = `
+            <label class="ib-difficulty-toggle all">
+                <input type="checkbox" data-role="all" ${normalized === 0 ? 'checked' : ''}>
+                <span>전체 허용</span>
+            </label>
+            <div class="ib-difficulty-checklist">
+                ${options.map((item) => `
+                    <label class="ib-difficulty-toggle">
+                        <input type="checkbox" data-role="difficulty" value="${item.value}" ${normalized !== 0 && (normalized & item.value) !== 0 ? 'checked' : ''}>
+                        <span>${escapeHtml(item.label)}</span>
+                    </label>`).join('')}
+            </div>
+            <div class="ib-difficulty-help">아무 난이도도 선택하지 않으면 전체 허용(0)으로 저장됩니다.</div>`;
+        const allInput = container.querySelector('[data-role="all"]');
+        const difficultyInputs = Array.from(container.querySelectorAll('[data-role="difficulty"]'));
+        allInput?.addEventListener('change', () => {
+            if (allInput.checked) difficultyInputs.forEach((input) => { input.checked = false; });
+        });
+        difficultyInputs.forEach((input) => {
+            input.addEventListener('change', () => {
+                if (input.checked && allInput) allInput.checked = false;
+                if (!difficultyInputs.some((item) => item.checked) && allInput) allInput.checked = true;
+            });
+        });
+    }
+
+    function readDifficultyEditor(fieldId) {
+        const container = document.getElementById(fieldId);
+        if (!container) return 0;
+        const mapType = container.dataset.mapType || '던전';
+        const allInput = container.querySelector('[data-role="all"]');
+        const difficultyInputs = Array.from(container.querySelectorAll('[data-role="difficulty"]'));
+        if (allInput?.checked) return 0;
+        const value = difficultyInputs.filter((input) => input.checked).reduce((sum, input) => sum + Number(input.value || 0), 0);
+        return normalizeDifficultyMask(value, mapType);
+    }
+
+    function currentMapDifficultyOption() {
+        const options = difficultyOptionsForMapType(state.mapDifficulty.mapType || '던전');
+        return options.find((item) => item.value === state.mapDifficulty.selected) || options[0] || difficultyOptions[0];
+    }
+
+    function refreshMapDifficultySelection(mapType) {
+        const options = difficultyOptionsForMapType(mapType);
+        if (!options.length) {
+            state.mapDifficulty.selected = 0;
+            return;
+        }
+        if (!options.some((item) => item.value === state.mapDifficulty.selected)) {
+            state.mapDifficulty.selected = options[0].value;
+        }
+    }
+
+    async function loadMapDifficultyContent(mapId, options = {}) {
+        if (!mapId) return;
+        const data = await api(`/instance-bonus/maps/${mapId}/difficulty-content`);
+        state.mapDifficulty.mapId = Number(mapId);
+        state.mapDifficulty.mapType = data.map_type || mapTypeForValue(mapId);
+        state.mapDifficulty.content = data;
+        refreshMapDifficultySelection(state.mapDifficulty.mapType);
+        renderMapDifficultyManager();
+        if (options.focus) {
+            document.getElementById('map-difficulty-manager')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
+
+    async function updateMapDifficultyMask(kind, itemId, nextMask, enabled = null) {
+        if (!state.mapDifficulty.mapId) return;
+        const payload = { difficulty_mask: nextMask };
+        if (enabled !== null) payload.enabled = enabled;
+        await api(`/instance-bonus/maps/${state.mapDifficulty.mapId}/difficulty-content/${kind}/${itemId}`, { method: 'PUT', body: JSON.stringify(payload) });
+        await loadMapDifficultyContent(state.mapDifficulty.mapId);
+        if (kind === 'missions') await loadMissions(state.missionsPage);
+        if (kind === 'themes') await loadThemes(state.themesPage);
+    }
+
+    function renderDifficultyManageRows(kind, rows, activeOnly) {
+        const mapType = state.mapDifficulty.mapType || '던전';
+        const selected = currentMapDifficultyOption();
+        const filtered = rows.filter((row) => difficultyMaskMatches(row.difficulty_mask, selected.value) === activeOnly);
+        if (!filtered.length) {
+            return `<tr><td colspan="5" class="ib-empty">${activeOnly ? '현재 난이도에 연결된 항목이 없습니다.' : '아직 연결되지 않은 항목이 없습니다.'}</td></tr>`;
+        }
+        return filtered.map((row) => {
+            const id = kind === 'missions' ? row.mission_id : row.theme_id;
+            const key = kind === 'missions' ? row.mission_key : row.theme_key;
+            const currentMask = normalizeDifficultyMask(row.difficulty_mask, mapType);
+            const toggleLabel = activeOnly ? '제외' : '추가';
+            const nextMask = (() => {
+                if (currentMask === 0) {
+                    return normalizeDifficultyMask(totalDifficultyMaskForMapType(mapType) & ~selected.value, mapType);
+                }
+                if ((currentMask & selected.value) !== 0) {
+                    return normalizeDifficultyMask(currentMask & ~selected.value, mapType);
+                }
+                return normalizeDifficultyMask(currentMask | selected.value, mapType);
+            })();
+            return `
+                <tr>
+                    <td>${escapeHtml(row.name || '-')}<div class="ib-help">${escapeHtml(key || '')}</div></td>
+                    <td>${publishBadge(row.publish_status)} ${badge(row.enabled)}</td>
+                    <td>${difficultyBadges(row.difficulty_mask, mapType)}</td>
+                    <td><button class="ib-btn ${activeOnly ? 'ib-btn-danger' : 'ib-btn-primary'}" onclick="instanceBonusApp.updateMapDifficultyMask('${kind}', ${id}, ${nextMask})">${toggleLabel}</button></td>
+                    <td><button class="ib-btn ib-btn-ghost" onclick="instanceBonusApp.${kind === 'missions' ? 'fetchMission' : 'fetchTheme'}(${id})">편집</button></td>
+                </tr>`;
+        }).join('');
+    }
+
+    function renderMapDifficultyManager() {
+        const container = document.getElementById('map-difficulty-manager');
+        if (!container) return;
+        const mapId = Number(document.getElementById('map-form-map-id')?.value || 0);
+        if (!mapId) {
+            container.innerHTML = '<div class="ib-empty">먼저 던전/레이드를 선택해야 난이도별 미션과 테마를 관리할 수 있습니다.</div>';
+            return;
+        }
+        if (!state.mapDifficulty.content || Number(state.mapDifficulty.mapId) !== mapId) {
+            container.innerHTML = '<div class="ib-empty">난이도 관리 정보를 불러오는 중입니다.</div>';
+            return;
+        }
+        const selected = currentMapDifficultyOption();
+        const options = difficultyOptionsForMapType(state.mapDifficulty.mapType || '던전');
+        container.innerHTML = `
+            <div class="ib-difficulty-header">
+                <div>
+                    <h4>${escapeHtml(state.mapDifficulty.content.map_name || mapNameById(mapId))} 난이도 관리</h4>
+                    <p>각 난이도에서 사용할 미션과 테마를 직접 관리합니다. 추가하거나 제외하면 실제 미션/테마의 적용 난이도 값이 함께 수정됩니다.</p>
+                </div>
+                <div class="ib-difficulty-actions">
+                    <button type="button" class="ib-btn ib-btn-primary" onclick="instanceBonusApp.openMissionFormForMapDifficulty()">미션 추가</button>
+                    <button type="button" class="ib-btn ib-btn-ghost" onclick="instanceBonusApp.openThemeFormForMapDifficulty()">테마 추가</button>
+                </div>
+            </div>
+            <div class="ib-difficulty-tabs">
+                ${options.map((item) => `<button type="button" class="ib-difficulty-tab ${item.value === selected.value ? 'active' : ''}" onclick="instanceBonusApp.selectMapDifficulty(${item.value})">${escapeHtml(item.label)}</button>`).join('')}
+            </div>
+            <div class="ib-card-grid ib-two-col ib-map-difficulty-grid">
+                <div class="ib-subcard">
+                    <div class="ib-subcard-head"><h4>미션 목록</h4><span class="ib-badge ok">${escapeHtml(selected.label)}</span></div>
+                    <div class="ib-table-wrap"><table class="ib-table"><thead><tr><th>이름</th><th>상태</th><th>적용 난이도</th><th>관리</th><th>편집</th></tr></thead><tbody>${renderDifficultyManageRows('missions', state.mapDifficulty.content.missions || [], true)}</tbody></table></div>
+                    <div class="ib-difficulty-muted-title">아직 선택한 난이도에 포함되지 않은 미션</div>
+                    <div class="ib-table-wrap"><table class="ib-table"><thead><tr><th>이름</th><th>상태</th><th>적용 난이도</th><th>관리</th><th>편집</th></tr></thead><tbody>${renderDifficultyManageRows('missions', state.mapDifficulty.content.missions || [], false)}</tbody></table></div>
+                </div>
+                <div class="ib-subcard">
+                    <div class="ib-subcard-head"><h4>테마 목록</h4><span class="ib-badge ok">${escapeHtml(selected.label)}</span></div>
+                    <div class="ib-table-wrap"><table class="ib-table"><thead><tr><th>이름</th><th>상태</th><th>적용 난이도</th><th>관리</th><th>편집</th></tr></thead><tbody>${renderDifficultyManageRows('themes', state.mapDifficulty.content.themes || [], true)}</tbody></table></div>
+                    <div class="ib-difficulty-muted-title">아직 선택한 난이도에 포함되지 않은 테마</div>
+                    <div class="ib-table-wrap"><table class="ib-table"><thead><tr><th>이름</th><th>상태</th><th>적용 난이도</th><th>관리</th><th>편집</th></tr></thead><tbody>${renderDifficultyManageRows('themes', state.mapDifficulty.content.themes || [], false)}</tbody></table></div>
+                </div>
+            </div>`;
+    }
+
+    function selectMapDifficulty(value) {
+        state.mapDifficulty.selected = Number(value || 0);
+        renderMapDifficultyManager();
+    }
+
+    function openMissionFormForMapDifficulty() {
+        const mapId = Number(document.getElementById('map-form-map-id')?.value || 0);
+        if (!mapId) return;
+        openMissionForm({ map_id: mapId, difficulty_mask: currentMapDifficultyOption().value, enabled: 1, publish_status: 'draft' });
+    }
+
+    function openThemeFormForMapDifficulty() {
+        const mapId = Number(document.getElementById('map-form-map-id')?.value || 0);
+        if (!mapId) return;
+        openThemeForm({ map_id: mapId, difficulty_mask: currentMapDifficultyOption().value, enabled: 1, publish_status: 'draft' });
+    }
+
 
     async function saveMap(keepEditing = false) {
         const payload = mapPayload();
@@ -647,15 +918,15 @@ const instanceBonusApp = (() => {
                 <td>${row.min_party_size || 0} ~ ${row.max_party_size || 0}</td>
                 <td>${row.max_concurrent_missions || 0}</td>
                 <td>${escapeHtml(row.updated_by || '-')}</td>
-                <td><div class="ib-actions"><button class="ib-btn ib-btn-ghost" onclick="instanceBonusApp.editMapById(${row.map_id})">수정</button><button class="ib-btn ib-btn-danger" onclick="instanceBonusApp.deleteMap(${row.map_id})">삭제</button></div></td>
+                <td><div class="ib-actions"><button class="ib-btn ib-btn-primary" onclick="instanceBonusApp.editMapById(${row.map_id}, true)">난이도 관리</button><button class="ib-btn ib-btn-ghost" onclick="instanceBonusApp.editMapById(${row.map_id})">수정</button><button class="ib-btn ib-btn-danger" onclick="instanceBonusApp.deleteMap(${row.map_id})">삭제</button></div></td>
             </tr>`).join('') : '<tr><td colspan="10" class="ib-empty">등록된 맵 설정이 없습니다.</td></tr>';
         renderPagination('maps-pagination', data.page || 1, data.total || 0, data.limit || 20, 'loadMaps');
     }
 
-    async function editMapById(mapID) {
+    async function editMapById(mapID, focusDifficulty = false) {
         const row = state.mapsCache.find((item) => Number(item.map_id) === Number(mapID));
         if (!row) return;
-        openMapForm(row);
+        openMapForm(row, { focusDifficulty });
     }
 
     async function deleteMap(mapID) {
@@ -669,43 +940,48 @@ const instanceBonusApp = (() => {
     function renderMissionForm() {
         const form = document.getElementById('mission-form');
         const sections = [
-            formSection('기본 정보', '운영자가 식별하는 미션 키와 화면 노출 이름, 설명을 설정합니다.'),
-            `<div class="ib-field"><label>던전/레이드 선택</label><div class="ib-map-picker" data-target="mission-form-map-id" data-empty="던전/레이드를 선택하세요"></div><select id="mission-form-map-id" name="map_id" hidden></select><small class="ib-help">이 미션이 속할 던전/레이드를 고릅니다.</small></div>`,
-            fieldTemplate({ name: 'mission_key', label: '미션 키', help: '중복되지 않는 내부 식별자입니다.' }),
-            fieldTemplate({ name: 'name', label: '이름', help: '운영자/유저 화면에 표시되는 미션 이름입니다.' }),
-            fieldTemplate({ name: 'description', label: '설명', type: 'textarea', full: true, help: '운영자가 이 미션의 목적을 빠르게 파악할 수 있도록 적습니다.' }),
-            fieldTemplate({ name: 'briefing_text', label: '브리핑', type: 'textarea', full: true, help: '인게임 진입 시 노출될 짧은 안내 텍스트입니다.' }),
+            formSection('기본 정보', '미션의 이름과 설명, 어떤 맵에서 사용할지 정하는 기본 입력 영역입니다.'),
+            `<div class="ib-field"><label>던전/레이드 선택</label><div class="ib-map-picker" data-target="mission-form-map-id" data-empty="던전/레이드를 선택하세요"></div><select id="mission-form-map-id" name="map_id" hidden></select><small class="ib-help">이 미션을 사용할 던전이나 레이드를 선택하세요.</small></div>`,
+            fieldTemplate({ name: 'mission_key', label: '미션 키', help: '내부 식별용 키입니다.' }),
+            fieldTemplate({ name: 'name', label: '미션 이름', help: '운영 화면과 게임 안에서 보일 이름입니다.' }),
+            fieldTemplate({ name: 'description', label: '설명', type: 'textarea', full: true, help: '운영자가 미션 내용을 이해하기 위한 설명입니다.' }),
+            fieldTemplate({ name: 'briefing_text', label: '브리핑 문구', type: 'textarea', full: true, help: '게임 안에 보여줄 안내 문구입니다.' }),
 
-            formSection('목표 조건', '미션 성공/실패 판정을 위한 핵심 목표값을 설정합니다.'),
-            fieldTemplate({ name: 'mission_type', label: '미션 종류', help: '예: 빠른 클리어, 보스 집중, 처치형 등으로 구분합니다.' }),
-            fieldTemplate({ name: 'objective_type', label: '목표 방식', help: '예: 처치 수, 보스 처치, 무사고 클리어 같은 판정 기준입니다.' }),
-            fieldTemplate({ name: 'target_entry', label: '대상 번호', type: 'number', help: 'NPC, 오브젝트, 보스 등 판정 대상의 내부 번호입니다.' }),
-            fieldTemplate({ name: 'target_label', label: '대상 이름', help: '운영 화면과 브리핑에서 구분하기 쉬운 이름을 적습니다.' }),
-            fieldTemplate({ name: 'target_count', label: '목표 수량', type: 'number', help: '몇 마리를 처치하거나 몇 번 수행해야 하는지 적습니다.' }),
+            formSection('목표 조건', '플레이어가 무엇을 해야 성공하는지 정합니다.'),
+            fieldTemplate({ name: 'mission_type', label: '미션 종류', help: '예: 처치형, 보스형, 생존형 등 운영자가 구분하기 위한 분류입니다.' }),
+            fieldTemplate({ name: 'objective_type', label: '목표 방식', help: '예: 몬스터 처치, 보스 격파, 생존 등 실제 목표의 성격을 적습니다.' }),
+            fieldTemplate({ name: 'target_entry', label: '대상 번호', type: 'number', help: 'NPC나 오브젝트 등 목표 대상의 번호입니다.' }),
+            fieldTemplate({ name: 'target_label', label: '목표 이름', help: '대상 번호를 사람이 읽기 쉽게 적어두는 이름입니다.' }),
+            fieldTemplate({ name: 'target_count', label: '목표 수량', type: 'number', help: '몇 개를 달성해야 성공하는지 적습니다.' }),
             fieldTemplate({ name: 'time_limit_sec', label: '미션 개별 제한 시간(초)', type: 'number', help: '이 미션에만 따로 적용할 제한 시간입니다. 0으로 두거나 비워두면 맵 설정의 기본 시간이 사용됩니다.' }),
-            fieldTemplate({ name: 'failure_condition_type', label: '실패 조건', help: '어떤 상황이 되면 미션을 실패로 볼지 구분하는 기준입니다.' }),
-            fieldTemplate({ name: 'required_boss_entry', label: '필수 보스 번호', type: 'number', help: '이 보스를 처치해야만 성공할 수 있는 미션일 때 사용합니다.' }),
-            fieldTemplate({ name: 'required_before_boss_entry', label: '선행 보스 번호', type: 'number', help: '특정 보스를 먼저 잡아야 진행 가능한 경우 사용합니다.' }),
-            fieldTemplate({ name: 'allowed_death_count', label: '허용 사망 수', type: 'number', help: '이 수치를 넘기면 실패 처리할 수 있습니다. 0이면 무사고 조건처럼 쓸 수 있습니다.' }),
-            fieldTemplate({ name: 'allowed_wipe_count', label: '허용 전멸 수', type: 'number', help: '이 수치를 넘는 전멸이 발생하면 실패 처리할 수 있습니다.' }),
+            fieldTemplate({ name: 'failure_condition_type', label: '실패 조건', help: '언제 이 미션을 실패로 볼지 정하는 기준입니다.' }),
+            fieldTemplate({ name: 'required_boss_entry', label: '필수 보스 번호', type: 'number', help: '이 번호의 보스를 잡아야 성공 처리되는 경우 사용합니다.' }),
+            fieldTemplate({ name: 'required_before_boss_entry', label: '선행 보스 번호', type: 'number', help: '먼저 처치되어야 하는 보스가 있다면 번호를 넣습니다.' }),
+            fieldTemplate({ name: 'allowed_death_count', label: '허용 사망 수', type: 'number', help: '이 횟수를 넘겨 죽으면 미션을 실패시킵니다. 0이면 사망 허용이 없습니다.' }),
+            fieldTemplate({ name: 'allowed_wipe_count', label: '허용 전멸 수', type: 'number', help: '이 횟수를 넘겨 전멸하면 미션을 실패시킵니다.' }),
 
-            formSection('보상/난이도', '보상 프로파일과 미션 가중치를 연결합니다.'),
-            fieldTemplate({ name: 'reward_profile_id', label: '보상 프로파일 ID', type: 'number', help: '이 미션 성공 시 연결해서 사용할 보상 묶음 번호입니다.' }),
-            fieldTemplate({ name: 'difficulty_weight', label: '난이도 가중치', type: 'number', help: '다른 미션과 비교해 얼마나 어렵게 볼지 수치로 정합니다. 높을수록 무겁게 반영됩니다.' }),
+            formSection('보상과 난이도', '미션의 보상 연결과 적용 난이도를 정합니다.'),
+            fieldTemplate({ name: 'reward_profile_id', label: '보상 프로파일 ID', type: 'number', help: '완료 시 연결할 보상 프로파일 번호입니다.' }),
+            fieldTemplate({ name: 'difficulty_weight', label: '난이도 가중치', type: 'number', help: '미션 선택 시 상대적인 등장 비율이나 난이도 보정을 위한 값입니다.' }),
+            renderDifficultyEditor('mission-form-difficulty-mask', '이 미션이 어느 난이도에서 등장할지 체크로 선택하세요. 아무 것도 선택하지 않으면 전체 난이도 허용으로 저장됩니다.'),
 
-            formSection('파티 조건 및 게시', '파티 규모와 게시 워크플로우를 함께 관리합니다.'),
-            fieldTemplate({ name: 'min_party_size', label: '최소 파티 수', type: 'number', help: '이보다 적은 인원 구성에는 이 미션을 제시하지 않습니다.' }),
-            fieldTemplate({ name: 'max_party_size', label: '최대 파티 수', type: 'number', help: '이보다 많은 인원 구성에는 이 미션을 제시하지 않습니다.' }),
-            fieldTemplate({ name: 'min_avg_item_level', label: '최소 평균 템렙', type: 'number', help: '파티 평균 아이템 레벨이 이 값보다 낮으면 제외할 수 있습니다.' }),
-            fieldTemplate({ name: 'max_avg_item_level', label: '최대 평균 템렙', type: 'number', help: '필요하다면 지나치게 높은 장비 구간에서 이 미션을 제외할 수 있습니다.' }),
-            fieldTemplate({ name: 'required_tank', label: '탱커 필요', type: 'checkbox', help: '탱커 역할이 있는 파티에서만 이 미션이 나오게 할 때 사용합니다.' }),
-            fieldTemplate({ name: 'required_healer', label: '힐러 필요', type: 'checkbox', help: '힐러 역할이 있는 파티에서만 이 미션이 나오게 할 때 사용합니다.' }),
-            fieldTemplate({ name: 'enabled', label: '활성', type: 'checkbox', help: '미사용으로 두면 목록에는 남기되 실제 운영에서 제외합니다.' }),
-            fieldTemplate({ name: 'publish_status', label: '게시 상태', type: 'select', options: publishStatuses, help: '초안, 검토, 게시, 보관 단계로 관리합니다.' }),
-            `<div class="ib-field full"><div class="ib-actions"><button type="button" class="ib-btn ib-btn-primary" onclick="instanceBonusApp.saveMission(false)">저장 후 목록</button><button type="button" class="ib-btn ib-btn-ghost" onclick="instanceBonusApp.saveMission(true)">저장 후 계속 편집</button><button type="button" class="ib-btn ib-btn-secondary" onclick="instanceBonusApp.closeMissionForm()">닫기</button></div></div>`
+            formSection('파티 조건 및 게시 상태', '어떤 파티에서 이 미션을 쓸 수 있는지와 운영 상태를 정합니다.'),
+            fieldTemplate({ name: 'min_party_size', label: '최소 파티 수', type: 'number', help: '이보다 적은 인원에서는 미션을 사용하지 않습니다.' }),
+            fieldTemplate({ name: 'max_party_size', label: '최대 파티 수', type: 'number', help: '이보다 많은 인원에서는 미션을 사용하지 않습니다.' }),
+            fieldTemplate({ name: 'min_avg_item_level', label: '최소 평균 템렙', type: 'number', help: '이보다 낮은 평균 장비 수준의 파티에는 제시하지 않습니다.' }),
+            fieldTemplate({ name: 'max_avg_item_level', label: '최대 평균 템렙', type: 'number', help: '이보다 높은 평균 장비 수준에는 제시하지 않으려면 설정합니다.' }),
+            fieldTemplate({ name: 'required_tank', label: '탱커 필요', type: 'checkbox', help: '탱커 역할이 포함된 파티에서만 사용할지 여부입니다.' }),
+            fieldTemplate({ name: 'required_healer', label: '힐러 필요', type: 'checkbox', help: '힐러 역할이 포함된 파티에서만 사용할지 여부입니다.' }),
+            fieldTemplate({ name: 'enabled', label: '활성', type: 'checkbox', help: '비활성으로 두면 이 미션은 선택되지 않습니다.' }),
+            fieldTemplate({ name: 'publish_status', label: '게시 상태', type: 'select', options: publishStatuses, help: '초안, 검토, 게시, 보관 상태로 운영할 수 있습니다.' }),
+            `<div class="ib-field full"><div class="ib-actions"><button type="button" class="ib-btn ib-btn-primary" onclick="instanceBonusApp.saveMission(false)">저장 후 목록</button><button type="button" class="ib-btn ib-btn-ghost" onclick="instanceBonusApp.saveMission(true)">저장 후 계속 편집</button><button type="button" class="ib-btn ib-btn-secondary" onclick="instanceBonusApp.closeMissionForm()">목록으로</button></div></div>`
         ];
         form.innerHTML = sections.join('');
         applyMapOptions();
+        document.getElementById('mission-form-map-id')?.addEventListener('change', (event) => {
+            mountDifficultyEditor('mission-form-difficulty-mask', mapTypeForValue(event.target.value), readDifficultyEditor('mission-form-difficulty-mask'));
+        });
+        mountDifficultyEditor('mission-form-difficulty-mask', '던전', 0);
     }
 
     function openMissionForm(data = null) {
@@ -724,6 +1000,8 @@ const instanceBonusApp = (() => {
             form.elements.publish_status.value = 'draft';
             form.elements.enabled.value = '1';
         }
+        applyMapOptions();
+        mountDifficultyEditor('mission-form-difficulty-mask', mapTypeForValue(form.elements.map_id?.value), data?.difficulty_mask || 0);
     }
 
     function closeMissionForm() {
@@ -741,9 +1019,11 @@ const instanceBonusApp = (() => {
             else if (type === 'checkbox') data[name] = el.value === '1';
             else data[name] = el.value;
         });
+        data.difficulty_mask = readDifficultyEditor('mission-form-difficulty-mask');
         if (!data.mission_key || !data.name) throw new Error('미션 키와 이름은 필수입니다.');
         return data;
     }
+
 
     async function saveMission(keepEditing = false) {
         const payload = missionPayload();
@@ -793,29 +1073,34 @@ const instanceBonusApp = (() => {
     function renderThemeForm() {
         const form = document.getElementById('theme-form');
         const sections = [
-            formSection('기본 정보', '테마 이름, 키, 설명과 브리핑 스타일을 정의합니다.'),
-            `<div class="ib-field"><label>던전/레이드 선택</label><div class="ib-map-picker" data-target="theme-form-map-id" data-empty="던전/레이드를 선택하세요"></div><select id="theme-form-map-id" name="map_id" hidden></select><small class="ib-help">이 테마가 사용될 던전/레이드를 고릅니다.</small></div>`,
-            fieldTemplate({ name: 'theme_key', label: '테마 키', help: '운영자가 구분하기 쉬운 짧은 이름을 쓰면 됩니다.' }),
-            fieldTemplate({ name: 'name', label: '이름', help: '운영자와 유저 화면에 보여줄 테마 이름입니다.' }),
-            fieldTemplate({ name: 'description', label: '설명', type: 'textarea', full: true, help: '이 테마가 어떤 분위기와 목적을 가진 묶음인지 적습니다.' }),
-            fieldTemplate({ name: 'briefing_style', label: '브리핑 스타일', help: '설명 문체나 안내 톤을 구분하는 이름입니다.' }),
+            formSection('기본 정보', '테마의 이름과 설명, 어떤 맵에서 쓸지 정하는 기본 입력 영역입니다.'),
+            `<div class="ib-field"><label>던전/레이드 선택</label><div class="ib-map-picker" data-target="theme-form-map-id" data-empty="던전/레이드를 선택하세요"></div><select id="theme-form-map-id" name="map_id" hidden></select><small class="ib-help">이 테마를 사용할 던전이나 레이드를 선택하세요.</small></div>`,
+            fieldTemplate({ name: 'theme_key', label: '테마 키', help: '내부 식별용 키입니다.' }),
+            fieldTemplate({ name: 'name', label: '테마 이름', help: '운영 화면에 보여줄 테마 이름입니다.' }),
+            fieldTemplate({ name: 'description', label: '설명', type: 'textarea', full: true, help: '테마가 어떤 성격인지 운영자가 이해하기 위한 설명입니다.' }),
+            fieldTemplate({ name: 'briefing_style', label: '브리핑 방식', help: '게임 안 문구 스타일이나 설명 방식을 적습니다.' }),
 
-            formSection('파티 조건', '테마가 어떤 파티에 적합한지 제한합니다.'),
-            fieldTemplate({ name: 'min_party_size', label: '최소 파티 수', type: 'number', help: '이보다 적은 인원 파티에는 이 테마를 적용하지 않습니다.' }),
-            fieldTemplate({ name: 'max_party_size', label: '최대 파티 수', type: 'number', help: '이보다 많은 인원 파티에는 이 테마를 적용하지 않습니다.' }),
-            fieldTemplate({ name: 'min_avg_item_level', label: '최소 평균 템렙', type: 'number', help: '이보다 낮은 파티는 이 테마 후보에서 제외할 수 있습니다.' }),
-            fieldTemplate({ name: 'max_avg_item_level', label: '최대 평균 템렙', type: 'number', help: '이보다 높은 파티는 이 테마 후보에서 제외할 수 있습니다.' }),
-            fieldTemplate({ name: 'required_tank', label: '탱커 필요', type: 'checkbox', help: '탱커가 있는 파티에만 이 테마를 허용할 때 사용합니다.' }),
-            fieldTemplate({ name: 'required_healer', label: '힐러 필요', type: 'checkbox', help: '힐러가 있는 파티에만 이 테마를 허용할 때 사용합니다.' }),
+            formSection('파티 조건', '어떤 파티 구성을 대상으로 할 테마인지 정합니다.'),
+            fieldTemplate({ name: 'min_party_size', label: '최소 파티 수', type: 'number', help: '이보다 적은 인원에서는 테마를 사용하지 않습니다.' }),
+            fieldTemplate({ name: 'max_party_size', label: '최대 파티 수', type: 'number', help: '이보다 많은 인원에서는 테마를 사용하지 않습니다.' }),
+            fieldTemplate({ name: 'min_avg_item_level', label: '최소 평균 템렙', type: 'number', help: '이보다 낮은 평균 장비 수준의 파티에는 제시하지 않습니다.' }),
+            fieldTemplate({ name: 'max_avg_item_level', label: '최대 평균 템렙', type: 'number', help: '이보다 높은 평균 장비 수준에는 제시하지 않으려면 설정합니다.' }),
+            fieldTemplate({ name: 'required_tank', label: '탱커 필요', type: 'checkbox', help: '탱커 역할이 포함된 파티에서만 이 테마를 사용합니다.' }),
+            fieldTemplate({ name: 'required_healer', label: '힐러 필요', type: 'checkbox', help: '힐러 역할이 포함된 파티에서만 이 테마를 사용합니다.' }),
 
-            formSection('가중치 및 게시', '테마 노출 가중치와 게시 상태를 관리합니다.'),
-            fieldTemplate({ name: 'weight', label: '가중치', type: 'number', help: '테마 후보가 여러 개일 때 얼마나 자주 선택될지 비중을 정합니다.' }),
-            fieldTemplate({ name: 'enabled', label: '활성', type: 'checkbox', help: '미사용으로 두면 이 테마는 후보에서 빠집니다.' }),
-            fieldTemplate({ name: 'publish_status', label: '게시 상태', type: 'select', options: publishStatuses, help: '초안, 검토, 게시, 보관 단계로 운영 상태를 관리합니다.' }),
-            `<div class="ib-field full"><div class="ib-actions"><button type="button" class="ib-btn ib-btn-primary" onclick="instanceBonusApp.saveTheme(false)">저장 후 목록</button><button type="button" class="ib-btn ib-btn-ghost" onclick="instanceBonusApp.saveTheme(true)">저장 후 계속 편집</button><button type="button" class="ib-btn ib-btn-secondary" onclick="instanceBonusApp.closeThemeForm()">닫기</button></div></div>`
+            formSection('가중치와 난이도', '테마 등장 비율과 적용 난이도를 정합니다.'),
+            fieldTemplate({ name: 'weight', label: '가중치', type: 'number', help: '선택 후보 중 이 테마가 등장할 상대 비율입니다.' }),
+            renderDifficultyEditor('theme-form-difficulty-mask', '이 테마가 어느 난이도에서 등장할지 체크로 선택하세요. 아무 것도 선택하지 않으면 전체 난이도 허용으로 저장됩니다.'),
+            fieldTemplate({ name: 'enabled', label: '활성', type: 'checkbox', help: '비활성으로 두면 이 테마는 선택되지 않습니다.' }),
+            fieldTemplate({ name: 'publish_status', label: '게시 상태', type: 'select', options: publishStatuses, help: '초안, 검토, 게시, 보관 상태로 운영할 수 있습니다.' }),
+            `<div class="ib-field full"><div class="ib-actions"><button type="button" class="ib-btn ib-btn-primary" onclick="instanceBonusApp.saveTheme(false)">저장 후 목록</button><button type="button" class="ib-btn ib-btn-ghost" onclick="instanceBonusApp.saveTheme(true)">저장 후 계속 편집</button><button type="button" class="ib-btn ib-btn-secondary" onclick="instanceBonusApp.closeThemeForm()">목록으로</button></div></div>`
         ];
         form.innerHTML = sections.join('');
         applyMapOptions();
+        document.getElementById('theme-form-map-id')?.addEventListener('change', (event) => {
+            mountDifficultyEditor('theme-form-difficulty-mask', mapTypeForValue(event.target.value), readDifficultyEditor('theme-form-difficulty-mask'));
+        });
+        mountDifficultyEditor('theme-form-difficulty-mask', '던전', 0);
     }
 
     function openThemeForm(data = null) {
@@ -834,6 +1119,8 @@ const instanceBonusApp = (() => {
             form.elements.publish_status.value = 'draft';
             form.elements.enabled.value = '1';
         }
+        applyMapOptions();
+        mountDifficultyEditor('theme-form-difficulty-mask', mapTypeForValue(form.elements.map_id?.value), data?.difficulty_mask || 0);
     }
 
     function closeThemeForm() {
@@ -851,9 +1138,11 @@ const instanceBonusApp = (() => {
             else if (type === 'checkbox') data[name] = el.value === '1';
             else data[name] = el.value;
         });
+        data.difficulty_mask = readDifficultyEditor('theme-form-difficulty-mask');
         if (!data.theme_key || !data.name) throw new Error('테마 키와 이름은 필수입니다.');
         return data;
     }
+
 
     async function saveTheme(keepEditing = false) {
         const payload = themePayload();

@@ -170,6 +170,7 @@ type mapConfig struct {
 type missionRow struct {
 	MissionID               int64  `json:"mission_id"`
 	MapID                   int    `json:"map_id"`
+	DifficultyMask          int    `json:"difficulty_mask"`
 	MissionKey              string `json:"mission_key"`
 	Name                    string `json:"name"`
 	Description             string `json:"description"`
@@ -204,6 +205,7 @@ type missionRow struct {
 type themeRow struct {
 	ThemeID         int64  `json:"theme_id"`
 	MapID           int    `json:"map_id"`
+	DifficultyMask  int    `json:"difficulty_mask"`
 	ThemeKey        string `json:"theme_key"`
 	Name            string `json:"name"`
 	Description     string `json:"description"`
@@ -419,6 +421,7 @@ func ensureSchema() {
 		`CREATE TABLE IF NOT EXISTS instance_bonus_mission (
             mission_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
             map_id INT UNSIGNED NOT NULL,
+            difficulty_mask INT UNSIGNED NOT NULL DEFAULT 0,
             mission_key VARCHAR(80) NOT NULL,
             name VARCHAR(160) NOT NULL,
             description TEXT NULL,
@@ -455,6 +458,7 @@ func ensureSchema() {
 		`CREATE TABLE IF NOT EXISTS instance_bonus_theme (
             theme_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
             map_id INT UNSIGNED NOT NULL,
+            difficulty_mask INT UNSIGNED NOT NULL DEFAULT 0,
             theme_key VARCHAR(80) NOT NULL,
             name VARCHAR(160) NOT NULL,
             description TEXT NULL,
@@ -627,7 +631,17 @@ func ensureSchema() {
 	runSchemaAlter(`ALTER TABLE instance_bonus_map_config ADD COLUMN notes TEXT NULL AFTER max_concurrent_missions`)
 	runSchemaAlter(`ALTER TABLE instance_bonus_map_config ADD COLUMN updated_by VARCHAR(60) NOT NULL DEFAULT '' AFTER notes`)
 	runSchemaAlter(`ALTER TABLE instance_bonus_map_config ADD COLUMN updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER updated_by`)
+	runSchemaAlter(`ALTER TABLE instance_bonus_mission ADD COLUMN difficulty_mask INT UNSIGNED NOT NULL DEFAULT 0 AFTER map_id`)
+	runSchemaAlter(`ALTER TABLE instance_bonus_theme ADD COLUMN difficulty_mask INT UNSIGNED NOT NULL DEFAULT 0 AFTER map_id`)
 	runSchemaAlter(`ALTER TABLE instance_bonus_reward_profile_item ADD COLUMN sort_order INT UNSIGNED NOT NULL DEFAULT 0 AFTER chance`)
+}
+
+type mapDifficultyContentResponse struct {
+	MapID    int          `json:"map_id"`
+	MapName  string       `json:"map_name"`
+	MapType  string       `json:"map_type"`
+	Missions []missionRow `json:"missions"`
+	Themes   []themeRow   `json:"themes"`
 }
 
 func runSchemaAlter(stmt string) {
@@ -667,10 +681,10 @@ func currentUser(r *http.Request) string {
 
 func normalizeDailyLimit(value int) (int, error) {
 	if value < 0 {
-		return 0, fmt.Errorf("?곕떽?沃섎챷????깆뵬 ??쀫립?? 0 ??곴맒??곷선????몃빍??")
+		return 0, fmt.Errorf("추가미션 일일 제한은 0 이상이어야 합니다")
 	}
 	if value > 100 {
-		return 0, fmt.Errorf("?곕떽?沃섎챷????깆뵬 ??쀫립?? 100 ??꾨릭嚥≪뮆彛???쇱젟??????됰뮸??덈뼄.")
+		return 0, fmt.Errorf("추가미션 일일 제한은 100 이하로 설정해야 합니다")
 	}
 	return value, nil
 }
@@ -801,7 +815,7 @@ func handleMapOptions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.Method != http.MethodGet {
-		http.Error(w, "??嚥?援????釉먯뒜???袁⑸젻泳?????낇돲??", http.StatusMethodNotAllowed)
+		http.Error(w, "지원하지 않는 요청 방식입니다", http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -919,6 +933,13 @@ func mapNameForID(mapID int) string {
 	return mapDisplayName(mapID, configName, nameKO, nameEN, scriptName)
 }
 
+func mapTypeForID(mapID int) string {
+	if raidMapIDs[mapID] {
+		return "레이드"
+	}
+	return "던전"
+}
+
 type importSummary struct {
 	ImportedMaps     int `json:"importedMaps"`
 	ImportedMissions int `json:"importedMissions"`
@@ -943,7 +964,7 @@ func importLegacyData(updatedBy string) (importSummary, error) {
 				INSERT INTO instance_bonus_map_config (
 					map_id, map_name, enabled, allow_vote, allow_llm, default_time_limit_sec, min_party_size, max_party_size, max_concurrent_missions, notes, updated_by
 				)
-				SELECT ?, ?, 1, 1, 0, 1800, 1, 5, 1, '疫꿸퀣??野껊슣?????뵠?됰뗄肉??揶쎛?紐꾩궔 ??쇱젟', ?
+				SELECT ?, ?, 1, 1, 0, 1800, 1, 5, 1, '기존 게임 런타임 테이블에서 자동으로 가져온 맵 설정', ?
 				WHERE NOT EXISTS (SELECT 1 FROM instance_bonus_map_config WHERE map_id=?)`,
 				mapID, mapNameForID(mapID), updatedBy, mapID,
 			)
@@ -956,23 +977,23 @@ func importLegacyData(updatedBy string) (importSummary, error) {
 		}
 	}
 
-	missionRows, err := worldDB.Query(`SELECT map_id, mission_id, mission_type, target_entry, target_count, time_limit_sec, title, target_label, fallback_announcement, enabled FROM instance_bonus_mission_pool`)
+	missionRows, err := worldDB.Query(`SELECT map_id, mission_id, difficulty_mask, mission_type, target_entry, target_count, time_limit_sec, title, target_label, fallback_announcement, enabled FROM instance_bonus_mission_pool`)
 	if err == nil {
 		defer missionRows.Close()
 		for missionRows.Next() {
-			var mapID, missionID, missionType, targetEntry, targetCount, timeLimitSec, enabled int
+			var mapID, missionID, difficultyMask, missionType, targetEntry, targetCount, timeLimitSec, enabled int
 			var title, targetLabel, fallback string
-			_ = missionRows.Scan(&mapID, &missionID, &missionType, &targetEntry, &targetCount, &timeLimitSec, &title, &targetLabel, &fallback, &enabled)
+			_ = missionRows.Scan(&mapID, &missionID, &difficultyMask, &missionType, &targetEntry, &targetCount, &timeLimitSec, &title, &targetLabel, &fallback, &enabled)
 			res, execErr := worldDB.Exec(`
 				INSERT INTO instance_bonus_mission (
-					mission_id, map_id, mission_key, name, description, briefing_text, mission_type, objective_type, target_entry, target_label, target_count,
+					mission_id, map_id, difficulty_mask, mission_key, name, description, briefing_text, mission_type, objective_type, target_entry, target_label, target_count,
 					time_limit_sec, failure_condition_type, required_boss_entry, required_before_boss_entry, allowed_death_count, allowed_wipe_count,
 					reward_profile_id, difficulty_weight, min_party_size, max_party_size, min_avg_item_level, max_avg_item_level, required_tank, required_healer,
 					enabled, publish_status, version, updated_by
 				)
-				SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '疫꿸퀡????쎈솭', 0, 0, 0, 0, 0, 100, 1, 5, 0, 9999, 0, 0, ?, 'published', 1, ?
+				SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '기존 미션 실패 조건', 0, 0, 0, 0, 0, 100, 1, 5, 0, 9999, 0, 0, ?, 'published', 1, ?
 				WHERE NOT EXISTS (SELECT 1 FROM instance_bonus_mission WHERE mission_id=?)`,
-				missionID, mapID, fmt.Sprintf("legacy_map%d_mission%d", mapID, missionID), title, fallback, fallback,
+				missionID, mapID, difficultyMask, fmt.Sprintf("legacy_map%d_mission%d", mapID, missionID), title, fallback, fallback,
 				fmt.Sprintf("기존 미션 유형 %d", missionType), "기본 목표", targetEntry, targetLabel, targetCount, timeLimitSec, enabled, updatedBy, missionID,
 			)
 			if execErr != nil {
@@ -984,21 +1005,21 @@ func importLegacyData(updatedBy string) (importSummary, error) {
 		}
 	}
 
-	themeRows, err := worldDB.Query(`SELECT map_id, theme_id, theme_key, name, description, min_party_size, max_party_size, min_avg_item_level, max_avg_item_level, required_tank, required_healer, weight, enabled FROM instance_bonus_theme_pool`)
+	themeRows, err := worldDB.Query(`SELECT map_id, theme_id, difficulty_mask, theme_key, name, description, min_party_size, max_party_size, min_avg_item_level, max_avg_item_level, required_tank, required_healer, weight, enabled FROM instance_bonus_theme_pool`)
 	if err == nil {
 		defer themeRows.Close()
 		for themeRows.Next() {
-			var mapID, themeID, minPartySize, maxPartySize, minAvgItemLevel, maxAvgItemLevel, requiredTank, requiredHealer, weight, enabled int
+			var mapID, themeID, difficultyMask, minPartySize, maxPartySize, minAvgItemLevel, maxAvgItemLevel, requiredTank, requiredHealer, weight, enabled int
 			var themeKey, name, description string
-			_ = themeRows.Scan(&mapID, &themeID, &themeKey, &name, &description, &minPartySize, &maxPartySize, &minAvgItemLevel, &maxAvgItemLevel, &requiredTank, &requiredHealer, &weight, &enabled)
+			_ = themeRows.Scan(&mapID, &themeID, &difficultyMask, &themeKey, &name, &description, &minPartySize, &maxPartySize, &minAvgItemLevel, &maxAvgItemLevel, &requiredTank, &requiredHealer, &weight, &enabled)
 			res, execErr := worldDB.Exec(`
 				INSERT INTO instance_bonus_theme (
-					theme_id, map_id, theme_key, name, description, briefing_style, min_party_size, max_party_size, min_avg_item_level, max_avg_item_level,
+					theme_id, map_id, difficulty_mask, theme_key, name, description, briefing_style, min_party_size, max_party_size, min_avg_item_level, max_avg_item_level,
 					required_tank, required_healer, weight, enabled, publish_status, version, updated_by
 				)
-				SELECT ?, ?, ?, ?, ?, '疫꿸퀡???됰슢???, ?, ?, ?, ?, ?, ?, ?, ?, 'published', 1, ?
+				SELECT ?, ?, ?, ?, ?, '기존 게임 런타임 테이블에서 자동으로 가져온 테마 설명', ?, ?, ?, ?, ?, ?, ?, ?, 'published', 1, ?
 				WHERE NOT EXISTS (SELECT 1 FROM instance_bonus_theme WHERE theme_id=?)`,
-				themeID, mapID, themeKey, name, description, minPartySize, maxPartySize, minAvgItemLevel, maxAvgItemLevel, requiredTank, requiredHealer, weight, enabled, updatedBy, themeID,
+				themeID, mapID, difficultyMask, themeKey, name, description, minPartySize, maxPartySize, minAvgItemLevel, maxAvgItemLevel, requiredTank, requiredHealer, weight, enabled, updatedBy, themeID,
 			)
 			if execErr != nil {
 				return summary, execErr
@@ -1142,7 +1163,7 @@ func handleRuntimeImport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.Method != http.MethodPost {
-		http.Error(w, "??롢걵???遺욧퍕 獄쎻뫗???낅빍??", http.StatusMethodNotAllowed)
+		http.Error(w, "지원하지 않는 요청 방식입니다", http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -1238,7 +1259,7 @@ func handleMaps(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"success": true})
 	default:
-		http.Error(w, "??嚥?援????釉먯뒜???袁⑸젻泳?????낇돲??", http.StatusMethodNotAllowed)
+		http.Error(w, "지원하지 않는 요청 방식입니다", http.StatusMethodNotAllowed)
 	}
 }
 
@@ -1246,9 +1267,20 @@ func handleMapByID(w http.ResponseWriter, r *http.Request) {
 	if !requireAdmin(w, r) || worldDB == nil {
 		return
 	}
-	mapID, err := mustIDFromPath(r.URL.Path, "/instance-bonus/maps/")
+	path := strings.TrimPrefix(r.URL.Path, "/instance-bonus/maps/")
+	path = strings.Trim(path, "/")
+	parts := strings.Split(path, "/")
+	if len(parts) == 0 || strings.TrimSpace(parts[0]) == "" {
+		http.Error(w, "맵 ID가 올바르지 않습니다", http.StatusBadRequest)
+		return
+	}
+	mapID, err := strconv.Atoi(parts[0])
 	if err != nil {
-		http.Error(w, "??嚥?援??癲?ID????낇돲??", http.StatusBadRequest)
+		http.Error(w, "맵 ID가 올바르지 않습니다", http.StatusBadRequest)
+		return
+	}
+	if len(parts) > 1 && parts[1] == "difficulty-content" {
+		handleMapDifficultyContent(w, r, mapID, parts[2:])
 		return
 	}
 	switch r.Method {
@@ -1290,8 +1322,120 @@ func handleMapByID(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"success": true, "softDeleted": true})
 	default:
-		http.Error(w, "??嚥?援????釉먯뒜???袁⑸젻泳?????낇돲??", http.StatusMethodNotAllowed)
+		http.Error(w, "???? ?? ?? ?????.", http.StatusMethodNotAllowed)
 	}
+}
+
+func handleMapDifficultyContent(w http.ResponseWriter, r *http.Request, mapID int, parts []string) {
+	if !requireAdmin(w, r) || worldDB == nil {
+		return
+	}
+	if len(parts) == 0 {
+		if r.Method != http.MethodGet {
+			http.Error(w, "지원하지 않는 요청 방식입니다", http.StatusMethodNotAllowed)
+			return
+		}
+		resp, err := loadMapDifficultyContent(mapID)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, http.StatusOK, resp)
+		return
+	}
+	if len(parts) != 2 || r.Method != http.MethodPut {
+		http.Error(w, "난이도 관리 요청 형식이 올바르지 않습니다", http.StatusBadRequest)
+		return
+	}
+	kind := parts[0]
+	itemID, err := strconv.ParseInt(parts[1], 10, 64)
+	if err != nil || itemID <= 0 {
+		http.Error(w, "항목 ID가 올바르지 않습니다", http.StatusBadRequest)
+		return
+	}
+	var payload struct {
+		DifficultyMask int  `json:"difficulty_mask"`
+		Enabled        *int `json:"enabled,omitempty"`
+	}
+	if err := decodeJSON(r, &payload); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if payload.DifficultyMask < 0 || payload.DifficultyMask > 63 {
+		http.Error(w, "난이도 값이 올바르지 않습니다", http.StatusBadRequest)
+		return
+	}
+	if err := updateDifficultyManagedItem(mapID, kind, itemID, payload.DifficultyMask, payload.Enabled, currentUser(r)); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"success": true})
+}
+
+func updateDifficultyManagedItem(mapID int, kind string, itemID int64, difficultyMask int, enabled *int, updatedBy string) error {
+	table := ""
+	idColumn := ""
+	switch kind {
+	case "missions":
+		table = "instance_bonus_mission"
+		idColumn = "mission_id"
+	case "themes":
+		table = "instance_bonus_theme"
+		idColumn = "theme_id"
+	default:
+		return fmt.Errorf("지원하지 않는 난이도 관리 대상입니다")
+	}
+	query := fmt.Sprintf("UPDATE %s SET difficulty_mask=?, updated_by=?, updated_at=CURRENT_TIMESTAMP", table)
+	args := []any{difficultyMask, updatedBy}
+	if enabled != nil {
+		query += ", enabled=?"
+		args = append(args, *enabled)
+	}
+	query += fmt.Sprintf(" WHERE %s=? AND map_id=?", idColumn)
+	args = append(args, itemID, mapID)
+	res, err := worldDB.Exec(query, args...)
+	if err != nil {
+		return err
+	}
+	if rows, _ := res.RowsAffected(); rows == 0 {
+		return fmt.Errorf("대상 미션 또는 테마를 찾을 수 없습니다")
+	}
+	return nil
+}
+
+func loadMapDifficultyContent(mapID int) (mapDifficultyContentResponse, error) {
+	resp := mapDifficultyContentResponse{MapID: mapID, MapName: mapNameForID(mapID), MapType: mapTypeForID(mapID)}
+	missionRows, err := worldDB.Query(`
+		SELECT mission_id, map_id, difficulty_mask, mission_key, name, IFNULL(description,''), IFNULL(briefing_text,''), mission_type, objective_type, target_entry, IFNULL(target_label,''), target_count, time_limit_sec,
+		       failure_condition_type, required_boss_entry, required_before_boss_entry, allowed_death_count, allowed_wipe_count, reward_profile_id, difficulty_weight, min_party_size, max_party_size,
+		       min_avg_item_level, max_avg_item_level, required_tank, required_healer, enabled, publish_status, version, IFNULL(updated_by,''), DATE_FORMAT(updated_at, '%Y-%m-%d %H:%i:%s'), DATE_FORMAT(created_at, '%Y-%m-%d %H:%i:%s')
+		FROM instance_bonus_mission WHERE map_id=? ORDER BY enabled DESC, publish_status='published' DESC, updated_at DESC, mission_id DESC`, mapID)
+	if err != nil {
+		return resp, err
+	}
+	defer missionRows.Close()
+	for missionRows.Next() {
+		var item missionRow
+		_ = missionRows.Scan(&item.MissionID, &item.MapID, &item.DifficultyMask, &item.MissionKey, &item.Name, &item.Description, &item.BriefingText, &item.MissionType, &item.ObjectiveType, &item.TargetEntry, &item.TargetLabel, &item.TargetCount, &item.TimeLimitSec,
+			&item.FailureConditionType, &item.RequiredBossEntry, &item.RequiredBeforeBossEntry, &item.AllowedDeathCount, &item.AllowedWipeCount, &item.RewardProfileID, &item.DifficultyWeight, &item.MinPartySize, &item.MaxPartySize,
+			&item.MinAvgItemLevel, &item.MaxAvgItemLevel, &item.RequiredTank, &item.RequiredHealer, &item.Enabled, &item.PublishStatus, &item.Version, &item.UpdatedBy, &item.UpdatedAt, &item.CreatedAt)
+		resp.Missions = append(resp.Missions, item)
+	}
+	themeRows, err := worldDB.Query(`
+		SELECT theme_id, map_id, difficulty_mask, theme_key, name, IFNULL(description,''), IFNULL(briefing_style,''), min_party_size, max_party_size, min_avg_item_level, max_avg_item_level, required_tank, required_healer,
+		       weight, enabled, publish_status, version, IFNULL(updated_by,''), DATE_FORMAT(updated_at, '%Y-%m-%d %H:%i:%s'), DATE_FORMAT(created_at, '%Y-%m-%d %H:%i:%s')
+		FROM instance_bonus_theme WHERE map_id=? ORDER BY enabled DESC, publish_status='published' DESC, updated_at DESC, theme_id DESC`, mapID)
+	if err != nil {
+		return resp, err
+	}
+	defer themeRows.Close()
+	for themeRows.Next() {
+		var item themeRow
+		_ = themeRows.Scan(&item.ThemeID, &item.MapID, &item.DifficultyMask, &item.ThemeKey, &item.Name, &item.Description, &item.BriefingStyle, &item.MinPartySize, &item.MaxPartySize, &item.MinAvgItemLevel, &item.MaxAvgItemLevel,
+			&item.RequiredTank, &item.RequiredHealer, &item.Weight, &item.Enabled, &item.PublishStatus, &item.Version, &item.UpdatedBy, &item.UpdatedAt, &item.CreatedAt)
+		resp.Themes = append(resp.Themes, item)
+	}
+	return resp, nil
 }
 
 func handleMissions(w http.ResponseWriter, r *http.Request) {
@@ -1325,7 +1469,7 @@ func handleMissions(w http.ResponseWriter, r *http.Request) {
 		var total int
 		_ = worldDB.QueryRow(`SELECT COUNT(*) FROM instance_bonus_mission`+where, args...).Scan(&total)
 		rows, err := worldDB.Query(`
-			SELECT mission_id, map_id, mission_key, name, IFNULL(description,''), IFNULL(briefing_text,''), mission_type, objective_type, target_entry, IFNULL(target_label,''), target_count, time_limit_sec,
+			SELECT mission_id, map_id, difficulty_mask, mission_key, name, IFNULL(description,''), IFNULL(briefing_text,''), mission_type, objective_type, target_entry, IFNULL(target_label,''), target_count, time_limit_sec,
 			       failure_condition_type, required_boss_entry, required_before_boss_entry, allowed_death_count, allowed_wipe_count, reward_profile_id, difficulty_weight, min_party_size, max_party_size,
 			       min_avg_item_level, max_avg_item_level, required_tank, required_healer, enabled, publish_status, version, IFNULL(updated_by,''), DATE_FORMAT(updated_at, '%Y-%m-%d %H:%i:%s'), DATE_FORMAT(created_at, '%Y-%m-%d %H:%i:%s')
 			FROM instance_bonus_mission`+where+` ORDER BY updated_at DESC, mission_id DESC LIMIT ? OFFSET ?`, append(args, limit, offset)...)
@@ -1337,7 +1481,7 @@ func handleMissions(w http.ResponseWriter, r *http.Request) {
 		items := make([]missionRow, 0)
 		for rows.Next() {
 			var item missionRow
-			_ = rows.Scan(&item.MissionID, &item.MapID, &item.MissionKey, &item.Name, &item.Description, &item.BriefingText, &item.MissionType, &item.ObjectiveType, &item.TargetEntry, &item.TargetLabel, &item.TargetCount, &item.TimeLimitSec,
+			_ = rows.Scan(&item.MissionID, &item.MapID, &item.DifficultyMask, &item.MissionKey, &item.Name, &item.Description, &item.BriefingText, &item.MissionType, &item.ObjectiveType, &item.TargetEntry, &item.TargetLabel, &item.TargetCount, &item.TimeLimitSec,
 				&item.FailureConditionType, &item.RequiredBossEntry, &item.RequiredBeforeBossEntry, &item.AllowedDeathCount, &item.AllowedWipeCount, &item.RewardProfileID, &item.DifficultyWeight, &item.MinPartySize, &item.MaxPartySize,
 				&item.MinAvgItemLevel, &item.MaxAvgItemLevel, &item.RequiredTank, &item.RequiredHealer, &item.Enabled, &item.PublishStatus, &item.Version, &item.UpdatedBy, &item.UpdatedAt, &item.CreatedAt)
 			items = append(items, item)
@@ -1357,11 +1501,11 @@ func handleMissions(w http.ResponseWriter, r *http.Request) {
 			item.PublishStatus = "draft"
 		}
 		res, err := worldDB.Exec(`INSERT INTO instance_bonus_mission
-			(map_id, mission_key, name, description, briefing_text, mission_type, objective_type, target_entry, target_label, target_count, time_limit_sec, failure_condition_type,
+			(map_id, difficulty_mask, mission_key, name, description, briefing_text, mission_type, objective_type, target_entry, target_label, target_count, time_limit_sec, failure_condition_type,
 			 required_boss_entry, required_before_boss_entry, allowed_death_count, allowed_wipe_count, reward_profile_id, difficulty_weight, min_party_size, max_party_size, min_avg_item_level,
 			 max_avg_item_level, required_tank, required_healer, enabled, publish_status, version, updated_by)
-			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
-			item.MapID, item.MissionKey, item.Name, item.Description, item.BriefingText, item.MissionType, item.ObjectiveType, item.TargetEntry, item.TargetLabel, item.TargetCount, item.TimeLimitSec, item.FailureConditionType,
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
+			item.MapID, item.DifficultyMask, item.MissionKey, item.Name, item.Description, item.BriefingText, item.MissionType, item.ObjectiveType, item.TargetEntry, item.TargetLabel, item.TargetCount, item.TimeLimitSec, item.FailureConditionType,
 			item.RequiredBossEntry, item.RequiredBeforeBossEntry, item.AllowedDeathCount, item.AllowedWipeCount, item.RewardProfileID, item.DifficultyWeight, item.MinPartySize, item.MaxPartySize, item.MinAvgItemLevel,
 			item.MaxAvgItemLevel, item.RequiredTank, item.RequiredHealer, item.Enabled, item.PublishStatus, currentUser(r))
 		if err != nil {
@@ -1371,7 +1515,7 @@ func handleMissions(w http.ResponseWriter, r *http.Request) {
 		id, _ := res.LastInsertId()
 		writeJSON(w, http.StatusOK, map[string]any{"success": true, "mission_id": id})
 	default:
-		http.Error(w, "??嚥?援????釉먯뒜???袁⑸젻泳?????낇돲??", http.StatusMethodNotAllowed)
+		http.Error(w, "지원하지 않는 요청 방식입니다", http.StatusMethodNotAllowed)
 	}
 }
 
@@ -1381,18 +1525,18 @@ func handleMissionByID(w http.ResponseWriter, r *http.Request) {
 	}
 	id, err := mustIDFromPath(r.URL.Path, "/instance-bonus/missions/")
 	if err != nil {
-		http.Error(w, "??嚥?援??雅?퍔瑗띰㎖??ID????낇돲??", http.StatusBadRequest)
+		http.Error(w, "미션 ID가 올바르지 않습니다", http.StatusBadRequest)
 		return
 	}
 	switch r.Method {
 	case http.MethodGet:
 		var item missionRow
 		err = worldDB.QueryRow(`
-			SELECT mission_id, map_id, mission_key, name, IFNULL(description,''), IFNULL(briefing_text,''), mission_type, objective_type, target_entry, IFNULL(target_label,''), target_count, time_limit_sec,
+			SELECT mission_id, map_id, difficulty_mask, mission_key, name, IFNULL(description,''), IFNULL(briefing_text,''), mission_type, objective_type, target_entry, IFNULL(target_label,''), target_count, time_limit_sec,
 			       failure_condition_type, required_boss_entry, required_before_boss_entry, allowed_death_count, allowed_wipe_count, reward_profile_id, difficulty_weight, min_party_size, max_party_size,
 			       min_avg_item_level, max_avg_item_level, required_tank, required_healer, enabled, publish_status, version, IFNULL(updated_by,''), DATE_FORMAT(updated_at, '%Y-%m-%d %H:%i:%s'), DATE_FORMAT(created_at, '%Y-%m-%d %H:%i:%s')
 			FROM instance_bonus_mission WHERE mission_id=?`, id).
-			Scan(&item.MissionID, &item.MapID, &item.MissionKey, &item.Name, &item.Description, &item.BriefingText, &item.MissionType, &item.ObjectiveType, &item.TargetEntry, &item.TargetLabel, &item.TargetCount, &item.TimeLimitSec,
+			Scan(&item.MissionID, &item.MapID, &item.DifficultyMask, &item.MissionKey, &item.Name, &item.Description, &item.BriefingText, &item.MissionType, &item.ObjectiveType, &item.TargetEntry, &item.TargetLabel, &item.TargetCount, &item.TimeLimitSec,
 				&item.FailureConditionType, &item.RequiredBossEntry, &item.RequiredBeforeBossEntry, &item.AllowedDeathCount, &item.AllowedWipeCount, &item.RewardProfileID, &item.DifficultyWeight, &item.MinPartySize, &item.MaxPartySize,
 				&item.MinAvgItemLevel, &item.MaxAvgItemLevel, &item.RequiredTank, &item.RequiredHealer, &item.Enabled, &item.PublishStatus, &item.Version, &item.UpdatedBy, &item.UpdatedAt, &item.CreatedAt)
 		if err != nil {
@@ -1410,11 +1554,11 @@ func handleMissionByID(w http.ResponseWriter, r *http.Request) {
 			item.PublishStatus = "draft"
 		}
 		_, err = worldDB.Exec(`UPDATE instance_bonus_mission SET
-			map_id=?, mission_key=?, name=?, description=?, briefing_text=?, mission_type=?, objective_type=?, target_entry=?, target_label=?, target_count=?, time_limit_sec=?, failure_condition_type=?,
+			map_id=?, difficulty_mask=?, mission_key=?, name=?, description=?, briefing_text=?, mission_type=?, objective_type=?, target_entry=?, target_label=?, target_count=?, time_limit_sec=?, failure_condition_type=?,
 			required_boss_entry=?, required_before_boss_entry=?, allowed_death_count=?, allowed_wipe_count=?, reward_profile_id=?, difficulty_weight=?, min_party_size=?, max_party_size=?, min_avg_item_level=?,
 			max_avg_item_level=?, required_tank=?, required_healer=?, enabled=?, publish_status=?, version=version+1, updated_by=?, updated_at=CURRENT_TIMESTAMP
 			WHERE mission_id=?`,
-			item.MapID, item.MissionKey, item.Name, item.Description, item.BriefingText, item.MissionType, item.ObjectiveType, item.TargetEntry, item.TargetLabel, item.TargetCount, item.TimeLimitSec, item.FailureConditionType,
+			item.MapID, item.DifficultyMask, item.MissionKey, item.Name, item.Description, item.BriefingText, item.MissionType, item.ObjectiveType, item.TargetEntry, item.TargetLabel, item.TargetCount, item.TimeLimitSec, item.FailureConditionType,
 			item.RequiredBossEntry, item.RequiredBeforeBossEntry, item.AllowedDeathCount, item.AllowedWipeCount, item.RewardProfileID, item.DifficultyWeight, item.MinPartySize, item.MaxPartySize, item.MinAvgItemLevel,
 			item.MaxAvgItemLevel, item.RequiredTank, item.RequiredHealer, item.Enabled, item.PublishStatus, currentUser(r), id)
 		if err != nil {
@@ -1423,7 +1567,7 @@ func handleMissionByID(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"success": true})
 	default:
-		http.Error(w, "??嚥?援????釉먯뒜???袁⑸젻泳?????낇돲??", http.StatusMethodNotAllowed)
+		http.Error(w, "지원하지 않는 요청 방식입니다", http.StatusMethodNotAllowed)
 	}
 }
 func handleThemes(w http.ResponseWriter, r *http.Request) {
@@ -1450,7 +1594,7 @@ func handleThemes(w http.ResponseWriter, r *http.Request) {
 		where := " WHERE " + strings.Join(conds, " AND ")
 		var total int
 		_ = worldDB.QueryRow(`SELECT COUNT(*) FROM instance_bonus_theme`+where, args...).Scan(&total)
-		rows, err := worldDB.Query(`SELECT theme_id, map_id, theme_key, name, IFNULL(description,''), IFNULL(briefing_style,''), min_party_size, max_party_size, min_avg_item_level, max_avg_item_level, required_tank, required_healer,
+		rows, err := worldDB.Query(`SELECT theme_id, map_id, difficulty_mask, theme_key, name, IFNULL(description,''), IFNULL(briefing_style,''), min_party_size, max_party_size, min_avg_item_level, max_avg_item_level, required_tank, required_healer,
 		       weight, enabled, publish_status, version, IFNULL(updated_by,''), DATE_FORMAT(updated_at, '%Y-%m-%d %H:%i:%s'), DATE_FORMAT(created_at, '%Y-%m-%d %H:%i:%s')
 			FROM instance_bonus_theme`+where+` ORDER BY updated_at DESC, theme_id DESC LIMIT ? OFFSET ?`, append(args, limit, offset)...)
 		if err != nil {
@@ -1461,7 +1605,7 @@ func handleThemes(w http.ResponseWriter, r *http.Request) {
 		items := make([]themeRow, 0)
 		for rows.Next() {
 			var item themeRow
-			_ = rows.Scan(&item.ThemeID, &item.MapID, &item.ThemeKey, &item.Name, &item.Description, &item.BriefingStyle, &item.MinPartySize, &item.MaxPartySize, &item.MinAvgItemLevel, &item.MaxAvgItemLevel,
+			_ = rows.Scan(&item.ThemeID, &item.MapID, &item.DifficultyMask, &item.ThemeKey, &item.Name, &item.Description, &item.BriefingStyle, &item.MinPartySize, &item.MaxPartySize, &item.MinAvgItemLevel, &item.MaxAvgItemLevel,
 				&item.RequiredTank, &item.RequiredHealer, &item.Weight, &item.Enabled, &item.PublishStatus, &item.Version, &item.UpdatedBy, &item.UpdatedAt, &item.CreatedAt)
 			items = append(items, item)
 		}
@@ -1480,9 +1624,9 @@ func handleThemes(w http.ResponseWriter, r *http.Request) {
 			item.PublishStatus = "draft"
 		}
 		res, err := worldDB.Exec(`INSERT INTO instance_bonus_theme
-			(map_id, theme_key, name, description, briefing_style, min_party_size, max_party_size, min_avg_item_level, max_avg_item_level, required_tank, required_healer, weight, enabled, publish_status, version, updated_by)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
-			item.MapID, item.ThemeKey, item.Name, item.Description, item.BriefingStyle, item.MinPartySize, item.MaxPartySize, item.MinAvgItemLevel, item.MaxAvgItemLevel, item.RequiredTank, item.RequiredHealer, item.Weight, item.Enabled, item.PublishStatus, currentUser(r))
+			(map_id, difficulty_mask, theme_key, name, description, briefing_style, min_party_size, max_party_size, min_avg_item_level, max_avg_item_level, required_tank, required_healer, weight, enabled, publish_status, version, updated_by)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
+			item.MapID, item.DifficultyMask, item.ThemeKey, item.Name, item.Description, item.BriefingStyle, item.MinPartySize, item.MaxPartySize, item.MinAvgItemLevel, item.MaxAvgItemLevel, item.RequiredTank, item.RequiredHealer, item.Weight, item.Enabled, item.PublishStatus, currentUser(r))
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -1502,22 +1646,22 @@ func handleThemeRoutes(w http.ResponseWriter, r *http.Request) {
 	path = strings.Trim(path, "/")
 	parts := strings.Split(path, "/")
 	if len(parts) == 0 || parts[0] == "" {
-		http.Error(w, "??嚥?援???????ID????낇돲??", http.StatusBadRequest)
+		http.Error(w, "테마 ID가 올바르지 않습니다", http.StatusBadRequest)
 		return
 	}
 	themeID, err := strconv.ParseInt(parts[0], 10, 64)
 	if err != nil {
-		http.Error(w, "??嚥?援???????ID????낇돲??", http.StatusBadRequest)
+		http.Error(w, "테마 ID가 올바르지 않습니다", http.StatusBadRequest)
 		return
 	}
 	if len(parts) == 1 {
 		switch r.Method {
 		case http.MethodGet:
 			var item themeRow
-			err = worldDB.QueryRow(`SELECT theme_id, map_id, theme_key, name, IFNULL(description,''), IFNULL(briefing_style,''), min_party_size, max_party_size, min_avg_item_level, max_avg_item_level, required_tank, required_healer,
+			err = worldDB.QueryRow(`SELECT theme_id, map_id, difficulty_mask, theme_key, name, IFNULL(description,''), IFNULL(briefing_style,''), min_party_size, max_party_size, min_avg_item_level, max_avg_item_level, required_tank, required_healer,
 			       weight, enabled, publish_status, version, IFNULL(updated_by,''), DATE_FORMAT(updated_at, '%Y-%m-%d %H:%i:%s'), DATE_FORMAT(created_at, '%Y-%m-%d %H:%i:%s')
 				FROM instance_bonus_theme WHERE theme_id=?`, themeID).
-				Scan(&item.ThemeID, &item.MapID, &item.ThemeKey, &item.Name, &item.Description, &item.BriefingStyle, &item.MinPartySize, &item.MaxPartySize, &item.MinAvgItemLevel, &item.MaxAvgItemLevel,
+				Scan(&item.ThemeID, &item.MapID, &item.DifficultyMask, &item.ThemeKey, &item.Name, &item.Description, &item.BriefingStyle, &item.MinPartySize, &item.MaxPartySize, &item.MinAvgItemLevel, &item.MaxAvgItemLevel,
 					&item.RequiredTank, &item.RequiredHealer, &item.Weight, &item.Enabled, &item.PublishStatus, &item.Version, &item.UpdatedBy, &item.UpdatedAt, &item.CreatedAt)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusNotFound)
@@ -1534,9 +1678,9 @@ func handleThemeRoutes(w http.ResponseWriter, r *http.Request) {
 				item.PublishStatus = "draft"
 			}
 			_, err = worldDB.Exec(`UPDATE instance_bonus_theme SET
-				map_id=?, theme_key=?, name=?, description=?, briefing_style=?, min_party_size=?, max_party_size=?, min_avg_item_level=?, max_avg_item_level=?, required_tank=?, required_healer=?, weight=?, enabled=?, publish_status=?, version=version+1, updated_by=?, updated_at=CURRENT_TIMESTAMP
+				map_id=?, difficulty_mask=?, theme_key=?, name=?, description=?, briefing_style=?, min_party_size=?, max_party_size=?, min_avg_item_level=?, max_avg_item_level=?, required_tank=?, required_healer=?, weight=?, enabled=?, publish_status=?, version=version+1, updated_by=?, updated_at=CURRENT_TIMESTAMP
 				WHERE theme_id=?`,
-				item.MapID, item.ThemeKey, item.Name, item.Description, item.BriefingStyle, item.MinPartySize, item.MaxPartySize, item.MinAvgItemLevel, item.MaxAvgItemLevel, item.RequiredTank, item.RequiredHealer, item.Weight, item.Enabled, item.PublishStatus, currentUser(r), themeID)
+				item.MapID, item.DifficultyMask, item.ThemeKey, item.Name, item.Description, item.BriefingStyle, item.MinPartySize, item.MaxPartySize, item.MinAvgItemLevel, item.MaxAvgItemLevel, item.RequiredTank, item.RequiredHealer, item.Weight, item.Enabled, item.PublishStatus, currentUser(r), themeID)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
@@ -1586,17 +1730,17 @@ func handleThemeRoutes(w http.ResponseWriter, r *http.Request) {
 			}
 			writeJSON(w, http.StatusOK, map[string]any{"success": true})
 		default:
-			http.Error(w, "??嚥?援????釉먯뒜???袁⑸젻泳?????낇돲??", http.StatusMethodNotAllowed)
+			http.Error(w, "지원하지 않는 요청 방식입니다", http.StatusMethodNotAllowed)
 		}
 		return
 	}
 	missionID, err := strconv.ParseInt(parts[2], 10, 64)
 	if err != nil {
-		http.Error(w, "??嚥?援??雅?퍔瑗띰㎖??ID????낇돲??", http.StatusBadRequest)
+		http.Error(w, "미션 ID가 올바르지 않습니다", http.StatusBadRequest)
 		return
 	}
 	if r.Method != http.MethodDelete {
-		http.Error(w, "??嚥?援????釉먯뒜???袁⑸젻泳?????낇돲??", http.StatusMethodNotAllowed)
+		http.Error(w, "지원하지 않는 요청 방식입니다", http.StatusMethodNotAllowed)
 		return
 	}
 	_, err = worldDB.Exec(`DELETE FROM instance_bonus_theme_mission_link WHERE theme_id=? AND mission_id=?`, themeID, missionID)
@@ -1665,7 +1809,7 @@ func handleRewardProfiles(w http.ResponseWriter, r *http.Request) {
 		replaceRewardProfileItems(id, item.Items)
 		writeJSON(w, http.StatusOK, map[string]any{"success": true, "reward_profile_id": id})
 	default:
-		http.Error(w, "??嚥?援????釉먯뒜???袁⑸젻泳?????낇돲??", http.StatusMethodNotAllowed)
+		http.Error(w, "지원하지 않는 요청 방식입니다", http.StatusMethodNotAllowed)
 	}
 }
 
@@ -1900,7 +2044,7 @@ func handleDailyUsage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.Method != http.MethodGet {
-		http.Error(w, "?덉슜?섏? ?딆? ?붿껌 諛⑹떇?낅땲??", http.StatusMethodNotAllowed)
+		http.Error(w, "지원하지 않는 요청 방식입니다", http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -1965,7 +2109,7 @@ func handleDailyUsageReset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.Method != http.MethodPost {
-		http.Error(w, "?덉슜?섏? ?딆? ?붿껌 諛⑹떇?낅땲??", http.StatusMethodNotAllowed)
+		http.Error(w, "지원하지 않는 요청 방식입니다", http.StatusMethodNotAllowed)
 		return
 	}
 	var payload struct {
@@ -1978,7 +2122,7 @@ func handleDailyUsageReset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if strings.TrimSpace(payload.UsageDate) == "" || payload.MapID <= 0 || payload.GUID <= 0 {
-		http.Error(w, "?좎쭨, ?섏쟾/?덉씠?? ?뚮젅?댁뼱 ?뺣낫媛 紐⑤몢 ?꾩슂?⑸땲??", http.StatusBadRequest)
+		http.Error(w, "날짜, 던전/레이드, 플레이어 정보가 모두 필요합니다", http.StatusBadRequest)
 		return
 	}
 	if _, err := worldDB.Exec(`DELETE FROM instance_bonus_player_daily_usage WHERE usage_date=? AND map_id=? AND guid=?`, payload.UsageDate, payload.MapID, payload.GUID); err != nil {
@@ -2022,12 +2166,12 @@ func handleRunRoutes(w http.ResponseWriter, r *http.Request) {
 	path = strings.Trim(path, "/")
 	parts := strings.Split(path, "/")
 	if len(parts) == 0 || parts[0] == "" {
-		http.Error(w, "??嚥?援????ID????낇돲??", http.StatusBadRequest)
+		http.Error(w, "런 ID가 올바르지 않습니다", http.StatusBadRequest)
 		return
 	}
 	runID, err := strconv.ParseInt(parts[0], 10, 64)
 	if err != nil {
-		http.Error(w, "??嚥?援????ID????낇돲??", http.StatusBadRequest)
+		http.Error(w, "런 ID가 올바르지 않습니다", http.StatusBadRequest)
 		return
 	}
 	if len(parts) == 1 {
