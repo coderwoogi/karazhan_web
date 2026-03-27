@@ -789,7 +789,11 @@ func isIntegerColumn(tableName, columnName string) bool {
 
 func rewardProfileTimeExpr(columnName string) string {
 	if isIntegerColumn("instance_bonus_reward_profile", columnName) {
-		return fmt.Sprintf("CASE WHEN IFNULL(%s, 0) > 0 THEN DATE_FORMAT(FROM_UNIXTIME(IFNULL(%s, 0)), '%%Y-%%m-%%d %%H:%%i:%%s') ELSE '' END", columnName, columnName)
+		return fmt.Sprintf(`CASE
+			WHEN IFNULL(%s, 0) = 0 THEN ''
+			WHEN IFNULL(%s, 0) > 9999999999 THEN IFNULL(DATE_FORMAT(STR_TO_DATE(CAST(%s AS CHAR), '%%Y%%m%%d%%H%%i%%s'), '%%Y-%%m-%%d %%H:%%i:%%s'), '')
+			ELSE IFNULL(DATE_FORMAT(FROM_UNIXTIME(IFNULL(%s, 0)), '%%Y-%%m-%%d %%H:%%i:%%s'), '')
+		END`, columnName, columnName, columnName, columnName)
 	}
 	return fmt.Sprintf("IFNULL(DATE_FORMAT(%s, '%%Y-%%m-%%d %%H:%%i:%%s'), '')", columnName)
 }
@@ -806,9 +810,13 @@ func rewardProfileItemTimeExpr() string {
 		return "''"
 	}
 	if isIntegerColumn("instance_bonus_reward_profile_item", "updated_at") {
-		return "CASE WHEN ri.updated_at > 0 THEN DATE_FORMAT(FROM_UNIXTIME(ri.updated_at), '%Y-%m-%d %H:%i:%s') ELSE '' END"
+		return `CASE
+			WHEN IFNULL(ri.updated_at, 0) = 0 THEN ''
+			WHEN IFNULL(ri.updated_at, 0) > 9999999999 THEN IFNULL(DATE_FORMAT(STR_TO_DATE(CAST(ri.updated_at AS CHAR), '%Y%m%d%H%i%s'), '%Y-%m-%d %H:%i:%s'), '')
+			ELSE IFNULL(DATE_FORMAT(FROM_UNIXTIME(IFNULL(ri.updated_at, 0)), '%Y-%m-%d %H:%i:%s'), '')
+		END`
 	}
-	return "DATE_FORMAT(ri.updated_at, '%Y-%m-%d %H:%i:%s')"
+	return "IFNULL(DATE_FORMAT(ri.updated_at, '%Y-%m-%d %H:%i:%s'), '')"
 }
 
 func rewardChanceForStorage(chance float64) any {
