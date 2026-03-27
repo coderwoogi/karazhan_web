@@ -27,6 +27,7 @@ var charactersDB *sql.DB
 var authDB *sql.DB
 var columnTypeCache sync.Map
 var columnExistsCache sync.Map
+var columnAutoIncrementCache sync.Map
 var operatorNameCache sync.Map
 var autoKeyUnsafeChars = regexp.MustCompile(`[^a-z0-9]+`)
 
@@ -785,6 +786,31 @@ func isIntegerColumn(tableName, columnName string) bool {
 		"int":       true,
 		"bigint":    true,
 	}[dataType]
+}
+
+func isAutoIncrementColumn(tableName, columnName string) bool {
+	cacheKey := tableName + "." + columnName
+	if cached, ok := columnAutoIncrementCache.Load(cacheKey); ok {
+		return cached.(bool)
+	}
+	if worldDB == nil {
+		columnAutoIncrementCache.Store(cacheKey, false)
+		return false
+	}
+	var extra string
+	err := worldDB.QueryRow(`
+		SELECT LOWER(IFNULL(EXTRA, ''))
+		FROM information_schema.COLUMNS
+		WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?
+		LIMIT 1
+	`, tableName, columnName).Scan(&extra)
+	if err != nil {
+		columnAutoIncrementCache.Store(cacheKey, false)
+		return false
+	}
+	result := strings.Contains(extra, "auto_increment")
+	columnAutoIncrementCache.Store(cacheKey, result)
+	return result
 }
 
 func rewardProfileTimeExpr(columnName string) string {
@@ -2192,14 +2218,30 @@ func handleRewardProfiles(w http.ResponseWriter, r *http.Request) {
 		}
 		ensureRewardProfileKey(&item, 0)
 		item.PublishStatus = "published"
-		res, err := worldDB.Exec(`INSERT INTO instance_bonus_reward_profile (map_id, profile_key, name, description, enabled, publish_status, version, updated_by)
-			VALUES (?, ?, ?, ?, ?, ?, 1, ?)`,
-			item.MapID, item.ProfileKey, item.Name, item.Description, item.Enabled, item.PublishStatus, updatedByValue("instance_bonus_reward_profile", r))
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+		updatedBy := updatedByValue("instance_bonus_reward_profile", r)
+		var id int64
+		if isAutoIncrementColumn("instance_bonus_reward_profile", "reward_profile_id") {
+			res, err := worldDB.Exec(`INSERT INTO instance_bonus_reward_profile (map_id, profile_key, name, description, enabled, publish_status, version, updated_by)
+				VALUES (?, ?, ?, ?, ?, ?, 1, ?)`,
+				item.MapID, item.ProfileKey, item.Name, item.Description, item.Enabled, item.PublishStatus, updatedBy)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			id, _ = res.LastInsertId()
+		} else {
+			_ = worldDB.QueryRow(`SELECT IFNULL(MAX(reward_profile_id), 0) + 1 FROM instance_bonus_reward_profile`).Scan(&id)
+			if id <= 0 {
+				id = 1
+			}
+			_, err := worldDB.Exec(`INSERT INTO instance_bonus_reward_profile (reward_profile_id, map_id, profile_key, name, description, enabled, publish_status, version, updated_by)
+				VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)`,
+				id, item.MapID, item.ProfileKey, item.Name, item.Description, item.Enabled, item.PublishStatus, updatedBy)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
 		}
-		id, _ := res.LastInsertId()
 		replaceRewardProfileItems(id, item.Items)
 		writeJSON(w, http.StatusOK, map[string]any{"success": true, "reward_profile_id": id, "profile_key": item.ProfileKey})
 	default:
