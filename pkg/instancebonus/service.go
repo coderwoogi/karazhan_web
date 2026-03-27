@@ -791,7 +791,7 @@ func rewardProfileTimeExpr(columnName string) string {
 	if isIntegerColumn("instance_bonus_reward_profile", columnName) {
 		return fmt.Sprintf("CASE WHEN %s > 0 THEN DATE_FORMAT(FROM_UNIXTIME(%s), '%%Y-%%m-%%d %%H:%%i:%%s') ELSE '' END", columnName, columnName)
 	}
-	return fmt.Sprintf("DATE_FORMAT(%s, '%%Y-%%m-%%d %%H:%%i:%%s')", columnName)
+	return fmt.Sprintf("IFNULL(DATE_FORMAT(%s, '%%Y-%%m-%%d %%H:%%i:%%s'), '')", columnName)
 }
 
 func rewardProfileItemChanceExpr() string {
