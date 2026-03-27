@@ -1413,7 +1413,7 @@ function openRewardForm(data = null) {
             profile_key: String(form.elements.profile_key.value || '').trim(),
             name: form.elements.name.value,
             description: form.elements.description.value,
-            enabled: form.elements.enabled.value === '1',
+            enabled: Number(form.elements.enabled.value || 0),
             items
         };
     }
