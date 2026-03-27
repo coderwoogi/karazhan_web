@@ -789,7 +789,7 @@ func isIntegerColumn(tableName, columnName string) bool {
 
 func rewardProfileTimeExpr(columnName string) string {
 	if isIntegerColumn("instance_bonus_reward_profile", columnName) {
-		return fmt.Sprintf("CASE WHEN %s > 0 THEN DATE_FORMAT(FROM_UNIXTIME(%s), '%%Y-%%m-%%d %%H:%%i:%%s') ELSE '' END", columnName, columnName)
+		return fmt.Sprintf("CASE WHEN IFNULL(%s, 0) > 0 THEN DATE_FORMAT(FROM_UNIXTIME(IFNULL(%s, 0)), '%%Y-%%m-%%d %%H:%%i:%%s') ELSE '' END", columnName, columnName)
 	}
 	return fmt.Sprintf("IFNULL(DATE_FORMAT(%s, '%%Y-%%m-%%d %%H:%%i:%%s'), '')", columnName)
 }
