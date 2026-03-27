@@ -1228,7 +1228,6 @@ const instanceBonusApp = (() => {
             ${autoKeyFieldTemplate('profile_key', '보상 키', '보상 키는 저장할 때 자동으로 생성됩니다. 수정 화면에서는 현재 생성된 키를 확인할 수 있습니다.')}
             <div class="ib-field"><label>\uC774\uB984</label><input type="text" name="name" placeholder="\uC608: \uB9C8\uB098 \uBB34\uB364 \uAE30\uBCF8 \uBCF4\uC0C1"><small class="ib-help">\uD654\uBA74\uC5D0\uC11C \uBC14\uB85C \uC774\uD574\uD560 \uC218 \uC788\uB294 \uBCF4\uC0C1 \uD504\uB85C\uD30C\uC77C \uC774\uB984\uC744 \uC801\uC5B4\uC8FC\uC138\uC694.</small></div>
             <div class="ib-field"><label>\uD65C\uC131</label><select name="enabled"><option value="1">\uC0AC\uC6A9</option><option value="0">\uBE44\uD65C\uC131</option></select><small class="ib-help">\uBE44\uD65C\uC131\uC73C\uB85C \uB450\uBA74 \uAE30\uC874 \uB370\uC774\uD130\uB294 \uB0A8\uAE30\uACE0 \uD604\uC7AC \uC6B4\uC601\uC5D0\uC11C\uB9CC \uC81C\uC678\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.</small></div>
-            <div class="ib-field"><label>\uAC8C\uC2DC \uC0C1\uD0DC</label><select name="publish_status"><option value="draft">\uCD08\uC548</option><option value="review">\uAC80\uD1A0</option><option value="published">\uAC8C\uC2DC</option><option value="archived">\uBCF4\uAD00</option></select><small class="ib-help">\uCD08\uC548\uC740 \uC791\uC131 \uC911, \uAC80\uD1A0\uB294 \uD655\uC778 \uB300\uAE30, \uAC8C\uC2DC\uB294 \uC2E4\uC81C \uC0AC\uC6A9, \uBCF4\uAD00\uC740 \uC774\uC804 \uAE30\uB85D \uBCF4\uAD00 \uC6A9\uB3C4\uC785\uB2C8\uB2E4.</small></div>
             <div class="ib-field full"><label>\uC124\uBA85</label><textarea name="description" placeholder="\uC6B4\uC601\uC790\uAC00 \uBCF4\uC0C1 \uD504\uB85C\uD30C\uC77C\uC758 \uC6A9\uB3C4\uC640 \uCC28\uC774\uB97C \uAD6C\uBD84\uD560 \uC218 \uC788\uB3C4\uB85D \uC801\uC2B5\uB2C8\uB2E4."></textarea><small class="ib-help">\uC5B4\uB5A4 \uD14C\uB9C8\uC5D0 \uC4F0\uB294 \uBCF4\uC0C1\uC778\uC9C0, \uAE30\uC874 \uBCF4\uC0C1\uACFC \uCC28\uC774\uAC00 \uBB34\uC5C7\uC778\uC9C0\uB97C \uBA54\uBAA8\uD558\uBA74 \uC6B4\uC601\uD560 \uB54C \uD5F7\uAC08\uB9AC\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4.</small></div>
             ${formSection('\uBCF4\uC0C1 \uD56D\uBAA9', '\uB4F1\uAE09\uBCC4 \uBCF4\uC0C1 \uC544\uC774\uD15C\uC744 \uD45C \uD615\uD0DC\uB85C \uC815\uB9AC\uD574 \uAD00\uB9AC\uD569\uB2C8\uB2E4.')}
             <div class="ib-field full">
@@ -1369,7 +1368,6 @@ function openRewardForm(data = null) {
         form.elements.name.value = data?.name ?? '';
         form.elements.enabled.value = data?.enabled ? '1' : '0';
         form.elements.description.value = data?.description ?? '';
-        form.elements.publish_status.value = data?.publish_status ?? 'draft';
         const box = document.getElementById('reward-items-box');
         box.innerHTML = '';
         (data?.items || []).forEach((item) => addRewardItemRow(item));
@@ -1416,7 +1414,6 @@ function openRewardForm(data = null) {
             name: form.elements.name.value,
             description: form.elements.description.value,
             enabled: form.elements.enabled.value === '1',
-            publish_status: form.elements.publish_status.value,
             items
         };
     }
@@ -1424,7 +1421,6 @@ function openRewardForm(data = null) {
     async function saveReward(keepEditing = false) {
         const payload = rewardPayload();
         if (!payload.name) throw new Error('보상 프로파일 이름은 필수입니다.');
-        if (payload.publish_status === 'published' && !confirmPublishWorkflow('보상 프로파일')) return;
         let savedId = state.rewardEditingId;
         if (state.rewardEditingId) {
             await api(`/instance-bonus/reward-profiles/${state.rewardEditingId}`, { method: 'PUT', body: JSON.stringify(payload) });
@@ -1445,7 +1441,7 @@ function openRewardForm(data = null) {
     }
 
     function resetRewardFilter() {
-        ['rewards-filter-map-id','rewards-filter-publish','rewards-filter-keyword'].forEach((id) => { const el = document.getElementById(id); if (el) el.value = ''; });
+        ['rewards-filter-map-id','rewards-filter-keyword'].forEach((id) => { const el = document.getElementById(id); if (el) el.value = ''; });
         state.rewardsPage = 1;
         loadRewards();
     }
@@ -1453,21 +1449,21 @@ function openRewardForm(data = null) {
     async function loadRewards(page = state.rewardsPage) {
         state.rewardsPage = page;
         const params = new URLSearchParams({ page: String(page), limit: '20' });
-        [['map_id','rewards-filter-map-id'],['publish_status','rewards-filter-publish'],['search','rewards-filter-keyword']].forEach(([key,id]) => {
+        [['map_id','rewards-filter-map-id'],['search','rewards-filter-keyword']].forEach(([key,id]) => {
             const value = document.getElementById(id)?.value.trim();
             if (value) params.set(key, value);
         });
         const data = await api(`/instance-bonus/reward-profiles?${params.toString()}`);
-        if (!params.get('map_id') && !params.get('publish_status') && !params.get('search') && Array.isArray(data?.items)) {
+        if (!params.get('map_id') && !params.get('search') && Array.isArray(data?.items)) {
             state.rewardProfileOptions = data.items;
         }
         const body = document.getElementById('rewards-table');
         body.innerHTML = (data.items || []).length ? data.items.map((row) => `
             <tr>
                 <td>${row.reward_profile_id}</td><td>${row.map_id}</td><td>${escapeHtml(row.profile_key)}</td><td>${escapeHtml(row.name)}</td>
-                <td>${publishBadge(row.publish_status)}</td><td>${row.version || 1}</td><td>${escapeHtml(row.updated_at || '-')}</td>
+                <td>${row.version || 1}</td><td>${escapeHtml(row.updated_at || '-')}</td>
                 <td><div class="ib-actions"><button class="ib-btn ib-btn-ghost" onclick="instanceBonusApp.fetchReward(${row.reward_profile_id})">수정</button></div></td>
-            </tr>`).join('') : '<tr><td colspan="8" class="ib-empty">등록된 보상 프로파일이 없습니다.</td></tr>';
+            </tr>`).join('') : '<tr><td colspan="7" class="ib-empty">등록된 보상 프로파일이 없습니다.</td></tr>';
         renderPagination('rewards-pagination', data.page || 1, data.total || 0, data.limit || 20, 'loadRewards');
     }
 

@@ -2183,9 +2183,7 @@ func handleRewardProfiles(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		ensureRewardProfileKey(&item, 0)
-		if item.PublishStatus == "" {
-			item.PublishStatus = "draft"
-		}
+		item.PublishStatus = "published"
 		res, err := worldDB.Exec(`INSERT INTO instance_bonus_reward_profile (map_id, profile_key, name, description, enabled, publish_status, version, updated_by)
 			VALUES (?, ?, ?, ?, ?, ?, 1, ?)`,
 			item.MapID, item.ProfileKey, item.Name, item.Description, item.Enabled, item.PublishStatus, updatedByValue("instance_bonus_reward_profile", r))
@@ -2269,9 +2267,7 @@ func handleRewardProfileByID(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		ensureRewardProfileKey(&item, id)
-		if item.PublishStatus == "" {
-			item.PublishStatus = "draft"
-		}
+		item.PublishStatus = "published"
 		_, err = worldDB.Exec(`UPDATE instance_bonus_reward_profile SET map_id=?, profile_key=?, name=?, description=?, enabled=?, publish_status=?, version=version+1, updated_by=?, updated_at=CURRENT_TIMESTAMP WHERE reward_profile_id=?`,
 			item.MapID, item.ProfileKey, item.Name, item.Description, item.Enabled, item.PublishStatus, updatedByValue("instance_bonus_reward_profile", r), id)
 		if err != nil {

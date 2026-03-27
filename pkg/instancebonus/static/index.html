@@ -170,13 +170,12 @@
                     <div class="ib-card-header"><h3>보상 프로파일</h3><button class="ib-btn ib-btn-primary" onclick="instanceBonusApp.openRewardForm()"><i class="fas fa-plus"></i> 프로파일 추가</button></div>
                     <div class="ib-toolbar ib-toolbar-grid">
                         <div class="ib-field ib-map-field"><label>던전/레이드</label><div class="ib-map-picker" data-target="rewards-filter-map-id" data-empty="전체"></div><select id="rewards-filter-map-id" hidden></select></div>
-                        <div class="ib-field"><label>게시 상태</label><select id="rewards-filter-publish"><option value="">전체</option><option value="draft">초안</option><option value="review">검토</option><option value="published">게시</option><option value="archived">보관</option></select></div>
                         <div class="ib-field ib-field-span2"><label>검색</label><input id="rewards-filter-keyword" type="text" placeholder="보상 키 / 이름"></div>
                         <button class="ib-btn ib-btn-primary" onclick="instanceBonusApp.loadRewards()"><i class="fas fa-search"></i> 검색</button>
                         <button class="ib-btn ib-btn-secondary" onclick="instanceBonusApp.resetRewardFilter()">초기화</button>
                     </div>
                     <div class="ib-table-wrap">
-                        <table class="ib-table"><thead><tr><th>ID</th><th>맵 ID</th><th>보상 키</th><th>이름</th><th>게시</th><th>버전</th><th>업데이트</th><th>관리</th></tr></thead><tbody id="rewards-table"></tbody></table>
+                        <table class="ib-table"><thead><tr><th>ID</th><th>맵 ID</th><th>보상 키</th><th>이름</th><th>버전</th><th>업데이트</th><th>관리</th></tr></thead><tbody id="rewards-table"></tbody></table>
                     </div>
                     <div class="ib-pagination" id="rewards-pagination"></div>
                 </article>
@@ -266,7 +265,7 @@
         </div>
     </div>
 
-    <script src="app.js?v=20260326_16"></script>
+    <script src="app.js?v=20260327_1"></script>
 </body>
 </html>
 
