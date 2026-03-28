@@ -813,6 +813,36 @@ func isAutoIncrementColumn(tableName, columnName string) bool {
 	return result
 }
 
+func normalizedPublishStatus(status string) string {
+	switch strings.TrimSpace(strings.ToLower(status)) {
+	case "review":
+		return "review"
+	case "published":
+		return "published"
+	case "archived":
+		return "archived"
+	default:
+		return "draft"
+	}
+}
+
+func publishStatusStorageValue(tableName, status string) any {
+	normalized := normalizedPublishStatus(status)
+	if isNumericColumn(tableName, "publish_status") {
+		switch normalized {
+		case "review":
+			return 1
+		case "published":
+			return 2
+		case "archived":
+			return 3
+		default:
+			return 0
+		}
+	}
+	return normalized
+}
+
 func rewardProfileTimeExpr(columnName string) string {
 	if isIntegerColumn("instance_bonus_reward_profile", columnName) {
 		return fmt.Sprintf(`CASE
@@ -1899,17 +1929,15 @@ func handleMissions(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		ensureMissionKey(&item, 0)
-		if item.PublishStatus == "" {
-			item.PublishStatus = "draft"
-		}
+		item.PublishStatus = normalizedPublishStatus(item.PublishStatus)
 		res, err := worldDB.Exec(`INSERT INTO instance_bonus_mission
 			(map_id, difficulty_mask, mission_key, name, description, briefing_text, mission_type, objective_type, target_entry, target_label, target_count, time_limit_sec, failure_condition_type,
 			 required_boss_entry, required_before_boss_entry, allowed_death_count, allowed_wipe_count, reward_profile_id, difficulty_weight, min_party_size, max_party_size, min_avg_item_level,
 			 max_avg_item_level, required_tank, required_healer, enabled, publish_status, version, updated_by)
-			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
 			item.MapID, item.DifficultyMask, item.MissionKey, item.Name, item.Description, item.BriefingText, item.MissionType, item.ObjectiveType, item.TargetEntry, item.TargetLabel, item.TargetCount, item.TimeLimitSec, item.FailureConditionType,
 			item.RequiredBossEntry, item.RequiredBeforeBossEntry, item.AllowedDeathCount, item.AllowedWipeCount, item.RewardProfileID, item.DifficultyWeight, item.MinPartySize, item.MaxPartySize, item.MinAvgItemLevel,
-			item.MaxAvgItemLevel, item.RequiredTank, item.RequiredHealer, item.Enabled, item.PublishStatus, updatedByValue("instance_bonus_mission", r))
+			item.MaxAvgItemLevel, item.RequiredTank, item.RequiredHealer, item.Enabled, publishStatusStorageValue("instance_bonus_mission", item.PublishStatus), updatedByValue("instance_bonus_mission", r))
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -1957,9 +1985,7 @@ func handleMissionByID(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		ensureMissionKey(&item, id)
-		if item.PublishStatus == "" {
-			item.PublishStatus = "draft"
-		}
+		item.PublishStatus = normalizedPublishStatus(item.PublishStatus)
 		_, err = worldDB.Exec(`UPDATE instance_bonus_mission SET
 			map_id=?, difficulty_mask=?, mission_key=?, name=?, description=?, briefing_text=?, mission_type=?, objective_type=?, target_entry=?, target_label=?, target_count=?, time_limit_sec=?, failure_condition_type=?,
 			required_boss_entry=?, required_before_boss_entry=?, allowed_death_count=?, allowed_wipe_count=?, reward_profile_id=?, difficulty_weight=?, min_party_size=?, max_party_size=?, min_avg_item_level=?,
@@ -1967,7 +1993,7 @@ func handleMissionByID(w http.ResponseWriter, r *http.Request) {
 			WHERE mission_id=?`,
 			item.MapID, item.DifficultyMask, item.MissionKey, item.Name, item.Description, item.BriefingText, item.MissionType, item.ObjectiveType, item.TargetEntry, item.TargetLabel, item.TargetCount, item.TimeLimitSec, item.FailureConditionType,
 			item.RequiredBossEntry, item.RequiredBeforeBossEntry, item.AllowedDeathCount, item.AllowedWipeCount, item.RewardProfileID, item.DifficultyWeight, item.MinPartySize, item.MaxPartySize, item.MinAvgItemLevel,
-			item.MaxAvgItemLevel, item.RequiredTank, item.RequiredHealer, item.Enabled, item.PublishStatus, updatedByValue("instance_bonus_mission", r), id)
+			item.MaxAvgItemLevel, item.RequiredTank, item.RequiredHealer, item.Enabled, publishStatusStorageValue("instance_bonus_mission", item.PublishStatus), updatedByValue("instance_bonus_mission", r), id)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -2027,13 +2053,11 @@ func handleThemes(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "\ud14c\ub9c8 \ud0a4\uc640 \uc774\ub984\uc740 \ud544\uc218\uc785\ub2c8\ub2e4.", http.StatusBadRequest)
 			return
 		}
-		if item.PublishStatus == "" {
-			item.PublishStatus = "draft"
-		}
+		item.PublishStatus = normalizedPublishStatus(item.PublishStatus)
 		res, err := worldDB.Exec(`INSERT INTO instance_bonus_theme
 			(map_id, difficulty_mask, theme_key, name, description, briefing_style, min_party_size, max_party_size, min_avg_item_level, max_avg_item_level, required_tank, required_healer, weight, enabled, publish_status, version, updated_by)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
-			item.MapID, item.DifficultyMask, item.ThemeKey, item.Name, item.Description, item.BriefingStyle, item.MinPartySize, item.MaxPartySize, item.MinAvgItemLevel, item.MaxAvgItemLevel, item.RequiredTank, item.RequiredHealer, item.Weight, item.Enabled, item.PublishStatus, updatedByValue("instance_bonus_theme", r))
+			item.MapID, item.DifficultyMask, item.ThemeKey, item.Name, item.Description, item.BriefingStyle, item.MinPartySize, item.MaxPartySize, item.MinAvgItemLevel, item.MaxAvgItemLevel, item.RequiredTank, item.RequiredHealer, item.Weight, item.Enabled, publishStatusStorageValue("instance_bonus_theme", item.PublishStatus), updatedByValue("instance_bonus_theme", r))
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -2081,13 +2105,11 @@ func handleThemeRoutes(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
-			if item.PublishStatus == "" {
-				item.PublishStatus = "draft"
-			}
+			item.PublishStatus = normalizedPublishStatus(item.PublishStatus)
 			_, err = worldDB.Exec(`UPDATE instance_bonus_theme SET
 				map_id=?, difficulty_mask=?, theme_key=?, name=?, description=?, briefing_style=?, min_party_size=?, max_party_size=?, min_avg_item_level=?, max_avg_item_level=?, required_tank=?, required_healer=?, weight=?, enabled=?, publish_status=?, version=version+1, updated_by=?, updated_at=CURRENT_TIMESTAMP
 				WHERE theme_id=?`,
-				item.MapID, item.DifficultyMask, item.ThemeKey, item.Name, item.Description, item.BriefingStyle, item.MinPartySize, item.MaxPartySize, item.MinAvgItemLevel, item.MaxAvgItemLevel, item.RequiredTank, item.RequiredHealer, item.Weight, item.Enabled, item.PublishStatus, updatedByValue("instance_bonus_theme", r), themeID)
+				item.MapID, item.DifficultyMask, item.ThemeKey, item.Name, item.Description, item.BriefingStyle, item.MinPartySize, item.MaxPartySize, item.MinAvgItemLevel, item.MaxAvgItemLevel, item.RequiredTank, item.RequiredHealer, item.Weight, item.Enabled, publishStatusStorageValue("instance_bonus_theme", item.PublishStatus), updatedByValue("instance_bonus_theme", r), themeID)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
