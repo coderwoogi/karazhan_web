@@ -183,9 +183,9 @@ const instanceBonusApp = (() => {
     ];
     const missionFields = [
         ['map_id', '맵 ID', 'number'], ['mission_key', '미션 키'], ['name', '이름'], ['description', '설명', 'textarea', true],
-        ['briefing_text', '브리핑', 'textarea', true], ['mission_type', '미션 종류', 'select-number', false, missionTypeOptions], ['objective_type', '목표 방식', 'select-number', false, objectiveTypeOptions],
+        ['briefing_text', '브리핑', 'textarea', true], ['mission_type', '미션 종류', 'select-code', false, missionTypeOptions], ['objective_type', '목표 방식', 'select-code', false, objectiveTypeOptions],
         ['target_entry', '대상 번호', 'number'], ['target_label', '목표 이름'], ['target_count', '목표 수량', 'number'],
-        ['time_limit_sec', '제한 시간(초)', 'number'], ['failure_condition_type', '실패 조건', 'select-number', false, failureConditionTypeOptions], ['required_boss_entry', '필수 보스 번호', 'number'],
+        ['time_limit_sec', '제한 시간(초)', 'number'], ['failure_condition_type', '실패 조건', 'select-code', false, failureConditionTypeOptions], ['required_boss_entry', '필수 보스 번호', 'number'],
         ['required_before_boss_entry', '선행 보스 번호', 'number'], ['allowed_death_count', '허용 사망 수', 'number'],
         ['allowed_wipe_count', '허용 전멸 수', 'number'], ['reward_profile_id', '보상 프로파일 ID', 'number'], ['difficulty_weight', '난이도 가중치', 'number'],
         ['min_party_size', '최소 파티 수', 'number'], ['max_party_size', '최대 파티 수', 'number'], ['min_avg_item_level', '최소 평균 템렙', 'number'],
@@ -584,7 +584,7 @@ const instanceBonusApp = (() => {
         const helpHtml = help ? `<small class="ib-help">${help}</small>` : '';
         if (type === 'textarea') return `<div class="ib-field ${full ? 'full' : ''}"><label>${label}</label><textarea name="${name}"></textarea>${helpHtml}</div>`;
         if (type === 'checkbox') return `<div class="ib-field"><label>${label}</label><select name="${name}"><option value="1">사용</option><option value="0">미사용</option></select>${helpHtml}</div>`;
-        if (type === 'select' || type === 'select-number') return `<div class="ib-field ${full ? 'full' : ''}"><label>${label}</label><select name="${name}">${renderSelectOptions(options, publishStatusLabels)}</select>${helpHtml}</div>`;
+        if (type === 'select' || type === 'select-number' || type === 'select-code') return `<div class="ib-field ${full ? 'full' : ''}"><label>${label}</label><select name="${name}">${renderSelectOptions(options, publishStatusLabels)}</select>${helpHtml}</div>`;
         return `<div class="ib-field ${full ? 'full' : ''}"><label>${label}</label><input type="${type}" name="${name}">${helpHtml}</div>`;
     }
 
@@ -941,7 +941,9 @@ const instanceBonusApp = (() => {
         missionFields.forEach(([name, , type]) => {
             const el = form.elements[name];
             if (!el) return;
-            if (type === 'number' || type === 'select-number') data[name] = Number(el.value || 0);
+            if (type === 'number') data[name] = Number(el.value || 0);
+            else if (type === 'select-number') data[name] = Number(el.value || 0);
+            else if (type === 'select-code') data[name] = String(el.value || '').trim();
             else if (type === 'checkbox') data[name] = Number(el.value || 0);
             else data[name] = el.value;
         });
