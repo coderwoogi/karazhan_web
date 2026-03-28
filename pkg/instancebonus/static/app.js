@@ -956,7 +956,6 @@ const instanceBonusApp = (() => {
         });
         data.difficulty_mask = Number(form.elements.difficulty_mask?.value || 0);
         data.mission_key = String(data.mission_key || '').trim();
-        if (!data.name) throw new Error('미션 이름은 필수입니다.');
         return data;
     }
 
@@ -1774,6 +1773,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ItemPicker.init();
     instanceBonusApp.init();
 });
+
 
 
 
