@@ -907,7 +907,7 @@ const instanceBonusApp = (() => {
             const el = form.elements[name];
             if (!el) return;
             if (type === 'number') data[name] = Number(el.value || 0);
-            else if (type === 'checkbox') data[name] = el.value === '1';
+            else if (type === 'checkbox') data[name] = Number(el.value || 0);
             else data[name] = el.value;
         });
         data.difficulty_mask = Number(form.elements.difficulty_mask?.value || 0);
@@ -1081,7 +1081,7 @@ const instanceBonusApp = (() => {
             const el = form.elements[name];
             if (!el) return;
             if (type === 'number') data[name] = Number(el.value || 0);
-            else if (type === 'checkbox') data[name] = el.value === '1';
+            else if (type === 'checkbox') data[name] = Number(el.value || 0);
             else data[name] = el.value;
         });
         data.difficulty_mask = Number(form.elements.difficulty_mask?.value || 0);
