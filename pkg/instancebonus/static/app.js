@@ -918,6 +918,13 @@ const instanceBonusApp = (() => {
         if (!data) {
             form.elements.publish_status.value = 'draft';
             form.elements.enabled.value = '1';
+            form.elements.mission_type.value = missionTypeOptions[0]?.value || '';
+            form.elements.objective_type.value = objectiveTypeOptions[0]?.value || '';
+            form.elements.failure_condition_type.value = failureConditionTypeOptions[0]?.value || '';
+        } else {
+            if (!String(form.elements.mission_type.value || '').trim()) form.elements.mission_type.value = missionTypeOptions[0]?.value || '';
+            if (!String(form.elements.objective_type.value || '').trim()) form.elements.objective_type.value = objectiveTypeOptions[0]?.value || '';
+            if (!String(form.elements.failure_condition_type.value || '').trim()) form.elements.failure_condition_type.value = failureConditionTypeOptions[0]?.value || '';
         }
         applyMapOptions();
         const missionDifficultyValue = data?.difficulty_mask ?? (
@@ -951,6 +958,27 @@ const instanceBonusApp = (() => {
         data.mission_key = String(data.mission_key || '').trim();
         if (!data.name) throw new Error('미션 이름은 필수입니다.');
         return data;
+    }
+
+    function validateMissionPayload(payload) {
+        const requiredFields = [
+            { key: 'map_id', label: '던전/레이드 선택' },
+            { key: 'name', label: '미션 이름' },
+            { key: 'mission_type', label: '미션 종류' },
+            { key: 'objective_type', label: '목표 방식' },
+            { key: 'failure_condition_type', label: '실패 조건' },
+            { key: 'reward_profile_id', label: '보상 프로파일' }
+        ];
+        const missing = requiredFields.find((field) => {
+            const value = payload[field.key];
+            if (typeof value === 'number') return !Number.isFinite(value) || value <= 0;
+            return !String(value || '').trim();
+        });
+        if (missing) {
+            alert(`${missing.label} 항목은 필수입니다.`);
+            return false;
+        }
+        return true;
     }
 
     function syncMissionDifficultyHint() {
@@ -998,6 +1026,7 @@ const instanceBonusApp = (() => {
 
     async function saveMission(keepEditing = false) {
         const payload = missionPayload();
+        if (!validateMissionPayload(payload)) return;
         if (payload.publish_status === 'published' && !confirmPublishWorkflow('誘몄뀡')) return;
         let savedId = state.missionEditingId;
         if (state.missionEditingId) {
