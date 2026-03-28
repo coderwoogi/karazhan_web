@@ -167,11 +167,25 @@ const instanceBonusApp = (() => {
     };
     let applyingHistoryState = false;
 
+    const missionTypeOptions = [
+        { value: '1', label: '일반 목표' },
+        { value: '2', label: '보스 목표' },
+        { value: '4', label: '특수 목표' }
+    ];
+    const objectiveTypeOptions = [
+        { value: '1', label: '처치 목표' },
+        { value: '2', label: '보스 처치' },
+        { value: '3', label: '특수 조건' }
+    ];
+    const failureConditionTypeOptions = [
+        { value: '1', label: '기본 실패' },
+        { value: '2', label: '특수 실패' }
+    ];
     const missionFields = [
         ['map_id', '맵 ID', 'number'], ['mission_key', '미션 키'], ['name', '이름'], ['description', '설명', 'textarea', true],
-        ['briefing_text', '브리핑', 'textarea', true], ['mission_type', '미션 종류'], ['objective_type', '목표 방식'],
+        ['briefing_text', '브리핑', 'textarea', true], ['mission_type', '미션 종류', 'select-number', false, missionTypeOptions], ['objective_type', '목표 방식', 'select-number', false, objectiveTypeOptions],
         ['target_entry', '대상 번호', 'number'], ['target_label', '목표 이름'], ['target_count', '목표 수량', 'number'],
-        ['time_limit_sec', '제한 시간(초)', 'number'], ['failure_condition_type', '실패 조건'], ['required_boss_entry', '필수 보스 번호', 'number'],
+        ['time_limit_sec', '제한 시간(초)', 'number'], ['failure_condition_type', '실패 조건', 'select-number', false, failureConditionTypeOptions], ['required_boss_entry', '필수 보스 번호', 'number'],
         ['required_before_boss_entry', '선행 보스 번호', 'number'], ['allowed_death_count', '허용 사망 수', 'number'],
         ['allowed_wipe_count', '허용 전멸 수', 'number'], ['reward_profile_id', '보상 프로파일 ID', 'number'], ['difficulty_weight', '난이도 가중치', 'number'],
         ['min_party_size', '최소 파티 수', 'number'], ['max_party_size', '최대 파티 수', 'number'], ['min_avg_item_level', '최소 평균 템렙', 'number'],
@@ -545,11 +559,32 @@ const instanceBonusApp = (() => {
         return `<div class="ib-form-section"><div><h4>${title}</h4>${desc ? `<p>${desc}</p>` : ''}</div></div>`;
     }
 
+    function renderSelectOptions(options, labels = null) {
+        return options.map((option) => {
+            if (typeof option === 'object' && option !== null) {
+                return `<option value="${option.value}">${option.label}</option>`;
+            }
+            const value = String(option);
+            const label = labels?.[value] || value;
+            return `<option value="${value}">${label}</option>`;
+        }).join('');
+    }
+
+    function optionLabelFor(options, value, labels = null) {
+        const normalized = String(value ?? '');
+        const found = options.find((option) => {
+            if (typeof option === 'object' && option !== null) return String(option.value) === normalized;
+            return String(option) === normalized;
+        });
+        if (typeof found === 'object' && found !== null) return found.label;
+        return labels?.[normalized] || normalized || '-';
+    }
+
     function fieldTemplate({ name, label, type = 'text', full = false, options = [], help = '' }) {
         const helpHtml = help ? `<small class="ib-help">${help}</small>` : '';
         if (type === 'textarea') return `<div class="ib-field ${full ? 'full' : ''}"><label>${label}</label><textarea name="${name}"></textarea>${helpHtml}</div>`;
         if (type === 'checkbox') return `<div class="ib-field"><label>${label}</label><select name="${name}"><option value="1">사용</option><option value="0">미사용</option></select>${helpHtml}</div>`;
-        if (type === 'select') return `<div class="ib-field ${full ? 'full' : ''}"><label>${label}</label><select name="${name}">${options.map((v) => `<option value="${v}">${publishStatusLabels[v] || v}</option>`).join('')}</select>${helpHtml}</div>`;
+        if (type === 'select' || type === 'select-number') return `<div class="ib-field ${full ? 'full' : ''}"><label>${label}</label><select name="${name}">${renderSelectOptions(options, publishStatusLabels)}</select>${helpHtml}</div>`;
         return `<div class="ib-field ${full ? 'full' : ''}"><label>${label}</label><input type="${type}" name="${name}">${helpHtml}</div>`;
     }
 
@@ -834,13 +869,13 @@ const instanceBonusApp = (() => {
             fieldTemplate({ name: 'briefing_text', label: '브리핑 문구', type: 'textarea', full: true, help: '게임 안에 보여줄 안내 문구입니다.' }),
 
             formSection('목표 조건', '플레이어가 무엇을 해야 성공하는지 정합니다.'),
-            fieldTemplate({ name: 'mission_type', label: '미션 종류', help: '예: 처치형, 보스형, 생존형 등 운영자가 구분하기 위한 분류입니다.' }),
-            fieldTemplate({ name: 'objective_type', label: '목표 방식', help: '예: 몬스터 처치, 보스 격파, 생존 등 실제 목표의 성격을 적습니다.' }),
+            fieldTemplate({ name: 'mission_type', label: '미션 종류', type: 'select-number', options: missionTypeOptions, help: '미션의 큰 유형을 고릅니다. 일반 목표, 보스 목표, 특수 목표 중에서 선택합니다.' }),
+            fieldTemplate({ name: 'objective_type', label: '목표 방식', type: 'select-number', options: objectiveTypeOptions, help: '실제 성공 판정 방식입니다. 처치, 보스 처치, 특수 조건 중에서 선택합니다.' }),
             fieldTemplate({ name: 'target_entry', label: '대상 번호', type: 'number', help: 'NPC나 오브젝트 등 목표 대상의 번호입니다.' }),
             fieldTemplate({ name: 'target_label', label: '목표 이름', help: '대상 번호를 사람이 읽기 쉽게 적어두는 이름입니다.' }),
             fieldTemplate({ name: 'target_count', label: '목표 수량', type: 'number', help: '몇 개를 달성해야 성공하는지 적습니다.' }),
             fieldTemplate({ name: 'time_limit_sec', label: '미션 개별 제한 시간(초)', type: 'number', help: '이 미션에만 따로 적용할 제한 시간입니다. 0으로 두거나 비워두면 맵 설정의 기본 시간이 사용됩니다.' }),
-            fieldTemplate({ name: 'failure_condition_type', label: '실패 조건', help: '언제 이 미션을 실패로 볼지 정하는 기준입니다.' }),
+            fieldTemplate({ name: 'failure_condition_type', label: '실패 조건', type: 'select-number', options: failureConditionTypeOptions, help: '기본 실패 또는 특수 실패 기준 중에서 선택합니다.' }),
             fieldTemplate({ name: 'required_boss_entry', label: '필수 보스 번호', type: 'number', help: '이 번호의 보스를 잡아야 성공 처리되는 경우 사용합니다.' }),
             fieldTemplate({ name: 'required_before_boss_entry', label: '선행 보스 번호', type: 'number', help: '먼저 처치되어야 하는 보스가 있다면 번호를 넣습니다.' }),
             fieldTemplate({ name: 'allowed_death_count', label: '허용 사망 수', type: 'number', help: '이 횟수를 넘겨 죽으면 미션을 실패시킵니다. 0이면 사망 허용이 없습니다.' }),
@@ -906,7 +941,7 @@ const instanceBonusApp = (() => {
         missionFields.forEach(([name, , type]) => {
             const el = form.elements[name];
             if (!el) return;
-            if (type === 'number') data[name] = Number(el.value || 0);
+            if (type === 'number' || type === 'select-number') data[name] = Number(el.value || 0);
             else if (type === 'checkbox') data[name] = Number(el.value || 0);
             else data[name] = el.value;
         });
@@ -1000,7 +1035,7 @@ const instanceBonusApp = (() => {
         body.innerHTML = state.missionsCache.length ? state.missionsCache.map((row) => `
             <tr>
                 <td>${row.mission_id}</td><td>${escapeHtml(mapNameById(row.map_id))}</td><td>${escapeHtml(row.mission_key)}</td><td>${escapeHtml(row.name)}</td>
-                <td>${escapeHtml(row.mission_type)}</td><td>${escapeHtml(row.objective_type)}</td><td>${escapeHtml(row.target_label)}</td>
+                <td>${escapeHtml(optionLabelFor(missionTypeOptions, row.mission_type))}</td><td>${escapeHtml(optionLabelFor(objectiveTypeOptions, row.objective_type))}</td><td>${escapeHtml(row.target_label)}</td>
                 <td>${row.target_count || 0}</td><td>${row.time_limit_sec || 0}</td><td>${badge(row.enabled)}</td>
                 <td>${publishBadge(row.publish_status)}</td><td>${row.version || 1}</td><td>${escapeHtml(row.updated_at || '-')}</td>
                 <td><div class="ib-actions"><button class="ib-btn ib-btn-ghost" onclick="instanceBonusApp.fetchMission(${row.mission_id})">수정</button></div></td>
@@ -1164,7 +1199,7 @@ const instanceBonusApp = (() => {
         body.innerHTML = visibleCandidates.length ? visibleCandidates.map((row) => `
             <tr>
                 <td>${escapeHtml(row.name)}<div class="ib-help">${escapeHtml(row.mission_key)}</div></td>
-                <td>${escapeHtml(row.mission_type || '-')}</td>
+                <td>${escapeHtml(optionLabelFor(missionTypeOptions, row.mission_type))}</td>
                 <td><span class="ib-theme-link-status off">대기</span></td>
                 <td><button class="ib-btn ib-btn-primary" onclick="instanceBonusApp.addThemeMission(${row.mission_id})">추가</button></td>
             </tr>`).join('') : '<tr><td colspan="4" class="ib-empty">추가 가능한 후보 미션이 없습니다.</td></tr>';
