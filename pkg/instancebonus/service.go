@@ -1930,19 +1930,40 @@ func handleMissions(w http.ResponseWriter, r *http.Request) {
 		}
 		ensureMissionKey(&item, 0)
 		item.PublishStatus = normalizedPublishStatus(item.PublishStatus)
-		res, err := worldDB.Exec(`INSERT INTO instance_bonus_mission
-			(map_id, difficulty_mask, mission_key, name, description, briefing_text, mission_type, objective_type, target_entry, target_label, target_count, time_limit_sec, failure_condition_type,
-			 required_boss_entry, required_before_boss_entry, allowed_death_count, allowed_wipe_count, reward_profile_id, difficulty_weight, min_party_size, max_party_size, min_avg_item_level,
-			 max_avg_item_level, required_tank, required_healer, enabled, publish_status, version, updated_by)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
-			item.MapID, item.DifficultyMask, item.MissionKey, item.Name, item.Description, item.BriefingText, item.MissionType, item.ObjectiveType, item.TargetEntry, item.TargetLabel, item.TargetCount, item.TimeLimitSec, item.FailureConditionType,
-			item.RequiredBossEntry, item.RequiredBeforeBossEntry, item.AllowedDeathCount, item.AllowedWipeCount, item.RewardProfileID, item.DifficultyWeight, item.MinPartySize, item.MaxPartySize, item.MinAvgItemLevel,
-			item.MaxAvgItemLevel, item.RequiredTank, item.RequiredHealer, item.Enabled, publishStatusStorageValue("instance_bonus_mission", item.PublishStatus), updatedByValue("instance_bonus_mission", r))
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+		updatedBy := updatedByValue("instance_bonus_mission", r)
+		var id int64
+		if isAutoIncrementColumn("instance_bonus_mission", "mission_id") {
+			res, err := worldDB.Exec(`INSERT INTO instance_bonus_mission
+				(map_id, difficulty_mask, mission_key, name, description, briefing_text, mission_type, objective_type, target_entry, target_label, target_count, time_limit_sec, failure_condition_type,
+				 required_boss_entry, required_before_boss_entry, allowed_death_count, allowed_wipe_count, reward_profile_id, difficulty_weight, min_party_size, max_party_size, min_avg_item_level,
+				 max_avg_item_level, required_tank, required_healer, enabled, publish_status, version, updated_by)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
+				item.MapID, item.DifficultyMask, item.MissionKey, item.Name, item.Description, item.BriefingText, item.MissionType, item.ObjectiveType, item.TargetEntry, item.TargetLabel, item.TargetCount, item.TimeLimitSec, item.FailureConditionType,
+				item.RequiredBossEntry, item.RequiredBeforeBossEntry, item.AllowedDeathCount, item.AllowedWipeCount, item.RewardProfileID, item.DifficultyWeight, item.MinPartySize, item.MaxPartySize, item.MinAvgItemLevel,
+				item.MaxAvgItemLevel, item.RequiredTank, item.RequiredHealer, item.Enabled, publishStatusStorageValue("instance_bonus_mission", item.PublishStatus), updatedBy)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			id, _ = res.LastInsertId()
+		} else {
+			_ = worldDB.QueryRow(`SELECT IFNULL(MAX(mission_id), 0) + 1 FROM instance_bonus_mission`).Scan(&id)
+			if id <= 0 {
+				id = 1
+			}
+			_, err := worldDB.Exec(`INSERT INTO instance_bonus_mission
+				(mission_id, map_id, difficulty_mask, mission_key, name, description, briefing_text, mission_type, objective_type, target_entry, target_label, target_count, time_limit_sec, failure_condition_type,
+				 required_boss_entry, required_before_boss_entry, allowed_death_count, allowed_wipe_count, reward_profile_id, difficulty_weight, min_party_size, max_party_size, min_avg_item_level,
+				 max_avg_item_level, required_tank, required_healer, enabled, publish_status, version, updated_by)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
+				id, item.MapID, item.DifficultyMask, item.MissionKey, item.Name, item.Description, item.BriefingText, item.MissionType, item.ObjectiveType, item.TargetEntry, item.TargetLabel, item.TargetCount, item.TimeLimitSec, item.FailureConditionType,
+				item.RequiredBossEntry, item.RequiredBeforeBossEntry, item.AllowedDeathCount, item.AllowedWipeCount, item.RewardProfileID, item.DifficultyWeight, item.MinPartySize, item.MaxPartySize, item.MinAvgItemLevel,
+				item.MaxAvgItemLevel, item.RequiredTank, item.RequiredHealer, item.Enabled, publishStatusStorageValue("instance_bonus_mission", item.PublishStatus), updatedBy)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
 		}
-		id, _ := res.LastInsertId()
 		writeJSON(w, http.StatusOK, map[string]any{"success": true, "mission_id": id, "mission_key": item.MissionKey})
 	default:
 		http.Error(w, "지원하지 않는 요청 방식입니다", http.StatusMethodNotAllowed)
