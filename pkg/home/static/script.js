@@ -3021,6 +3021,8 @@ function openContentSubTab(tabName) {
         loadBlackMarketItems(1);
     } else if (tabName === 'carddraw') {
         loadCarddrawContentItems(1);
+    } else if (tabName === 'trial') {
+        openTrialContentSubTab('stages');
     }
 }
 
@@ -3029,6 +3031,8 @@ function refreshCurrentContentTab() {
         loadBlackMarketItems(1);
     } else if (currentContentTab === 'carddraw') {
         loadCarddrawContentItems(1);
+    } else if (currentContentTab === 'trial') {
+        refreshCurrentTrialContentTab();
     }
 }
 
@@ -3455,6 +3459,518 @@ document.getElementById('carddraw-content-form')?.addEventListener('submit', asy
         ModalUtils.showAlert('저장에 실패했습니다.');
     }
 });
+
+// Trial Content Manager Logic
+let currentTrialContentTab = 'stages';
+let currentTrialStagePage = 1;
+let currentTrialProgressPage = 1;
+let currentTrialRunPage = 1;
+let currentTrialEventPage = 1;
+let currentTrialRewardLogPage = 1;
+let trialStageOptions = [];
+
+function trialEsc(value) {
+    return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function getTrialResultLabel(code, label) {
+    const raw = String(label || '').trim();
+    if (raw) return raw;
+    switch (Number(code || 0)) {
+        case 1: return '성공';
+        case 2: return '실패';
+        case 3: return '포기';
+        default: return '기타';
+    }
+}
+
+function getTrialResultBadge(code, label) {
+    const text = getTrialResultLabel(code, label);
+    let bg = '#e2e8f0';
+    let color = '#475569';
+    if (Number(code) === 1) {
+        bg = '#dcfce7';
+        color = '#166534';
+    } else if (Number(code) === 2) {
+        bg = '#fee2e2';
+        color = '#991b1b';
+    } else if (Number(code) === 3) {
+        bg = '#fef3c7';
+        color = '#b45309';
+    }
+    return `<span class="badge" style="background:${bg}; color:${color};">${trialEsc(text)}</span>`;
+}
+
+function trialIconHtml(entry, iconName, size = 32) {
+    const itemEntry = Number(entry || 0);
+    let src = '';
+    const icon = String(iconName || '').trim();
+    if (icon) {
+        if (icon.startsWith('/') || icon.startsWith('http://') || icon.startsWith('https://')) src = icon;
+        else src = `https://wow.zamimg.com/images/wow/icons/large/${icon.toLowerCase()}.jpg`;
+    }
+    const img = src
+        ? `<img src="${src}" alt="item-${itemEntry}" style="width:${size}px; height:${size}px; border-radius:4px; border:1px solid #cbd5e1; object-fit:cover;" onerror="this.onerror=null; this.src='/img/default.png';">`
+        : `<div class="trial-entry-icon" data-entry="${itemEntry}" data-size="${size}" style="width:${size}px; height:${size}px; border-radius:4px; border:1px solid #cbd5e1; background:#f8fafc;"></div>`;
+    return itemEntry > 0 ? wrapWithWowheadItemLink(itemEntry, img, `아이템 ${itemEntry}`) : img;
+}
+
+function renderTrialStageOptions(selectIds, includeAllLabel = '전체') {
+    const options = [`<option value="">${includeAllLabel}</option>`]
+        .concat(trialStageOptions.map(stage => `<option value="${Number(stage.stage_id)}">${trialEsc(stage.name || `시련 ${stage.stage_id}단계`)}</option>`));
+    (Array.isArray(selectIds) ? selectIds : [selectIds]).forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) {
+            const current = String(el.value || '');
+            el.innerHTML = options.join('');
+            if (current && Array.from(el.options).some(opt => opt.value === current)) {
+                el.value = current;
+            }
+        }
+    });
+}
+
+async function hydrateTrialEntryIcons(scope = document) {
+    const nodes = Array.from(scope.querySelectorAll('.trial-entry-icon[data-entry]'));
+    await Promise.all(nodes.map(async (node) => {
+        if (node.querySelector('img')) return;
+        const entry = Number(node.dataset.entry || 0);
+        const size = Number(node.dataset.size || 32);
+        if (entry <= 0) return;
+        try {
+            const res = await fetch(`/api/external/item_icon?entry=${entry}`);
+            if (!res.ok) return;
+            const data = await res.json().catch(() => ({}));
+            const url = String(data.url || '').trim();
+            if (!url) return;
+            node.innerHTML = `<img src="${url}" alt="item-${entry}" style="width:${size}px; height:${size}px; border-radius:4px; border:1px solid #cbd5e1; object-fit:cover;" onerror="this.remove()">`;
+        } catch (_) {
+            // ignore
+        }
+    }));
+}
+
+async function loadTrialStageOptions() {
+    try {
+        const res = await fetch('/api/content/trial/stages?page=1&limit=200');
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        trialStageOptions = Array.isArray(data.items) ? data.items : [];
+    } catch (_) {
+        trialStageOptions = [];
+    }
+    renderTrialStageOptions(['trial-progress-filter-stage', 'trial-run-filter-stage', 'trial-event-filter-stage', 'trial-reward-log-filter-stage'], '전체');
+}
+
+function openTrialContentSubTab(tabName) {
+    currentTrialContentTab = tabName;
+    ['stages', 'progress', 'runs', 'events', 'rewards'].forEach((name) => {
+        const btn = document.getElementById(`trial-sub-btn-${name}`);
+        const panel = document.getElementById(`trial-sub-${name}`);
+        if (btn) btn.classList.toggle('active', name === tabName);
+        if (panel) panel.style.display = name === tabName ? 'block' : 'none';
+    });
+    refreshCurrentTrialContentTab();
+}
+
+function refreshCurrentTrialContentTab() {
+    if (currentTrialContentTab === 'stages') {
+        loadTrialStages(currentTrialStagePage || 1);
+    } else if (currentTrialContentTab === 'progress') {
+        loadTrialProgress(currentTrialProgressPage || 1);
+    } else if (currentTrialContentTab === 'runs') {
+        loadTrialRuns(currentTrialRunPage || 1);
+    } else if (currentTrialContentTab === 'events') {
+        loadTrialEvents(currentTrialEventPage || 1);
+    } else if (currentTrialContentTab === 'rewards') {
+        loadTrialRewardLogs(currentTrialRewardLogPage || 1);
+    }
+}
+
+async function loadTrialStages(page = 1) {
+    currentTrialStagePage = page;
+    await loadTrialStageOptions();
+    const tbody = document.getElementById('trial-stage-list');
+    const pg = document.getElementById('trial-stage-pagination');
+    if (!tbody) return;
+    const q = ((document.getElementById('trial-stage-filter-q') || {}).value || '').trim();
+    const active = ((document.getElementById('trial-stage-filter-active') || {}).value || '').trim();
+    const params = new URLSearchParams({ page: String(page), limit: '20' });
+    if (q) params.set('q', q);
+    if (active) params.set('active', active);
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:20px;">로딩 중...</td></tr>';
+    try {
+        const res = await fetch(`/api/content/trial/stages?${params.toString()}`);
+        if (!res.ok) throw new Error('데이터를 불러오는데 실패했습니다.');
+        const data = await res.json();
+        const items = data.items || [];
+        if (!items.length) {
+            tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:20px;">등록된 시련 단계가 없습니다.</td></tr>';
+            renderPagination(pg, data, p => loadTrialStages(p));
+            return;
+        }
+        tbody.innerHTML = items.map((item) => `
+            <tr>
+                <td>${Number(item.stage_id)}</td>
+                <td style="font-weight:700;">${trialEsc(item.name || `시련 ${item.stage_id}단계`)}</td>
+                <td>${Number(item.arena_map_id || 0)}</td>
+                <td>${Math.round(Number(item.preparation_ms || 0) / 1000)}초</td>
+                <td>${Number(item.health_multiplier || 0).toFixed(2)}배</td>
+                <td>${Number(item.damage_multiplier || 0).toFixed(2)}배</td>
+                <td>${Number(item.reward_count || 0)}개</td>
+                <td>${Number(item.enabled) === 1 ? '<span style="color:#16a34a; font-weight:700;">활성</span>' : '<span style="color:#64748b;">비활성</span>'}</td>
+                <td style="text-align:center;">
+                    <button onclick="openTrialStageRewardModal(${Number(item.stage_id)}, decodeURIComponent('${encodeURIComponent(String(item.name || `시련 ${item.stage_id}단계`))}'))" class="btn-action btn-edit"><i class="fas fa-gift"></i> 보상 관리</button>
+                </td>
+            </tr>
+        `).join('');
+        renderPagination(pg, data, p => loadTrialStages(p));
+        hydrateTrialEntryIcons(tbody);
+    } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:20px; color:red;">${trialEsc(e.message)}</td></tr>`;
+    }
+}
+
+function searchTrialStages() { loadTrialStages(1); }
+function resetTrialStageFilters() {
+    const q = document.getElementById('trial-stage-filter-q');
+    const active = document.getElementById('trial-stage-filter-active');
+    if (q) q.value = '';
+    if (active) active.value = '';
+    loadTrialStages(1);
+}
+
+function buildTrialRewardRow(row = {}) {
+    const itemEntry = Number(row.item_entry || 0);
+    const itemName = String(row.item_name || '').trim() || (itemEntry > 0 ? `아이템 ${itemEntry}` : '아이템을 선택하세요.');
+    const itemIcon = String(row.item_icon || '').trim();
+    return `
+        <tr class="trial-reward-row">
+            <td><input type="number" class="input-premium trial-reward-sort" value="${Number(row.sort_order || 0)}" min="1" placeholder="순서"></td>
+            <td>
+                <input type="hidden" class="trial-reward-id" value="${Number(row.id || 0)}">
+                <input type="hidden" class="trial-reward-entry" value="${itemEntry}">
+                <input type="hidden" class="trial-reward-icon" value="${trialEsc(itemIcon)}">
+                <div class="trial-reward-item-cell" style="display:flex; align-items:center; gap:10px;">
+                    <div class="trial-reward-item-icon">${trialIconHtml(itemEntry, itemIcon, 34)}</div>
+                    <div style="min-width:0; flex:1;">
+                        <div class="trial-reward-item-name" style="font-weight:700; color:#1e293b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${trialEsc(itemName)}</div>
+                        <div class="trial-reward-item-entry-text" style="font-size:0.8rem; color:#64748b;">${itemEntry > 0 ? `Entry ${itemEntry}` : '아직 선택되지 않았습니다.'}</div>
+                    </div>
+                    <button type="button" class="btn-action btn-edit" onclick="openTrialRewardItemPicker(this)">변경</button>
+                </div>
+            </td>
+            <td><input type="number" class="input-premium trial-reward-count" value="${Number(row.item_count || 1)}" min="1"></td>
+            <td><input type="number" class="input-premium trial-reward-chance" value="${Number(row.chance || 100).toFixed(2)}" min="0" max="100" step="0.01"></td>
+            <td>
+                <select class="input-premium trial-reward-enabled">
+                    <option value="1" ${Number(row.enabled) !== 0 ? 'selected' : ''}>활성</option>
+                    <option value="0" ${Number(row.enabled) === 0 ? 'selected' : ''}>비활성</option>
+                </select>
+            </td>
+            <td><input type="text" class="input-premium trial-reward-comment" value="${trialEsc(row.comment || '')}" placeholder="운영 메모"></td>
+            <td style="text-align:center;"><button type="button" class="btn-action btn-delete" onclick="removeTrialRewardRow(this)"><i class="fas fa-trash"></i> 삭제</button></td>
+        </tr>
+    `;
+}
+
+function addTrialRewardRow(row = {}) {
+    const tbody = document.getElementById('trial-stage-reward-list');
+    if (!tbody) return;
+    tbody.insertAdjacentHTML('beforeend', buildTrialRewardRow(row));
+    refreshWowheadTooltips();
+    hydrateTrialEntryIcons(tbody);
+}
+
+function removeTrialRewardRow(button) {
+    const row = button?.closest('tr');
+    if (row) row.remove();
+}
+
+function openTrialRewardItemPicker(button) {
+    const row = button?.closest('tr');
+    if (!row || typeof ItemPicker?.open !== 'function') return;
+    ItemPicker.open((item) => {
+        row.querySelector('.trial-reward-entry').value = String(Number(item.entry || 0));
+        row.querySelector('.trial-reward-icon').value = String(item.icon_url || '');
+        row.querySelector('.trial-reward-item-icon').innerHTML = trialIconHtml(item.entry, item.icon_url || '', 34);
+        row.querySelector('.trial-reward-item-name').textContent = String(item.name || `아이템 ${item.entry}`);
+        row.querySelector('.trial-reward-item-entry-text').textContent = `Entry ${Number(item.entry || 0)}`;
+        refreshWowheadTooltips();
+    });
+}
+
+async function openTrialStageRewardModal(stageId, stageName) {
+    const modal = document.getElementById('trial-stage-reward-modal');
+    const title = document.getElementById('trial-stage-reward-modal-title');
+    const stageIdEl = document.getElementById('trial-stage-reward-stage-id');
+    const meta = document.getElementById('trial-stage-reward-stage-meta');
+    const tbody = document.getElementById('trial-stage-reward-list');
+    if (!modal || !stageIdEl || !tbody) return;
+    stageIdEl.value = String(stageId);
+    if (title) title.textContent = `${stageName} 보상 관리`;
+    if (meta) meta.textContent = `${stageName} 단계에서 지급할 보상 목록을 관리합니다.`;
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:20px;">보상 정보를 불러오는 중...</td></tr>';
+    modal.style.display = 'flex';
+    try {
+        const res = await fetch(`/api/content/trial/stage-rewards?stage_id=${Number(stageId)}`);
+        if (!res.ok) throw new Error('보상 정보를 불러오는데 실패했습니다.');
+        const data = await res.json();
+        const items = data.items || [];
+        tbody.innerHTML = '';
+        if (!items.length) {
+            addTrialRewardRow({ sort_order: 1, item_count: 1, chance: 100, enabled: 1 });
+            return;
+        }
+        items.forEach(item => addTrialRewardRow(item));
+        hydrateTrialEntryIcons(tbody);
+    } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:20px; color:red;">${trialEsc(e.message)}</td></tr>`;
+    }
+}
+
+function closeTrialStageRewardModal() {
+    const modal = document.getElementById('trial-stage-reward-modal');
+    if (modal) modal.style.display = 'none';
+}
+
+async function saveTrialStageRewards() {
+    const stageId = Number((document.getElementById('trial-stage-reward-stage-id') || {}).value || 0);
+    if (stageId <= 0) {
+        ModalUtils.showAlert('단계 정보가 올바르지 않습니다.');
+        return;
+    }
+    const rows = Array.from(document.querySelectorAll('#trial-stage-reward-list .trial-reward-row'));
+    const rewards = rows.map((row, idx) => ({
+        id: Number(row.querySelector('.trial-reward-id')?.value || 0),
+        item_entry: Number(row.querySelector('.trial-reward-entry')?.value || 0),
+        item_count: Number(row.querySelector('.trial-reward-count')?.value || 0),
+        chance: Number(row.querySelector('.trial-reward-chance')?.value || 0),
+        sort_order: Number(row.querySelector('.trial-reward-sort')?.value || (idx + 1)),
+        enabled: Number(row.querySelector('.trial-reward-enabled')?.value || 1),
+        comment: String(row.querySelector('.trial-reward-comment')?.value || '').trim()
+    }));
+    const invalid = rewards.find((reward) => reward.item_entry <= 0 || reward.item_count <= 0 || reward.chance < 0 || reward.chance > 100);
+    if (invalid) {
+        ModalUtils.showAlert('보상 아이템, 수량, 확률을 다시 확인해주세요.');
+        return;
+    }
+    try {
+        const res = await fetch('/api/content/trial/stage-rewards/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ stage_id: stageId, rewards })
+        });
+        if (!res.ok) throw new Error(await res.text());
+        ModalUtils.showAlert('단계 보상이 저장되었습니다.');
+        closeTrialStageRewardModal();
+        loadTrialStages(currentTrialStagePage || 1);
+    } catch (e) {
+        ModalUtils.showAlert(`보상 저장에 실패했습니다.\n${String(e.message || '')}`.trim());
+    }
+}
+
+async function loadTrialProgress(page = 1) {
+    currentTrialProgressPage = page;
+    await loadTrialStageOptions();
+    const tbody = document.getElementById('trial-progress-list');
+    const pg = document.getElementById('trial-progress-pagination');
+    if (!tbody) return;
+    const q = ((document.getElementById('trial-progress-filter-q') || {}).value || '').trim();
+    const stageId = ((document.getElementById('trial-progress-filter-stage') || {}).value || '').trim();
+    const params = new URLSearchParams({ page: String(page) });
+    if (q) params.set('q', q);
+    if (stageId) params.set('stage_id', stageId);
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px;">로딩 중...</td></tr>';
+    try {
+        const res = await fetch(`/api/content/trial/progress?${params.toString()}`);
+        if (!res.ok) throw new Error('진행 현황을 불러오는데 실패했습니다.');
+        const data = await res.json();
+        const items = data.items || [];
+        if (!items.length) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px;">기록이 없습니다.</td></tr>';
+            renderPagination(pg, data, p => loadTrialProgress(p));
+            return;
+        }
+        tbody.innerHTML = items.map(item => `
+            <tr>
+                <td>${Number(item.guid || 0)}</td>
+                <td style="font-weight:700;">${trialEsc(item.player_name || `GUID ${item.guid}`)}</td>
+                <td>${Number(item.highest_stage_cleared || 0)}단계</td>
+                <td>${trialEsc(item.updated_at || '-')}</td>
+            </tr>
+        `).join('');
+        renderPagination(pg, data, p => loadTrialProgress(p));
+    } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:20px; color:red;">${trialEsc(e.message)}</td></tr>`;
+    }
+}
+
+function searchTrialProgress() { loadTrialProgress(1); }
+function resetTrialProgressFilters() {
+    const q = document.getElementById('trial-progress-filter-q');
+    const stage = document.getElementById('trial-progress-filter-stage');
+    if (q) q.value = '';
+    if (stage) stage.value = '';
+    loadTrialProgress(1);
+}
+
+async function loadTrialRuns(page = 1) {
+    currentTrialRunPage = page;
+    await loadTrialStageOptions();
+    const tbody = document.getElementById('trial-run-list');
+    const pg = document.getElementById('trial-run-pagination');
+    if (!tbody) return;
+    const q = ((document.getElementById('trial-run-filter-q') || {}).value || '').trim();
+    const stageId = ((document.getElementById('trial-run-filter-stage') || {}).value || '').trim();
+    const result = ((document.getElementById('trial-run-filter-result') || {}).value || '').trim();
+    const params = new URLSearchParams({ page: String(page) });
+    if (q) params.set('q', q);
+    if (stageId) params.set('stage_id', stageId);
+    if (result) params.set('result', result);
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:20px;">로딩 중...</td></tr>';
+    try {
+        const res = await fetch(`/api/content/trial/run-logs?${params.toString()}`);
+        if (!res.ok) throw new Error('런 기록을 불러오는데 실패했습니다.');
+        const data = await res.json();
+        const items = data.items || [];
+        if (!items.length) {
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:20px;">기록이 없습니다.</td></tr>';
+            renderPagination(pg, data, p => loadTrialRuns(p));
+            return;
+        }
+        tbody.innerHTML = items.map(item => `
+            <tr>
+                <td>${Number(item.run_uid || 0)}</td>
+                <td style="font-weight:700;">${trialEsc(item.player_name || `GUID ${item.guid}`)}</td>
+                <td>${Number(item.stage_id || 0)}단계</td>
+                <td>${getTrialResultBadge(item.result, item.result_label)}</td>
+                <td>${trialEsc(item.started_at || '-')}</td>
+                <td>${trialEsc(item.ended_at || '-')}</td>
+                <td>${Number(item.duration_sec || 0)}초</td>
+            </tr>
+        `).join('');
+        renderPagination(pg, data, p => loadTrialRuns(p));
+    } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:20px; color:red;">${trialEsc(e.message)}</td></tr>`;
+    }
+}
+
+function searchTrialRuns() { loadTrialRuns(1); }
+function resetTrialRunFilters() {
+    const q = document.getElementById('trial-run-filter-q');
+    const stage = document.getElementById('trial-run-filter-stage');
+    const result = document.getElementById('trial-run-filter-result');
+    if (q) q.value = '';
+    if (stage) stage.value = '';
+    if (result) result.value = '';
+    loadTrialRuns(1);
+}
+
+async function loadTrialEvents(page = 1) {
+    currentTrialEventPage = page;
+    await loadTrialStageOptions();
+    const tbody = document.getElementById('trial-event-list');
+    const pg = document.getElementById('trial-event-pagination');
+    if (!tbody) return;
+    const q = ((document.getElementById('trial-event-filter-q') || {}).value || '').trim();
+    const stageId = ((document.getElementById('trial-event-filter-stage') || {}).value || '').trim();
+    const eventType = ((document.getElementById('trial-event-filter-type') || {}).value || '').trim();
+    const params = new URLSearchParams({ page: String(page) });
+    if (q) params.set('q', q);
+    if (stageId) params.set('stage_id', stageId);
+    if (eventType) params.set('event_type', eventType);
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:20px;">로딩 중...</td></tr>';
+    try {
+        const res = await fetch(`/api/content/trial/event-logs?${params.toString()}`);
+        if (!res.ok) throw new Error('이벤트 로그를 불러오는데 실패했습니다.');
+        const data = await res.json();
+        const items = data.items || [];
+        if (!items.length) {
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:20px;">기록이 없습니다.</td></tr>';
+            renderPagination(pg, data, p => loadTrialEvents(p));
+            return;
+        }
+        tbody.innerHTML = items.map(item => `
+            <tr>
+                <td>${Number(item.id || 0)}</td>
+                <td>${Number(item.run_uid || 0)}</td>
+                <td style="font-weight:700;">${trialEsc(item.player_name || `GUID ${item.guid}`)}</td>
+                <td>${Number(item.stage_id || 0)}단계</td>
+                <td>${trialEsc(item.event_type || '-')}</td>
+                <td style="max-width:320px; white-space:normal;">${trialEsc(item.note || '-')}</td>
+                <td>${trialEsc(item.event_at || '-')}</td>
+            </tr>
+        `).join('');
+        renderPagination(pg, data, p => loadTrialEvents(p));
+    } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:20px; color:red;">${trialEsc(e.message)}</td></tr>`;
+    }
+}
+
+function searchTrialEvents() { loadTrialEvents(1); }
+function resetTrialEventFilters() {
+    const q = document.getElementById('trial-event-filter-q');
+    const stage = document.getElementById('trial-event-filter-stage');
+    const type = document.getElementById('trial-event-filter-type');
+    if (q) q.value = '';
+    if (stage) stage.value = '';
+    if (type) type.value = '';
+    loadTrialEvents(1);
+}
+
+async function loadTrialRewardLogs(page = 1) {
+    currentTrialRewardLogPage = page;
+    await loadTrialStageOptions();
+    const tbody = document.getElementById('trial-reward-log-list');
+    const pg = document.getElementById('trial-reward-log-pagination');
+    if (!tbody) return;
+    const q = ((document.getElementById('trial-reward-log-filter-q') || {}).value || '').trim();
+    const stageId = ((document.getElementById('trial-reward-log-filter-stage') || {}).value || '').trim();
+    const params = new URLSearchParams({ page: String(page) });
+    if (q) params.set('q', q);
+    if (stageId) params.set('stage_id', stageId);
+    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; padding:20px;">로딩 중...</td></tr>';
+    try {
+        const res = await fetch(`/api/content/trial/reward-logs?${params.toString()}`);
+        if (!res.ok) throw new Error('보상 로그를 불러오는데 실패했습니다.');
+        const data = await res.json();
+        const items = data.items || [];
+        if (!items.length) {
+            tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; padding:20px;">기록이 없습니다.</td></tr>';
+            renderPagination(pg, data, p => loadTrialRewardLogs(p));
+            return;
+        }
+        tbody.innerHTML = items.map(item => `
+            <tr>
+                <td>${Number(item.id || 0)}</td>
+                <td>${Number(item.run_uid || 0)}</td>
+                <td style="font-weight:700;">${trialEsc(item.player_name || `GUID ${item.guid}`)}</td>
+                <td>${Number(item.stage_id || 0)}단계</td>
+                <td style="text-align:center;">${trialIconHtml(item.item_entry, item.item_icon, 28)}</td>
+                <td style="font-weight:700;">${wrapWithWowheadItemLink(item.item_entry, trialEsc(item.item_name || `아이템 ${item.item_entry}`), item.item_name || `아이템 ${item.item_entry}`)}</td>
+                <td>${Number(item.item_count || 0).toLocaleString()}</td>
+                <td>${Number(item.chance || 0).toFixed(2)}%</td>
+                <td>${trialEsc(item.grant_status || '-')}</td>
+                <td>${trialEsc(item.granted_at || '-')}</td>
+            </tr>
+        `).join('');
+        refreshWowheadTooltips();
+        hydrateTrialEntryIcons(tbody);
+        renderPagination(pg, data, p => loadTrialRewardLogs(p));
+    } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; padding:20px; color:red;">${trialEsc(e.message)}</td></tr>`;
+    }
+}
+
+function searchTrialRewardLogs() { loadTrialRewardLogs(1); }
+function resetTrialRewardLogFilters() {
+    const q = document.getElementById('trial-reward-log-filter-q');
+    const stage = document.getElementById('trial-reward-log-filter-stage');
+    if (q) q.value = '';
+    if (stage) stage.value = '';
+    loadTrialRewardLogs(1);
+}
 
 // Main Character System
 function showMainCharModal(force = false) {

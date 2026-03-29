@@ -2977,6 +2977,8 @@
                             설정</button>
                         <button class="log-sub-tab-btn" onclick="openContentSubTab('carddraw')">카드뽑기 품목
                             설정</button>
+                        <button class="log-sub-tab-btn" onclick="openContentSubTab('trial')">시련
+                            설정</button>
                     </div>
 
                     <!-- Black Market Sub-Tab -->
@@ -3057,6 +3059,206 @@
                             </table>
                         </div>
                         <div id="carddraw-content-pagination"></div>
+                    </div>
+
+                    <!-- Trial Sub-Tab -->
+                    <div id="content-trial" class="log-sub-content">
+                        <div class="log-sub-tabs" style="margin-bottom:1rem;">
+                            <button id="trial-sub-btn-stages" class="log-sub-tab-btn active" onclick="openTrialContentSubTab('stages')">단계 보상 관리</button>
+                            <button id="trial-sub-btn-progress" class="log-sub-tab-btn" onclick="openTrialContentSubTab('progress')">진행 현황</button>
+                            <button id="trial-sub-btn-runs" class="log-sub-tab-btn" onclick="openTrialContentSubTab('runs')">런 기록</button>
+                            <button id="trial-sub-btn-events" class="log-sub-tab-btn" onclick="openTrialContentSubTab('events')">이벤트 로그</button>
+                            <button id="trial-sub-btn-rewards" class="log-sub-tab-btn" onclick="openTrialContentSubTab('rewards')">보상 로그</button>
+                        </div>
+
+                        <div id="trial-sub-stages" class="trial-sub-content active">
+                            <div class="filter-bar" style="display:grid; grid-template-columns: 1.4fr 180px auto; gap:12px; align-items:end;">
+                                <div class="filter-group">
+                                    <label for="trial-stage-filter-q">검색</label>
+                                    <input id="trial-stage-filter-q" type="text" class="input-premium" placeholder="단계 번호 또는 명칭 검색">
+                                </div>
+                                <div class="filter-group">
+                                    <label for="trial-stage-filter-active">활성</label>
+                                    <select id="trial-stage-filter-active" class="input-premium">
+                                        <option value="">전체</option>
+                                        <option value="1">활성</option>
+                                        <option value="0">비활성</option>
+                                    </select>
+                                </div>
+                                <div style="display:flex; gap:8px; justify-content:flex-end;">
+                                    <button onclick="searchTrialStages()" class="btn btn-primary"><i class="fas fa-search"></i> 검색</button>
+                                    <button onclick="resetTrialStageFilters()" class="btn"><i class="fas fa-undo"></i> 초기화</button>
+                                </div>
+                            </div>
+                            <div class="scroll-table premium-table" style="max-height: 850px; margin-top: 1.5rem;">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th style="width:80px;">단계</th>
+                                            <th>명칭</th>
+                                            <th style="width:100px;">아레나 맵</th>
+                                            <th style="width:110px;">준비 시간</th>
+                                            <th style="width:110px;">생명 배수</th>
+                                            <th style="width:110px;">공격 배수</th>
+                                            <th style="width:100px;">보상 수</th>
+                                            <th style="width:90px;">활성</th>
+                                            <th style="width:150px; text-align:center;">관리</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="trial-stage-list"></tbody>
+                                </table>
+                            </div>
+                            <div id="trial-stage-pagination"></div>
+                        </div>
+
+                        <div id="trial-sub-progress" class="trial-sub-content" style="display:none;">
+                            <div class="filter-bar" style="display:grid; grid-template-columns: 1.4fr 180px auto; gap:12px; align-items:end;">
+                                <div class="filter-group">
+                                    <label for="trial-progress-filter-q">플레이어 검색</label>
+                                    <input id="trial-progress-filter-q" type="text" class="input-premium" placeholder="캐릭터명 또는 GUID 검색">
+                                </div>
+                                <div class="filter-group">
+                                    <label for="trial-progress-filter-stage">최고 클리어 단계</label>
+                                    <select id="trial-progress-filter-stage" class="input-premium"></select>
+                                </div>
+                                <div style="display:flex; gap:8px; justify-content:flex-end;">
+                                    <button onclick="searchTrialProgress()" class="btn btn-primary"><i class="fas fa-search"></i> 검색</button>
+                                    <button onclick="resetTrialProgressFilters()" class="btn"><i class="fas fa-undo"></i> 초기화</button>
+                                </div>
+                            </div>
+                            <div class="scroll-table premium-table" style="max-height: 850px; margin-top: 1.5rem;">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th style="width:120px;">GUID</th>
+                                            <th>플레이어</th>
+                                            <th style="width:140px;">최고 클리어 단계</th>
+                                            <th style="width:180px;">최근 갱신</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="trial-progress-list"></tbody>
+                                </table>
+                            </div>
+                            <div id="trial-progress-pagination"></div>
+                        </div>
+
+                        <div id="trial-sub-runs" class="trial-sub-content" style="display:none;">
+                            <div class="filter-bar" style="display:grid; grid-template-columns: 1.2fr 180px 180px auto; gap:12px; align-items:end;">
+                                <div class="filter-group">
+                                    <label for="trial-run-filter-q">검색</label>
+                                    <input id="trial-run-filter-q" type="text" class="input-premium" placeholder="캐릭터명, GUID, 런 번호 검색">
+                                </div>
+                                <div class="filter-group">
+                                    <label for="trial-run-filter-stage">단계</label>
+                                    <select id="trial-run-filter-stage" class="input-premium"></select>
+                                </div>
+                                <div class="filter-group">
+                                    <label for="trial-run-filter-result">결과</label>
+                                    <select id="trial-run-filter-result" class="input-premium">
+                                        <option value="">전체</option>
+                                        <option value="1">성공</option>
+                                        <option value="2">실패</option>
+                                        <option value="3">포기</option>
+                                    </select>
+                                </div>
+                                <div style="display:flex; gap:8px; justify-content:flex-end;">
+                                    <button onclick="searchTrialRuns()" class="btn btn-primary"><i class="fas fa-search"></i> 검색</button>
+                                    <button onclick="resetTrialRunFilters()" class="btn"><i class="fas fa-undo"></i> 초기화</button>
+                                </div>
+                            </div>
+                            <div class="scroll-table premium-table" style="max-height: 850px; margin-top: 1.5rem;">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th style="width:90px;">런 번호</th>
+                                            <th>플레이어</th>
+                                            <th style="width:90px;">단계</th>
+                                            <th style="width:120px;">결과</th>
+                                            <th style="width:170px;">시작</th>
+                                            <th style="width:170px;">종료</th>
+                                            <th style="width:110px;">지속 시간</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="trial-run-list"></tbody>
+                                </table>
+                            </div>
+                            <div id="trial-run-pagination"></div>
+                        </div>
+
+                        <div id="trial-sub-events" class="trial-sub-content" style="display:none;">
+                            <div class="filter-bar" style="display:grid; grid-template-columns: 1.2fr 180px 180px auto; gap:12px; align-items:end;">
+                                <div class="filter-group">
+                                    <label for="trial-event-filter-q">검색</label>
+                                    <input id="trial-event-filter-q" type="text" class="input-premium" placeholder="캐릭터명, GUID, 메모 검색">
+                                </div>
+                                <div class="filter-group">
+                                    <label for="trial-event-filter-stage">단계</label>
+                                    <select id="trial-event-filter-stage" class="input-premium"></select>
+                                </div>
+                                <div class="filter-group">
+                                    <label for="trial-event-filter-type">이벤트 종류</label>
+                                    <input id="trial-event-filter-type" type="text" class="input-premium" placeholder="예: combat_start">
+                                </div>
+                                <div style="display:flex; gap:8px; justify-content:flex-end;">
+                                    <button onclick="searchTrialEvents()" class="btn btn-primary"><i class="fas fa-search"></i> 검색</button>
+                                    <button onclick="resetTrialEventFilters()" class="btn"><i class="fas fa-undo"></i> 초기화</button>
+                                </div>
+                            </div>
+                            <div class="scroll-table premium-table" style="max-height: 850px; margin-top: 1.5rem;">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th style="width:90px;">번호</th>
+                                            <th style="width:90px;">런 번호</th>
+                                            <th>플레이어</th>
+                                            <th style="width:90px;">단계</th>
+                                            <th style="width:160px;">이벤트</th>
+                                            <th>메모</th>
+                                            <th style="width:180px;">발생 시각</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="trial-event-list"></tbody>
+                                </table>
+                            </div>
+                            <div id="trial-event-pagination"></div>
+                        </div>
+
+                        <div id="trial-sub-rewards" class="trial-sub-content" style="display:none;">
+                            <div class="filter-bar" style="display:grid; grid-template-columns: 1.2fr 180px auto; gap:12px; align-items:end;">
+                                <div class="filter-group">
+                                    <label for="trial-reward-log-filter-q">검색</label>
+                                    <input id="trial-reward-log-filter-q" type="text" class="input-premium" placeholder="캐릭터명, GUID, 아이템 번호 검색">
+                                </div>
+                                <div class="filter-group">
+                                    <label for="trial-reward-log-filter-stage">단계</label>
+                                    <select id="trial-reward-log-filter-stage" class="input-premium"></select>
+                                </div>
+                                <div style="display:flex; gap:8px; justify-content:flex-end;">
+                                    <button onclick="searchTrialRewardLogs()" class="btn btn-primary"><i class="fas fa-search"></i> 검색</button>
+                                    <button onclick="resetTrialRewardLogFilters()" class="btn"><i class="fas fa-undo"></i> 초기화</button>
+                                </div>
+                            </div>
+                            <div class="scroll-table premium-table" style="max-height: 850px; margin-top: 1.5rem;">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th style="width:90px;">번호</th>
+                                            <th style="width:90px;">런 번호</th>
+                                            <th>플레이어</th>
+                                            <th style="width:90px;">단계</th>
+                                            <th style="width:70px; text-align:center;">아이콘</th>
+                                            <th>보상 아이템</th>
+                                            <th style="width:90px;">수량</th>
+                                            <th style="width:100px;">확률</th>
+                                            <th style="width:120px;">지급 상태</th>
+                                            <th style="width:180px;">지급 시각</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="trial-reward-log-list"></tbody>
+                                </table>
+                            </div>
+                            <div id="trial-reward-log-pagination"></div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -3375,6 +3577,41 @@
                             style="flex:none; padding: 0.6rem 1.5rem; background:#2563eb;">저장</button>
                     </div>
                 </form>
+            </div>
+        </div>
+        <div id="trial-stage-reward-modal" class="modal-overlay">
+            <div class="modal-content-premium" style="max-width:1180px; width:96%;">
+                <div class="modal-header-premium">
+                    <h3 id="trial-stage-reward-modal-title">시련 단계 보상 관리</h3>
+                    <button type="button" class="modal-close-btn" onclick="closeTrialStageRewardModal()">&times;</button>
+                </div>
+                <div class="modal-body-premium">
+                    <input type="hidden" id="trial-stage-reward-stage-id">
+                    <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:1rem;">
+                        <div id="trial-stage-reward-stage-meta" style="color:#475569; font-size:0.95rem;">단계 정보를 불러오는 중...</div>
+                        <button type="button" class="btn btn-primary" onclick="addTrialRewardRow()"><i class="fas fa-plus"></i> 보상 추가</button>
+                    </div>
+                    <div class="scroll-table premium-table" style="max-height:520px;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style="width:80px;">순서</th>
+                                    <th style="width:420px;">보상 아이템</th>
+                                    <th style="width:110px;">수량</th>
+                                    <th style="width:120px;">확률(%)</th>
+                                    <th style="width:110px;">활성</th>
+                                    <th>메모</th>
+                                    <th style="width:100px; text-align:center;">관리</th>
+                                </tr>
+                            </thead>
+                            <tbody id="trial-stage-reward-list"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer-premium">
+                    <button type="button" onclick="closeTrialStageRewardModal()" class="btn" style="background:#f1f5f9; color:#64748b; flex:none; padding:0.6rem 1.25rem;">닫기</button>
+                    <button type="button" onclick="saveTrialStageRewards()" class="btn btn-primary" style="flex:none; padding:0.6rem 1.25rem;">저장</button>
+                </div>
             </div>
         </div>
         <!-- Character Items Modal -->
