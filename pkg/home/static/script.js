@@ -3677,9 +3677,31 @@ function buildTrialRewardRow(row = {}) {
 function addTrialRewardRow(row = {}) {
     const tbody = document.getElementById('trial-stage-reward-list');
     if (!tbody) return;
+    const emptyRow = tbody.querySelector('.trial-stage-reward-empty');
+    if (emptyRow) {
+        tbody.innerHTML = '';
+    }
     tbody.insertAdjacentHTML('beforeend', buildTrialRewardRow(row));
     refreshWowheadTooltips();
     hydrateTrialEntryIcons(tbody);
+}
+
+function openTrialRewardAddPicker() {
+    const tbody = document.getElementById('trial-stage-reward-list');
+    if (!tbody || typeof ItemPicker?.open !== 'function') return;
+    const nextSort = tbody.querySelectorAll('.trial-reward-row').length + 1;
+    ItemPicker.open((item) => {
+        addTrialRewardRow({
+            item_entry: Number(item.entry || 0),
+            item_name: String(item.name || '').trim(),
+            item_icon: String(item.icon_url || '').trim(),
+            item_count: 1,
+            chance: 100,
+            sort_order: nextSort,
+            enabled: 1,
+            comment: ''
+        });
+    });
 }
 
 function removeTrialRewardRow(button) {
@@ -3719,7 +3741,7 @@ async function openTrialStageRewardModal(stageId, stageName) {
         const items = data.items || [];
         tbody.innerHTML = '';
         if (!items.length) {
-            addTrialRewardRow({ sort_order: 1, item_count: 1, chance: 100, enabled: 1 });
+            tbody.innerHTML = '<tr class="trial-stage-reward-empty"><td colspan="7" style="text-align:center; padding:24px; color:#64748b;">등록된 보상이 없습니다. 상단의 보상 추가 버튼으로 아이템을 검색해 추가하세요.</td></tr>';
             return;
         }
         items.forEach(item => addTrialRewardRow(item));
