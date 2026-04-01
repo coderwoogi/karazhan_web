@@ -25,16 +25,18 @@ type soloArenaStageRow struct {
 }
 
 type soloArenaStageRewardRow struct {
-	ID        int     `json:"id"`
-	StageID   int     `json:"stage_id"`
-	ItemEntry int     `json:"item_entry"`
-	ItemName  string  `json:"item_name"`
-	ItemIcon  string  `json:"item_icon"`
-	ItemCount int     `json:"item_count"`
-	Chance    float64 `json:"chance"`
-	SortOrder int     `json:"sort_order"`
-	Enabled   int     `json:"enabled"`
-	Comment   string  `json:"comment"`
+	ID              int     `json:"id"`
+	StageID         int     `json:"stage_id"`
+	ItemEntry       int     `json:"item_entry"`
+	ItemName        string  `json:"item_name"`
+	ItemIcon        string  `json:"item_icon"`
+	ItemCount       int     `json:"item_count"`
+	Chance          float64 `json:"chance"`
+	RewardRankValue int     `json:"reward_rank_value"`
+	RewardRankLabel string  `json:"reward_rank_label"`
+	SortOrder       int     `json:"sort_order"`
+	Enabled         int     `json:"enabled"`
+	Comment         string  `json:"comment"`
 }
 
 type soloArenaProgressRow struct {
@@ -141,6 +143,84 @@ func isAutoIncrementColumnForDB(db *sql.DB, tableName, columnName string) bool {
 		tableName, columnName,
 	).Scan(&count)
 	return err == nil && count > 0
+}
+
+func hasColumnForDB(db *sql.DB, tableName, columnName string) bool {
+	var count int
+	err := db.QueryRow(`
+		SELECT COUNT(*)
+		FROM information_schema.columns
+		WHERE table_schema = DATABASE()
+		  AND table_name = ?
+		  AND column_name = ?`,
+		tableName, columnName,
+	).Scan(&count)
+	return err == nil && count > 0
+}
+
+func ensureSoloArenaStageRewardRankColumns(db *sql.DB) error {
+	if !hasColumnForDB(db, "solo_arena_stage_reward", "reward_rank_value") {
+		if _, err := db.Exec("ALTER TABLE solo_arena_stage_reward ADD COLUMN reward_rank_value TINYINT UNSIGNED NOT NULL DEFAULT 3 AFTER chance"); err != nil {
+			return err
+		}
+	}
+	if !hasColumnForDB(db, "solo_arena_stage_reward", "reward_rank_label") {
+		if _, err := db.Exec("ALTER TABLE solo_arena_stage_reward ADD COLUMN reward_rank_label VARCHAR(8) NOT NULL DEFAULT 'B' AFTER reward_rank_value"); err != nil {
+			return err
+		}
+	}
+	if _, err := db.Exec("UPDATE solo_arena_stage_reward SET reward_rank_value = 3 WHERE reward_rank_value = 0"); err != nil {
+		return err
+	}
+	if _, err := db.Exec("UPDATE solo_arena_stage_reward SET reward_rank_label = 'B' WHERE reward_rank_label = ''"); err != nil {
+		return err
+	}
+	return nil
+}
+
+func soloArenaRewardRankLabel(value int, label string) string {
+	switch strings.ToUpper(strings.TrimSpace(label)) {
+	case "S", "A", "B", "C", "D":
+		return strings.ToUpper(strings.TrimSpace(label))
+	}
+	switch value {
+	case 5:
+		return "S"
+	case 4:
+		return "A"
+	case 3:
+		return "B"
+	case 2:
+		return "C"
+	case 1:
+		return "D"
+	case 0:
+		return "공통"
+	default:
+		return "B"
+	}
+}
+
+func soloArenaRewardRankValue(value int, label string) int {
+	if value >= 0 && value <= 5 {
+		return value
+	}
+	switch strings.ToUpper(strings.TrimSpace(label)) {
+	case "S":
+		return 5
+	case "A":
+		return 4
+	case "B":
+		return 3
+	case "C":
+		return 2
+	case "D":
+		return 1
+	case "공통":
+		return 0
+	default:
+		return 3
+	}
 }
 
 func fillSoloArenaRewardItemMeta(items []soloArenaRewardLogRow) {
@@ -303,6 +383,10 @@ func handleTrialStageRewards(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer db.Close()
+	if err := ensureSoloArenaStageRewardRankColumns(db); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	rows, err := db.Query(`
 		SELECT
@@ -313,6 +397,8 @@ func handleTrialStageRewards(w http.ResponseWriter, r *http.Request) {
 			'' AS item_icon,
 			IFNULL(r.item_count, 0),
 			IFNULL(r.chance, 0),
+			IFNULL(r.reward_rank_value, 3),
+			IFNULL(r.reward_rank_label, 'B'),
 			IFNULL(r.sort_order, 0),
 			IFNULL(r.enabled, 1),
 			IFNULL(r.comment, '')
@@ -330,7 +416,9 @@ func handleTrialStageRewards(w http.ResponseWriter, r *http.Request) {
 	items := make([]soloArenaStageRewardRow, 0)
 	for rows.Next() {
 		var row soloArenaStageRewardRow
-		if err := rows.Scan(&row.ID, &row.StageID, &row.ItemEntry, &row.ItemName, &row.ItemIcon, &row.ItemCount, &row.Chance, &row.SortOrder, &row.Enabled, &row.Comment); err == nil {
+		if err := rows.Scan(&row.ID, &row.StageID, &row.ItemEntry, &row.ItemName, &row.ItemIcon, &row.ItemCount, &row.Chance, &row.RewardRankValue, &row.RewardRankLabel, &row.SortOrder, &row.Enabled, &row.Comment); err == nil {
+			row.RewardRankValue = soloArenaRewardRankValue(row.RewardRankValue, row.RewardRankLabel)
+			row.RewardRankLabel = soloArenaRewardRankLabel(row.RewardRankValue, row.RewardRankLabel)
 			items = append(items, row)
 		}
 	}
@@ -375,6 +463,10 @@ func handleTrialStageRewardSave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer db.Close()
+	if err := ensureSoloArenaStageRewardRankColumns(db); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	tx, err := db.Begin()
 	if err != nil {
@@ -401,6 +493,8 @@ func handleTrialStageRewardSave(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for idx, row := range req.Rewards {
+		rankValue := soloArenaRewardRankValue(row.RewardRankValue, row.RewardRankLabel)
+		rankLabel := soloArenaRewardRankLabel(rankValue, row.RewardRankLabel)
 		sortOrder := row.SortOrder
 		if sortOrder <= 0 {
 			sortOrder = idx + 1
@@ -408,16 +502,16 @@ func handleTrialStageRewardSave(w http.ResponseWriter, r *http.Request) {
 		if autoID {
 			_, err = tx.Exec(`
 				INSERT INTO solo_arena_stage_reward
-					(stage_id, item_entry, item_count, chance, sort_order, enabled, comment)
-				VALUES (?, ?, ?, ?, ?, ?, ?)`,
-				req.StageID, row.ItemEntry, row.ItemCount, row.Chance, sortOrder, row.Enabled, strings.TrimSpace(row.Comment),
+					(stage_id, item_entry, item_count, chance, reward_rank_value, reward_rank_label, sort_order, enabled, comment)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				req.StageID, row.ItemEntry, row.ItemCount, row.Chance, rankValue, rankLabel, sortOrder, row.Enabled, strings.TrimSpace(row.Comment),
 			)
 		} else {
 			_, err = tx.Exec(`
 				INSERT INTO solo_arena_stage_reward
-					(id, stage_id, item_entry, item_count, chance, sort_order, enabled, comment)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-				nextID, req.StageID, row.ItemEntry, row.ItemCount, row.Chance, sortOrder, row.Enabled, strings.TrimSpace(row.Comment),
+					(id, stage_id, item_entry, item_count, chance, reward_rank_value, reward_rank_label, sort_order, enabled, comment)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				nextID, req.StageID, row.ItemEntry, row.ItemCount, row.Chance, rankValue, rankLabel, sortOrder, row.Enabled, strings.TrimSpace(row.Comment),
 			)
 			nextID++
 		}

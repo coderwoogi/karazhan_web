@@ -3501,6 +3501,19 @@ function getTrialResultBadge(code, label) {
     return `<span class="badge" style="background:${bg}; color:${color};">${trialEsc(text)}</span>`;
 }
 
+function getTrialRewardRankOptions(selectedValue) {
+    const current = Number(selectedValue);
+    const options = [
+        { value: 5, label: 'S등급' },
+        { value: 4, label: 'A등급' },
+        { value: 3, label: 'B등급' },
+        { value: 2, label: 'C등급' },
+        { value: 1, label: 'D등급' },
+        { value: 0, label: '공통' }
+    ];
+    return options.map(option => `<option value="${option.value}" ${current === option.value ? 'selected' : ''}>${option.label}</option>`).join('');
+}
+
 function trialIconHtml(entry, iconName, size = 32) {
     const itemEntry = Number(entry || 0);
     let src = '';
@@ -3644,8 +3657,14 @@ function buildTrialRewardRow(row = {}) {
     const itemEntry = Number(row.item_entry || 0);
     const itemName = String(row.item_name || '').trim() || (itemEntry > 0 ? `아이템 ${itemEntry}` : '아이템을 선택하세요.');
     const itemIcon = String(row.item_icon || '').trim();
+    const rewardRankValue = Number(row.reward_rank_value ?? 3);
     return `
         <tr class="trial-reward-row">
+            <td>
+                <select class="input-premium trial-reward-rank">
+                    ${getTrialRewardRankOptions(rewardRankValue)}
+                </select>
+            </td>
             <td><input type="number" class="input-premium trial-reward-sort" value="${Number(row.sort_order || 0)}" min="1" placeholder="순서"></td>
             <td>
                 <input type="hidden" class="trial-reward-id" value="${Number(row.id || 0)}">
@@ -3692,6 +3711,7 @@ function openTrialRewardAddPicker() {
     const nextSort = tbody.querySelectorAll('.trial-reward-row').length + 1;
     ItemPicker.open((item) => {
         addTrialRewardRow({
+            reward_rank_value: 3,
             item_entry: Number(item.entry || 0),
             item_name: String(item.name || '').trim(),
             item_icon: String(item.icon_url || '').trim(),
@@ -3732,7 +3752,7 @@ async function openTrialStageRewardModal(stageId, stageName) {
     stageIdEl.value = String(stageId);
     if (title) title.textContent = `${stageName} 보상 관리`;
     if (meta) meta.textContent = `${stageName} 단계에서 지급할 보상 목록을 관리합니다.`;
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:20px;">보상 정보를 불러오는 중...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:20px;">보상 정보를 불러오는 중...</td></tr>';
     modal.style.display = 'flex';
     try {
         const res = await fetch(`/api/content/trial/stage-rewards?stage_id=${Number(stageId)}`);
@@ -3741,7 +3761,7 @@ async function openTrialStageRewardModal(stageId, stageName) {
         const items = data.items || [];
         tbody.innerHTML = '';
         if (!items.length) {
-            tbody.innerHTML = '<tr class="trial-stage-reward-empty"><td colspan="7" style="text-align:center; padding:24px; color:#64748b;">등록된 보상이 없습니다. 상단의 보상 추가 버튼으로 아이템을 검색해 추가하세요.</td></tr>';
+            tbody.innerHTML = '<tr class="trial-stage-reward-empty"><td colspan="8" style="text-align:center; padding:24px; color:#64748b;">등록된 보상이 없습니다. 상단의 보상 추가 버튼으로 아이템을 검색해 추가하세요.</td></tr>';
             return;
         }
         items.forEach(item => addTrialRewardRow(item));
@@ -3765,6 +3785,7 @@ async function saveTrialStageRewards() {
     const rows = Array.from(document.querySelectorAll('#trial-stage-reward-list .trial-reward-row'));
     const rewards = rows.map((row, idx) => ({
         id: Number(row.querySelector('.trial-reward-id')?.value || 0),
+        reward_rank_value: Number(row.querySelector('.trial-reward-rank')?.value || 3),
         item_entry: Number(row.querySelector('.trial-reward-entry')?.value || 0),
         item_count: Number(row.querySelector('.trial-reward-count')?.value || 0),
         chance: Number(row.querySelector('.trial-reward-chance')?.value || 0),
