@@ -875,6 +875,23 @@ func rewardProfileItemTimeExpr() string {
 	return "IFNULL(DATE_FORMAT(ri.updated_at, '%Y-%m-%d %H:%i:%s'), '')"
 }
 
+func rewardProfilePublishExpr(alias string) string {
+	column := "publish_status"
+	if alias != "" {
+		column = alias + ".publish_status"
+	}
+	if !hasColumn("instance_bonus_reward_profile", "publish_status") {
+		return "'published'"
+	}
+	return fmt.Sprintf(`CASE CAST(%s AS CHAR)
+		WHEN '0' THEN 'draft'
+		WHEN '1' THEN 'review'
+		WHEN '2' THEN 'published'
+		WHEN '3' THEN 'archived'
+		ELSE CAST(%s AS CHAR)
+	END`, column, column)
+}
+
 func rewardChanceForStorage(chance float64) any {
 	if isIntegerColumn("instance_bonus_reward_profile_item", "chance") {
 		return int(math.Round(chance * 100))
@@ -2210,7 +2227,11 @@ func handleRewardProfiles(w http.ResponseWriter, r *http.Request) {
 		page, limit, offset := parsePage(r)
 		args := []any{}
 		conds := []string{"1=1"}
-		for key, col := range map[string]string{"map_id": "CAST(map_id AS CHAR)", "publish_status": "publish_status", "enabled": "CAST(enabled AS CHAR)"} {
+		filters := map[string]string{"map_id": "CAST(map_id AS CHAR)", "enabled": "CAST(enabled AS CHAR)"}
+		if hasColumn("instance_bonus_reward_profile", "publish_status") {
+			filters["publish_status"] = "publish_status"
+		}
+		for key, col := range filters {
 			v := strings.TrimSpace(r.URL.Query().Get(key))
 			if v != "" {
 				conds = append(conds, col+" = ?")
@@ -2226,16 +2247,10 @@ func handleRewardProfiles(w http.ResponseWriter, r *http.Request) {
 		var total int
 		_ = worldDB.QueryRow(`SELECT COUNT(*) FROM instance_bonus_reward_profile`+where, args...).Scan(&total)
 		query := fmt.Sprintf(`SELECT reward_profile_id, map_id, profile_key, name, IFNULL(description,''), enabled,
-			CASE CAST(publish_status AS CHAR)
-				WHEN '0' THEN 'draft'
-				WHEN '1' THEN 'review'
-				WHEN '2' THEN 'published'
-				WHEN '3' THEN 'archived'
-				ELSE CAST(publish_status AS CHAR)
-			END,
+			%s,
 			version, CAST(IFNULL(updated_by,'') AS CHAR), %s, %s
 			FROM instance_bonus_reward_profile%s ORDER BY reward_profile_id DESC LIMIT ? OFFSET ?`,
-			rewardProfileTimeExpr("updated_at"), rewardProfileTimeExpr("created_at"), where)
+			rewardProfilePublishExpr(""), rewardProfileTimeExpr("updated_at"), rewardProfileTimeExpr("created_at"), where)
 		rows, err := worldDB.Query(query, append(args, limit, offset)...)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -2264,9 +2279,17 @@ func handleRewardProfiles(w http.ResponseWriter, r *http.Request) {
 		updatedBy := updatedByValue("instance_bonus_reward_profile", r)
 		var id int64
 		if isAutoIncrementColumn("instance_bonus_reward_profile", "reward_profile_id") {
-			res, err := worldDB.Exec(`INSERT INTO instance_bonus_reward_profile (map_id, profile_key, name, description, enabled, publish_status, version, updated_by)
-				VALUES (?, ?, ?, ?, ?, ?, 1, ?)`,
-				item.MapID, item.ProfileKey, item.Name, item.Description, item.Enabled, item.PublishStatus, updatedBy)
+			var res sql.Result
+			var err error
+			if hasColumn("instance_bonus_reward_profile", "publish_status") {
+				res, err = worldDB.Exec(`INSERT INTO instance_bonus_reward_profile (map_id, profile_key, name, description, enabled, publish_status, version, updated_by)
+					VALUES (?, ?, ?, ?, ?, ?, 1, ?)`,
+					item.MapID, item.ProfileKey, item.Name, item.Description, item.Enabled, item.PublishStatus, updatedBy)
+			} else {
+				res, err = worldDB.Exec(`INSERT INTO instance_bonus_reward_profile (map_id, profile_key, name, description, enabled, version, updated_by)
+					VALUES (?, ?, ?, ?, ?, 1, ?)`,
+					item.MapID, item.ProfileKey, item.Name, item.Description, item.Enabled, updatedBy)
+			}
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
@@ -2277,9 +2300,16 @@ func handleRewardProfiles(w http.ResponseWriter, r *http.Request) {
 			if id <= 0 {
 				id = 1
 			}
-			_, err := worldDB.Exec(`INSERT INTO instance_bonus_reward_profile (reward_profile_id, map_id, profile_key, name, description, enabled, publish_status, version, updated_by)
-				VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)`,
-				id, item.MapID, item.ProfileKey, item.Name, item.Description, item.Enabled, item.PublishStatus, updatedBy)
+			var err error
+			if hasColumn("instance_bonus_reward_profile", "publish_status") {
+				_, err = worldDB.Exec(`INSERT INTO instance_bonus_reward_profile (reward_profile_id, map_id, profile_key, name, description, enabled, publish_status, version, updated_by)
+					VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)`,
+					id, item.MapID, item.ProfileKey, item.Name, item.Description, item.Enabled, item.PublishStatus, updatedBy)
+			} else {
+				_, err = worldDB.Exec(`INSERT INTO instance_bonus_reward_profile (reward_profile_id, map_id, profile_key, name, description, enabled, version, updated_by)
+					VALUES (?, ?, ?, ?, ?, ?, 1, ?)`,
+					id, item.MapID, item.ProfileKey, item.Name, item.Description, item.Enabled, updatedBy)
+			}
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
@@ -2305,16 +2335,10 @@ func handleRewardProfileByID(w http.ResponseWriter, r *http.Request) {
 	case http.MethodGet:
 		var item rewardProfile
 		query := fmt.Sprintf(`SELECT reward_profile_id, map_id, profile_key, name, IFNULL(description,''), enabled,
-			CASE CAST(publish_status AS CHAR)
-				WHEN '0' THEN 'draft'
-				WHEN '1' THEN 'review'
-				WHEN '2' THEN 'published'
-				WHEN '3' THEN 'archived'
-				ELSE CAST(publish_status AS CHAR)
-			END,
+			%s,
 			version, CAST(IFNULL(updated_by,'') AS CHAR), %s, %s
 			FROM instance_bonus_reward_profile WHERE reward_profile_id=?`,
-			rewardProfileTimeExpr("updated_at"), rewardProfileTimeExpr("created_at"))
+			rewardProfilePublishExpr(""), rewardProfileTimeExpr("updated_at"), rewardProfileTimeExpr("created_at"))
 		err = worldDB.QueryRow(query, id).
 			Scan(&item.RewardProfileID, &item.MapID, &item.ProfileKey, &item.Name, &item.Description, &item.Enabled, &item.PublishStatus, &item.Version, &item.UpdatedBy, &item.UpdatedAt, &item.CreatedAt)
 		if err != nil {
@@ -2361,8 +2385,13 @@ func handleRewardProfileByID(w http.ResponseWriter, r *http.Request) {
 		}
 		ensureRewardProfileKey(&item, id)
 		item.PublishStatus = "published"
-		_, err = worldDB.Exec(`UPDATE instance_bonus_reward_profile SET map_id=?, profile_key=?, name=?, description=?, enabled=?, publish_status=?, version=version+1, updated_by=?, updated_at=CURRENT_TIMESTAMP WHERE reward_profile_id=?`,
-			item.MapID, item.ProfileKey, item.Name, item.Description, item.Enabled, item.PublishStatus, updatedByValue("instance_bonus_reward_profile", r), id)
+		if hasColumn("instance_bonus_reward_profile", "publish_status") {
+			_, err = worldDB.Exec(`UPDATE instance_bonus_reward_profile SET map_id=?, profile_key=?, name=?, description=?, enabled=?, publish_status=?, version=version+1, updated_by=?, updated_at=CURRENT_TIMESTAMP WHERE reward_profile_id=?`,
+				item.MapID, item.ProfileKey, item.Name, item.Description, item.Enabled, item.PublishStatus, updatedByValue("instance_bonus_reward_profile", r), id)
+		} else {
+			_, err = worldDB.Exec(`UPDATE instance_bonus_reward_profile SET map_id=?, profile_key=?, name=?, description=?, enabled=?, version=version+1, updated_by=?, updated_at=CURRENT_TIMESTAMP WHERE reward_profile_id=?`,
+				item.MapID, item.ProfileKey, item.Name, item.Description, item.Enabled, updatedByValue("instance_bonus_reward_profile", r), id)
+		}
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
