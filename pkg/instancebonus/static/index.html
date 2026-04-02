@@ -77,7 +77,6 @@
                     <div class="ib-card-header"><h3>미션 목록</h3><button class="ib-btn ib-btn-primary" onclick="instanceBonusApp.openMissionForm()"><i class="fas fa-plus"></i> 미션 추가</button></div>
                     <div class="ib-toolbar ib-toolbar-grid">
                         <div class="ib-field ib-map-field"><label>던전/레이드</label><div class="ib-map-picker" data-target="missions-filter-map-id" data-empty="전체"></div><select id="missions-filter-map-id" hidden></select></div>
-                        <div class="ib-field"><label>게시 상태</label><select id="missions-filter-publish"><option value="">전체</option><option value="draft">초안</option><option value="review">검토</option><option value="published">게시</option><option value="archived">보관</option></select></div>
                         <div class="ib-field"><label>활성</label><select id="missions-filter-enabled"><option value="">전체</option><option value="1">사용</option><option value="0">비활성</option></select></div>
                         <div class="ib-field"><label>미션 종류</label><input id="missions-filter-type" type="text" placeholder="미션 종류"></div>
                         <div class="ib-field"><label>목표 방식</label><input id="missions-filter-objective" type="text" placeholder="목표 방식"></div>
@@ -87,7 +86,7 @@
                     </div>
                     <div class="ib-table-wrap">
                         <table class="ib-table">
-                            <thead><tr><th>ID</th><th>던전/레이드</th><th>미션 키</th><th>이름</th><th>미션 종류</th><th>목표 방식</th><th>목표 이름</th><th>목표 수량</th><th>제한 시간</th><th>활성</th><th>게시</th><th>버전</th><th>업데이트</th><th>관리</th></tr></thead>
+                            <thead><tr><th>ID</th><th>던전/레이드</th><th>미션 키</th><th>이름</th><th>미션 종류</th><th>목표 방식</th><th>목표 이름</th><th>목표 수량</th><th>제한 시간</th><th>활성</th><th>버전</th><th>업데이트</th><th>관리</th></tr></thead>
                             <tbody id="missions-table"></tbody>
                         </table>
                     </div>

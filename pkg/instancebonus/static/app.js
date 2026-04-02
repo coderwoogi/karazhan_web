@@ -190,7 +190,7 @@ const instanceBonusApp = (() => {
         ['allowed_wipe_count', '허용 전멸 수', 'number'], ['reward_profile_id', '보상 프로파일 ID', 'number'], ['difficulty_weight', '난이도 가중치', 'number'],
         ['min_party_size', '최소 파티 수', 'number'], ['max_party_size', '최대 파티 수', 'number'], ['min_avg_item_level', '최소 평균 템렙', 'number'],
         ['max_avg_item_level', '최대 평균 템렙', 'number'], ['required_tank', '탱커 필요', 'checkbox'], ['required_healer', '힐러 필요', 'checkbox'],
-        ['enabled', '활성', 'checkbox'], ['publish_status', '게시 상태', 'select', false, ['draft','review','published','archived']]
+        ['enabled', '활성', 'checkbox']
     ];
     const themeFields = [
         ['map_id', '맵 ID', 'number'], ['theme_key', '테마 키'], ['name', '이름'], ['description', '설명', 'textarea', true],
@@ -885,7 +885,7 @@ const instanceBonusApp = (() => {
             `<div class="ib-field"><label>보상 프로파일</label><select id="mission-form-reward-profile-id" name="reward_profile_id"><option value="0">먼저 던전/레이드를 선택하세요.</option></select><small class="ib-help">선택한 던전/레이드에 연결된 보상 프로파일을 목록에서 고릅니다.</small></div>`,
             fieldTemplate({ name: 'difficulty_weight', label: '난이도 가중치', type: 'number', help: '미션 선택 시 상대적인 등장 비율이나 난이도 보정을 위한 값입니다.' }),
 
-            formSection('파티 조건 및 게시 상태', '어떤 파티에서 이 미션을 쓸 수 있는지와 운영 상태를 정합니다.'),
+            formSection('파티 조건', '어떤 파티에서 이 미션을 쓸 수 있는지와 활성 여부를 정합니다.'),
             fieldTemplate({ name: 'min_party_size', label: '최소 파티 수', type: 'number', help: '이보다 적은 인원에서는 미션을 사용하지 않습니다.' }),
             fieldTemplate({ name: 'max_party_size', label: '최대 파티 수', type: 'number', help: '이보다 많은 인원에서는 미션을 사용하지 않습니다.' }),
             fieldTemplate({ name: 'min_avg_item_level', label: '최소 평균 템렙', type: 'number', help: '이보다 낮은 평균 장비 수준의 파티에는 제시하지 않습니다.' }),
@@ -893,7 +893,6 @@ const instanceBonusApp = (() => {
             fieldTemplate({ name: 'required_tank', label: '탱커 필요', type: 'checkbox', help: '탱커 역할이 포함된 파티에서만 사용할지 여부입니다.' }),
             fieldTemplate({ name: 'required_healer', label: '힐러 필요', type: 'checkbox', help: '힐러 역할이 포함된 파티에서만 사용할지 여부입니다.' }),
             fieldTemplate({ name: 'enabled', label: '활성', type: 'checkbox', help: '비활성으로 두면 이 미션은 선택되지 않습니다.' }),
-            fieldTemplate({ name: 'publish_status', label: '게시 상태', type: 'select', options: publishStatuses, help: '초안, 검토, 게시, 보관 상태로 운영할 수 있습니다.' }),
             `<div class="ib-field full"><div class="ib-actions"><button type="button" class="ib-btn ib-btn-primary" onclick="instanceBonusApp.saveMission(false)">저장 후 목록</button><button type="button" class="ib-btn ib-btn-ghost" onclick="instanceBonusApp.saveMission(true)">저장 후 계속 편집</button><button type="button" class="ib-btn ib-btn-secondary" onclick="instanceBonusApp.closeMissionForm()">목록으로</button></div></div>`
         ];
         form.innerHTML = sections.join('');
@@ -916,7 +915,6 @@ const instanceBonusApp = (() => {
             else el.value = value ?? '';
         });
         if (!data) {
-            form.elements.publish_status.value = 'draft';
             form.elements.enabled.value = '1';
             form.elements.mission_type.value = missionTypeOptions[0]?.value || '';
             form.elements.objective_type.value = objectiveTypeOptions[0]?.value || '';
@@ -956,6 +954,7 @@ const instanceBonusApp = (() => {
         });
         data.difficulty_mask = Number(form.elements.difficulty_mask?.value || 0);
         data.mission_key = String(data.mission_key || '').trim();
+        data.publish_status = 'published';
         return data;
     }
 
@@ -1026,7 +1025,6 @@ const instanceBonusApp = (() => {
     async function saveMission(keepEditing = false) {
         const payload = missionPayload();
         if (!validateMissionPayload(payload)) return;
-        if (payload.publish_status === 'published' && !confirmPublishWorkflow('誘몄뀡')) return;
         let savedId = state.missionEditingId;
         if (state.missionEditingId) {
             await api(`/instance-bonus/missions/${state.missionEditingId}`, { method: 'PUT', body: JSON.stringify(payload) });
@@ -1047,7 +1045,7 @@ const instanceBonusApp = (() => {
     }
 
     function resetMissionFilter() {
-        ['missions-filter-map-id','missions-filter-publish','missions-filter-enabled','missions-filter-type','missions-filter-objective','missions-filter-keyword'].forEach((id) => { const el = document.getElementById(id); if (el) el.value = ''; });
+        ['missions-filter-map-id','missions-filter-enabled','missions-filter-type','missions-filter-objective','missions-filter-keyword'].forEach((id) => { const el = document.getElementById(id); if (el) el.value = ''; });
         state.missionsPage = 1;
         loadMissions();
     }
@@ -1055,7 +1053,7 @@ const instanceBonusApp = (() => {
     async function loadMissions(page = state.missionsPage) {
         state.missionsPage = page;
         const params = new URLSearchParams({ page: String(page), limit: '20' });
-        [['map_id','missions-filter-map-id'],['publish_status','missions-filter-publish'],['enabled','missions-filter-enabled'],['mission_type','missions-filter-type'],['objective_type','missions-filter-objective'],['search','missions-filter-keyword']].forEach(([key,id]) => {
+        [['map_id','missions-filter-map-id'],['enabled','missions-filter-enabled'],['mission_type','missions-filter-type'],['objective_type','missions-filter-objective'],['search','missions-filter-keyword']].forEach(([key,id]) => {
             const value = document.getElementById(id)?.value.trim();
             if (value) params.set(key, value);
         });
@@ -1067,9 +1065,9 @@ const instanceBonusApp = (() => {
                 <td>${row.mission_id}</td><td>${escapeHtml(mapNameById(row.map_id))}</td><td>${escapeHtml(row.mission_key)}</td><td>${escapeHtml(row.name)}</td>
                 <td>${escapeHtml(optionLabelFor(missionTypeOptions, row.mission_type))}</td><td>${escapeHtml(optionLabelFor(objectiveTypeOptions, row.objective_type))}</td><td>${escapeHtml(row.target_label)}</td>
                 <td>${row.target_count || 0}</td><td>${row.time_limit_sec || 0}</td><td>${badge(row.enabled)}</td>
-                <td>${publishBadge(row.publish_status)}</td><td>${row.version || 1}</td><td>${escapeHtml(row.updated_at || '-')}</td>
+                <td>${row.version || 1}</td><td>${escapeHtml(row.updated_at || '-')}</td>
                 <td><div class="ib-actions"><button class="ib-btn ib-btn-ghost" onclick="instanceBonusApp.fetchMission(${row.mission_id})">수정</button></div></td>
-            </tr>`).join('') : '<tr><td colspan="14" class="ib-empty">등록된 미션이 없습니다. 대시보드에서 기존 게임 데이터를 가져오거나 새 미션을 추가하세요.</td></tr>';
+            </tr>`).join('') : '<tr><td colspan="13" class="ib-empty">등록된 미션이 없습니다. 대시보드에서 기존 게임 데이터를 가져오거나 새 미션을 추가하세요.</td></tr>';
         renderPagination('missions-pagination', data.page || 1, data.total || 0, data.limit || 20, 'loadMissions');
         loadMissionCandidates();
     }

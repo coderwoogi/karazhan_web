@@ -1929,7 +1929,7 @@ func handleMissions(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		ensureMissionKey(&item, 0)
-		item.PublishStatus = normalizedPublishStatus(item.PublishStatus)
+		item.PublishStatus = "published"
 		updatedBy := updatedByValue("instance_bonus_mission", r)
 		var id int64
 		if isAutoIncrementColumn("instance_bonus_mission", "mission_id") {
@@ -2006,7 +2006,7 @@ func handleMissionByID(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		ensureMissionKey(&item, id)
-		item.PublishStatus = normalizedPublishStatus(item.PublishStatus)
+		item.PublishStatus = "published"
 		_, err = worldDB.Exec(`UPDATE instance_bonus_mission SET
 			map_id=?, difficulty_mask=?, mission_key=?, name=?, description=?, briefing_text=?, mission_type=?, objective_type=?, target_entry=?, target_label=?, target_count=?, time_limit_sec=?, failure_condition_type=?,
 			required_boss_entry=?, required_before_boss_entry=?, allowed_death_count=?, allowed_wipe_count=?, reward_profile_id=?, difficulty_weight=?, min_party_size=?, max_party_size=?, min_avg_item_level=?,
