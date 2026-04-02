@@ -892,6 +892,23 @@ func rewardProfilePublishExpr(alias string) string {
 	END`, column, column)
 }
 
+func missionPublishExpr(alias string) string {
+	column := "publish_status"
+	if alias != "" {
+		column = alias + ".publish_status"
+	}
+	if !hasColumn("instance_bonus_mission", "publish_status") {
+		return "'published'"
+	}
+	return fmt.Sprintf(`CASE CAST(%s AS CHAR)
+		WHEN '0' THEN 'draft'
+		WHEN '1' THEN 'review'
+		WHEN '2' THEN 'published'
+		WHEN '3' THEN 'archived'
+		ELSE CAST(%s AS CHAR)
+	END`, column, column)
+}
+
 func rewardChanceForStorage(chance float64) any {
 	if isIntegerColumn("instance_bonus_reward_profile_item", "chance") {
 		return int(math.Round(chance * 100))
@@ -1842,11 +1859,15 @@ func updateDifficultyManagedItem(mapID int, kind string, itemID int64, difficult
 
 func loadMapDifficultyContent(mapID int) (mapDifficultyContentResponse, error) {
 	resp := mapDifficultyContentResponse{MapID: mapID, MapName: mapNameForID(mapID), MapType: mapTypeForID(mapID)}
-	missionRows, err := worldDB.Query(`
+	missionOrderBy := "enabled DESC, updated_at DESC, mission_id DESC"
+	if hasColumn("instance_bonus_mission", "publish_status") {
+		missionOrderBy = "enabled DESC, publish_status='published' DESC, updated_at DESC, mission_id DESC"
+	}
+	missionRows, err := worldDB.Query(fmt.Sprintf(`
 		SELECT mission_id, map_id, difficulty_mask, mission_key, name, IFNULL(description,''), IFNULL(briefing_text,''), mission_type, objective_type, target_entry, IFNULL(target_label,''), target_count, time_limit_sec,
 		       failure_condition_type, required_boss_entry, required_before_boss_entry, allowed_death_count, allowed_wipe_count, reward_profile_id, difficulty_weight, min_party_size, max_party_size,
-		       min_avg_item_level, max_avg_item_level, required_tank, required_healer, enabled, publish_status, version, IFNULL(updated_by,''), DATE_FORMAT(updated_at, '%Y-%m-%d %H:%i:%s'), DATE_FORMAT(created_at, '%Y-%m-%d %H:%i:%s')
-		FROM instance_bonus_mission WHERE map_id=? ORDER BY enabled DESC, publish_status='published' DESC, updated_at DESC, mission_id DESC`, mapID)
+		       min_avg_item_level, max_avg_item_level, required_tank, required_healer, enabled, %s, version, IFNULL(updated_by,''), DATE_FORMAT(updated_at, '%%Y-%%m-%%d %%H:%%i:%%s'), DATE_FORMAT(created_at, '%%Y-%%m-%%d %%H:%%i:%%s')
+		FROM instance_bonus_mission WHERE map_id=? ORDER BY %s`, missionPublishExpr(""), missionOrderBy), mapID)
 	if err != nil {
 		return resp, err
 	}
@@ -1884,13 +1905,16 @@ func handleMissions(w http.ResponseWriter, r *http.Request) {
 		page, limit, offset := parsePage(r)
 		args := []any{}
 		conds := []string{"1=1"}
-		for key, col := range map[string]string{
+		filters := map[string]string{
 			"map_id":         "CAST(map_id AS CHAR)",
-			"publish_status": "publish_status",
 			"enabled":        "CAST(enabled AS CHAR)",
 			"mission_type":   "mission_type",
 			"objective_type": "objective_type",
-		} {
+		}
+		if hasColumn("instance_bonus_mission", "publish_status") {
+			filters["publish_status"] = "publish_status"
+		}
+		for key, col := range filters {
 			v := strings.TrimSpace(r.URL.Query().Get(key))
 			if v != "" {
 				conds = append(conds, col+" = ?")
@@ -1916,11 +1940,11 @@ func handleMissions(w http.ResponseWriter, r *http.Request) {
 		where := " WHERE " + strings.Join(conds, " AND ")
 		var total int
 		_ = worldDB.QueryRow(`SELECT COUNT(*) FROM instance_bonus_mission`+where, args...).Scan(&total)
-		rows, err := worldDB.Query(`
+		rows, err := worldDB.Query(fmt.Sprintf(`
 			SELECT mission_id, map_id, difficulty_mask, mission_key, name, IFNULL(description,''), IFNULL(briefing_text,''), mission_type, objective_type, target_entry, IFNULL(target_label,''), target_count, time_limit_sec,
 			       failure_condition_type, required_boss_entry, required_before_boss_entry, allowed_death_count, allowed_wipe_count, reward_profile_id, difficulty_weight, min_party_size, max_party_size,
-			       min_avg_item_level, max_avg_item_level, required_tank, required_healer, enabled, publish_status, version, IFNULL(updated_by,''), DATE_FORMAT(updated_at, '%Y-%m-%d %H:%i:%s'), DATE_FORMAT(created_at, '%Y-%m-%d %H:%i:%s')
-			FROM instance_bonus_mission`+where+` ORDER BY updated_at DESC, mission_id DESC LIMIT ? OFFSET ?`, append(args, limit, offset)...)
+			       min_avg_item_level, max_avg_item_level, required_tank, required_healer, enabled, %s, version, IFNULL(updated_by,''), DATE_FORMAT(updated_at, '%%Y-%%m-%%d %%H:%%i:%%s'), DATE_FORMAT(created_at, '%%Y-%%m-%%d %%H:%%i:%%s')
+			FROM instance_bonus_mission%s ORDER BY updated_at DESC, mission_id DESC LIMIT ? OFFSET ?`, missionPublishExpr(""), where), append(args, limit, offset)...)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -1950,14 +1974,27 @@ func handleMissions(w http.ResponseWriter, r *http.Request) {
 		updatedBy := updatedByValue("instance_bonus_mission", r)
 		var id int64
 		if isAutoIncrementColumn("instance_bonus_mission", "mission_id") {
-			res, err := worldDB.Exec(`INSERT INTO instance_bonus_mission
-				(map_id, difficulty_mask, mission_key, name, description, briefing_text, mission_type, objective_type, target_entry, target_label, target_count, time_limit_sec, failure_condition_type,
-				 required_boss_entry, required_before_boss_entry, allowed_death_count, allowed_wipe_count, reward_profile_id, difficulty_weight, min_party_size, max_party_size, min_avg_item_level,
-				 max_avg_item_level, required_tank, required_healer, enabled, publish_status, version, updated_by)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
-				item.MapID, item.DifficultyMask, item.MissionKey, item.Name, item.Description, item.BriefingText, item.MissionType, item.ObjectiveType, item.TargetEntry, item.TargetLabel, item.TargetCount, item.TimeLimitSec, item.FailureConditionType,
-				item.RequiredBossEntry, item.RequiredBeforeBossEntry, item.AllowedDeathCount, item.AllowedWipeCount, item.RewardProfileID, item.DifficultyWeight, item.MinPartySize, item.MaxPartySize, item.MinAvgItemLevel,
-				item.MaxAvgItemLevel, item.RequiredTank, item.RequiredHealer, item.Enabled, publishStatusStorageValue("instance_bonus_mission", item.PublishStatus), updatedBy)
+			var res sql.Result
+			var err error
+			if hasColumn("instance_bonus_mission", "publish_status") {
+				res, err = worldDB.Exec(`INSERT INTO instance_bonus_mission
+					(map_id, difficulty_mask, mission_key, name, description, briefing_text, mission_type, objective_type, target_entry, target_label, target_count, time_limit_sec, failure_condition_type,
+					 required_boss_entry, required_before_boss_entry, allowed_death_count, allowed_wipe_count, reward_profile_id, difficulty_weight, min_party_size, max_party_size, min_avg_item_level,
+					 max_avg_item_level, required_tank, required_healer, enabled, publish_status, version, updated_by)
+					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
+					item.MapID, item.DifficultyMask, item.MissionKey, item.Name, item.Description, item.BriefingText, item.MissionType, item.ObjectiveType, item.TargetEntry, item.TargetLabel, item.TargetCount, item.TimeLimitSec, item.FailureConditionType,
+					item.RequiredBossEntry, item.RequiredBeforeBossEntry, item.AllowedDeathCount, item.AllowedWipeCount, item.RewardProfileID, item.DifficultyWeight, item.MinPartySize, item.MaxPartySize, item.MinAvgItemLevel,
+					item.MaxAvgItemLevel, item.RequiredTank, item.RequiredHealer, item.Enabled, publishStatusStorageValue("instance_bonus_mission", item.PublishStatus), updatedBy)
+			} else {
+				res, err = worldDB.Exec(`INSERT INTO instance_bonus_mission
+					(map_id, difficulty_mask, mission_key, name, description, briefing_text, mission_type, objective_type, target_entry, target_label, target_count, time_limit_sec, failure_condition_type,
+					 required_boss_entry, required_before_boss_entry, allowed_death_count, allowed_wipe_count, reward_profile_id, difficulty_weight, min_party_size, max_party_size, min_avg_item_level,
+					 max_avg_item_level, required_tank, required_healer, enabled, version, updated_by)
+					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
+					item.MapID, item.DifficultyMask, item.MissionKey, item.Name, item.Description, item.BriefingText, item.MissionType, item.ObjectiveType, item.TargetEntry, item.TargetLabel, item.TargetCount, item.TimeLimitSec, item.FailureConditionType,
+					item.RequiredBossEntry, item.RequiredBeforeBossEntry, item.AllowedDeathCount, item.AllowedWipeCount, item.RewardProfileID, item.DifficultyWeight, item.MinPartySize, item.MaxPartySize, item.MinAvgItemLevel,
+					item.MaxAvgItemLevel, item.RequiredTank, item.RequiredHealer, item.Enabled, updatedBy)
+			}
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
@@ -1968,14 +2005,26 @@ func handleMissions(w http.ResponseWriter, r *http.Request) {
 			if id <= 0 {
 				id = 1
 			}
-			_, err := worldDB.Exec(`INSERT INTO instance_bonus_mission
-				(mission_id, map_id, difficulty_mask, mission_key, name, description, briefing_text, mission_type, objective_type, target_entry, target_label, target_count, time_limit_sec, failure_condition_type,
-				 required_boss_entry, required_before_boss_entry, allowed_death_count, allowed_wipe_count, reward_profile_id, difficulty_weight, min_party_size, max_party_size, min_avg_item_level,
-				 max_avg_item_level, required_tank, required_healer, enabled, publish_status, version, updated_by)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
-				id, item.MapID, item.DifficultyMask, item.MissionKey, item.Name, item.Description, item.BriefingText, item.MissionType, item.ObjectiveType, item.TargetEntry, item.TargetLabel, item.TargetCount, item.TimeLimitSec, item.FailureConditionType,
-				item.RequiredBossEntry, item.RequiredBeforeBossEntry, item.AllowedDeathCount, item.AllowedWipeCount, item.RewardProfileID, item.DifficultyWeight, item.MinPartySize, item.MaxPartySize, item.MinAvgItemLevel,
-				item.MaxAvgItemLevel, item.RequiredTank, item.RequiredHealer, item.Enabled, publishStatusStorageValue("instance_bonus_mission", item.PublishStatus), updatedBy)
+			var err error
+			if hasColumn("instance_bonus_mission", "publish_status") {
+				_, err = worldDB.Exec(`INSERT INTO instance_bonus_mission
+					(mission_id, map_id, difficulty_mask, mission_key, name, description, briefing_text, mission_type, objective_type, target_entry, target_label, target_count, time_limit_sec, failure_condition_type,
+					 required_boss_entry, required_before_boss_entry, allowed_death_count, allowed_wipe_count, reward_profile_id, difficulty_weight, min_party_size, max_party_size, min_avg_item_level,
+					 max_avg_item_level, required_tank, required_healer, enabled, publish_status, version, updated_by)
+					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
+					id, item.MapID, item.DifficultyMask, item.MissionKey, item.Name, item.Description, item.BriefingText, item.MissionType, item.ObjectiveType, item.TargetEntry, item.TargetLabel, item.TargetCount, item.TimeLimitSec, item.FailureConditionType,
+					item.RequiredBossEntry, item.RequiredBeforeBossEntry, item.AllowedDeathCount, item.AllowedWipeCount, item.RewardProfileID, item.DifficultyWeight, item.MinPartySize, item.MaxPartySize, item.MinAvgItemLevel,
+					item.MaxAvgItemLevel, item.RequiredTank, item.RequiredHealer, item.Enabled, publishStatusStorageValue("instance_bonus_mission", item.PublishStatus), updatedBy)
+			} else {
+				_, err = worldDB.Exec(`INSERT INTO instance_bonus_mission
+					(mission_id, map_id, difficulty_mask, mission_key, name, description, briefing_text, mission_type, objective_type, target_entry, target_label, target_count, time_limit_sec, failure_condition_type,
+					 required_boss_entry, required_before_boss_entry, allowed_death_count, allowed_wipe_count, reward_profile_id, difficulty_weight, min_party_size, max_party_size, min_avg_item_level,
+					 max_avg_item_level, required_tank, required_healer, enabled, version, updated_by)
+					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
+					id, item.MapID, item.DifficultyMask, item.MissionKey, item.Name, item.Description, item.BriefingText, item.MissionType, item.ObjectiveType, item.TargetEntry, item.TargetLabel, item.TargetCount, item.TimeLimitSec, item.FailureConditionType,
+					item.RequiredBossEntry, item.RequiredBeforeBossEntry, item.AllowedDeathCount, item.AllowedWipeCount, item.RewardProfileID, item.DifficultyWeight, item.MinPartySize, item.MaxPartySize, item.MinAvgItemLevel,
+					item.MaxAvgItemLevel, item.RequiredTank, item.RequiredHealer, item.Enabled, updatedBy)
+			}
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
@@ -1999,11 +2048,12 @@ func handleMissionByID(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
 		var item missionRow
-		err = worldDB.QueryRow(`
+		query := fmt.Sprintf(`
 			SELECT mission_id, map_id, difficulty_mask, mission_key, name, IFNULL(description,''), IFNULL(briefing_text,''), mission_type, objective_type, target_entry, IFNULL(target_label,''), target_count, time_limit_sec,
 			       failure_condition_type, required_boss_entry, required_before_boss_entry, allowed_death_count, allowed_wipe_count, reward_profile_id, difficulty_weight, min_party_size, max_party_size,
-			       min_avg_item_level, max_avg_item_level, required_tank, required_healer, enabled, publish_status, version, IFNULL(updated_by,''), DATE_FORMAT(updated_at, '%Y-%m-%d %H:%i:%s'), DATE_FORMAT(created_at, '%Y-%m-%d %H:%i:%s')
-			FROM instance_bonus_mission WHERE mission_id=?`, id).
+			       min_avg_item_level, max_avg_item_level, required_tank, required_healer, enabled, %s, version, IFNULL(updated_by,''), DATE_FORMAT(updated_at, '%%Y-%%m-%%d %%H:%%i:%%s'), DATE_FORMAT(created_at, '%%Y-%%m-%%d %%H:%%i:%%s')
+			FROM instance_bonus_mission WHERE mission_id=?`, missionPublishExpr(""))
+		err = worldDB.QueryRow(query, id).
 			Scan(&item.MissionID, &item.MapID, &item.DifficultyMask, &item.MissionKey, &item.Name, &item.Description, &item.BriefingText, &item.MissionType, &item.ObjectiveType, &item.TargetEntry, &item.TargetLabel, &item.TargetCount, &item.TimeLimitSec,
 				&item.FailureConditionType, &item.RequiredBossEntry, &item.RequiredBeforeBossEntry, &item.AllowedDeathCount, &item.AllowedWipeCount, &item.RewardProfileID, &item.DifficultyWeight, &item.MinPartySize, &item.MaxPartySize,
 				&item.MinAvgItemLevel, &item.MaxAvgItemLevel, &item.RequiredTank, &item.RequiredHealer, &item.Enabled, &item.PublishStatus, &item.Version, &item.UpdatedBy, &item.UpdatedAt, &item.CreatedAt)
@@ -2024,14 +2074,25 @@ func handleMissionByID(w http.ResponseWriter, r *http.Request) {
 		}
 		ensureMissionKey(&item, id)
 		item.PublishStatus = "published"
-		_, err = worldDB.Exec(`UPDATE instance_bonus_mission SET
-			map_id=?, difficulty_mask=?, mission_key=?, name=?, description=?, briefing_text=?, mission_type=?, objective_type=?, target_entry=?, target_label=?, target_count=?, time_limit_sec=?, failure_condition_type=?,
-			required_boss_entry=?, required_before_boss_entry=?, allowed_death_count=?, allowed_wipe_count=?, reward_profile_id=?, difficulty_weight=?, min_party_size=?, max_party_size=?, min_avg_item_level=?,
-			max_avg_item_level=?, required_tank=?, required_healer=?, enabled=?, publish_status=?, version=version+1, updated_by=?, updated_at=CURRENT_TIMESTAMP
-			WHERE mission_id=?`,
-			item.MapID, item.DifficultyMask, item.MissionKey, item.Name, item.Description, item.BriefingText, item.MissionType, item.ObjectiveType, item.TargetEntry, item.TargetLabel, item.TargetCount, item.TimeLimitSec, item.FailureConditionType,
-			item.RequiredBossEntry, item.RequiredBeforeBossEntry, item.AllowedDeathCount, item.AllowedWipeCount, item.RewardProfileID, item.DifficultyWeight, item.MinPartySize, item.MaxPartySize, item.MinAvgItemLevel,
-			item.MaxAvgItemLevel, item.RequiredTank, item.RequiredHealer, item.Enabled, publishStatusStorageValue("instance_bonus_mission", item.PublishStatus), updatedByValue("instance_bonus_mission", r), id)
+		if hasColumn("instance_bonus_mission", "publish_status") {
+			_, err = worldDB.Exec(`UPDATE instance_bonus_mission SET
+				map_id=?, difficulty_mask=?, mission_key=?, name=?, description=?, briefing_text=?, mission_type=?, objective_type=?, target_entry=?, target_label=?, target_count=?, time_limit_sec=?, failure_condition_type=?,
+				required_boss_entry=?, required_before_boss_entry=?, allowed_death_count=?, allowed_wipe_count=?, reward_profile_id=?, difficulty_weight=?, min_party_size=?, max_party_size=?, min_avg_item_level=?,
+				max_avg_item_level=?, required_tank=?, required_healer=?, enabled=?, publish_status=?, version=version+1, updated_by=?, updated_at=CURRENT_TIMESTAMP
+				WHERE mission_id=?`,
+				item.MapID, item.DifficultyMask, item.MissionKey, item.Name, item.Description, item.BriefingText, item.MissionType, item.ObjectiveType, item.TargetEntry, item.TargetLabel, item.TargetCount, item.TimeLimitSec, item.FailureConditionType,
+				item.RequiredBossEntry, item.RequiredBeforeBossEntry, item.AllowedDeathCount, item.AllowedWipeCount, item.RewardProfileID, item.DifficultyWeight, item.MinPartySize, item.MaxPartySize, item.MinAvgItemLevel,
+				item.MaxAvgItemLevel, item.RequiredTank, item.RequiredHealer, item.Enabled, publishStatusStorageValue("instance_bonus_mission", item.PublishStatus), updatedByValue("instance_bonus_mission", r), id)
+		} else {
+			_, err = worldDB.Exec(`UPDATE instance_bonus_mission SET
+				map_id=?, difficulty_mask=?, mission_key=?, name=?, description=?, briefing_text=?, mission_type=?, objective_type=?, target_entry=?, target_label=?, target_count=?, time_limit_sec=?, failure_condition_type=?,
+				required_boss_entry=?, required_before_boss_entry=?, allowed_death_count=?, allowed_wipe_count=?, reward_profile_id=?, difficulty_weight=?, min_party_size=?, max_party_size=?, min_avg_item_level=?,
+				max_avg_item_level=?, required_tank=?, required_healer=?, enabled=?, version=version+1, updated_by=?, updated_at=CURRENT_TIMESTAMP
+				WHERE mission_id=?`,
+				item.MapID, item.DifficultyMask, item.MissionKey, item.Name, item.Description, item.BriefingText, item.MissionType, item.ObjectiveType, item.TargetEntry, item.TargetLabel, item.TargetCount, item.TimeLimitSec, item.FailureConditionType,
+				item.RequiredBossEntry, item.RequiredBeforeBossEntry, item.AllowedDeathCount, item.AllowedWipeCount, item.RewardProfileID, item.DifficultyWeight, item.MinPartySize, item.MaxPartySize, item.MinAvgItemLevel,
+				item.MaxAvgItemLevel, item.RequiredTank, item.RequiredHealer, item.Enabled, updatedByValue("instance_bonus_mission", r), id)
+		}
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
