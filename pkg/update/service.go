@@ -72,7 +72,8 @@ func RegisterRoutes(mux *http.ServeMux) {
 				updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 		`)
-		backfillSequentialVersions("update")
+		syncSequentialVersions("update")
+		syncSequentialVersions("launcher")
 	}
 
 	// 정적 파일 서빙
@@ -421,42 +422,25 @@ func getNextFileVersion(fileType string) string {
 	}
 	defer rows.Close()
 
-	maxPatch := -1
+	maxOrdinal := -1
 	for rows.Next() {
 		var current string
 		if err := rows.Scan(&current); err != nil {
 			continue
 		}
-		parts := strings.Split(strings.TrimSpace(current), ".")
-		if len(parts) != 3 {
-			continue
-		}
-		major, errMajor := strconv.Atoi(parts[0])
-		minor, errMinor := strconv.Atoi(parts[1])
-		patch, errPatch := strconv.Atoi(parts[2])
-		if errMajor != nil || errMinor != nil || errPatch != nil {
-			continue
-		}
-		if major == 1 && minor == 0 && patch > maxPatch {
-			maxPatch = patch
+		ordinal, ok := versionOrdinal(strings.TrimSpace(current))
+		if ok && ordinal > maxOrdinal {
+			maxOrdinal = ordinal
 		}
 	}
-	return fmt.Sprintf("1.0.%d", maxPatch+1)
+	return formatVersionOrdinal(maxOrdinal + 1)
 }
 
-func backfillSequentialVersions(fileType string) {
+func syncSequentialVersions(fileType string) {
 	if db == nil {
 		return
 	}
 	fileType = normalizeFileType(fileType)
-
-	var missingCount int
-	if err := db.QueryRow("SELECT COUNT(*) FROM `update` WHERE `file_type`=? AND TRIM(`version`)=''", fileType).Scan(&missingCount); err != nil {
-		return
-	}
-	if missingCount == 0 {
-		return
-	}
 
 	rows, err := db.Query("SELECT `no` FROM `update` WHERE `file_type`=? ORDER BY `date` ASC, `no` ASC", fileType)
 	if err != nil {
@@ -476,7 +460,30 @@ func backfillSequentialVersions(fileType string) {
 		items = append(items, item)
 	}
 	for idx, item := range items {
-		version := fmt.Sprintf("1.0.%d", idx)
+		version := formatVersionOrdinal(idx)
 		_, _ = db.Exec("UPDATE `update` SET `version`=? WHERE `no`=?", version, item.No)
 	}
+}
+
+func formatVersionOrdinal(ordinal int) string {
+	if ordinal < 0 {
+		ordinal = 0
+	}
+	minor := ordinal / 10
+	patch := ordinal % 10
+	return fmt.Sprintf("1.%d.%d", minor, patch)
+}
+
+func versionOrdinal(version string) (int, bool) {
+	parts := strings.Split(strings.TrimSpace(version), ".")
+	if len(parts) != 3 {
+		return 0, false
+	}
+	major, errMajor := strconv.Atoi(parts[0])
+	minor, errMinor := strconv.Atoi(parts[1])
+	patch, errPatch := strconv.Atoi(parts[2])
+	if errMajor != nil || errMinor != nil || errPatch != nil || major < 1 || minor < 0 || patch < 0 {
+		return 0, false
+	}
+	return (major-1)*100 + minor*10 + patch, true
 }
