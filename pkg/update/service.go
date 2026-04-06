@@ -72,6 +72,7 @@ func RegisterRoutes(mux *http.ServeMux) {
 				updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 		`)
+		backfillSequentialVersions("update")
 	}
 
 	// 정적 파일 서빙
@@ -151,14 +152,12 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 
 	if noStr != "" {
 		no, _ := strconv.Atoi(noStr)
-		if fileType == "launcher" && version == "" {
+		if version == "" {
 			_ = db.QueryRow("SELECT `version` FROM `update` WHERE `no`=? LIMIT 1", no).Scan(&version)
 		}
 		_, err = db.Exec("UPDATE `update` SET `file_type`=?, `version`=?, `file`=?, `md5`=?, `date`=? WHERE `no`=?", fileType, version, handler.Filename, md5Str, now, no)
 	} else {
-		if fileType == "launcher" {
-			version = getNextLauncherVersion()
-		}
+		version = getNextFileVersion(fileType)
 		_, err = db.Exec("INSERT INTO `update` (`file_type`, `version`, `file`, `md5`, `date`) VALUES (?, ?, ?, ?, ?)", fileType, version, handler.Filename, md5Str, now)
 	}
 
@@ -254,10 +253,7 @@ func nextVersionHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fileType := normalizeFileType(r.URL.Query().Get("type"))
-	version := ""
-	if fileType == "launcher" {
-		version = getNextLauncherVersion()
-	}
+	version := getNextFileVersion(fileType)
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]string{
@@ -411,27 +407,76 @@ func normalizeFileType(v string) string {
 }
 
 func getNextLauncherVersion() string {
+	return getNextFileVersion("launcher")
+}
+
+func getNextFileVersion(fileType string) string {
 	if db == nil {
 		return "1.0.0"
 	}
 
-	var latest string
-	err := db.QueryRow("SELECT `version` FROM `update` WHERE `file_type`='launcher' AND TRIM(`version`) <> '' ORDER BY `date` DESC, `no` DESC LIMIT 1").Scan(&latest)
-	if err != nil || strings.TrimSpace(latest) == "" {
+	rows, err := db.Query("SELECT `version` FROM `update` WHERE `file_type`=? AND TRIM(`version`) <> ''", normalizeFileType(fileType))
+	if err != nil {
 		return "1.0.0"
 	}
+	defer rows.Close()
 
-	parts := strings.Split(strings.TrimSpace(latest), ".")
-	if len(parts) != 3 {
-		return "1.0.0"
+	maxPatch := -1
+	for rows.Next() {
+		var current string
+		if err := rows.Scan(&current); err != nil {
+			continue
+		}
+		parts := strings.Split(strings.TrimSpace(current), ".")
+		if len(parts) != 3 {
+			continue
+		}
+		major, errMajor := strconv.Atoi(parts[0])
+		minor, errMinor := strconv.Atoi(parts[1])
+		patch, errPatch := strconv.Atoi(parts[2])
+		if errMajor != nil || errMinor != nil || errPatch != nil {
+			continue
+		}
+		if major == 1 && minor == 0 && patch > maxPatch {
+			maxPatch = patch
+		}
+	}
+	return fmt.Sprintf("1.0.%d", maxPatch+1)
+}
+
+func backfillSequentialVersions(fileType string) {
+	if db == nil {
+		return
+	}
+	fileType = normalizeFileType(fileType)
+
+	var missingCount int
+	if err := db.QueryRow("SELECT COUNT(*) FROM `update` WHERE `file_type`=? AND TRIM(`version`)=''", fileType).Scan(&missingCount); err != nil {
+		return
+	}
+	if missingCount == 0 {
+		return
 	}
 
-	major, errMajor := strconv.Atoi(parts[0])
-	minor, errMinor := strconv.Atoi(parts[1])
-	patch, errPatch := strconv.Atoi(parts[2])
-	if errMajor != nil || errMinor != nil || errPatch != nil {
-		return "1.0.0"
+	rows, err := db.Query("SELECT `no` FROM `update` WHERE `file_type`=? ORDER BY `date` ASC, `no` ASC", fileType)
+	if err != nil {
+		return
 	}
+	defer rows.Close()
 
-	return fmt.Sprintf("%d.%d.%d", major, minor, patch+1)
+	type versionRow struct {
+		No int
+	}
+	var items []versionRow
+	for rows.Next() {
+		var item versionRow
+		if err := rows.Scan(&item.No); err != nil {
+			continue
+		}
+		items = append(items, item)
+	}
+	for idx, item := range items {
+		version := fmt.Sprintf("1.0.%d", idx)
+		_, _ = db.Exec("UPDATE `update` SET `version`=? WHERE `no`=?", version, item.No)
+	}
 }
