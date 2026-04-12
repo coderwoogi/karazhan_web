@@ -3065,7 +3065,7 @@
                     <div id="content-trial" class="log-sub-content">
                         <div class="log-sub-tabs" style="margin-bottom:1rem;">
                             <button id="trial-sub-btn-stages" class="log-sub-tab-btn active" onclick="openTrialContentSubTab('stages')">단계 보상 관리</button>
-                            <button id="trial-sub-btn-progress" class="log-sub-tab-btn" onclick="openTrialContentSubTab('progress')">진행 현황</button>
+                            <button id="trial-sub-btn-progress" class="log-sub-tab-btn" onclick="openTrialContentSubTab('progress')">캐릭터 관리</button>
                             <button id="trial-sub-btn-runs" class="log-sub-tab-btn" onclick="openTrialContentSubTab('runs')">런 기록</button>
                             <button id="trial-sub-btn-events" class="log-sub-tab-btn" onclick="openTrialContentSubTab('events')">이벤트 로그</button>
                             <button id="trial-sub-btn-rewards" class="log-sub-tab-btn" onclick="openTrialContentSubTab('rewards')">보상 로그</button>
@@ -3112,13 +3112,33 @@
                         </div>
 
                         <div id="trial-sub-progress" class="trial-sub-content" style="display:none;">
-                            <div class="filter-bar" style="display:grid; grid-template-columns: 1.4fr 180px auto; gap:12px; align-items:end;">
+                            <div class="filter-bar" style="display:grid; grid-template-columns: 1.2fr 1fr 170px 170px 160px 160px 170px auto; gap:12px; align-items:end;">
                                 <div class="filter-group">
-                                    <label for="trial-progress-filter-q">플레이어 검색</label>
+                                    <label for="trial-progress-filter-q">캐릭터 검색</label>
                                     <input id="trial-progress-filter-q" type="text" class="input-premium" placeholder="캐릭터명 또는 GUID 검색">
                                 </div>
                                 <div class="filter-group">
-                                    <label for="trial-progress-filter-stage">최고 클리어 단계</label>
+                                    <label for="trial-progress-filter-account">계정 검색</label>
+                                    <input id="trial-progress-filter-account" type="text" class="input-premium" placeholder="계정명 또는 계정 번호">
+                                </div>
+                                <div class="filter-group">
+                                    <label for="trial-progress-filter-class">직업</label>
+                                    <select id="trial-progress-filter-class" class="input-premium"></select>
+                                </div>
+                                <div class="filter-group">
+                                    <label for="trial-progress-filter-race">종족</label>
+                                    <select id="trial-progress-filter-race" class="input-premium"></select>
+                                </div>
+                                <div class="filter-group">
+                                    <label for="trial-progress-filter-level-min">최소 레벨</label>
+                                    <input id="trial-progress-filter-level-min" type="number" class="input-premium" min="1" max="80" placeholder="1">
+                                </div>
+                                <div class="filter-group">
+                                    <label for="trial-progress-filter-level-max">최대 레벨</label>
+                                    <input id="trial-progress-filter-level-max" type="number" class="input-premium" min="1" max="80" placeholder="80">
+                                </div>
+                                <div class="filter-group">
+                                    <label for="trial-progress-filter-stage">최고 단계</label>
                                     <select id="trial-progress-filter-stage" class="input-premium"></select>
                                 </div>
                                 <div style="display:flex; gap:8px; justify-content:flex-end;">
@@ -3126,14 +3146,28 @@
                                     <button onclick="resetTrialProgressFilters()" class="btn"><i class="fas fa-undo"></i> 초기화</button>
                                 </div>
                             </div>
+                            <div class="filter-bar" style="display:grid; grid-template-columns: 220px auto; gap:12px; align-items:end; margin-top:0.85rem;">
+                                <div class="filter-group">
+                                    <label for="trial-progress-filter-cleared-stage">특정 단계 클리어 여부</label>
+                                    <select id="trial-progress-filter-cleared-stage" class="input-premium"></select>
+                                </div>
+                                <div style="font-size:0.88rem; color:#64748b; padding-bottom:0.55rem;">
+                                    캐릭터 목록에서 상세 보기를 누르면 최고 단계 수정, 단계 기록 추가/수정/삭제를 바로 처리할 수 있습니다.
+                                </div>
+                            </div>
                             <div class="scroll-table premium-table" style="max-height: 850px; margin-top: 1.5rem;">
                                 <table>
                                     <thead>
                                         <tr>
+                                            <th style="width:80px;">종족</th>
+                                            <th style="width:80px;">직업</th>
+                                            <th style="width:80px;">레벨</th>
                                             <th style="width:120px;">GUID</th>
-                                            <th>플레이어</th>
+                                            <th style="width:180px;">캐릭터명</th>
+                                            <th style="width:160px;">계정</th>
                                             <th style="width:140px;">최고 클리어 단계</th>
                                             <th style="width:180px;">최근 갱신</th>
+                                            <th style="width:130px; text-align:center;">관리</th>
                                         </tr>
                                     </thead>
                                     <tbody id="trial-progress-list"></tbody>
@@ -3612,6 +3646,99 @@
                 <div class="modal-footer-premium">
                     <button type="button" onclick="closeTrialStageRewardModal()" class="btn" style="background:#f1f5f9; color:#64748b; flex:none; padding:0.6rem 1.25rem;">닫기</button>
                     <button type="button" onclick="saveTrialStageRewards()" class="btn btn-primary" style="flex:none; padding:0.6rem 1.25rem;">저장</button>
+                </div>
+            </div>
+        </div>
+        <div id="trial-character-modal" class="modal-overlay">
+            <div class="modal-content-premium" style="max-width:1320px; width:97%; max-height:92vh; display:flex; flex-direction:column;">
+                <div class="modal-header-premium">
+                    <h3 id="trial-character-modal-title">시련 캐릭터 관리</h3>
+                    <button type="button" class="modal-close-btn" onclick="closeTrialCharacterModal()">&times;</button>
+                </div>
+                <div class="modal-body-premium" style="display:flex; flex-direction:column; gap:1rem; overflow:auto;">
+                    <input type="hidden" id="trial-character-guid">
+                    <div id="trial-character-summary" style="display:grid; grid-template-columns:repeat(6, minmax(0, 1fr)); gap:12px;"></div>
+                    <div style="display:grid; grid-template-columns: minmax(320px, 380px) 1fr; gap:16px; align-items:start;">
+                        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:14px; padding:16px;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:0.75rem;">
+                                <h4 style="margin:0; color:#0f172a;">진행도 수정</h4>
+                                <span style="font-size:0.82rem; color:#64748b;">최고 클리어 단계 조정</span>
+                            </div>
+                            <div class="form-group-premium">
+                                <label for="trial-character-highest-stage">최고 클리어 단계</label>
+                                <input id="trial-character-highest-stage" type="number" class="input-premium" min="0" placeholder="0">
+                            </div>
+                            <label style="display:flex; gap:8px; align-items:flex-start; margin:0.75rem 0 1rem; color:#475569; font-size:0.88rem;">
+                                <input id="trial-character-sync-records" type="checkbox" checked style="margin-top:3px;">
+                                <span>저장할 때 현재 최고 단계보다 높은 기록은 같이 정리합니다.</span>
+                            </label>
+                            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                                <button type="button" class="btn btn-primary" onclick="saveTrialCharacterProgress()">진행도 저장</button>
+                                <button type="button" class="btn" onclick="openTrialStageRecordModal(null)">기록 추가</button>
+                                <button type="button" class="btn" style="background:#fef3c7; color:#92400e;" onclick="openTrialForceClearModal()">강제 통과</button>
+                                <button type="button" class="btn" style="background:#fee2e2; color:#991b1b;" onclick="resetTrialCharacter()">전체 초기화</button>
+                            </div>
+                        </div>
+                        <div style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:16px;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:0.75rem;">
+                                <h4 style="margin:0; color:#0f172a;">단계별 기록</h4>
+                                <span id="trial-character-record-summary" style="font-size:0.85rem; color:#64748b;"></span>
+                            </div>
+                            <div class="scroll-table premium-table" style="max-height:520px;">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th style="width:90px;">단계</th>
+                                            <th>단계명</th>
+                                            <th style="width:100px;">랭크 값</th>
+                                            <th style="width:120px;">랭크</th>
+                                            <th style="width:120px;">기록 시간</th>
+                                            <th style="width:170px;">수정일</th>
+                                            <th style="width:180px; text-align:center;">관리</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="trial-character-record-list"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer-premium">
+                    <button type="button" onclick="closeTrialCharacterModal()" class="btn" style="background:#f1f5f9; color:#64748b; flex:none; padding:0.6rem 1.25rem;">닫기</button>
+                </div>
+            </div>
+        </div>
+        <div id="trial-stage-record-modal" class="modal-overlay">
+            <div class="modal-content-premium" style="max-width:560px; width:96%;">
+                <div class="modal-header-premium">
+                    <h3 id="trial-stage-record-modal-title">단계 기록 수정</h3>
+                    <button type="button" class="modal-close-btn" onclick="closeTrialStageRecordModal()">&times;</button>
+                </div>
+                <div class="modal-body-premium">
+                    <div class="form-group-premium">
+                        <label for="trial-stage-record-stage">단계</label>
+                        <select id="trial-stage-record-stage" class="input-premium"></select>
+                    </div>
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                        <div class="form-group-premium">
+                            <label for="trial-stage-record-rank-label">랭크</label>
+                            <select id="trial-stage-record-rank-label" class="input-premium" onchange="syncTrialRankValueFromLabel()"></select>
+                        </div>
+                        <div class="form-group-premium">
+                            <label for="trial-stage-record-rank-value">랭크 값</label>
+                            <input id="trial-stage-record-rank-value" type="number" class="input-premium" min="1" max="6">
+                        </div>
+                    </div>
+                    <div class="form-group-premium">
+                        <label for="trial-stage-record-time">최고 기록 시간(초)</label>
+                        <input id="trial-stage-record-time" type="number" class="input-premium" min="0" placeholder="예: 61">
+                    </div>
+                    <div style="font-size:0.88rem; color:#64748b;">랭크는 S, A, B, C, D, F 순이며 값은 각각 6, 5, 4, 3, 2, 1로 저장됩니다.</div>
+                </div>
+                <div class="modal-footer-premium">
+                    <button id="trial-stage-record-delete-btn" type="button" onclick="deleteTrialStageRecord()" class="btn" style="background:#fee2e2; color:#991b1b; flex:none; padding:0.6rem 1.25rem; display:none;">삭제</button>
+                    <button type="button" onclick="closeTrialStageRecordModal()" class="btn" style="background:#f1f5f9; color:#64748b; flex:none; padding:0.6rem 1.25rem;">취소</button>
+                    <button type="button" onclick="saveTrialStageRecord()" class="btn btn-primary" style="flex:none; padding:0.6rem 1.25rem;">저장</button>
                 </div>
             </div>
         </div>

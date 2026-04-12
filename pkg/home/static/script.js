@@ -3468,6 +3468,46 @@ let currentTrialRunPage = 1;
 let currentTrialEventPage = 1;
 let currentTrialRewardLogPage = 1;
 let trialStageOptions = [];
+let currentTrialCharacterGuid = 0;
+let currentTrialCharacterDetail = null;
+let currentTrialStageRecordContext = null;
+
+const trialClassOptions = [
+    { value: '', label: '전체' },
+    { value: '1', label: '전사' },
+    { value: '2', label: '성기사' },
+    { value: '3', label: '사냥꾼' },
+    { value: '4', label: '도적' },
+    { value: '5', label: '사제' },
+    { value: '6', label: '죽음의 기사' },
+    { value: '7', label: '주술사' },
+    { value: '8', label: '마법사' },
+    { value: '9', label: '흑마법사' },
+    { value: '11', label: '드루이드' }
+];
+
+const trialRaceOptions = [
+    { value: '', label: '전체' },
+    { value: '1', label: '인간' },
+    { value: '2', label: '오크' },
+    { value: '3', label: '드워프' },
+    { value: '4', label: '나이트 엘프' },
+    { value: '5', label: '언데드' },
+    { value: '6', label: '타우렌' },
+    { value: '7', label: '노움' },
+    { value: '8', label: '트롤' },
+    { value: '10', label: '블러드 엘프' },
+    { value: '11', label: '드레나이' }
+];
+
+const trialRankPresets = [
+    { label: 'S', value: 6, text: 'S 랭크' },
+    { label: 'A', value: 5, text: 'A 랭크' },
+    { label: 'B', value: 4, text: 'B 랭크' },
+    { label: 'C', value: 3, text: 'C 랭크' },
+    { label: 'D', value: 2, text: 'D 랭크' },
+    { label: 'F', value: 1, text: 'F 랭크' }
+];
 
 function trialEsc(value) {
     return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
@@ -3499,6 +3539,54 @@ function getTrialResultBadge(code, label) {
         color = '#b45309';
     }
     return `<span class="badge" style="background:${bg}; color:${color};">${trialEsc(text)}</span>`;
+}
+
+function getTrialRankPresetByLabel(label) {
+    const found = trialRankPresets.find((preset) => preset.label === String(label || '').trim().toUpperCase());
+    return found || trialRankPresets[2];
+}
+
+function getTrialRankPresetByValue(value) {
+    const found = trialRankPresets.find((preset) => preset.value === Number(value || 0));
+    return found || trialRankPresets[2];
+}
+
+function getTrialRankBadge(label, value) {
+    const preset = label ? getTrialRankPresetByLabel(label) : getTrialRankPresetByValue(value);
+    const tone = {
+        S: ['#fef3c7', '#92400e'],
+        A: ['#dcfce7', '#166534'],
+        B: ['#dbeafe', '#1d4ed8'],
+        C: ['#ede9fe', '#6d28d9'],
+        D: ['#fee2e2', '#991b1b'],
+        F: ['#e2e8f0', '#475569']
+    }[preset.label] || ['#e2e8f0', '#475569'];
+    return `<span class="badge" style="background:${tone[0]}; color:${tone[1]};">${trialEsc(preset.text)}</span>`;
+}
+
+function resolveTrialRaceName(value, fallbackName) {
+    if (String(fallbackName || '').trim()) return String(fallbackName || '').trim();
+    return typeof getRaceName === 'function' ? (getRaceName(value) || '-') : '-';
+}
+
+function resolveTrialClassName(value, fallbackName) {
+    if (String(fallbackName || '').trim()) return String(fallbackName || '').trim();
+    return typeof getClassName === 'function' ? (getClassName(value) || '-') : '-';
+}
+
+function renderTrialSimpleOptions(selectId, options) {
+    const el = document.getElementById(selectId);
+    if (!el) return;
+    const current = String(el.value || '');
+    el.innerHTML = options.map((option) => `<option value="${trialEsc(option.value)}">${trialEsc(option.label)}</option>`).join('');
+    if (Array.from(el.options).some((option) => option.value === current)) {
+        el.value = current;
+    }
+}
+
+function getTrialStageRecordRankLabelOptions(selectedLabel = 'B') {
+    const current = String(selectedLabel || 'B').trim().toUpperCase();
+    return trialRankPresets.map((preset) => `<option value="${preset.label}" ${preset.label === current ? 'selected' : ''}>${preset.text}</option>`).join('');
 }
 
 function getTrialRewardRankOptions(selectedValue) {
@@ -3572,7 +3660,9 @@ async function loadTrialStageOptions() {
     } catch (_) {
         trialStageOptions = [];
     }
-    renderTrialStageOptions(['trial-progress-filter-stage', 'trial-run-filter-stage', 'trial-event-filter-stage', 'trial-reward-log-filter-stage'], '전체');
+    renderTrialStageOptions(['trial-progress-filter-stage', 'trial-progress-filter-cleared-stage', 'trial-run-filter-stage', 'trial-event-filter-stage', 'trial-reward-log-filter-stage', 'trial-stage-record-stage'], '전체');
+    renderTrialSimpleOptions('trial-progress-filter-class', trialClassOptions);
+    renderTrialSimpleOptions('trial-progress-filter-race', trialRaceOptions);
 }
 
 function openTrialContentSubTab(tabName) {
@@ -3820,42 +3910,316 @@ async function loadTrialProgress(page = 1) {
     const pg = document.getElementById('trial-progress-pagination');
     if (!tbody) return;
     const q = ((document.getElementById('trial-progress-filter-q') || {}).value || '').trim();
+    const account = ((document.getElementById('trial-progress-filter-account') || {}).value || '').trim();
+    const classId = ((document.getElementById('trial-progress-filter-class') || {}).value || '').trim();
+    const raceId = ((document.getElementById('trial-progress-filter-race') || {}).value || '').trim();
+    const levelMin = ((document.getElementById('trial-progress-filter-level-min') || {}).value || '').trim();
+    const levelMax = ((document.getElementById('trial-progress-filter-level-max') || {}).value || '').trim();
     const stageId = ((document.getElementById('trial-progress-filter-stage') || {}).value || '').trim();
-    const params = new URLSearchParams({ page: String(page) });
+    const clearedStage = ((document.getElementById('trial-progress-filter-cleared-stage') || {}).value || '').trim();
+    const params = new URLSearchParams({ page: String(page), limit: '20' });
     if (q) params.set('q', q);
+    if (account) params.set('account', account);
+    if (classId) params.set('class', classId);
+    if (raceId) params.set('race', raceId);
+    if (levelMin) params.set('level_min', levelMin);
+    if (levelMax) params.set('level_max', levelMax);
     if (stageId) params.set('stage_id', stageId);
-    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px;">로딩 중...</td></tr>';
+    if (clearedStage) params.set('cleared_stage', clearedStage);
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:20px;">로딩 중...</td></tr>';
     try {
         const res = await fetch(`/api/content/trial/progress?${params.toString()}`);
         if (!res.ok) throw new Error('진행 현황을 불러오는데 실패했습니다.');
         const data = await res.json();
         const items = data.items || [];
         if (!items.length) {
-            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px;">기록이 없습니다.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:20px;">조건에 맞는 캐릭터가 없습니다.</td></tr>';
             renderPagination(pg, data, p => loadTrialProgress(p));
             return;
         }
         tbody.innerHTML = items.map(item => `
             <tr>
+                <td>${trialEsc(resolveTrialRaceName(item.race, item.race_name))}</td>
+                <td>${trialEsc(resolveTrialClassName(item.class, item.class_name))}</td>
+                <td>${Number(item.level || 0)}</td>
                 <td>${Number(item.guid || 0)}</td>
                 <td style="font-weight:700;">${trialEsc(item.player_name || `GUID ${item.guid}`)}</td>
+                <td>${trialEsc(item.account_name || '-')}</td>
                 <td>${Number(item.highest_stage_cleared || 0)}단계</td>
                 <td>${trialEsc(item.updated_at || '-')}</td>
+                <td style="text-align:center;">
+                    <button type="button" class="btn-action btn-edit" onclick="openTrialCharacterModal(${Number(item.guid || 0)})"><i class="fas fa-user-cog"></i> 상세 보기</button>
+                </td>
             </tr>
         `).join('');
         renderPagination(pg, data, p => loadTrialProgress(p));
     } catch (e) {
-        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:20px; color:red;">${trialEsc(e.message)}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:20px; color:red;">${trialEsc(e.message)}</td></tr>`;
     }
 }
 
 function searchTrialProgress() { loadTrialProgress(1); }
 function resetTrialProgressFilters() {
     const q = document.getElementById('trial-progress-filter-q');
+    const account = document.getElementById('trial-progress-filter-account');
+    const classId = document.getElementById('trial-progress-filter-class');
+    const raceId = document.getElementById('trial-progress-filter-race');
+    const levelMin = document.getElementById('trial-progress-filter-level-min');
+    const levelMax = document.getElementById('trial-progress-filter-level-max');
     const stage = document.getElementById('trial-progress-filter-stage');
+    const clearedStage = document.getElementById('trial-progress-filter-cleared-stage');
     if (q) q.value = '';
+    if (account) account.value = '';
+    if (classId) classId.value = '';
+    if (raceId) raceId.value = '';
+    if (levelMin) levelMin.value = '';
+    if (levelMax) levelMax.value = '';
     if (stage) stage.value = '';
+    if (clearedStage) clearedStage.value = '';
     loadTrialProgress(1);
+}
+
+function renderTrialCharacterSummary(character) {
+    const container = document.getElementById('trial-character-summary');
+    if (!container) return;
+    const cards = [
+        ['캐릭터명', character.player_name || `GUID ${character.guid}`],
+        ['GUID', Number(character.guid || 0)],
+        ['계정', character.account_name || '-'],
+        ['종족 / 직업', `${character.race_name || '-'} / ${character.class_name || '-'}`],
+        ['레벨', Number(character.level || 0)],
+        ['최고 단계', `${Number(character.highest_stage_cleared || 0)}단계`]
+    ];
+    container.innerHTML = cards.map(([label, value]) => `
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:14px; padding:14px;">
+            <div style="font-size:0.82rem; color:#64748b; margin-bottom:6px;">${trialEsc(label)}</div>
+            <div style="font-size:1.02rem; font-weight:700; color:#0f172a;">${trialEsc(value)}</div>
+        </div>
+    `).join('');
+}
+
+function renderTrialCharacterRecords(records = []) {
+    const tbody = document.getElementById('trial-character-record-list');
+    const summary = document.getElementById('trial-character-record-summary');
+    if (!tbody) return;
+    if (summary) {
+        summary.textContent = `기록 ${records.length}건`;
+    }
+    if (!records.length) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:24px; color:#64748b;">등록된 단계 기록이 없습니다. 상단의 기록 추가 버튼으로 직접 입력할 수 있습니다.</td></tr>';
+        return;
+    }
+    tbody.innerHTML = records.map((record) => `
+        <tr>
+            <td>${Number(record.stage_id || 0)}단계</td>
+            <td style="font-weight:700;">${trialEsc(record.stage_name || `시련 ${record.stage_id}단계`)}</td>
+            <td>${Number(record.best_rank || 0)}</td>
+            <td>${getTrialRankBadge(record.best_rank_label, record.best_rank)}</td>
+            <td>${Number(record.best_time_sec || 0)}초</td>
+            <td>${trialEsc(record.updated_at || '-')}</td>
+            <td style="text-align:center;">
+                <div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
+                    <button type="button" class="btn-action btn-edit" onclick="openTrialStageRecordModal(${Number(record.stage_id || 0)})">수정</button>
+                    <button type="button" class="btn-action btn-delete" onclick="deleteTrialStageRecord(${Number(record.stage_id || 0)})">삭제</button>
+                </div>
+            </td>
+        </tr>
+    `).join('');
+}
+
+async function openTrialCharacterModal(guid) {
+    const modal = document.getElementById('trial-character-modal');
+    if (!modal || Number(guid || 0) <= 0) return;
+    currentTrialCharacterGuid = Number(guid || 0);
+    const title = document.getElementById('trial-character-modal-title');
+    const summary = document.getElementById('trial-character-summary');
+    const tbody = document.getElementById('trial-character-record-list');
+    if (title) title.textContent = '시련 캐릭터 관리';
+    if (summary) summary.innerHTML = '<div style="grid-column:1 / -1; text-align:center; padding:24px; color:#64748b;">캐릭터 정보를 불러오는 중...</div>';
+    if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:24px; color:#64748b;">기록을 불러오는 중...</td></tr>';
+    modal.style.display = 'flex';
+    try {
+        await loadTrialCharacterDetail(guid);
+    } catch (e) {
+        closeTrialCharacterModal();
+        ModalUtils.showAlert(`캐릭터 정보를 불러오지 못했습니다.\n${String(e.message || '')}`.trim());
+    }
+}
+
+function closeTrialCharacterModal() {
+    const modal = document.getElementById('trial-character-modal');
+    if (modal) modal.style.display = 'none';
+    currentTrialCharacterGuid = 0;
+    currentTrialCharacterDetail = null;
+}
+
+async function loadTrialCharacterDetail(guid = currentTrialCharacterGuid) {
+    if (Number(guid || 0) <= 0) return;
+    const res = await fetch(`/api/content/trial/character-detail?guid=${Number(guid || 0)}`);
+    if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || '캐릭터 정보를 불러오지 못했습니다.');
+    }
+    const data = await res.json();
+    currentTrialCharacterDetail = data;
+    currentTrialCharacterGuid = Number(data.character?.guid || guid);
+    document.getElementById('trial-character-guid').value = String(currentTrialCharacterGuid);
+    if (document.getElementById('trial-character-modal-title')) {
+        document.getElementById('trial-character-modal-title').textContent = `${data.character?.player_name || `GUID ${guid}`} 시련 관리`;
+    }
+    if (document.getElementById('trial-character-highest-stage')) {
+        document.getElementById('trial-character-highest-stage').value = String(Number(data.character?.highest_stage_cleared || 0));
+    }
+    renderTrialCharacterSummary(data.character || {});
+    renderTrialCharacterRecords(Array.isArray(data.stage_records) ? data.stage_records : []);
+}
+
+async function saveTrialCharacterProgress() {
+    const guid = Number(currentTrialCharacterGuid || 0);
+    const highestStage = Number((document.getElementById('trial-character-highest-stage') || {}).value || 0);
+    const syncRecords = !!(document.getElementById('trial-character-sync-records') || {}).checked;
+    if (guid <= 0 || highestStage < 0) {
+        ModalUtils.showAlert('저장할 캐릭터 또는 최고 단계 정보가 올바르지 않습니다.');
+        return;
+    }
+    try {
+        const res = await fetch('/api/content/trial/progress/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                guid,
+                highest_stage_cleared: highestStage,
+                sync_records: syncRecords
+            })
+        });
+        if (!res.ok) throw new Error(await res.text());
+        ModalUtils.showAlert('최고 클리어 단계를 저장했습니다.');
+        await loadTrialCharacterDetail(guid);
+        loadTrialProgress(currentTrialProgressPage || 1);
+    } catch (e) {
+        ModalUtils.showAlert(`진행도 저장에 실패했습니다.\n${String(e.message || '')}`.trim());
+    }
+}
+
+function openTrialStageRecordModal(stageId = null) {
+    const modal = document.getElementById('trial-stage-record-modal');
+    if (!modal || !currentTrialCharacterGuid) return;
+    const records = Array.isArray(currentTrialCharacterDetail?.stage_records) ? currentTrialCharacterDetail.stage_records : [];
+    const current = stageId ? records.find((row) => Number(row.stage_id) === Number(stageId)) : null;
+    currentTrialStageRecordContext = current || null;
+    document.getElementById('trial-stage-record-modal-title').textContent = current ? '단계 기록 수정' : '단계 기록 추가';
+    renderTrialStageOptions('trial-stage-record-stage', '단계를 선택하세요.');
+    document.getElementById('trial-stage-record-stage').value = current ? String(Number(current.stage_id || 0)) : '';
+    const rankPreset = current ? getTrialRankPresetByLabel(current.best_rank_label || '') : trialRankPresets[2];
+    document.getElementById('trial-stage-record-rank-label').innerHTML = getTrialStageRecordRankLabelOptions(rankPreset.label);
+    document.getElementById('trial-stage-record-rank-value').value = String(Number(current?.best_rank || rankPreset.value));
+    document.getElementById('trial-stage-record-time').value = current ? String(Number(current.best_time_sec || 0)) : '';
+    document.getElementById('trial-stage-record-delete-btn').style.display = current ? 'inline-flex' : 'none';
+    modal.style.display = 'flex';
+}
+
+function closeTrialStageRecordModal() {
+    const modal = document.getElementById('trial-stage-record-modal');
+    if (modal) modal.style.display = 'none';
+    currentTrialStageRecordContext = null;
+}
+
+function syncTrialRankValueFromLabel() {
+    const label = (document.getElementById('trial-stage-record-rank-label') || {}).value || 'B';
+    const preset = getTrialRankPresetByLabel(label);
+    const valueEl = document.getElementById('trial-stage-record-rank-value');
+    if (valueEl) valueEl.value = String(preset.value);
+}
+
+async function saveTrialStageRecord() {
+    const guid = Number(currentTrialCharacterGuid || 0);
+    const stageId = Number((document.getElementById('trial-stage-record-stage') || {}).value || 0);
+    const rankLabel = String((document.getElementById('trial-stage-record-rank-label') || {}).value || '').trim().toUpperCase();
+    const rankValue = Number((document.getElementById('trial-stage-record-rank-value') || {}).value || 0);
+    const bestTimeSec = Number((document.getElementById('trial-stage-record-time') || {}).value || 0);
+    if (guid <= 0 || stageId <= 0) {
+        ModalUtils.showAlert('캐릭터와 단계 정보를 먼저 확인해주세요.');
+        return;
+    }
+    if (!rankLabel || rankValue <= 0 || bestTimeSec < 0) {
+        ModalUtils.showAlert('랭크와 최고 기록 시간을 올바르게 입력해주세요.');
+        return;
+    }
+    try {
+        const res = await fetch('/api/content/trial/stage-record/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                guid,
+                stage_id: stageId,
+                best_rank: rankValue,
+                best_rank_label: rankLabel,
+                best_time_sec: bestTimeSec
+            })
+        });
+        if (!res.ok) throw new Error(await res.text());
+        closeTrialStageRecordModal();
+        ModalUtils.showAlert('단계 기록을 저장했습니다.');
+        await loadTrialCharacterDetail(guid);
+        loadTrialProgress(currentTrialProgressPage || 1);
+    } catch (e) {
+        ModalUtils.showAlert(`단계 기록 저장에 실패했습니다.\n${String(e.message || '')}`.trim());
+    }
+}
+
+function deleteTrialStageRecord(stageId = null) {
+    const record = stageId
+        ? (currentTrialCharacterDetail?.stage_records || []).find((row) => Number(row.stage_id) === Number(stageId))
+        : currentTrialStageRecordContext;
+    if (!record || !currentTrialCharacterGuid) {
+        ModalUtils.showAlert('삭제할 단계 기록을 찾을 수 없습니다.');
+        return;
+    }
+    ModalUtils.showConfirm(`정말로 ${Number(record.stage_id)}단계 기록을 삭제하시겠습니까?\n최고 클리어 단계도 함께 보정됩니다.`, async () => {
+        try {
+            const res = await fetch('/api/content/trial/stage-record/delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    guid: Number(currentTrialCharacterGuid),
+                    stage_id: Number(record.stage_id),
+                    adjust_highest_stage: true
+                })
+            });
+            if (!res.ok) throw new Error(await res.text());
+            closeTrialStageRecordModal();
+            ModalUtils.showAlert('단계 기록을 삭제했습니다.');
+            await loadTrialCharacterDetail(currentTrialCharacterGuid);
+            loadTrialProgress(currentTrialProgressPage || 1);
+        } catch (e) {
+            ModalUtils.showAlert(`단계 기록 삭제에 실패했습니다.\n${String(e.message || '')}`.trim());
+        }
+    });
+}
+
+function openTrialForceClearModal() {
+    openTrialStageRecordModal(null);
+    const title = document.getElementById('trial-stage-record-modal-title');
+    if (title) title.textContent = '강제 통과 기록 추가';
+}
+
+function resetTrialCharacter() {
+    if (!currentTrialCharacterGuid) return;
+    ModalUtils.showConfirm('이 캐릭터의 시련 진행도와 단계 기록을 모두 초기화하시겠습니까?', async () => {
+        try {
+            const res = await fetch('/api/content/trial/character/reset', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ guid: Number(currentTrialCharacterGuid) })
+            });
+            if (!res.ok) throw new Error(await res.text());
+            ModalUtils.showAlert('시련 기록을 초기화했습니다.');
+            await loadTrialCharacterDetail(currentTrialCharacterGuid);
+            loadTrialProgress(currentTrialProgressPage || 1);
+        } catch (e) {
+            ModalUtils.showAlert(`시련 기록 초기화에 실패했습니다.\n${String(e.message || '')}`.trim());
+        }
+    });
 }
 
 async function loadTrialRuns(page = 1) {
