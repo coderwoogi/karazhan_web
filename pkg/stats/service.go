@@ -66,6 +66,8 @@ func RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/content/carddraw/update", handleCarddrawContentUpdate)
 	mux.HandleFunc("/api/content/carddraw/delete", handleCarddrawContentDelete)
 	mux.HandleFunc("/api/content/trial/stages", handleTrialStageList)
+	mux.HandleFunc("/api/content/trial/stage-detail", handleTrialStageDetail)
+	mux.HandleFunc("/api/content/trial/stage-save", handleTrialStageSave)
 	mux.HandleFunc("/api/content/trial/stage-rewards", handleTrialStageRewards)
 	mux.HandleFunc("/api/content/trial/stage-rewards/save", handleTrialStageRewardSave)
 	mux.HandleFunc("/api/content/trial/progress", handleTrialProgressList)

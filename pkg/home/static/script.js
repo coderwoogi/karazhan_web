@@ -3471,6 +3471,7 @@ let trialStageOptions = [];
 let currentTrialCharacterGuid = 0;
 let currentTrialCharacterDetail = null;
 let currentTrialStageRecordContext = null;
+let currentTrialStageDetail = null;
 
 const trialClassOptions = [
     { value: '', label: '전체' },
@@ -3717,13 +3718,17 @@ async function loadTrialStages(page = 1) {
                 <td>${Number(item.stage_id)}</td>
                 <td style="font-weight:700;">${trialEsc(item.name || `시련 ${item.stage_id}단계`)}</td>
                 <td>${Number(item.arena_map_id || 0)}</td>
-                <td>${Math.round(Number(item.preparation_ms || 0) / 1000)}초</td>
-                <td>${Number(item.health_multiplier || 0).toFixed(2)}배</td>
-                <td>${Number(item.damage_multiplier || 0).toFixed(2)}배</td>
-                <td>${Number(item.reward_count || 0)}개</td>
+                <td>${Number(item.melee_target_gs || 0)}</td>
+                <td>${Number(item.melee_health || 0).toLocaleString()}</td>
+                <td>${Number(item.caster_target_gs || 0)}</td>
+                <td>${Number(item.caster_health || 0).toLocaleString()}</td>
+                <td>${Number(item.move_speed_rate || 0).toFixed(2)}</td>
                 <td>${Number(item.enabled) === 1 ? '<span style="color:#16a34a; font-weight:700;">활성</span>' : '<span style="color:#64748b;">비활성</span>'}</td>
                 <td style="text-align:center;">
-                    <button onclick="openTrialStageRewardModal(${Number(item.stage_id)}, decodeURIComponent('${encodeURIComponent(String(item.name || `시련 ${item.stage_id}단계`))}'))" class="btn-action btn-edit"><i class="fas fa-gift"></i> 보상 관리</button>
+                    <div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
+                        <button onclick="openTrialStageEditModal(${Number(item.stage_id)})" class="btn-action btn-edit"><i class="fas fa-sliders-h"></i> 능력치 수정</button>
+                        <button onclick="openTrialStageRewardModal(${Number(item.stage_id)}, decodeURIComponent('${encodeURIComponent(String(item.name || `시련 ${item.stage_id}단계`))}'))" class="btn-action btn-edit"><i class="fas fa-gift"></i> 보상 관리</button>
+                    </div>
                 </td>
             </tr>
         `).join('');
@@ -3741,6 +3746,136 @@ function resetTrialStageFilters() {
     if (q) q.value = '';
     if (active) active.value = '';
     loadTrialStages(1);
+}
+
+async function openTrialStageEditModal(stageId) {
+    const modal = document.getElementById('trial-stage-edit-modal');
+    if (!modal || Number(stageId || 0) <= 0) return;
+    currentTrialStageDetail = null;
+    document.getElementById('trial-stage-edit-id').value = String(Number(stageId || 0));
+    document.getElementById('trial-stage-edit-stage-id-view').value = String(Number(stageId || 0));
+    document.getElementById('trial-stage-edit-modal-title').textContent = `${Number(stageId || 0)}단계 능력치 수정`;
+    document.getElementById('trial-stage-edit-summary').textContent = '단계 정보를 불러오는 중...';
+    modal.style.display = 'flex';
+    try {
+        const res = await fetch(`/api/content/trial/stage-detail?stage_id=${Number(stageId || 0)}`);
+        if (!res.ok) throw new Error(await res.text());
+        const data = await res.json();
+        currentTrialStageDetail = data;
+        const mappings = {
+            'trial-stage-edit-id': data.stage_id,
+            'trial-stage-edit-stage-id-view': data.stage_id,
+            'trial-stage-edit-name': data.name,
+            'trial-stage-edit-arena-map-id': data.arena_map_id,
+            'trial-stage-edit-player-x': data.player_x,
+            'trial-stage-edit-player-y': data.player_y,
+            'trial-stage-edit-player-z': data.player_z,
+            'trial-stage-edit-player-o': data.player_o,
+            'trial-stage-edit-bot-x': data.bot_x,
+            'trial-stage-edit-bot-y': data.bot_y,
+            'trial-stage-edit-bot-z': data.bot_z,
+            'trial-stage-edit-bot-o': data.bot_o,
+            'trial-stage-edit-health-multiplier': data.health_multiplier,
+            'trial-stage-edit-damage-multiplier': data.damage_multiplier,
+            'trial-stage-edit-attack-time': data.attack_time_ms,
+            'trial-stage-edit-spell-interval': data.spell_interval_ms,
+            'trial-stage-edit-move-speed': data.move_speed_rate,
+            'trial-stage-edit-preparation': data.preparation_ms,
+            'trial-stage-edit-melee-target-gs': data.melee_target_gs,
+            'trial-stage-edit-melee-health': data.melee_health,
+            'trial-stage-edit-melee-attack-power': data.melee_attack_power,
+            'trial-stage-edit-melee-crit': data.melee_crit_pct,
+            'trial-stage-edit-melee-arp': data.melee_armor_pen_rating,
+            'trial-stage-edit-caster-target-gs': data.caster_target_gs,
+            'trial-stage-edit-caster-health': data.caster_health,
+            'trial-stage-edit-caster-spell-power': data.caster_spell_power,
+            'trial-stage-edit-caster-crit': data.caster_crit_pct,
+            'trial-stage-edit-caster-haste': data.caster_haste_rating,
+            'trial-stage-edit-enabled': data.enabled
+        };
+        Object.entries(mappings).forEach(([id, value]) => {
+            const el = document.getElementById(id);
+            if (el) el.value = String(value ?? '');
+        });
+        document.getElementById('trial-stage-edit-summary').textContent = `${trialEsc(data.name || `시련 ${data.stage_id}단계`)} · 밀리 GS ${Number(data.melee_target_gs || 0)} / 캐스터 GS ${Number(data.caster_target_gs || 0)}`;
+    } catch (e) {
+        closeTrialStageEditModal();
+        ModalUtils.showAlert(`단계 정보를 불러오지 못했습니다.\n${String(e.message || '')}`.trim());
+    }
+}
+
+function closeTrialStageEditModal() {
+    const modal = document.getElementById('trial-stage-edit-modal');
+    if (modal) modal.style.display = 'none';
+    currentTrialStageDetail = null;
+}
+
+function collectTrialStagePayload() {
+    return {
+        stage_id: Number((document.getElementById('trial-stage-edit-id') || {}).value || 0),
+        name: String((document.getElementById('trial-stage-edit-name') || {}).value || '').trim(),
+        arena_map_id: Number((document.getElementById('trial-stage-edit-arena-map-id') || {}).value || 0),
+        player_x: Number((document.getElementById('trial-stage-edit-player-x') || {}).value || 0),
+        player_y: Number((document.getElementById('trial-stage-edit-player-y') || {}).value || 0),
+        player_z: Number((document.getElementById('trial-stage-edit-player-z') || {}).value || 0),
+        player_o: Number((document.getElementById('trial-stage-edit-player-o') || {}).value || 0),
+        bot_x: Number((document.getElementById('trial-stage-edit-bot-x') || {}).value || 0),
+        bot_y: Number((document.getElementById('trial-stage-edit-bot-y') || {}).value || 0),
+        bot_z: Number((document.getElementById('trial-stage-edit-bot-z') || {}).value || 0),
+        bot_o: Number((document.getElementById('trial-stage-edit-bot-o') || {}).value || 0),
+        health_multiplier: Number((document.getElementById('trial-stage-edit-health-multiplier') || {}).value || 1),
+        damage_multiplier: Number((document.getElementById('trial-stage-edit-damage-multiplier') || {}).value || 1),
+        attack_time_ms: Number((document.getElementById('trial-stage-edit-attack-time') || {}).value || 0),
+        spell_interval_ms: Number((document.getElementById('trial-stage-edit-spell-interval') || {}).value || 0),
+        move_speed_rate: Number((document.getElementById('trial-stage-edit-move-speed') || {}).value || 1),
+        preparation_ms: Number((document.getElementById('trial-stage-edit-preparation') || {}).value || 0),
+        melee_target_gs: Number((document.getElementById('trial-stage-edit-melee-target-gs') || {}).value || 0),
+        melee_health: Number((document.getElementById('trial-stage-edit-melee-health') || {}).value || 0),
+        melee_attack_power: Number((document.getElementById('trial-stage-edit-melee-attack-power') || {}).value || 0),
+        melee_crit_pct: Number((document.getElementById('trial-stage-edit-melee-crit') || {}).value || 0),
+        melee_armor_pen_rating: Number((document.getElementById('trial-stage-edit-melee-arp') || {}).value || 0),
+        caster_target_gs: Number((document.getElementById('trial-stage-edit-caster-target-gs') || {}).value || 0),
+        caster_health: Number((document.getElementById('trial-stage-edit-caster-health') || {}).value || 0),
+        caster_spell_power: Number((document.getElementById('trial-stage-edit-caster-spell-power') || {}).value || 0),
+        caster_crit_pct: Number((document.getElementById('trial-stage-edit-caster-crit') || {}).value || 0),
+        caster_haste_rating: Number((document.getElementById('trial-stage-edit-caster-haste') || {}).value || 0),
+        enabled: Number((document.getElementById('trial-stage-edit-enabled') || {}).value || 0)
+    };
+}
+
+function validateTrialStagePayload(payload) {
+    if (payload.stage_id <= 0) return '단계 번호가 올바르지 않습니다.';
+    if (!payload.name) return '단계 이름은 필수입니다.';
+    if (payload.melee_health < 1 || payload.caster_health < 1) return '밀리와 캐스터 체력은 1 이상이어야 합니다.';
+    if (payload.melee_attack_power < 0 || payload.caster_spell_power < 0) return '공격력과 주문력은 0 이상이어야 합니다.';
+    if (payload.melee_armor_pen_rating < 0 || payload.caster_haste_rating < 0) return '방관 수치와 가속 수치는 0 이상이어야 합니다.';
+    if (payload.melee_crit_pct < 0 || payload.melee_crit_pct > 100 || payload.caster_crit_pct < 0 || payload.caster_crit_pct > 100) return '치명타 확률은 0에서 100 사이여야 합니다.';
+    if (payload.attack_time_ms > 0 && payload.attack_time_ms < 500) return '기본 공격속도는 500ms 이상으로 설정해주세요.';
+    if (payload.spell_interval_ms > 0 && payload.spell_interval_ms < 500) return '주문 간격은 500ms 이상으로 설정해주세요.';
+    if (payload.move_speed_rate > 0 && payload.move_speed_rate < 0.1) return '이동속도는 0.1 이상으로 설정해주세요.';
+    return '';
+}
+
+async function saveTrialStageDetail() {
+    const payload = collectTrialStagePayload();
+    const invalid = validateTrialStagePayload(payload);
+    if (invalid) {
+        ModalUtils.showAlert(invalid);
+        return;
+    }
+    try {
+        const res = await fetch('/api/content/trial/stage-save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        if (!res.ok) throw new Error(await res.text());
+        ModalUtils.showAlert('시련 단계 능력치를 저장했습니다.');
+        closeTrialStageEditModal();
+        loadTrialStages(currentTrialStagePage || 1);
+    } catch (e) {
+        ModalUtils.showAlert(`시련 단계 저장에 실패했습니다.\n${String(e.message || '')}`.trim());
+    }
 }
 
 function buildTrialRewardRow(row = {}) {

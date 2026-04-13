@@ -3064,7 +3064,7 @@
                     <!-- Trial Sub-Tab -->
                     <div id="content-trial" class="log-sub-content">
                         <div class="log-sub-tabs" style="margin-bottom:1rem;">
-                            <button id="trial-sub-btn-stages" class="log-sub-tab-btn active" onclick="openTrialContentSubTab('stages')">단계 보상 관리</button>
+                            <button id="trial-sub-btn-stages" class="log-sub-tab-btn active" onclick="openTrialContentSubTab('stages')">단계 설정</button>
                             <button id="trial-sub-btn-progress" class="log-sub-tab-btn" onclick="openTrialContentSubTab('progress')">캐릭터 관리</button>
                             <button id="trial-sub-btn-runs" class="log-sub-tab-btn" onclick="openTrialContentSubTab('runs')">런 기록</button>
                             <button id="trial-sub-btn-events" class="log-sub-tab-btn" onclick="openTrialContentSubTab('events')">이벤트 로그</button>
@@ -3096,13 +3096,14 @@
                                         <tr>
                                             <th style="width:80px;">단계</th>
                                             <th>명칭</th>
-                                            <th style="width:100px;">아레나 맵</th>
-                                            <th style="width:110px;">준비 시간</th>
-                                            <th style="width:110px;">생명 배수</th>
-                                            <th style="width:110px;">공격 배수</th>
-                                            <th style="width:100px;">보상 수</th>
-                                            <th style="width:90px;">활성</th>
-                                            <th style="width:150px; text-align:center;">관리</th>
+                                            <th style="width:100px;">맵 ID</th>
+                                            <th style="width:110px;">밀리 GS</th>
+                                            <th style="width:120px;">밀리 체력</th>
+                                            <th style="width:110px;">캐스터 GS</th>
+                                            <th style="width:120px;">캐스터 체력</th>
+                                            <th style="width:95px;">이동속도</th>
+                                            <th style="width:90px;">사용</th>
+                                            <th style="width:220px; text-align:center;">관리</th>
                                         </tr>
                                     </thead>
                                     <tbody id="trial-stage-list"></tbody>
@@ -3646,6 +3647,93 @@
                 <div class="modal-footer-premium">
                     <button type="button" onclick="closeTrialStageRewardModal()" class="btn" style="background:#f1f5f9; color:#64748b; flex:none; padding:0.6rem 1.25rem;">닫기</button>
                     <button type="button" onclick="saveTrialStageRewards()" class="btn btn-primary" style="flex:none; padding:0.6rem 1.25rem;">저장</button>
+                </div>
+            </div>
+        </div>
+        <div id="trial-stage-edit-modal" class="modal-overlay">
+            <div class="modal-content-premium" style="max-width:1320px; width:97%; max-height:92vh; display:flex; flex-direction:column;">
+                <div class="modal-header-premium">
+                    <h3 id="trial-stage-edit-modal-title">시련 단계 능력치 수정</h3>
+                    <button type="button" class="modal-close-btn" onclick="closeTrialStageEditModal()">&times;</button>
+                </div>
+                <div class="modal-body-premium" style="overflow:auto; display:flex; flex-direction:column; gap:1rem;">
+                    <input type="hidden" id="trial-stage-edit-id">
+                    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:14px; padding:16px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:0.75rem;">
+                            <h4 style="margin:0; color:#0f172a;">단계 기본 정보</h4>
+                            <span id="trial-stage-edit-summary" style="font-size:0.85rem; color:#64748b;"></span>
+                        </div>
+                        <div style="display:grid; grid-template-columns:120px 1.6fr 160px 120px; gap:12px;">
+                            <div class="form-group-premium">
+                                <label for="trial-stage-edit-stage-id-view">단계</label>
+                                <input id="trial-stage-edit-stage-id-view" type="text" class="input-premium" readonly>
+                            </div>
+                            <div class="form-group-premium">
+                                <label for="trial-stage-edit-name">단계 이름</label>
+                                <input id="trial-stage-edit-name" type="text" class="input-premium" placeholder="예: 그림자 시련 6단계">
+                            </div>
+                            <div class="form-group-premium">
+                                <label for="trial-stage-edit-arena-map-id">맵 ID</label>
+                                <input id="trial-stage-edit-arena-map-id" type="number" class="input-premium" min="0">
+                            </div>
+                            <div class="form-group-premium">
+                                <label for="trial-stage-edit-enabled">활성화</label>
+                                <select id="trial-stage-edit-enabled" class="input-premium">
+                                    <option value="1">사용</option>
+                                    <option value="0">비활성</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div style="display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:12px; margin-top:0.75rem;">
+                            <div class="form-group-premium"><label for="trial-stage-edit-player-x">플레이어 X</label><input id="trial-stage-edit-player-x" type="number" step="0.01" class="input-premium"></div>
+                            <div class="form-group-premium"><label for="trial-stage-edit-player-y">플레이어 Y</label><input id="trial-stage-edit-player-y" type="number" step="0.01" class="input-premium"></div>
+                            <div class="form-group-premium"><label for="trial-stage-edit-player-z">플레이어 Z</label><input id="trial-stage-edit-player-z" type="number" step="0.01" class="input-premium"></div>
+                            <div class="form-group-premium"><label for="trial-stage-edit-player-o">플레이어 방향</label><input id="trial-stage-edit-player-o" type="number" step="0.01" class="input-premium"></div>
+                            <div class="form-group-premium"><label for="trial-stage-edit-bot-x">그림자 X</label><input id="trial-stage-edit-bot-x" type="number" step="0.01" class="input-premium"></div>
+                            <div class="form-group-premium"><label for="trial-stage-edit-bot-y">그림자 Y</label><input id="trial-stage-edit-bot-y" type="number" step="0.01" class="input-premium"></div>
+                            <div class="form-group-premium"><label for="trial-stage-edit-bot-z">그림자 Z</label><input id="trial-stage-edit-bot-z" type="number" step="0.01" class="input-premium"></div>
+                            <div class="form-group-premium"><label for="trial-stage-edit-bot-o">그림자 방향</label><input id="trial-stage-edit-bot-o" type="number" step="0.01" class="input-premium"></div>
+                        </div>
+                    </div>
+
+                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:16px;">
+                        <h4 style="margin:0 0 0.85rem; color:#0f172a;">공통 전투 설정</h4>
+                        <div style="display:grid; grid-template-columns:repeat(6, minmax(0, 1fr)); gap:12px;">
+                            <div class="form-group-premium"><label for="trial-stage-edit-health-multiplier">체력 배수</label><input id="trial-stage-edit-health-multiplier" type="number" step="0.01" class="input-premium"></div>
+                            <div class="form-group-premium"><label for="trial-stage-edit-damage-multiplier">피해 배수</label><input id="trial-stage-edit-damage-multiplier" type="number" step="0.01" class="input-premium"></div>
+                            <div class="form-group-premium"><label for="trial-stage-edit-attack-time">기본 공격속도(ms)</label><input id="trial-stage-edit-attack-time" type="number" min="500" class="input-premium"></div>
+                            <div class="form-group-premium"><label for="trial-stage-edit-spell-interval">주문 간격(ms)</label><input id="trial-stage-edit-spell-interval" type="number" min="500" class="input-premium"></div>
+                            <div class="form-group-premium"><label for="trial-stage-edit-move-speed">이동속도</label><input id="trial-stage-edit-move-speed" type="number" step="0.01" min="0.1" class="input-premium"></div>
+                            <div class="form-group-premium"><label for="trial-stage-edit-preparation">준비 시간(ms)</label><input id="trial-stage-edit-preparation" type="number" min="0" class="input-premium"></div>
+                        </div>
+                    </div>
+
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:14px; padding:16px;">
+                            <h4 style="margin:0 0 0.85rem; color:#0f172a;">밀리 그림자 능력치</h4>
+                            <div style="display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:12px;">
+                                <div class="form-group-premium"><label for="trial-stage-edit-melee-target-gs">목표 GS</label><input id="trial-stage-edit-melee-target-gs" type="number" min="0" class="input-premium"></div>
+                                <div class="form-group-premium"><label for="trial-stage-edit-melee-health">체력</label><input id="trial-stage-edit-melee-health" type="number" min="1" class="input-premium"></div>
+                                <div class="form-group-premium"><label for="trial-stage-edit-melee-attack-power">공격력(AP)</label><input id="trial-stage-edit-melee-attack-power" type="number" min="0" class="input-premium"></div>
+                                <div class="form-group-premium"><label for="trial-stage-edit-melee-crit">치명(%)</label><input id="trial-stage-edit-melee-crit" type="number" min="0" max="100" step="0.01" class="input-premium"></div>
+                                <div class="form-group-premium"><label for="trial-stage-edit-melee-arp">방관 수치</label><input id="trial-stage-edit-melee-arp" type="number" min="0" class="input-premium"></div>
+                            </div>
+                        </div>
+                        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:14px; padding:16px;">
+                            <h4 style="margin:0 0 0.85rem; color:#0f172a;">캐스터 그림자 능력치</h4>
+                            <div style="display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:12px;">
+                                <div class="form-group-premium"><label for="trial-stage-edit-caster-target-gs">목표 GS</label><input id="trial-stage-edit-caster-target-gs" type="number" min="0" class="input-premium"></div>
+                                <div class="form-group-premium"><label for="trial-stage-edit-caster-health">체력</label><input id="trial-stage-edit-caster-health" type="number" min="1" class="input-premium"></div>
+                                <div class="form-group-premium"><label for="trial-stage-edit-caster-spell-power">주문력</label><input id="trial-stage-edit-caster-spell-power" type="number" min="0" class="input-premium"></div>
+                                <div class="form-group-premium"><label for="trial-stage-edit-caster-crit">치명(%)</label><input id="trial-stage-edit-caster-crit" type="number" min="0" max="100" step="0.01" class="input-premium"></div>
+                                <div class="form-group-premium"><label for="trial-stage-edit-caster-haste">가속 수치</label><input id="trial-stage-edit-caster-haste" type="number" min="0" class="input-premium"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer-premium">
+                    <button type="button" onclick="closeTrialStageEditModal()" class="btn" style="background:#f1f5f9; color:#64748b; flex:none; padding:0.6rem 1.25rem;">취소</button>
+                    <button type="button" onclick="saveTrialStageDetail()" class="btn btn-primary" style="flex:none; padding:0.6rem 1.25rem;">저장</button>
                 </div>
             </div>
         </div>

@@ -12,17 +12,35 @@ import (
 )
 
 type soloArenaStageRow struct {
-	StageID          int     `json:"stage_id"`
-	Name             string  `json:"name"`
-	ArenaMapID       int     `json:"arena_map_id"`
-	PreparationMS    int     `json:"preparation_ms"`
-	HealthMultiplier float64 `json:"health_multiplier"`
-	DamageMultiplier float64 `json:"damage_multiplier"`
-	AttackTimeMS     int     `json:"attack_time_ms"`
-	SpellIntervalMS  int     `json:"spell_interval_ms"`
-	MoveSpeedRate    float64 `json:"move_speed_rate"`
-	Enabled          int     `json:"enabled"`
-	RewardCount      int     `json:"reward_count"`
+	StageID              int     `json:"stage_id"`
+	Name                 string  `json:"name"`
+	ArenaMapID           int     `json:"arena_map_id"`
+	PlayerX              float64 `json:"player_x"`
+	PlayerY              float64 `json:"player_y"`
+	PlayerZ              float64 `json:"player_z"`
+	PlayerO              float64 `json:"player_o"`
+	BotX                 float64 `json:"bot_x"`
+	BotY                 float64 `json:"bot_y"`
+	BotZ                 float64 `json:"bot_z"`
+	BotO                 float64 `json:"bot_o"`
+	PreparationMS        int     `json:"preparation_ms"`
+	HealthMultiplier     float64 `json:"health_multiplier"`
+	DamageMultiplier     float64 `json:"damage_multiplier"`
+	AttackTimeMS         int     `json:"attack_time_ms"`
+	SpellIntervalMS      int     `json:"spell_interval_ms"`
+	MoveSpeedRate        float64 `json:"move_speed_rate"`
+	MeleeTargetGS        int     `json:"melee_target_gs"`
+	MeleeHealth          int     `json:"melee_health"`
+	MeleeAttackPower     int     `json:"melee_attack_power"`
+	MeleeCritPct         float64 `json:"melee_crit_pct"`
+	MeleeArmorPenRating  int     `json:"melee_armor_pen_rating"`
+	CasterTargetGS       int     `json:"caster_target_gs"`
+	CasterHealth         int     `json:"caster_health"`
+	CasterSpellPower     int     `json:"caster_spell_power"`
+	CasterCritPct        float64 `json:"caster_crit_pct"`
+	CasterHasteRating    int     `json:"caster_haste_rating"`
+	Enabled              int     `json:"enabled"`
+	RewardCount          int     `json:"reward_count"`
 }
 
 type soloArenaStageRewardRow struct {
@@ -156,6 +174,37 @@ type soloArenaStageRewardSaveRequest struct {
 	Rewards []soloArenaStageRewardRow `json:"rewards"`
 }
 
+type soloArenaStageSaveRequest struct {
+	StageID             int     `json:"stage_id"`
+	Name                string  `json:"name"`
+	ArenaMapID          int     `json:"arena_map_id"`
+	PlayerX             float64 `json:"player_x"`
+	PlayerY             float64 `json:"player_y"`
+	PlayerZ             float64 `json:"player_z"`
+	PlayerO             float64 `json:"player_o"`
+	BotX                float64 `json:"bot_x"`
+	BotY                float64 `json:"bot_y"`
+	BotZ                float64 `json:"bot_z"`
+	BotO                float64 `json:"bot_o"`
+	HealthMultiplier    float64 `json:"health_multiplier"`
+	DamageMultiplier    float64 `json:"damage_multiplier"`
+	AttackTimeMS        int     `json:"attack_time_ms"`
+	SpellIntervalMS     int     `json:"spell_interval_ms"`
+	MoveSpeedRate       float64 `json:"move_speed_rate"`
+	PreparationMS       int     `json:"preparation_ms"`
+	MeleeTargetGS       int     `json:"melee_target_gs"`
+	MeleeHealth         int     `json:"melee_health"`
+	MeleeAttackPower    int     `json:"melee_attack_power"`
+	MeleeCritPct        float64 `json:"melee_crit_pct"`
+	MeleeArmorPenRating int     `json:"melee_armor_pen_rating"`
+	CasterTargetGS      int     `json:"caster_target_gs"`
+	CasterHealth        int     `json:"caster_health"`
+	CasterSpellPower    int     `json:"caster_spell_power"`
+	CasterCritPct       float64 `json:"caster_crit_pct"`
+	CasterHasteRating   int     `json:"caster_haste_rating"`
+	Enabled             int     `json:"enabled"`
+}
+
 func openSoloArenaWorldDB() (*sql.DB, error) {
 	return sql.Open("mysql", config.WorldDSN())
 }
@@ -229,6 +278,76 @@ func ensureSoloArenaStageRewardRankColumns(db *sql.DB) error {
 		return err
 	}
 	return nil
+}
+
+func ensureSoloArenaStageColumns(db *sql.DB) error {
+	defs := map[string]string{
+		"player_x":               "DOUBLE NOT NULL DEFAULT 0",
+		"player_y":               "DOUBLE NOT NULL DEFAULT 0",
+		"player_z":               "DOUBLE NOT NULL DEFAULT 0",
+		"player_o":               "FLOAT NOT NULL DEFAULT 0",
+		"bot_x":                  "DOUBLE NOT NULL DEFAULT 0",
+		"bot_y":                  "DOUBLE NOT NULL DEFAULT 0",
+		"bot_z":                  "DOUBLE NOT NULL DEFAULT 0",
+		"bot_o":                  "FLOAT NOT NULL DEFAULT 0",
+		"health_multiplier":      "FLOAT NOT NULL DEFAULT 1",
+		"damage_multiplier":      "FLOAT NOT NULL DEFAULT 1",
+		"attack_time_ms":         "INT UNSIGNED NOT NULL DEFAULT 2000",
+		"spell_interval_ms":      "INT UNSIGNED NOT NULL DEFAULT 4000",
+		"move_speed_rate":        "FLOAT NOT NULL DEFAULT 1",
+		"preparation_ms":         "INT UNSIGNED NOT NULL DEFAULT 6000",
+		"melee_target_gs":        "INT UNSIGNED NOT NULL DEFAULT 0",
+		"melee_health":           "INT UNSIGNED NOT NULL DEFAULT 1",
+		"melee_attack_power":     "INT NOT NULL DEFAULT 0",
+		"melee_crit_pct":         "FLOAT NOT NULL DEFAULT 0",
+		"melee_armor_pen_rating": "INT UNSIGNED NOT NULL DEFAULT 0",
+		"caster_target_gs":       "INT UNSIGNED NOT NULL DEFAULT 0",
+		"caster_health":          "INT UNSIGNED NOT NULL DEFAULT 1",
+		"caster_spell_power":     "INT NOT NULL DEFAULT 0",
+		"caster_crit_pct":        "FLOAT NOT NULL DEFAULT 0",
+		"caster_haste_rating":    "INT UNSIGNED NOT NULL DEFAULT 0",
+		"enabled":                "TINYINT UNSIGNED NOT NULL DEFAULT 1",
+	}
+	for column, ddl := range defs {
+		if hasColumnForDB(db, "solo_arena_stage", column) {
+			continue
+		}
+		if _, err := db.Exec(fmt.Sprintf("ALTER TABLE solo_arena_stage ADD COLUMN %s %s", column, ddl)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateSoloArenaStage(req *soloArenaStageSaveRequest) string {
+	if req.StageID <= 0 {
+		return "단계 번호가 올바르지 않습니다."
+	}
+	if strings.TrimSpace(req.Name) == "" {
+		return "단계 이름은 필수입니다."
+	}
+	if req.MeleeHealth < 1 || req.CasterHealth < 1 {
+		return "밀리와 캐스터 체력은 1 이상이어야 합니다."
+	}
+	if req.MeleeAttackPower < 0 || req.CasterSpellPower < 0 {
+		return "공격력과 주문력은 0 이상이어야 합니다."
+	}
+	if req.MeleeArmorPenRating < 0 || req.CasterHasteRating < 0 {
+		return "방관 수치와 가속 수치는 0 이상이어야 합니다."
+	}
+	if req.MeleeCritPct < 0 || req.MeleeCritPct > 100 || req.CasterCritPct < 0 || req.CasterCritPct > 100 {
+		return "치명타 확률은 0에서 100 사이여야 합니다."
+	}
+	if req.AttackTimeMS > 0 && req.AttackTimeMS < 500 {
+		return "기본 공격속도는 500ms 이상으로 설정해주세요."
+	}
+	if req.SpellIntervalMS > 0 && req.SpellIntervalMS < 500 {
+		return "주문 간격은 500ms 이상으로 설정해주세요."
+	}
+	if req.MoveSpeedRate > 0 && req.MoveSpeedRate < 0.1 {
+		return "이동속도는 0.1 이상으로 설정해주세요."
+	}
+	return ""
 }
 
 func soloArenaRewardRankLabel(value int, label string) string {
@@ -481,10 +600,14 @@ func handleTrialStageList(w http.ResponseWriter, r *http.Request) {
 	}
 	db, err := openSoloArenaWorldDB()
 	if err != nil {
-		http.Error(w, "?쒕젴 ?④퀎 DB ?곌껐???ㅽ뙣?덉뒿?덈떎.", http.StatusInternalServerError)
+		http.Error(w, "시련 단계 DB 연결에 실패했습니다.", http.StatusInternalServerError)
 		return
 	}
 	defer db.Close()
+	if err := ensureSoloArenaStageColumns(db); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
 	if page < 1 {
@@ -521,20 +644,38 @@ func handleTrialStageList(w http.ResponseWriter, r *http.Request) {
 	rows, err := db.Query(`
 		SELECT
 			s.stage_id,
-			IFNULL(s.name, CONCAT('?쒕젴 ', s.stage_id, '?④퀎')) AS name,
+			IFNULL(s.name, CONCAT('시련 ', s.stage_id, '단계')) AS name,
 			s.arena_map_id,
+			IFNULL(s.player_x, 0),
+			IFNULL(s.player_y, 0),
+			IFNULL(s.player_z, 0),
+			IFNULL(s.player_o, 0),
+			IFNULL(s.bot_x, 0),
+			IFNULL(s.bot_y, 0),
+			IFNULL(s.bot_z, 0),
+			IFNULL(s.bot_o, 0),
 			IFNULL(s.preparation_ms, 0),
 			IFNULL(s.health_multiplier, 1),
 			IFNULL(s.damage_multiplier, 1),
 			IFNULL(s.attack_time_ms, 0),
 			IFNULL(s.spell_interval_ms, 0),
 			IFNULL(s.move_speed_rate, 1),
+			IFNULL(s.melee_target_gs, 0),
+			IFNULL(s.melee_health, 0),
+			IFNULL(s.melee_attack_power, 0),
+			IFNULL(s.melee_crit_pct, 0),
+			IFNULL(s.melee_armor_pen_rating, 0),
+			IFNULL(s.caster_target_gs, 0),
+			IFNULL(s.caster_health, 0),
+			IFNULL(s.caster_spell_power, 0),
+			IFNULL(s.caster_crit_pct, 0),
+			IFNULL(s.caster_haste_rating, 0),
 			IFNULL(s.enabled, 0),
 			COUNT(r.id) AS reward_count
 		FROM solo_arena_stage s
 		LEFT JOIN solo_arena_stage_reward r ON r.stage_id = s.stage_id AND IFNULL(r.enabled, 1) = 1
 		WHERE `+where+`
-		GROUP BY s.stage_id, s.name, s.arena_map_id, s.preparation_ms, s.health_multiplier, s.damage_multiplier, s.attack_time_ms, s.spell_interval_ms, s.move_speed_rate, s.enabled
+		GROUP BY s.stage_id, s.name, s.arena_map_id, s.player_x, s.player_y, s.player_z, s.player_o, s.bot_x, s.bot_y, s.bot_z, s.bot_o, s.preparation_ms, s.health_multiplier, s.damage_multiplier, s.attack_time_ms, s.spell_interval_ms, s.move_speed_rate, s.melee_target_gs, s.melee_health, s.melee_attack_power, s.melee_crit_pct, s.melee_armor_pen_rating, s.caster_target_gs, s.caster_health, s.caster_spell_power, s.caster_crit_pct, s.caster_haste_rating, s.enabled
 		ORDER BY s.stage_id ASC
 		LIMIT ? OFFSET ?`, queryArgs...)
 	if err != nil {
@@ -546,7 +687,37 @@ func handleTrialStageList(w http.ResponseWriter, r *http.Request) {
 	items := make([]soloArenaStageRow, 0)
 	for rows.Next() {
 		var row soloArenaStageRow
-		if err := rows.Scan(&row.StageID, &row.Name, &row.ArenaMapID, &row.PreparationMS, &row.HealthMultiplier, &row.DamageMultiplier, &row.AttackTimeMS, &row.SpellIntervalMS, &row.MoveSpeedRate, &row.Enabled, &row.RewardCount); err == nil {
+		if err := rows.Scan(
+			&row.StageID,
+			&row.Name,
+			&row.ArenaMapID,
+			&row.PlayerX,
+			&row.PlayerY,
+			&row.PlayerZ,
+			&row.PlayerO,
+			&row.BotX,
+			&row.BotY,
+			&row.BotZ,
+			&row.BotO,
+			&row.PreparationMS,
+			&row.HealthMultiplier,
+			&row.DamageMultiplier,
+			&row.AttackTimeMS,
+			&row.SpellIntervalMS,
+			&row.MoveSpeedRate,
+			&row.MeleeTargetGS,
+			&row.MeleeHealth,
+			&row.MeleeAttackPower,
+			&row.MeleeCritPct,
+			&row.MeleeArmorPenRating,
+			&row.CasterTargetGS,
+			&row.CasterHealth,
+			&row.CasterSpellPower,
+			&row.CasterCritPct,
+			&row.CasterHasteRating,
+			&row.Enabled,
+			&row.RewardCount,
+		); err == nil {
 			items = append(items, row)
 		}
 	}
@@ -557,6 +728,149 @@ func handleTrialStageList(w http.ResponseWriter, r *http.Request) {
 		"total":      total,
 		"totalPages": (total + limit - 1) / limit,
 	})
+}
+
+func handleTrialStageDetail(w http.ResponseWriter, r *http.Request) {
+	if !CheckMenuPermission(w, r, "content") {
+		return
+	}
+	stageID, _ := strconv.Atoi(strings.TrimSpace(r.URL.Query().Get("stage_id")))
+	if stageID <= 0 {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "단계 번호가 올바르지 않습니다."})
+		return
+	}
+	db, err := openSoloArenaWorldDB()
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "시련 단계 정보를 불러오지 못했습니다."})
+		return
+	}
+	defer db.Close()
+	if err := ensureSoloArenaStageColumns(db); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": err.Error()})
+		return
+	}
+
+	var row soloArenaStageRow
+	err = db.QueryRow(`
+		SELECT
+			stage_id,
+			IFNULL(name, CONCAT('시련 ', stage_id, '단계')) AS name,
+			IFNULL(arena_map_id, 0),
+			IFNULL(player_x, 0),
+			IFNULL(player_y, 0),
+			IFNULL(player_z, 0),
+			IFNULL(player_o, 0),
+			IFNULL(bot_x, 0),
+			IFNULL(bot_y, 0),
+			IFNULL(bot_z, 0),
+			IFNULL(bot_o, 0),
+			IFNULL(preparation_ms, 0),
+			IFNULL(health_multiplier, 1),
+			IFNULL(damage_multiplier, 1),
+			IFNULL(attack_time_ms, 0),
+			IFNULL(spell_interval_ms, 0),
+			IFNULL(move_speed_rate, 1),
+			IFNULL(melee_target_gs, 0),
+			IFNULL(melee_health, 0),
+			IFNULL(melee_attack_power, 0),
+			IFNULL(melee_crit_pct, 0),
+			IFNULL(melee_armor_pen_rating, 0),
+			IFNULL(caster_target_gs, 0),
+			IFNULL(caster_health, 0),
+			IFNULL(caster_spell_power, 0),
+			IFNULL(caster_crit_pct, 0),
+			IFNULL(caster_haste_rating, 0),
+			IFNULL(enabled, 0)
+		FROM solo_arena_stage
+		WHERE stage_id = ?`, stageID).Scan(
+		&row.StageID, &row.Name, &row.ArenaMapID,
+		&row.PlayerX, &row.PlayerY, &row.PlayerZ, &row.PlayerO,
+		&row.BotX, &row.BotY, &row.BotZ, &row.BotO,
+		&row.PreparationMS, &row.HealthMultiplier, &row.DamageMultiplier,
+		&row.AttackTimeMS, &row.SpellIntervalMS, &row.MoveSpeedRate,
+		&row.MeleeTargetGS, &row.MeleeHealth, &row.MeleeAttackPower, &row.MeleeCritPct, &row.MeleeArmorPenRating,
+		&row.CasterTargetGS, &row.CasterHealth, &row.CasterSpellPower, &row.CasterCritPct, &row.CasterHasteRating,
+		&row.Enabled,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			writeJSON(w, http.StatusNotFound, map[string]string{"status": "error", "message": "단계를 찾을 수 없습니다."})
+			return
+		}
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, row)
+}
+
+func handleTrialStageSave(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"status": "error", "message": "잘못된 요청입니다."})
+		return
+	}
+	if !CheckMenuPermission(w, r, "content") {
+		return
+	}
+	var req soloArenaStageSaveRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "입력 값이 올바르지 않습니다."})
+		return
+	}
+	if msg := validateSoloArenaStage(&req); msg != "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": msg})
+		return
+	}
+
+	db, err := openSoloArenaWorldDB()
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "시련 단계 정보를 저장하지 못했습니다."})
+		return
+	}
+	defer db.Close()
+	if err := ensureSoloArenaStageColumns(db); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": err.Error()})
+		return
+	}
+
+	_, err = db.Exec(`
+		UPDATE solo_arena_stage
+		SET
+			name = ?,
+			arena_map_id = ?,
+			player_x = ?, player_y = ?, player_z = ?, player_o = ?,
+			bot_x = ?, bot_y = ?, bot_z = ?, bot_o = ?,
+			health_multiplier = ?,
+			damage_multiplier = ?,
+			attack_time_ms = ?,
+			spell_interval_ms = ?,
+			move_speed_rate = ?,
+			preparation_ms = ?,
+			melee_target_gs = ?,
+			melee_health = ?,
+			melee_attack_power = ?,
+			melee_crit_pct = ?,
+			melee_armor_pen_rating = ?,
+			caster_target_gs = ?,
+			caster_health = ?,
+			caster_spell_power = ?,
+			caster_crit_pct = ?,
+			caster_haste_rating = ?,
+			enabled = ?
+		WHERE stage_id = ?`,
+		strings.TrimSpace(req.Name), req.ArenaMapID,
+		req.PlayerX, req.PlayerY, req.PlayerZ, req.PlayerO,
+		req.BotX, req.BotY, req.BotZ, req.BotO,
+		req.HealthMultiplier, req.DamageMultiplier,
+		req.AttackTimeMS, req.SpellIntervalMS, req.MoveSpeedRate, req.PreparationMS,
+		req.MeleeTargetGS, req.MeleeHealth, req.MeleeAttackPower, req.MeleeCritPct, req.MeleeArmorPenRating,
+		req.CasterTargetGS, req.CasterHealth, req.CasterSpellPower, req.CasterCritPct, req.CasterHasteRating,
+		req.Enabled, req.StageID,
+	)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "success", "message": "시련 단계 능력치를 저장했습니다."})
 }
 
 func handleTrialStageRewards(w http.ResponseWriter, r *http.Request) {
