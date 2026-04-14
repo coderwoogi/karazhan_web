@@ -237,7 +237,7 @@ var GMManager = {
                 el.innerHTML = `
                     <div style="display:flex; justify-content:space-between; margin-bottom:8px; align-items:flex-start;">
                          <div style="font-weight:700; color:#1e293b; font-size:1rem;">${item.title}</div>
-                         <button onclick="GMManager.deleteEvent(${item.id})" style="border:none; background:none; cursor:pointer; color:#ef4444; opacity:0.6;" title="??젣" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.6">
+                         <button onclick="GMManager.deleteEvent(${item.id})" style="border:none; background:none; cursor:pointer; color:#ef4444; opacity:0.6;" title="삭제" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.6">
                             <i class="fas fa-trash"></i>
                          </button>
                     </div>
@@ -261,7 +261,7 @@ var GMManager = {
                              <button onclick="GMManager.toggleTodo(${item.id}, ${!item.is_completed})" style="border:none; background:none; cursor:pointer; color:${item.is_completed ? '#10b981' : '#cbd5e1'};" title="${item.is_completed ? '?꾨즺 痍⑥냼' : '?꾨즺 泥섎━'}">
                                 <i class="fas fa-check-circle fa-lg"></i>
                              </button>
-                             <button onclick="GMManager.deleteTodo(${item.id})" style="border:none; background:none; cursor:pointer; color:#ef4444; opacity:0.6;" title="??젣" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.6">
+                            <button onclick="GMManager.deleteTodo(${item.id})" style="border:none; background:none; cursor:pointer; color:#ef4444; opacity:0.6;" title="삭제" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.6">
                                 <i class="fas fa-trash"></i>
                              </button>
                         </div>
@@ -278,7 +278,7 @@ var GMManager = {
         const participants = document.getElementById('inline-todo-participants').value;
         const content = document.getElementById('inline-todo-content').value;
         
-        if (!content.trim()) return ModalUtils.showModalUtils.showAlert("일정 등록 실패");
+        if (!content.trim()) return ModalUtils.showAlert("업무 내용을 입력하세요.");
 
         fetch('/api/gm/todos/add', {
             method: 'POST',
@@ -296,7 +296,7 @@ var GMManager = {
         const endTime = document.getElementById('inline-event-end').value;
         const content = document.getElementById('inline-event-content').value;
 
-        if (!title.trim()) return ModalUtils.showModalUtils.showAlert("일정 등록 실패");
+        if (!title.trim()) return ModalUtils.showAlert("일정 제목을 입력하세요.");
 
         const payload = {
             title: title,
@@ -329,7 +329,7 @@ var GMManager = {
     },
 
     deleteEvent(id) {
-        ModalUtils.showConfirm("?뺣쭚 ???쇱젙????젣?섏떆寃좎뒿?덇퉴?", () => {
+        ModalUtils.showConfirm("정말로 이 일정을 삭제하시겠습니까?", () => {
              fetch('/api/gm/events/delete', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
@@ -348,7 +348,7 @@ var GMManager = {
     },
 
     deleteTodo(id) {
-        ModalUtils.showConfirm("??젣?섏떆寃좎뒿?덇퉴?", () => {
+        ModalUtils.showConfirm("정말로 이 할 일을 삭제하시겠습니까?", () => {
              fetch('/api/gm/todos/delete', {
                 method: 'POST',
                 body: JSON.stringify({ id: id })
@@ -369,27 +369,27 @@ var GMManager = {
         modal.className = 'modal active';
         modal.innerHTML = `
             <div class="modal-content" style="max-width:500px; padding:24px;">
-                <h3 style="margin-bottom:20px; font-size:1.25rem; color:#1e293b;"><i class="fas fa-calendar-plus"></i> ?낅Т 異붽? (${date})</h3>
+                <h3 style="margin-bottom:20px; font-size:1.25rem; color:#1e293b;"><i class="fas fa-calendar-plus"></i> 할 일 추가 (${date})</h3>
                 
                 <div style="display:flex; gap:15px; margin-bottom:15px;">
                     <div style="flex:1;">
-                        <label style="display:block; font-size:0.9rem; color:#64748b; margin-bottom:5px;">?묒꽦??/label>
-                        <input type="text" id="todo-author" class="input-premium" style="width:100%;" placeholder="?? GM ?띻만?? value="GM">
+                        <label style="display:block; font-size:0.9rem; color:#64748b; margin-bottom:5px;">작성자</label>
+                        <input type="text" id="todo-author" class="input-premium" style="width:100%;" placeholder="예: GM 팀장" value="GM">
                     </div>
                     <div style="flex:1;">
-                        <label style="display:block; font-size:0.9rem; color:#64748b; margin-bottom:5px;">李몄뿬??/label>
-                        <input type="text" id="todo-participants" class="input-premium" style="width:100%;" placeholder="?? 媛쒕컻?, 湲고쉷?">
+                        <label style="display:block; font-size:0.9rem; color:#64748b; margin-bottom:5px;">참여자</label>
+                        <input type="text" id="todo-participants" class="input-premium" style="width:100%;" placeholder="예: 개발자, 기획자">
                     </div>
                 </div>
                 
                 <div style="margin-bottom:24px;">
-                    <label style="display:block; font-size:0.9rem; color:#64748b; margin-bottom:5px;">?낅Т ?댁슜</label>
-                    <textarea id="todo-content" class="input-premium" style="width:100%; min-height:120px; resize:vertical;" placeholder="?낅Т ?댁슜???곸꽭???낅젰?섏꽭??"></textarea>
+                    <label style="display:block; font-size:0.9rem; color:#64748b; margin-bottom:5px;">업무 내용</label>
+                    <textarea id="todo-content" class="input-premium" style="width:100%; min-height:120px; resize:vertical;" placeholder="업무 내용을 자세히 입력하세요."></textarea>
                 </div>
                 
                 <div style="display:flex; justify-content:flex-end; gap:10px;">
                     <button class="btn-cancel" onclick="document.getElementById('gm-todo-modal').remove()">痍⑥냼</button>
-                    <button class="btn-primary" onclick="GMManager.submitTodo('${date}')">?깅줉?섍린</button>
+                    <button class="btn-primary" onclick="GMManager.submitTodo('${date}')">등록하기</button>
                 </div>
             </div>
         `;
@@ -402,7 +402,7 @@ var GMManager = {
         const participants = document.getElementById('todo-participants').value;
         const content = document.getElementById('todo-content').value;
 
-        if (!content.trim()) return ModalUtils.showModalUtils.showAlert("일정 등록 실패");
+        if (!content.trim()) return ModalUtils.showAlert("업무 내용을 입력하세요.");
 
         fetch('/api/gm/todos/add', {
             method: 'POST',
@@ -419,7 +419,7 @@ var GMManager = {
         })
         .catch(err => {
             console.error(err);
-            ModalUtils.showModalUtils.showAlert("일정 등록 실패");
+            ModalUtils.showAlert("할 일 등록에 실패했습니다.");
         });
     },
 
@@ -434,7 +434,7 @@ var GMManager = {
     },
 
     deleteTodo(id) {
-        ModalUtils.showConfirm("?뺣쭚 ???낅Т瑜???젣?섏떆寃좎뒿?덇퉴?", () => {
+        ModalUtils.showConfirm("정말로 이 할 일을 삭제하시겠습니까?", () => {
             fetch('/api/gm/todos/delete', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
@@ -452,8 +452,8 @@ var GMManager = {
                  <div style="background:var(--bg-deep); padding:2rem; border-radius:50%; margin-bottom:1.5rem;">
                      <i class="fas fa-cubes" style="font-size: 3rem; color:var(--primary-color);"></i>
                  </div>
-                 <h3 style="font-size:1.5rem; color:var(--text-primary); margin-bottom:0.5rem;">AzerothCore 紐⑤뱢 遺꾩꽍</h3>
-                 <p style="max-width:400px; text-align:center; line-height:1.6;">醫뚯륫 紐⑸줉?먯꽌 紐⑤뱢???좏깮?섏뿬 ?뚯씪 援ъ“, ?곗씠?곕쿋?댁뒪 ?ㅽ궎留? 洹몃━怨?愿??湲곕뒫??遺꾩꽍?????덉뒿?덈떎.</p>
+                 <h3 style="font-size:1.5rem; color:var(--text-primary); margin-bottom:0.5rem;">AzerothCore 모듈 분석</h3>
+                 <p style="max-width:400px; text-align:center; line-height:1.6;">좌측 목록에서 모듈을 선택하면 파일 구조, 데이터베이스 스키마, 그리고 관련 기능을 분석해 보여줍니다.</p>
             </div>
         `;
         this.renderModuleList();
@@ -469,7 +469,7 @@ var GMManager = {
         const filtered = this.modules.filter(m => m.name.toLowerCase().includes(searchTerm));
 
         if (filtered.length === 0) {
-            list.innerHTML = `<div style="padding:20px; text-align:center; color:var(--text-secondary); font-size:0.9rem;">寃??寃곌낵 ?놁쓬</div>`;
+            list.innerHTML = `<div style="padding:20px; text-align:center; color:var(--text-secondary); font-size:0.9rem;">검색 결과 없음</div>`;
             return;
         }
 
@@ -1815,15 +1815,15 @@ var GMManager = {
     // ... Modal and Action methods (Add, Delete, etc.) ...
     openAddMemoModal(moduleName = null) {
         const modal = document.getElementById('gm-action-modal');
-        document.getElementById('gm-modal-title').textContent = moduleName ? '紐⑤뱢 硫붾え ?묒꽦' : '??硫붾え ?묒꽦';
+        document.getElementById('gm-modal-title').textContent = moduleName ? '모듈 메모 작성' : '전체 메모 작성';
         document.getElementById('gm-modal-type').value = 'add_memo';
         document.getElementById('gm-modal-target-id').value = moduleName || '';
 
         const fields = document.getElementById('gm-modal-fields');
         fields.innerHTML = `
             <div class="form-group-premium">
-                <label class="label-premium">?댁슜</label>
-                <textarea id="gm-memo-content" class="input-premium" style="min-height:150px; resize:vertical; background:white;" placeholder="硫붾え ?댁슜???낅젰?섏꽭??.."></textarea>
+                <label class="label-premium">내용</label>
+                <textarea id="gm-memo-content" class="input-premium" style="min-height:150px; resize:vertical; background:white;" placeholder="메모 내용을 입력하세요."></textarea>
             </div>
         `;
 
@@ -1833,19 +1833,19 @@ var GMManager = {
 
     openLinkModal(moduleName, currentUrl, currentDesc) {
         const modal = document.getElementById('gm-action-modal');
-        document.getElementById('gm-modal-title').textContent = '紐⑤뱢 ?ㅼ젙';
+        document.getElementById('gm-modal-title').textContent = '모듈 설정';
         document.getElementById('gm-modal-type').value = 'edit_link';
         document.getElementById('gm-modal-target-id').value = moduleName;
 
         const fields = document.getElementById('gm-modal-fields');
         fields.innerHTML = `
             <div class="form-group-premium">
-                <label class="label-premium">湲곕뒫 諛붾줈媛湲?URL</label>
+                <label class="label-premium">기능 바로가기 URL</label>
                 <input type="text" id="gm-link-url" class="input-premium" value="${currentUrl}" placeholder="/content/blackmarket" style="background:white;">
-                <p style="font-size:0.75rem; color:#94a3b8; margin-top:4px;">?대떦 紐⑤뱢怨?愿?⑤맂 ????쓽 寃쎈줈瑜??낅젰?섏꽭??</p>
+                <p style="font-size:0.75rem; color:#94a3b8; margin-top:4px;">해당 모듈과 연결할 웹 화면의 경로를 입력하세요.</p>
             </div>
             <div class="form-group-premium">
-                <label class="label-premium">GM ?명듃 (異붽? ?ㅻ챸)</label>
+                <label class="label-premium">GM 노트 (추가 설명)</label>
                 <textarea id="gm-link-desc" class="input-premium" style="min-height:100px; background:white;">${currentDesc}</textarea>
             </div>
         `;
@@ -2095,7 +2095,7 @@ var GMManager = {
     },
 
     deleteMemo(id) {
-        ModalUtils.showConfirm('?뺣쭚 ??젣?섏떆寃좎뒿?덇퉴?', () => {
+        ModalUtils.showConfirm('정말로 이 메모를 삭제하시겠습니까?', () => {
             fetch('/api/gm/memos/delete', {
                 method: 'POST',
                 body: JSON.stringify({id: id})
@@ -2119,7 +2119,7 @@ function loadGMModules() {
         .then(data => {
             if (!Array.isArray(data)) {
                 console.error("Expected array but got:", data);
-                ModalUtils.showModalUtils.showAlert("일정 등록 실패");
+                ModalUtils.showAlert("모듈 목록을 불러오지 못했습니다.");
                 return;
             }
             GMManager.modules = data;
