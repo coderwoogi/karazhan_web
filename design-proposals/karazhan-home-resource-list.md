@@ -8,9 +8,9 @@
 
 | ID | 요소 | 현재 HTML 반영 방식 | 권장 생성 이미지 방향 |
 | --- | --- | --- | --- |
-| `hero-bg` | 메인 히어로 배경 | `./assets/karazhan-purple-web-bg.png` + 보라 안개 오버레이 + 성채 실루엣 CSS | 보랏빛 밤하늘, 고딕 성채, 마력 균열, 어두운 숲, 와이드 16:9 |
-| `hero-left-figure` | 좌측 인물 분위기 | CSS 마법 구체와 그림자 레이어 | 어둠 속 로브 마법사 실루엣, 손에 보라색 마력 구체, 로고/문자 없음 |
-| `hero-party` | 하단 모험가 실루엣 | CSS 실루엣 4개 | 전사/마법사/도적/사냥꾼 실루엣, 역광, 배경 투명 또는 어두운 톤 |
+| `hero-bg` | 메인 히어로 배경 | `./assets/karazhan-purple-web-bg.png` 직접 노출 + 하단 최소 그라데이션 | 보랏빛 밤하늘, 고딕 성채, 마력 균열, 어두운 숲, 와이드 16:9 |
+| `hero-left-figure` | 좌측 인물 분위기 | 제공 배경 이미지에 포함된 요소를 그대로 사용 | 어둠 속 로브 마법사 실루엣, 손에 보라색 마력 구체, 로고/문자 없음 |
+| `hero-party` | 하단 모험가 실루엣 | 제공 배경 이미지에 포함된 요소를 그대로 사용 | 전사/마법사/도적/사냥꾼 실루엣, 역광, 배경 투명 또는 어두운 톤 |
 | `server-panel` | 서버 상태 패널 | 금장 테두리, 코너 장식, 보라 그라데이션 CSS | 어두운 판타지 금속 패널, 금장 모서리, 중앙 텍스트 영역 비워두기 |
 | `challenge-trial` | 그림자 시련 카드 | `../img/shop_bg.jpg` + 어두운 오버레이 | 보라빛 던전 입구, 그림자 괴물 실루엣, 카드 배너형 |
 | `challenge-enhance` | 장비 강화 카드 | `../img/carddraw.png` + 어두운 오버레이 | 마법 강화대, 보라색 룬, 장비 아이콘 배치 가능한 빈 영역 |
@@ -62,5 +62,6 @@ Constraints: no text, no logo, no watermark
 
 - 현재 시안 파일: `design-proposals/karazhan-home-purple-citadel.html`
 - 현재 히어로 배경: `design-proposals/assets/karazhan-purple-web-bg.png`
+- 배경을 가리지 않도록 히어로의 추가 CSS 장식 레이어는 제거했습니다.
 - 실제 서비스 파일은 수정하지 않았습니다.
 - 추후 생성 이미지가 준비되면 CSS의 `background` 경로만 교체하면 됩니다.
