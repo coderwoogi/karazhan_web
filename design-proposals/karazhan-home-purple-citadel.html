@@ -165,7 +165,8 @@
       border-bottom: 1px solid var(--line);
       background:
         linear-gradient(180deg, transparent 0%, transparent 70%, rgba(7, 7, 13, 0.5) 100%),
-        url("./assets/karazhan-purple-web-bg.png") top center / cover no-repeat;
+        url("./assets/karazhan-purple-web-bg.png") top center / contain no-repeat;
+      background-color: #05050a;
       isolation: isolate;
     }
 
@@ -829,7 +830,7 @@
 
       .hero {
         min-height: 720px;
-        background-size: auto 720px;
+        background-size: contain;
       }
 
       h1 {
