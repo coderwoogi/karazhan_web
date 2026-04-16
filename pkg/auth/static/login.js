@@ -54,19 +54,6 @@
             });
 
             if (response.ok) {
-                try {
-                    const status = await fetch('/api/user/status', {
-                        headers: { 'X-Background-Request': '1' }
-                    });
-                    if (status.ok) {
-                        const user = await status.json();
-                        const isAdmin = Number(user.webRank || 0) > 0 || Number(user.gmLevel || 0) > 0;
-                        location.replace(isAdmin ? '/admin/' : '/');
-                        return;
-                    }
-                } catch (statusErr) {
-                    console.warn('로그인 후 권한 확인에 실패했습니다.', statusErr);
-                }
                 location.replace('/');
                 return;
             }
