@@ -7,15 +7,22 @@ import (
 )
 
 func RegisterRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("/home/", func(w http.ResponseWriter, r *http.Request) {
-		cookie, err := r.Cookie("session_user")
-		if err != nil || cookie.Value == "" {
-			http.Redirect(w, r, "/", http.StatusFound)
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/home/" {
+			http.Redirect(w, r, "/", http.StatusMovedPermanently)
+			return
+		}
+		if r.URL.Path != "/" {
+			http.FileServer(http.Dir("./pkg/home/static")).ServeHTTP(w, r)
 			return
 		}
 
-		fs := http.FileServer(http.Dir("./pkg/home/static"))
-		http.StripPrefix("/home/", fs).ServeHTTP(w, r)
+		w.Header().Set("Cache-Control", "no-cache")
+		http.ServeFile(w, r, "./pkg/home/static/index.html")
+	})
+
+	mux.HandleFunc("/home/", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/", http.StatusMovedPermanently)
 	})
 
 	// Icon Proxy

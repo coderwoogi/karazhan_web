@@ -3,13 +3,14 @@ package main
 import (
 	"flag"
 	"fmt"
+	"karazhan/pkg/admin"
 	"karazhan/pkg/auth"
 	"karazhan/pkg/board"
 	"karazhan/pkg/config"
 	"karazhan/pkg/gm"
 	"karazhan/pkg/home"
-	"karazhan/pkg/instancebonus"
 	"karazhan/pkg/inspect"
+	"karazhan/pkg/instancebonus"
 	"karazhan/pkg/launcher"
 	"karazhan/pkg/notification"
 	"karazhan/pkg/shopweb"
@@ -35,6 +36,7 @@ func main() {
 
 	// Register Services
 	auth.RegisterRoutes(mux)
+	admin.RegisterRoutes(mux)
 	home.RegisterRoutes(mux)
 	launcher.RegisterRoutes(mux)
 	update.RegisterRoutes(mux)

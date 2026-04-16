@@ -25,25 +25,27 @@ const (
 )
 
 func RegisterRoutes(mux *http.ServeMux) {
-	// Root handler: redirect to /home/ if already logged in
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/" {
-			http.FileServer(http.Dir("./pkg/auth/static")).ServeHTTP(w, r)
-			return
-		}
-
-		cookie, err := r.Cookie("session_user")
-		if err == nil && cookie.Value != "" {
-			http.Redirect(w, r, "/home/", http.StatusFound)
-			return
-		}
-
-		// Prevent Caching
+	mux.HandleFunc("/login/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
 		w.Header().Set("Pragma", "no-cache")
 		w.Header().Set("Expires", "0")
 
-		http.ServeFile(w, r, "./pkg/auth/static/index.html")
+		if r.URL.Path == "/login/" {
+			http.ServeFile(w, r, "./pkg/auth/static/index.html")
+			return
+		}
+
+		http.StripPrefix("/login/", http.FileServer(http.Dir("./pkg/auth/static"))).ServeHTTP(w, r)
+	})
+	mux.HandleFunc("/register/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/register/" {
+			http.ServeFile(w, r, "./pkg/auth/static/register.html")
+			return
+		}
+		http.StripPrefix("/register/", http.FileServer(http.Dir("./pkg/auth/static"))).ServeHTTP(w, r)
+	})
+	mux.HandleFunc("/register.html", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/register/", http.StatusMovedPermanently)
 	})
 
 	mux.HandleFunc("/api/login", loginHandler)

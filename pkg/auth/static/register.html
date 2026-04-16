@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ko">
 
 <head>
@@ -37,7 +37,7 @@
                 </div>
                 <button type="submit" class="login-btn">가입하기</button>
                 <div style="text-align: center; margin-top: 15px;">
-                    <a href="index.html" style="color: #6366f1; text-decoration: none; font-size: 0.9rem;">이미 계정이 있으신가요?
+                    <a href="/login/" style="color: #6366f1; text-decoration: none; font-size: 0.9rem;">이미 계정이 있으신가요?
                         로그인</a>
                 </div>
             </form>
@@ -52,7 +52,7 @@
             <h2>회원가입을 축하합니다!</h2>
             <p>카라잔의 새로운 모험가가 되신 것을 환영합니다.<br>지금 바로 로그인하여 게임을 즐겨보세요.</p>
             <div class="user-id-badge" id="displayUsername">USERNAME</div>
-            <a href="index.html" class="go-home-btn">로그인하러 가기</a>
+            <a href="/login/" class="go-home-btn">로그인하러 가기</a>
         </div>
     </div>
 
@@ -101,7 +101,7 @@
 
                     // Update login link with username parameter
                     const loginBtn = overlay.querySelector('.go-home-btn');
-                    loginBtn.href = `index.html?username=${encodeURIComponent(username)}`;
+                    loginBtn.href = `/login/?username=${encodeURIComponent(username)}`;
 
                     overlay.classList.add('active');
 
@@ -156,3 +156,4 @@
 </body>
 
 </html>
+
