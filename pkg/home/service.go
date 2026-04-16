@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"karazhan/pkg/config"
 	"net/http"
+	"strings"
 )
 
 func RegisterRoutes(mux *http.ServeMux) {
@@ -25,6 +26,17 @@ func RegisterRoutes(mux *http.ServeMux) {
 
 	mux.HandleFunc("/home/", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/", http.StatusMovedPermanently)
+	})
+
+	mux.HandleFunc("/user/", func(w http.ResponseWriter, r *http.Request) {
+		cookie, err := r.Cookie("session_user")
+		if err != nil || strings.TrimSpace(cookie.Value) == "" {
+			http.Redirect(w, r, "/login/", http.StatusFound)
+			return
+		}
+
+		fs := http.FileServer(http.Dir("./pkg/admin/static"))
+		http.StripPrefix("/user/", fs).ServeHTTP(w, r)
 	})
 
 	// Icon Proxy

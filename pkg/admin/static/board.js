@@ -2206,6 +2206,26 @@ function applySidebarContentMenuOrder(orderedIDs) {
 }
 window.applySidebarContentMenuOrder = applySidebarContentMenuOrder;
 
+async function openBoardFromQuery() {
+    try {
+        const params = new URLSearchParams(window.location.search || '');
+        const boardId = String(params.get('board') || '').trim();
+        if (!boardId) return;
+        if (typeof openBoard !== 'function') return;
+        await openBoard(boardId, { trackHistory: false });
+        const boardTitle = document.getElementById('board-title');
+        if (boardTitle && g_boards && g_boards[boardId]) {
+            boardTitle.textContent = g_boards[boardId].name;
+        }
+    } catch (e) {
+        console.error('Failed to open board from query:', e);
+    }
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+    setTimeout(openBoardFromQuery, 450);
+});
+
 async function loadSidebarContentMenuOrder() {
     try {
         const res = await fetch('/api/admin/menu-order/list');

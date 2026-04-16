@@ -36,8 +36,44 @@
     if (!wrap || !Array.isArray(nav)) return;
     wrap.innerHTML = nav
       .filter((item) => item && item.label && item.url)
-      .map((item) => `<a href="${escapeAttr(item.url)}">${escapeHtml(item.label)}</a>`)
+      .map((item) => {
+        if (item.label === '공지사항') {
+          return `
+            <span class="nav-dropdown">
+              <a href="${escapeAttr(item.url)}">${escapeHtml(item.label)}</a>
+              <span class="board-dropdown-menu" id="public-board-menu">
+                <a href="/user/">게시판 불러오는 중...</a>
+              </span>
+            </span>
+          `;
+        }
+        return `<a href="${escapeAttr(item.url)}">${escapeHtml(item.label)}</a>`;
+      })
       .join('');
+    loadBoardMenu();
+  }
+
+  async function loadBoardMenu() {
+    const menu = document.getElementById('public-board-menu');
+    if (!menu) return;
+    try {
+      const res = await fetch('/api/board/list', { headers: { 'X-Background-Request': '1' } });
+      if (!res.ok) throw new Error('게시판 목록을 불러오지 못했습니다.');
+      const boards = await res.json();
+      const userBoards = Array.isArray(boards)
+        ? boards.filter((board) => board && board.id && board.name && Number(board.min_web_read || 0) <= 0)
+        : [];
+      if (userBoards.length === 0) {
+        menu.innerHTML = '<a href="/user/">게시판</a>';
+        return;
+      }
+      menu.innerHTML = userBoards
+        .map((board) => `<a href="/user/?board=${encodeURIComponent(board.id)}">${escapeHtml(board.name)}</a>`)
+        .join('');
+    } catch (err) {
+      console.warn('[public-home] 게시판 메뉴를 기본값으로 표시합니다.', err);
+      menu.innerHTML = '<a href="/user/">게시판</a>';
+    }
   }
 
   function applyCards(cards) {
