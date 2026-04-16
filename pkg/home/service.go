@@ -7,6 +7,8 @@ import (
 )
 
 func RegisterRoutes(mux *http.ServeMux) {
+	mux.HandleFunc("/api/public/home", handlePublicHomeSettings)
+
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/home/" {
 			http.Redirect(w, r, "/", http.StatusMovedPermanently)

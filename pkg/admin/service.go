@@ -11,6 +11,8 @@ import (
 )
 
 func RegisterRoutes(mux *http.ServeMux) {
+	registerHomeSettingsRoutes(mux)
+
 	mux.HandleFunc("/admin/", func(w http.ResponseWriter, r *http.Request) {
 		if !isAdminRequest(r) {
 			if _, err := r.Cookie("session_user"); err != nil {

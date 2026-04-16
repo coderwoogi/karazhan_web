@@ -103,7 +103,7 @@ func RegisterRoutes(mux *http.ServeMux) {
 	serveStatic := func(w http.ResponseWriter, r *http.Request, strip string) {
 		cookie, err := r.Cookie("session_user")
 		if err != nil || strings.TrimSpace(cookie.Value) == "" {
-			http.Redirect(w, r, "/", http.StatusFound)
+			http.Redirect(w, r, "/login/", http.StatusFound)
 			return
 		}
 		fs := http.FileServer(http.Dir("./pkg/wowpass/static"))

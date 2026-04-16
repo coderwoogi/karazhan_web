@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>유저 화면 관리</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --panel-2: #172033;
+      --line: rgba(255,255,255,.1);
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --accent: #8b5cf6;
+      --gold: #e6c174;
+      --danger: #ef4444;
+      --ok: #22c55e;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--text);
+      background: radial-gradient(circle at top left, rgba(139,92,246,.22), transparent 34%), var(--bg);
+      font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+    }
+    .wrap { width: min(1180px, calc(100% - 32px)); margin: 0 auto; padding: 28px 0 40px; }
+    .top { display: flex; justify-content: space-between; gap: 16px; align-items: center; margin-bottom: 20px; }
+    h1 { margin: 0; font-size: 28px; color: var(--gold); }
+    p { color: var(--muted); line-height: 1.6; }
+    .btns { display: flex; flex-wrap: wrap; gap: 10px; }
+    button, .link {
+      border: 1px solid rgba(230,193,116,.38);
+      background: linear-gradient(180deg, rgba(139,92,246,.95), rgba(76,29,149,.95));
+      color: white;
+      min-height: 38px;
+      border-radius: 8px;
+      padding: 0 14px;
+      font-weight: 800;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+    }
+    button.secondary, .link.secondary { background: rgba(255,255,255,.06); }
+    button.danger { background: rgba(239,68,68,.2); border-color: rgba(239,68,68,.45); }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    .panel { border: 1px solid var(--line); background: rgba(17,24,39,.88); border-radius: 16px; padding: 18px; box-shadow: 0 20px 54px rgba(0,0,0,.25); }
+    .panel h2 { margin: 0 0 14px; font-size: 18px; color: #f8e1a6; }
+    label { display: block; margin: 12px 0 6px; color: #cbd5e1; font-weight: 800; font-size: 13px; }
+    input, textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: rgba(2,6,23,.52);
+      color: var(--text);
+      padding: 11px 12px;
+      font: inherit;
+    }
+    textarea { min-height: 108px; resize: vertical; }
+    .rows { display: grid; gap: 10px; }
+    .row { display: grid; grid-template-columns: 1fr 1.2fr auto; gap: 8px; align-items: end; padding: 10px; border: 1px solid var(--line); border-radius: 12px; background: rgba(255,255,255,.03); }
+    .card-row { grid-template-columns: 1fr 1.4fr 1.2fr 1fr auto; }
+    .meta { font-size: 13px; color: var(--muted); }
+    .status { padding: 10px 12px; border-radius: 10px; background: rgba(255,255,255,.05); color: var(--muted); margin: 12px 0; }
+    .status.ok { color: #bbf7d0; background: rgba(34,197,94,.12); }
+    .status.err { color: #fecaca; background: rgba(239,68,68,.12); }
+    iframe { width: 100%; height: 520px; border: 1px solid var(--line); border-radius: 16px; background: #05050a; }
+    @media (max-width: 980px) {
+      .grid { grid-template-columns: 1fr; }
+      .row, .card-row { grid-template-columns: 1fr; }
+      .top { align-items: flex-start; flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <h1>유저 화면 관리</h1>
+        <p>공개 메인 화면의 로고, 배경, 문구, 상단 메뉴, 도전 카드를 관리합니다. 임시 저장은 관리자 화면에만 보관되고, 운영 반영을 눌러야 유저 화면에 적용됩니다.</p>
+      </div>
+      <div class="btns">
+        <a class="link secondary" href="/admin/">관리자 홈</a>
+        <a class="link secondary" href="/" target="_blank">유저 화면 보기</a>
+        <button type="button" onclick="loadSettings()">새로고침</button>
+      </div>
+    </div>
+
+    <div id="status" class="status">설정을 불러오는 중입니다.</div>
+
+    <div class="grid">
+      <section class="panel">
+        <h2>기본/히어로</h2>
+        <label>로고 경로</label>
+        <input id="logo" placeholder="/img/wowlogo_white.png" />
+        <label>배경 이미지 경로</label>
+        <input id="heroBackground" placeholder="/img/karazhan-purple-web-bg-wide.jpeg" />
+        <label>상단 짧은 문구</label>
+        <input id="heroEyebrow" />
+        <label>큰 제목</label>
+        <input id="heroTitle" />
+        <label>부제목</label>
+        <input id="heroSubtitle" />
+        <label>소개 문구</label>
+        <textarea id="heroDescription"></textarea>
+      </section>
+
+      <section class="panel">
+        <h2>배포 상태</h2>
+        <div class="meta" id="publishedMeta">운영 반영 정보 없음</div>
+        <div class="meta" id="draftMeta" style="margin-top:8px;">임시 저장 정보 없음</div>
+        <div class="btns" style="margin-top:18px;">
+          <button type="button" onclick="saveDraft()">임시 저장</button>
+          <button type="button" onclick="publish()">운영 반영</button>
+          <button class="secondary" type="button" onclick="resetDefault()">기본값 불러오기</button>
+        </div>
+        <p>운영 반영 시 기존 운영 버전은 보관 처리되고, 새 버전이 `/api/public/home`을 통해 유저 화면에 노출됩니다.</p>
+      </section>
+    </div>
+
+    <section class="panel" style="margin-top:18px;">
+      <h2>상단 메뉴</h2>
+      <div id="navRows" class="rows"></div>
+      <div class="btns" style="margin-top:12px;">
+        <button class="secondary" type="button" onclick="addNav()">메뉴 추가</button>
+      </div>
+    </section>
+
+    <section class="panel" style="margin-top:18px;">
+      <h2>도전 카드</h2>
+      <div id="cardRows" class="rows"></div>
+      <div class="btns" style="margin-top:12px;">
+        <button class="secondary" type="button" onclick="addCard()">카드 추가</button>
+      </div>
+    </section>
+
+    <section class="panel" style="margin-top:18px;">
+      <h2>미리보기</h2>
+      <p>현재 운영 반영된 유저 화면을 확인합니다. 임시 저장만 한 내용은 아직 반영되지 않습니다.</p>
+      <iframe src="/"></iframe>
+    </section>
+  </div>
+
+  <script src="home-manager.js?v=1"></script>
+</body>
+</html>
