@@ -25,7 +25,7 @@
         }
         body {
             min-height: 100vh;
-            background: #05070f url('/img/shop_bg.jpg') center center / cover no-repeat fixed;
+            background: #05070f url('/img/pub.png?v=20260416_1') center center / cover no-repeat fixed;
         }
         body::before {
             content: "";
@@ -288,9 +288,25 @@
             color: #000000;
             border: 1px solid rgba(120, 94, 17, 0.65);
         }
+        .shop-page-wrap .btn.btn-primary,
+        .shop-page-wrap .btn.coin-market-btn,
+        .shop-page-wrap .btn.shop-table-cancel-btn,
+        .shop-page-wrap .btn.shop-table-action-btn {
+            background: #ada292 !important;
+            color: #000000 !important;
+            border: 1px solid rgba(120, 94, 17, 0.65) !important;
+            box-shadow: 0 0 0 1px rgba(120, 94, 17, 0.35) inset;
+        }
         .shop-page-wrap .btn:hover {
             background: #9c917f;
             color: #000000;
+        }
+        .shop-page-wrap .btn.btn-primary:hover,
+        .shop-page-wrap .btn.coin-market-btn:hover,
+        .shop-page-wrap .btn.shop-table-cancel-btn:hover,
+        .shop-page-wrap .btn.shop-table-action-btn:hover {
+            background: #9c917f !important;
+            color: #000000 !important;
         }
         .shop-page-wrap .btn i {
             color: #000000 !important;
@@ -311,6 +327,19 @@
             background: #9c917f !important;
             color: #000000 !important;
             border-color: rgba(120, 94, 17, 0.85) !important;
+        }
+        #shop-coin-market-body tr {
+            height: 58px;
+        }
+        #shop-coin-market-body .shop-table-placeholder-row {
+            pointer-events: none;
+        }
+        #shop-coin-market-body .shop-table-placeholder-row td {
+            color: transparent !important;
+            user-select: none;
+        }
+        #shop-coin-market-body .shop-table-empty-row td {
+            height: 58px;
         }
             .shop-store-layout {
             display: grid;
@@ -625,7 +654,7 @@
                         <label>코인시장</label>
                         <div style="font-size:0.85rem; color:var(--text-secondary);">골드 판매는 모달에서 등록합니다.</div>
                     </div>
-                    <button class="btn btn-primary" onclick="openShopCoinSellModal()"><i class="fas fa-plus"></i> 판매 등록</button>
+                    <button class="btn btn-primary coin-market-btn" onclick="openShopCoinSellModal()"><i class="fas fa-plus"></i> 판매 등록</button>
                     <button class="refresh-btn" onclick="loadShopCoinMarketPage()"><i class="fas fa-undo"></i> 새로고침</button>
                 </div>
                 <div class="scroll-table premium-table" style="margin-bottom:1rem;">
@@ -686,5 +715,3 @@
 <script src="/shop/shoppage.js?v=20260306_1"></script>
 </body>
 </html>
-
-

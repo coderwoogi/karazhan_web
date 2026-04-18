@@ -366,6 +366,8 @@ func RegisterRoutes(mux *http.ServeMux) {
 
 	// Comment management
 	mux.HandleFunc("/api/board/comment/create", CreateCommentHandler)
+	mux.HandleFunc("/api/board/comment/update", UpdateCommentHandler)
+	mux.HandleFunc("/api/board/comment/delete", DeleteCommentHandler)
 	mux.HandleFunc("/api/board/inquiry/message/create", CreateInquiryMessageHandler)
 	mux.HandleFunc("/api/board/inquiry/memo", UpdateInquiryMemoHandler)
 	mux.HandleFunc("/api/board/promotion/admin/list", GetPromotionAdminListHandler)
@@ -2836,6 +2838,104 @@ func CreateCommentHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, `{"status":"success"}`)
 }
 
+func UpdateCommentHandler(w http.ResponseWriter, r *http.Request) {
+	user, err := getUserInfo(r)
+	if err != nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req struct {
+		ID      int    `json:"id"`
+		Content string `json:"content"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+	req.Content = strings.TrimSpace(req.Content)
+	if req.ID <= 0 || req.Content == "" {
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+
+	db, err := openUpdateDB()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer db.Close()
+
+	var authorID int
+	if err := db.QueryRow("SELECT account_id FROM web_comments WHERE id = ?", req.ID).Scan(&authorID); err != nil {
+		http.Error(w, "Comment not found", http.StatusNotFound)
+		return
+	}
+
+	isAdmin := user.WebRank >= 2 || user.GMLevel > 0
+	if !isAdmin && user.AccountID != authorID {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
+	if _, err := db.Exec("UPDATE web_comments SET content = ? WHERE id = ?", req.Content, req.ID); err != nil {
+		http.Error(w, "Failed to update comment", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]string{"status": "success"})
+}
+
+func DeleteCommentHandler(w http.ResponseWriter, r *http.Request) {
+	user, err := getUserInfo(r)
+	if err != nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	commentID, _ := strconv.Atoi(strings.TrimSpace(r.URL.Query().Get("id")))
+	if commentID <= 0 {
+		http.Error(w, "Invalid comment ID", http.StatusBadRequest)
+		return
+	}
+
+	db, err := openUpdateDB()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer db.Close()
+
+	var authorID int
+	if err := db.QueryRow("SELECT account_id FROM web_comments WHERE id = ?", commentID).Scan(&authorID); err != nil {
+		http.Error(w, "Comment not found", http.StatusNotFound)
+		return
+	}
+
+	isAdmin := user.WebRank >= 2 || user.GMLevel > 0
+	if !isAdmin && user.AccountID != authorID {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
+	if _, err := db.Exec("DELETE FROM web_comments WHERE id = ? OR parent_id = ?", commentID, commentID); err != nil {
+		http.Error(w, "Failed to delete comment", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]string{"status": "success"})
+}
+
 func AdminCreateBoardHandler(w http.ResponseWriter, r *http.Request) {
 	user, err := getUserInfo(r)
 	if err != nil || user.WebRank < 2 {
@@ -2857,7 +2957,7 @@ func AdminCreateBoardHandler(w http.ResponseWriter, r *http.Request) {
 	defer db.Close()
 
 	_, err = db.Exec(
-		"INSERT INTO web_boards (id, name, min_web_read, min_web_write, allow_attachments, allow_rich_editor, allow_emoji, allow_nested_comments, type) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+		"INSERT INTO web_boards (id, name, min_web_read, min_web_write, allow_attachments, allow_rich_editor, allow_emoji, allow_nested_comments, type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
 		b.ID, b.Name, b.MinWebRead, b.MinWebWrite, b.AllowAttachments, b.AllowRichEditor, b.AllowEmoji, b.AllowNestedComments, b.Type,
 	)
 	if err != nil {

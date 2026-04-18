@@ -10,6 +10,15 @@ import (
 func RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/public/home", handlePublicHomeSettings)
 
+	mux.HandleFunc("/react-home/", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "./frontend/dist/index.html")
+	})
+
+	mux.HandleFunc("/legacy-home/", func(w http.ResponseWriter, r *http.Request) {
+		fs := http.FileServer(http.Dir("./pkg/home/static"))
+		http.StripPrefix("/legacy-home/", fs).ServeHTTP(w, r)
+	})
+
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/home/" {
 			http.Redirect(w, r, "/", http.StatusMovedPermanently)
@@ -21,11 +30,17 @@ func RegisterRoutes(mux *http.ServeMux) {
 		}
 
 		w.Header().Set("Cache-Control", "no-cache")
-		http.ServeFile(w, r, "./pkg/home/static/index.html")
+		http.ServeFile(w, r, "./frontend/dist/index.html")
 	})
 
 	mux.HandleFunc("/home/", func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/", http.StatusMovedPermanently)
+		if r.URL.Path == "/home/" {
+			http.Redirect(w, r, "/", http.StatusMovedPermanently)
+			return
+		}
+
+		fs := http.FileServer(http.Dir("./pkg/admin/static"))
+		http.StripPrefix("/home/", fs).ServeHTTP(w, r)
 	})
 
 	mux.HandleFunc("/user/", func(w http.ResponseWriter, r *http.Request) {
@@ -39,7 +54,6 @@ func RegisterRoutes(mux *http.ServeMux) {
 		http.StripPrefix("/user/", fs).ServeHTTP(w, r)
 	})
 
-	// Icon Proxy
 	mux.HandleFunc("/api/external/item_icon", handleItemIcon)
 	mux.HandleFunc("/api/meta/environment", func(w http.ResponseWriter, r *http.Request) {
 		env := config.RequestEnv(r)

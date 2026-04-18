@@ -11,6 +11,7 @@ let g_shopCoinPage = 1;
 const g_shopMyOrdersByTarget = {};
 const g_shopMyOrdersPageByTarget = {};
 const SHOP_TABLE_PAGE_SIZE = 10;
+const SHOP_COIN_TABLE_PAGE_SIZE = 20;
 const SHOP_ICON_BORDER_URL = '/img/default.png';
 const SHOP_POINT_ICON_URL = '/img/web_point.png';
 const SHOP_GOLD_ICON_URL = '/img/money-gold.png';
@@ -272,15 +273,31 @@ function renderShopCoinMarketPage(page = 1) {
     if (!tbody) return;
     g_shopCoinPage = Math.max(1, page);
     if (!g_shopCoinListings.length) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:1.2rem;">등록된 판매글이 없습니다.</td></tr>';
+        const emptyRows = Array.from({ length: SHOP_COIN_TABLE_PAGE_SIZE }, () => `
+            <tr class="shop-table-placeholder-row" aria-hidden="true">
+                <td>&nbsp;</td>
+                <td>&nbsp;</td>
+                <td>&nbsp;</td>
+                <td>&nbsp;</td>
+                <td>&nbsp;</td>
+                <td>&nbsp;</td>
+                <td>&nbsp;</td>
+            </tr>
+        `).join('');
+        tbody.innerHTML = `
+            <tr class="shop-table-empty-row">
+                <td colspan="7" style="text-align:center; padding:1.2rem;">등록된 판매글이 없습니다.</td>
+            </tr>
+            ${emptyRows}
+        `;
         if (pg) pg.innerHTML = '';
         return;
     }
-    const start = (g_shopCoinPage - 1) * SHOP_TABLE_PAGE_SIZE;
-    const rows = g_shopCoinListings.slice(start, start + SHOP_TABLE_PAGE_SIZE);
+    const start = (g_shopCoinPage - 1) * SHOP_COIN_TABLE_PAGE_SIZE;
+    const rows = g_shopCoinListings.slice(start, start + SHOP_COIN_TABLE_PAGE_SIZE);
     const totalCount = g_shopCoinListings.length;
     const currentUserId = Number(window.g_sessionUser?.id || 0);
-    tbody.innerHTML = rows.map((row, idx) => {
+    const renderedRows = rows.map((row, idx) => {
         const rowNo = totalCount - (start + idx);
         const sellerId = Number(row.seller_user_id || 0);
         const isMine = currentUserId > 0 && currentUserId === sellerId;
@@ -321,10 +338,22 @@ function renderShopCoinMarketPage(page = 1) {
             </tr>
         `;
     }).join('');
+    const fillerRows = Array.from({ length: Math.max(0, SHOP_COIN_TABLE_PAGE_SIZE - rows.length) }, () => `
+        <tr class="shop-table-placeholder-row" aria-hidden="true">
+            <td>&nbsp;</td>
+            <td>&nbsp;</td>
+            <td>&nbsp;</td>
+            <td>&nbsp;</td>
+            <td>&nbsp;</td>
+            <td>&nbsp;</td>
+            <td>&nbsp;</td>
+        </tr>
+    `).join('');
+    tbody.innerHTML = renderedRows + fillerRows;
     if (pg && typeof renderPagination === 'function') {
         renderPagination(pg, {
             page: g_shopCoinPage,
-            totalPages: Math.max(1, Math.ceil(g_shopCoinListings.length / SHOP_TABLE_PAGE_SIZE))
+            totalPages: Math.max(1, Math.ceil(g_shopCoinListings.length / SHOP_COIN_TABLE_PAGE_SIZE))
         }, (p) => renderShopCoinMarketPage(p));
     }
 }

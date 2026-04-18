@@ -395,8 +395,9 @@ func handleAnnounce(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleWorldCommand(w http.ResponseWriter, r *http.Request) {
-	// Allow internal callers from same app (e.g. shop purchase flow) without remote-control menu permission.
-	internalCall := strings.EqualFold(strings.TrimSpace(r.Header.Get("X-Internal-Caller")), "shop")
+	// Allow specific internal callers from same app without remote-control menu permission.
+	internalCaller := strings.TrimSpace(r.Header.Get("X-Internal-Caller"))
+	internalCall := strings.EqualFold(internalCaller, "shop") || strings.EqualFold(internalCaller, "soloarena") || strings.EqualFold(internalCaller, "auction")
 	if !internalCall {
 		if !stats.CheckMenuPermission(w, r, "remote-control", "submenu") {
 			return
@@ -1007,6 +1008,26 @@ func getLatestLauncher(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 			finalData[col] = string(b)
 		} else {
 			finalData[col] = val
+		}
+	}
+
+	var latestVersion, latestFile, latestMd5 string
+	var latestDate any
+	if err := db.QueryRow(
+		"SELECT `version`, `file`, `md5`, `date` FROM `update` WHERE `file_type`='launcher' ORDER BY `date` DESC, `no` DESC LIMIT 1",
+	).Scan(&latestVersion, &latestFile, &latestMd5, &latestDate); err == nil {
+		finalData["version"] = latestVersion
+		finalData["file"] = latestFile
+		finalData["md5"] = latestMd5
+		switch v := latestDate.(type) {
+		case time.Time:
+			finalData["date"] = v.Format("2006-01-02 15:04:05")
+		case []byte:
+			finalData["date"] = string(v)
+		case string:
+			finalData["date"] = v
+		default:
+			finalData["date"] = fmt.Sprint(v)
 		}
 	}
 

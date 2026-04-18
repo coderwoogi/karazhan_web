@@ -10,6 +10,7 @@ import (
 	"karazhan/pkg/config"
 	"log"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -20,12 +21,13 @@ import (
 var db *sql.DB
 
 type UpdateFile struct {
-	No       int    `json:"no"`
-	Version  string `json:"version"`
-	File     string `json:"file"`
-	Md5      string `json:"md5"`
-	Date     string `json:"date"`
-	FileType string `json:"fileType"`
+	No             int    `json:"no"`
+	Version        string `json:"version"`
+	File           string `json:"file"`
+	Md5            string `json:"md5"`
+	Date           string `json:"date"`
+	FileType       string `json:"file_type"`
+	LegacyFileType string `json:"fileType,omitempty"`
 }
 
 type UpdateCompareResult struct {
@@ -38,6 +40,53 @@ type UpdateCompareResult struct {
 	CheckedAt  string `json:"checkedAt"`
 	RemoteSize int64  `json:"remoteSize"`
 	Message    string `json:"message,omitempty"`
+}
+
+func sortRankForUpdateFile(file UpdateFile) int {
+	if ordinal, ok := versionOrdinal(strings.TrimSpace(file.Version)); ok {
+		return ordinal
+	}
+	return -1
+}
+
+func isUpdateFileNewer(a, b UpdateFile) bool {
+	rankA := sortRankForUpdateFile(a)
+	rankB := sortRankForUpdateFile(b)
+	if rankA != rankB {
+		return rankA > rankB
+	}
+	if a.Date != b.Date {
+		return a.Date > b.Date
+	}
+	return a.No > b.No
+}
+
+func loadUpdateFilesByType(fileType string) ([]UpdateFile, error) {
+	rows, err := db.Query("SELECT `no`, `file_type`, `version`, `file`, `md5`, `date` FROM `update` WHERE `file_type`=?", normalizeFileType(fileType))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	files := make([]UpdateFile, 0, 32)
+	for rows.Next() {
+		var f UpdateFile
+		var dateVal []uint8
+		if err := rows.Scan(&f.No, &f.FileType, &f.Version, &f.File, &f.Md5, &dateVal); err != nil {
+			log.Println(err)
+			continue
+		}
+		f.Date = string(dateVal)
+		f.LegacyFileType = f.FileType
+		files = append(files, f)
+	}
+	return files, nil
+}
+
+func sortUpdateFiles(files []UpdateFile) {
+	sort.Slice(files, func(i, j int) bool {
+		return isUpdateFileNewer(files[i], files[j])
+	})
 }
 
 func RegisterRoutes(mux *http.ServeMux) {
@@ -86,6 +135,7 @@ func RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/update/api/delete", deleteHandler)
 	mux.HandleFunc("/update/api/latest_md5", latestMd5Handler)
 	mux.HandleFunc("/update/api/latest", latestFileHandler)
+	mux.HandleFunc("/update/api/latest_version", latestVersionByDateHandler)
 	mux.HandleFunc("/update/api/next_version", nextVersionHandler)
 	mux.HandleFunc("/update/api/source_url", sourceURLHandler)
 	mux.HandleFunc("/update/api/compare_md5", compareMd5Handler)
@@ -97,24 +147,12 @@ func listHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	fileType := normalizeFileType(r.URL.Query().Get("type"))
-	rows, err := db.Query("SELECT `no`, `file_type`, `version`, `file`, `md5`, `date` FROM `update` WHERE `file_type`=? ORDER BY `date` DESC, `no` DESC", fileType)
+	files, err := loadUpdateFilesByType(fileType)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer rows.Close()
-
-	var files []UpdateFile
-	for rows.Next() {
-		var f UpdateFile
-		var dateVal []uint8
-		if err := rows.Scan(&f.No, &f.FileType, &f.Version, &f.File, &f.Md5, &dateVal); err != nil {
-			log.Println(err)
-			continue
-		}
-		f.Date = string(dateVal)
-		files = append(files, f)
-	}
+	sortUpdateFiles(files)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(files)
@@ -189,23 +227,58 @@ func deleteHandler(w http.ResponseWriter, r *http.Request) {
 
 func latestMd5Handler(w http.ResponseWriter, r *http.Request) {
 	fileType := normalizeFileType(r.URL.Query().Get("type"))
-	var md5 string
-	err := db.QueryRow("SELECT `md5` FROM `update` WHERE `file_type`=? ORDER BY `date` DESC LIMIT 1", fileType).Scan(&md5)
+	files, err := loadUpdateFilesByType(fileType)
 
 	w.Header().Set("Content-Type", "application/json")
 	if err != nil {
-		if err == sql.ErrNoRows {
-			json.NewEncoder(w).Encode(map[string]string{"md5": ""})
-		} else {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	if len(files) == 0 {
+		json.NewEncoder(w).Encode(map[string]string{"md5": ""})
+		return
+	}
+	sortUpdateFiles(files)
 
-	json.NewEncoder(w).Encode(map[string]string{"md5": md5})
+	json.NewEncoder(w).Encode(map[string]string{"md5": files[0].Md5})
 }
 
 func latestFileHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Invalid method", http.StatusMethodNotAllowed)
+		return
+	}
+	if db == nil {
+		http.Error(w, "DB Not Connected", http.StatusInternalServerError)
+		return
+	}
+
+	fileType := normalizeFileType(r.URL.Query().Get("type"))
+	files, err := loadUpdateFilesByType(fileType)
+
+	w.Header().Set("Content-Type", "application/json")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if len(files) == 0 {
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"exists":    false,
+			"fileType":  fileType,
+			"file_type": fileType,
+		})
+		return
+	}
+	sortUpdateFiles(files)
+	item := files[0]
+
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"exists": true,
+		"item":   item,
+	})
+}
+
+func latestVersionByDateHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Invalid method", http.StatusMethodNotAllowed)
 		return
@@ -227,8 +300,9 @@ func latestFileHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if err == sql.ErrNoRows {
 			_ = json.NewEncoder(w).Encode(map[string]any{
-				"exists":   false,
-				"fileType": fileType,
+				"exists":    false,
+				"file_type": fileType,
+				"fileType":  fileType,
 			})
 			return
 		}
@@ -237,6 +311,7 @@ func latestFileHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	item.Date = string(dateVal)
+	item.LegacyFileType = item.FileType
 	_ = json.NewEncoder(w).Encode(map[string]any{
 		"exists": true,
 		"item":   item,

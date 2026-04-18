@@ -158,7 +158,7 @@ func handlePointHistory(w http.ResponseWriter, r *http.Request) {
 	if page < 1 {
 		page = 1
 	}
-	limit := 10
+	limit := 20
 	offset := (page - 1) * limit
 
 	// Query Logs

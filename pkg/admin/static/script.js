@@ -5112,11 +5112,69 @@ class ModalUtils {
         return typeof window !== 'undefined' && typeof window.Swal !== 'undefined' && typeof window.Swal.fire === 'function';
     }
 
+    static ensureFallbackUi() {
+        if (typeof document === 'undefined' || !document.body) return null;
+        if (!document.getElementById('modal-utils-fallback-style')) {
+            const style = document.createElement('style');
+            style.id = 'modal-utils-fallback-style';
+            style.textContent = `
+                .mu-overlay{position:fixed;inset:0;z-index:20000;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(7,7,13,.72);backdrop-filter:blur(6px)}
+                .mu-panel{width:min(460px,calc(100vw - 32px));background:linear-gradient(180deg,rgba(22,16,35,.96),rgba(13,10,20,.98));border:1px solid rgba(218,183,109,.28);border-radius:18px;box-shadow:0 24px 90px rgba(0,0,0,.45);padding:24px;color:#f4ecdc}
+                .mu-title{margin:0 0 10px;font-size:22px;font-weight:800;color:#f3dfab}
+                .mu-message{white-space:pre-wrap;line-height:1.7;color:#ddd3bf}
+                .mu-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}
+                .mu-btn{border:1px solid rgba(218,183,109,.28);background:linear-gradient(180deg,rgba(119,72,29,.92),rgba(64,36,18,.96));color:#f7ecd4;border-radius:12px;padding:10px 18px;font-weight:700;cursor:pointer}
+                .mu-btn-cancel{background:rgba(255,255,255,.04);color:#e8dcc1}
+                .mu-progress{display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center}
+                .mu-spinner{width:42px;height:42px;border-radius:50%;border:3px solid rgba(218,183,109,.18);border-top-color:#dab76d;animation:mu-spin .85s linear infinite}
+                @keyframes mu-spin{to{transform:rotate(360deg)}}
+            `;
+            document.head.appendChild(style);
+        }
+        return true;
+    }
+
+    static showFallbackDialog({ title = '알림', message = '', confirmText = '확인', cancelText = '', showCancel = false }) {
+        if (!this.ensureFallbackUi()) return Promise.resolve(showCancel ? false : true);
+        return new Promise((resolve) => {
+            const overlay = document.createElement('div');
+            overlay.className = 'mu-overlay';
+            overlay.innerHTML = `
+                <div class="mu-panel" role="dialog" aria-modal="true">
+                    <h3 class="mu-title"></h3>
+                    <div class="mu-message"></div>
+                    <div class="mu-actions">
+                        ${showCancel ? '<button type="button" class="mu-btn mu-btn-cancel" data-role="cancel"></button>' : ''}
+                        <button type="button" class="mu-btn" data-role="confirm"></button>
+                    </div>
+                </div>`;
+            overlay.querySelector('.mu-title').textContent = String(title || '알림');
+            overlay.querySelector('.mu-message').textContent = String(message || '');
+            overlay.querySelector('[data-role="confirm"]').textContent = String(confirmText || '확인');
+            const cancelBtn = overlay.querySelector('[data-role="cancel"]');
+            if (cancelBtn) cancelBtn.textContent = String(cancelText || '취소');
+
+            const cleanup = (result) => {
+                overlay.remove();
+                window.removeEventListener('keydown', onKeyDown);
+                resolve(result);
+            };
+            const onKeyDown = (event) => {
+                if (event.key === 'Escape' && showCancel) cleanup(false);
+                if (event.key === 'Enter') cleanup(true);
+            };
+            overlay.querySelector('[data-role="confirm"]').addEventListener('click', () => cleanup(true), { once: true });
+            if (cancelBtn) cancelBtn.addEventListener('click', () => cleanup(false), { once: true });
+            window.addEventListener('keydown', onKeyDown);
+            document.body.appendChild(overlay);
+        });
+    }
+
     static showAlert(message, title = '알림', callback = null) {
         if (!this.hasSwal()) {
-            alert(`${title}\n\n${message}`);
-            if (callback) callback();
-            return Promise.resolve();
+            return this.showFallbackDialog({ title, message }).then(() => {
+                if (callback) callback();
+            });
         }
         // Auto-detect icon based on keywords
         let icon = 'info';
@@ -5144,10 +5202,11 @@ class ModalUtils {
 
     static showConfirm(message, callback, title = '확인') {
         if (!this.hasSwal()) {
-            if (confirm(`${title}\n\n${message}`)) callback();
-            return;
+            return this.showFallbackDialog({ title, message, showCancel: true }).then((confirmed) => {
+                if (confirmed) return callback();
+            });
         }
-        Swal.fire({
+        return Swal.fire({
             title: title,
             text: message,
             icon: 'question',
@@ -5164,9 +5223,53 @@ class ModalUtils {
             }
         }).then((result) => {
             if (result.isConfirmed) {
-                callback();
+                return callback();
             }
         });
+    }
+
+    static showProgress(message = '처리 중입니다.', title = '잠시만 기다려주세요') {
+        if (this.hasSwal()) {
+            this._swalProgressOpen = true;
+            return Swal.fire({
+                title,
+                text: message,
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                showConfirmButton: false,
+                didOpen: () => Swal.showLoading()
+            });
+        }
+        if (!this.ensureFallbackUi()) return;
+        this.hideProgress();
+        const overlay = document.createElement('div');
+        overlay.className = 'mu-overlay';
+        overlay.id = 'modal-utils-progress';
+        overlay.innerHTML = `
+            <div class="mu-panel mu-progress" role="status" aria-live="polite">
+                <div class="mu-spinner" aria-hidden="true"></div>
+                <h3 class="mu-title">${String(title || '잠시만 기다려주세요')}</h3>
+                <div class="mu-message">${String(message || '처리 중입니다.')}</div>
+            </div>`;
+        document.body.appendChild(overlay);
+    }
+
+    static hideProgress() {
+        const overlay = typeof document !== 'undefined' ? document.getElementById('modal-utils-progress') : null;
+        if (overlay) overlay.remove();
+        if (this.hasSwal() && this._swalProgressOpen) {
+            this._swalProgressOpen = false;
+            Swal.close();
+        }
+    }
+
+    static async runWithProgress(message, task, title = '잠시만 기다려주세요') {
+        this.showProgress(message, title);
+        try {
+            return await task();
+        } finally {
+            this.hideProgress();
+        }
     }
 
     static handleError(error, defaultMsg = '오류가 발생했습니다.') {

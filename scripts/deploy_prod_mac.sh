@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+﻿#!/usr/bin/env bash
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -31,6 +31,22 @@ git pull --ff-only
 
 echo "[deploy] checking forbidden secrets"
 bash scripts/check_no_dev_secrets.sh
+
+echo "[deploy] installing frontend dependencies"
+(
+  cd frontend
+  if [[ -f package-lock.json ]]; then
+    npm ci
+  else
+    npm install
+  fi
+)
+
+echo "[deploy] building react frontend"
+(
+  cd frontend
+  npm run build
+)
 
 echo "[deploy] building new binary"
 go build -o "$TEMP_OUTPUT" main.go

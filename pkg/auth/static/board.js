@@ -9,6 +9,28 @@ let g_currentPostId = null;
 let g_currentUser = null;
 let quillEditor = null;
 
+function boardAlert(message, title = '알림') {
+    if (window.ModalUtils && typeof window.ModalUtils.showAlert === 'function') {
+        return window.ModalUtils.showAlert(message, title);
+    }
+    console.warn(title + ': ' + message);
+    return Promise.resolve();
+}
+
+function boardConfirm(message, callback, title = '확인') {
+    if (window.ModalUtils && typeof window.ModalUtils.showConfirm === 'function') {
+        return window.ModalUtils.showConfirm(message, callback, title);
+    }
+    return callback();
+}
+
+function boardWithProgress(message, task) {
+    if (window.ModalUtils && typeof window.ModalUtils.runWithProgress === 'function') {
+        return window.ModalUtils.runWithProgress(message, task);
+    }
+    return task();
+}
+
 // ========================================
 // Initialization
 // ========================================
@@ -268,7 +290,7 @@ async function viewPost(id, pushHistory) {
     try {
         const res = await fetch(`/api/board/post?id=${id}`);
         if (!res.ok) {
-            alert('게시글을 불러올 수 없습니다');
+            await boardAlert('게시글을 불러올 수 없습니다');
             return;
         }
 
@@ -328,7 +350,7 @@ async function viewPost(id, pushHistory) {
 
     } catch (e) {
         console.error('Failed to load post:', e);
-        alert('게시글을 불러오는 중 오류가 발생했습니다');
+        await boardAlert('게시글을 불러오는 중 오류가 발생했습니다');
     }
 }
 
@@ -390,7 +412,7 @@ async function submitPost() {
     const title = titleEl ? titleEl.value.trim() : '';
 
     if (!title) {
-        alert('제목을 입력하세요');
+        await boardAlert('제목을 입력하세요');
         return;
     }
 
@@ -400,12 +422,12 @@ async function submitPost() {
     }
 
     if (!content || content === '<p><br></p>') {
-        alert('내용을 입력하세요');
+        await boardAlert('내용을 입력하세요');
         return;
     }
 
     try {
-        const res = await fetch('/api/board/post/create', {
+        const res = await boardWithProgress('게시글을 저장하는 중입니다.', () => fetch('/api/board/post/create', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -413,17 +435,17 @@ async function submitPost() {
                 title: title,
                 content: content
             })
-        });
+        }));
 
         if (res.ok) {
             showBoardListView();
             loadPosts(1);
         } else {
-            alert('게시글 작성에 실패했습니다');
+            await boardAlert('게시글 작성에 실패했습니다');
         }
     } catch (e) {
         console.error('Failed to submit post:', e);
-        alert('게시글 작성 중 오류가 발생했습니다');
+        await boardAlert('게시글 작성 중 오류가 발생했습니다');
     }
 }
 
@@ -441,20 +463,20 @@ window.closePostWrite = closePostWrite;
 // Post Delete
 // ========================================
 async function deletePost(id) {
-    if (!confirm('게시글을 삭제하시겠습니까?')) return;
-
-    try {
-        const res = await fetch(`/api/board/post/delete?id=${id}`, { method: 'POST' });
-        if (res.ok) {
-            showBoardListView();
-            loadPosts(g_currentBoardPage);
-        } else {
-            alert('삭제 실패');
+    return boardConfirm('게시글을 삭제하시겠습니까?', async () => {
+        try {
+            const res = await boardWithProgress('게시글을 삭제하는 중입니다.', () => fetch(`/api/board/post/delete?id=${id}`, { method: 'POST' }));
+            if (res.ok) {
+                showBoardListView();
+                loadPosts(g_currentBoardPage);
+            } else {
+                await boardAlert('삭제에 실패했습니다');
+            }
+        } catch (e) {
+            console.error('Failed to delete post:', e);
+            await boardAlert('삭제 중 오류가 발생했습니다');
         }
-    } catch (e) {
-        console.error('Failed to delete post:', e);
-        alert('삭제 중 오류가 발생했습니다');
-    }
+    });
 }
 
 // ========================================
@@ -465,12 +487,12 @@ async function submitComment(postId, parentId) {
     const content = contentEl ? contentEl.value.trim() : '';
 
     if (!content) {
-        alert('내용을 입력하세요');
+        await boardAlert('내용을 입력하세요');
         return;
     }
 
     try {
-        const res = await fetch('/api/board/comment/create', {
+        const res = await boardWithProgress('댓글을 등록하는 중입니다.', () => fetch('/api/board/comment/create', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -478,34 +500,34 @@ async function submitComment(postId, parentId) {
                 content: content,
                 parent_id: parentId
             })
-        });
+        }));
 
         if (res.ok) {
             if (contentEl) contentEl.value = '';
             await viewPost(postId, false);
         } else {
-            alert('댓글 작성에 실패했습니다');
+            await boardAlert('댓글 작성에 실패했습니다');
         }
     } catch (e) {
         console.error('Failed to submit comment:', e);
-        alert('댓글 작성 중 오류가 발생했습니다');
+        await boardAlert('댓글 작성 중 오류가 발생했습니다');
     }
 }
 
 async function deleteComment(commentId) {
-    if (!confirm('댓글을 삭제하시겠습니까?')) return;
-
-    try {
-        const res = await fetch(`/api/board/comment/delete?id=${commentId}`, { method: 'POST' });
-        if (res.ok) {
-            await viewPost(g_currentPostId, false);
-        } else {
-            alert('댓글 삭제에 실패했습니다');
+    return boardConfirm('댓글을 삭제하시겠습니까?', async () => {
+        try {
+            const res = await boardWithProgress('댓글을 삭제하는 중입니다.', () => fetch(`/api/board/comment/delete?id=${commentId}`, { method: 'POST' }));
+            if (res.ok) {
+                await viewPost(g_currentPostId, false);
+            } else {
+                await boardAlert('댓글 삭제에 실패했습니다');
+            }
+        } catch (e) {
+            console.error('Failed to delete comment:', e);
+            await boardAlert('댓글 삭제 중 오류가 발생했습니다');
         }
-    } catch (e) {
-        console.error('Failed to delete comment:', e);
-        alert('댓글 삭제 중 오류가 발생했습니다');
-    }
+    });
 }
 
 // ========================================

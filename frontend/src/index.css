@@ -1,0 +1,25 @@
+:root {
+  font-family: 'Noto Sans KR', sans-serif;
+  color: #f5efe4;
+  background: #05050a;
+  --gold: #cfb073;
+  --gold-soft: rgba(207, 176, 115, 0.18);
+  --panel: rgba(9, 8, 18, 0.76);
+  --panel-strong: rgba(6, 5, 12, 0.88);
+  --line: rgba(218, 183, 110, 0.18);
+  --accent: #7f5cff;
+  --text-dim: rgba(245, 239, 228, 0.72);
+}
+
+* { box-sizing: border-box; }
+html, body, #root { min-height: 100%; }
+body {
+  margin: 0;
+  background:
+    radial-gradient(circle at top, rgba(134, 70, 255, 0.16), transparent 28%),
+    linear-gradient(180deg, #0a0911 0%, #05050a 70%);
+}
+
+a { color: inherit; text-decoration: none; }
+button, input, select { font: inherit; }
+button { cursor: pointer; }

@@ -7,10 +7,66 @@ class ModalUtils {
         return typeof window !== 'undefined' && typeof window.Swal !== 'undefined' && typeof window.Swal.fire === 'function';
     }
 
+    static ensureFallbackUi() {
+        if (typeof document === 'undefined' || !document.body) return null;
+        if (!document.getElementById('auth-modal-utils-style')) {
+            const style = document.createElement('style');
+            style.id = 'auth-modal-utils-style';
+            style.textContent = `
+                .mu-overlay{position:fixed;inset:0;z-index:20000;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(7,7,13,.72);backdrop-filter:blur(6px)}
+                .mu-panel{width:min(460px,calc(100vw - 32px));background:linear-gradient(180deg,rgba(22,16,35,.96),rgba(13,10,20,.98));border:1px solid rgba(218,183,109,.28);border-radius:18px;box-shadow:0 24px 90px rgba(0,0,0,.45);padding:24px;color:#f4ecdc}
+                .mu-title{margin:0 0 10px;font-size:22px;font-weight:800;color:#f3dfab}
+                .mu-message{white-space:pre-wrap;line-height:1.7;color:#ddd3bf}
+                .mu-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}
+                .mu-btn{border:1px solid rgba(218,183,109,.28);background:linear-gradient(180deg,rgba(119,72,29,.92),rgba(64,36,18,.96));color:#f7ecd4;border-radius:12px;padding:10px 18px;font-weight:700;cursor:pointer}
+                .mu-btn-cancel{background:rgba(255,255,255,.04);color:#e8dcc1}
+                .mu-progress{display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center}
+                .mu-spinner{width:42px;height:42px;border-radius:50%;border:3px solid rgba(218,183,109,.18);border-top-color:#dab76d;animation:mu-spin .85s linear infinite}
+                @keyframes mu-spin{to{transform:rotate(360deg)}}
+            `;
+            document.head.appendChild(style);
+        }
+        return true;
+    }
+
+    static showFallbackDialog({ title = '\uC54C\uB9BC', message = '', confirmText = '\uD655\uC778', cancelText = '\uCDE8\uC18C', showCancel = false }) {
+        if (!this.ensureFallbackUi()) return Promise.resolve(showCancel ? false : true);
+        return new Promise((resolve) => {
+            const overlay = document.createElement('div');
+            overlay.className = 'mu-overlay';
+            overlay.innerHTML = `
+                <div class="mu-panel" role="dialog" aria-modal="true">
+                    <h3 class="mu-title"></h3>
+                    <div class="mu-message"></div>
+                    <div class="mu-actions">
+                        ${showCancel ? '<button type="button" class="mu-btn mu-btn-cancel" data-role="cancel"></button>' : ''}
+                        <button type="button" class="mu-btn" data-role="confirm"></button>
+                    </div>
+                </div>`;
+            overlay.querySelector('.mu-title').textContent = String(title || '\uC54C\uB9BC');
+            overlay.querySelector('.mu-message').textContent = String(message || '');
+            overlay.querySelector('[data-role="confirm"]').textContent = String(confirmText || '\uD655\uC778');
+            const cancelBtn = overlay.querySelector('[data-role="cancel"]');
+            if (cancelBtn) cancelBtn.textContent = String(cancelText || '\uCDE8\uC18C');
+            const cleanup = (result) => {
+                overlay.remove();
+                window.removeEventListener('keydown', onKeyDown);
+                resolve(result);
+            };
+            const onKeyDown = (event) => {
+                if (event.key === 'Escape' && showCancel) cleanup(false);
+                if (event.key === 'Enter') cleanup(true);
+            };
+            overlay.querySelector('[data-role="confirm"]').addEventListener('click', () => cleanup(true), { once: true });
+            if (cancelBtn) cancelBtn.addEventListener('click', () => cleanup(false), { once: true });
+            window.addEventListener('keydown', onKeyDown);
+            document.body.appendChild(overlay);
+        });
+    }
+
     static showAlert(message, title = '?뚮┝') {
         if (!this.hasSwal()) {
-            alert(String(title) + '\n\n' + String(message));
-            return;
+            return this.showFallbackDialog({ title, message });
         }
         // Auto-detect icon based on keywords
         let icon = 'info';
@@ -18,7 +74,7 @@ class ModalUtils {
         else if (message.includes('실패') || message.includes('오류') || message.includes('에러')) icon = 'error';
         else if (message.includes('경고') || message.includes('주의')) icon = 'warning';
 
-        Swal.fire({
+        return Swal.fire({
             title: title,
             text: message,
             icon: icon,
@@ -29,10 +85,11 @@ class ModalUtils {
 
     static showConfirm(message, callback, title = '?뺤씤') {
         if (!this.hasSwal()) {
-            if (confirm(String(title) + '\n\n' + String(message))) callback();
-            return;
+            return this.showFallbackDialog({ title, message, showCancel: true }).then((confirmed) => {
+                if (confirmed) return callback();
+            });
         }
-        Swal.fire({
+        return Swal.fire({
             title: title,
             text: message,
             icon: 'question',
@@ -43,17 +100,61 @@ class ModalUtils {
             cancelButtonText: '痍⑥냼'
         }).then((result) => {
             if (result.isConfirmed) {
-                callback();
+                return callback();
             } else if (result.dismiss === Swal.DismissReason.cancel && arguments.length > 2 && typeof arguments[2] === 'function') {
                 // Handle optional cancel callback if provided (though standard signature here is msg, cb, title)
                 // Adjusting signature match might be needed, but for now simple callback on confirm is primary.
             }
         });
     }
+
+    static showProgress(message = '\uCC98\uB9AC \uC911\uC785\uB2C8\uB2E4.', title = '\uC7A0\uC2DC\uB9CC \uAE30\uB2E4\uB824\uC8FC\uC138\uC694') {
+        if (this.hasSwal()) {
+            this._swalProgressOpen = true;
+            return Swal.fire({
+                title,
+                text: message,
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                showConfirmButton: false,
+                didOpen: () => Swal.showLoading()
+            });
+        }
+        if (!this.ensureFallbackUi()) return;
+        this.hideProgress();
+        const overlay = document.createElement('div');
+        overlay.className = 'mu-overlay';
+        overlay.id = 'auth-modal-utils-progress';
+        overlay.innerHTML = `
+            <div class="mu-panel mu-progress" role="status" aria-live="polite">
+                <div class="mu-spinner" aria-hidden="true"></div>
+                <h3 class="mu-title">${String(title || '\uC7A0\uC2DC\uB9CC \uAE30\uB2E4\uB824\uC8FC\uC138\uC694')}</h3>
+                <div class="mu-message">${String(message || '\uCC98\uB9AC \uC911\uC785\uB2C8\uB2E4.')}</div>
+            </div>`;
+        document.body.appendChild(overlay);
+    }
+
+    static hideProgress() {
+        const overlay = typeof document !== 'undefined' ? document.getElementById('auth-modal-utils-progress') : null;
+        if (overlay) overlay.remove();
+        if (this.hasSwal() && this._swalProgressOpen) {
+            this._swalProgressOpen = false;
+            Swal.close();
+        }
+    }
+
+    static async runWithProgress(message, task, title = '\uC7A0\uC2DC\uB9CC \uAE30\uB2E4\uB824\uC8FC\uC138\uC694') {
+        this.showProgress(message, title);
+        try {
+            return await task();
+        } finally {
+            this.hideProgress();
+        }
+    }
 }
 
 async function logout() {
-    ModalUtils.showConfirm('濡쒓렇?꾩썐 ?섏떆寃좎뒿?덇퉴?', async () => {
+    ModalUtils.showConfirm('\uB85C\uADF8\uC544\uC6C3 \uD558\uC2DC\uACA0\uC2B5\uB2C8\uAE4C?', async () => {
         await fetch('/api/logout', { method: 'POST' });
         location.href = '/';
     });
@@ -224,7 +325,7 @@ async function loadLogs(page = 1, clearFilters = false) {
         const response = await fetch('/api/logs/list?' + params.toString());
         if (!response.ok) {
             const errText = await response.text();
-            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:20px; color:red;">?쒕쾭 ?ㅻ쪟: ${errText}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:20px; color:red;">\uC11C\uBC84 \uC624\uB958: ${errText}</td></tr>`;
             tbody.style.opacity = '1';
             return;
         }
@@ -232,7 +333,7 @@ async function loadLogs(page = 1, clearFilters = false) {
         const logs = data.logs || [];
 
         if (!logs || logs.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px;">濡쒓렇媛 ?놁뒿?덈떎.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px;">\uB85C\uADF8\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.</td></tr>';
             tbody.style.opacity = '1';
             renderPagination(pgContainer, data, (p) => loadLogs(p));
             return;
@@ -257,7 +358,7 @@ async function loadLogs(page = 1, clearFilters = false) {
         if (tableContainer) tableContainer.scrollTop = 0;
     } catch (e) {
         console.error("Failed to load logs", e);
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px; color:red;">濡쒓렇瑜?遺덈윭?ㅻ뒗???ㅽ뙣?덉뒿?덈떎.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px; color:red;">\uB85C\uADF8\uB97C \uBD88\uB7EC\uC624\uB294\uB370 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.</td></tr>';
         tbody.style.opacity = '1';
     }
 }
@@ -401,7 +502,7 @@ async function loadMenuPermissions() {
 
     try {
         const res = await fetch('/api/admin/role-permissions');
-        if (!res.ok) throw new Error("沅뚰븳 ?뺣낫瑜?遺덈윭?ㅻ뒗???ㅽ뙣?덉뒿?덈떎.");
+        if (!res.ok) throw new Error("\uAD8C\uD55C \uC815\uBCF4\uB97C \uBD88\uB7EC\uC624\uB294\uB370 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.");
         const data = await res.json();
         const permissions = data.permissions || [];
 
@@ -439,7 +540,7 @@ async function loadMenuPermissions() {
                     </td>
                     <td>
                         <button onclick="updateRolePermission('${p.resource_type}', '${p.resource_id}')" class="btn btn-primary" style="padding:0.4rem 1rem; font-size:0.85rem;">
-                            <i class="fas fa-save"></i> ???
+                            <i class="fas fa-save"></i> \uC800\uC7A5
                         </button>
                     </td>
                 </tr>
@@ -477,7 +578,7 @@ async function updateRolePermission(type, id) {
         if (res.ok) {
             ModalUtils.showAlert('??λ릺?덉뒿?덈떎.');
         } else {
-            ModalUtils.showAlert('????ㅽ뙣');
+            ModalUtils.showAlert('\uC800\uC7A5\uB418\uC5C8\uC2B5\uB2C8\uB2E4.');
         }
     } catch (e) {
         ModalUtils.showAlert('?ㅻ쪟 諛쒖깮');
@@ -529,7 +630,7 @@ async function loadCharacterList(page = 1, clearFilters = false) {
         const characters = data.characters || [];
 
         if (!characters || characters.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px;">罹먮┃?곌? ?놁뒿?덈떎.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px;">\uCE90\uB9AD\uD130\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.</td></tr>';
             tbody.style.opacity = '1';
             renderPagination(pgContainer, data, (p) => loadCharacterList(p));
             return;
@@ -562,7 +663,7 @@ async function loadCharacterList(page = 1, clearFilters = false) {
         if (tableContainer) tableContainer.scrollTop = 0;
     } catch (e) {
         console.error("Failed to load character list", e);
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px; color:red;">罹먮┃??紐⑸줉??遺덈윭?ㅻ뒗???ㅽ뙣?덉뒿?덈떎.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px; color:red;">\uCE90\uB9AD\uD130 \uBAA9\uB85D\uC744 \uBD88\uB7EC\uC624\uB294\uB370 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.</td></tr>';
         tbody.style.opacity = '1';
     }
 }
@@ -586,8 +687,8 @@ async function sendMailToCharacter() {
     const itemCount = document.getElementById('mail-item-count')?.value || 1;
     const gold = document.getElementById('mail-gold')?.value || 0;
 
-    if (!charName) { ModalUtils.showAlert('罹먮┃???대쫫???낅젰?댁＜?몄슂.'); return; }
-    if (!subject) { ModalUtils.showAlert('硫붿씪 ?쒕ぉ???낅젰?댁＜?몄슂.'); return; }
+    if (!charName) { ModalUtils.showAlert('\uCE90\uB9AD\uD130 \uC774\uB984\uC744 \uC785\uB825\uD574 \uC8FC\uC138\uC694.'); return; }
+    if (!subject) { ModalUtils.showAlert('\uBA54\uC77C \uC81C\uBAA9\uC744 \uC785\uB825\uD574 \uC8FC\uC138\uC694.'); return; }
 
     try {
         const response = await fetch('/api/characters/sendmail', {
@@ -603,7 +704,7 @@ async function sendMailToCharacter() {
 
         const result = await response.json();
         if (response.ok && result.status === 'success') {
-            ModalUtils.showAlert(`硫붿씪??${charName}?먭쾶 ?깃났?곸쑝濡?諛쒖넚?섏뿀?듬땲??`);
+            ModalUtils.showAlert(`\uBA54\uC77C\uC744 ${charName}\uB2D8\uC5D0\uAC8C \uC131\uACF5\uC801\uC73C\uB85C \uBC1C\uC1A1\uD588\uC2B5\uB2C8\uB2E4.`);
             document.getElementById('mail-char-name').value = '';
             document.getElementById('mail-subject').value = '';
             document.getElementById('mail-body').value = '';
@@ -611,11 +712,11 @@ async function sendMailToCharacter() {
             document.getElementById('mail-item-count').value = '1';
             document.getElementById('mail-gold').value = '0';
         } else {
-            ModalUtils.showAlert(`硫붿씪 諛쒖넚 ?ㅽ뙣: ${result.message || '?????녿뒗 ?ㅻ쪟'}`);
+            ModalUtils.showAlert(`\uBA54\uC77C \uBC1C\uC1A1 \uC2E4\uD328: ${result.message || '\uC54C \uC218 \uC5C6\uB294 \uC624\uB958'}`);
         }
     } catch (e) {
         console.error("Failed to send mail", e);
-        ModalUtils.showAlert('硫붿씪 諛쒖넚 以??ㅻ쪟媛 諛쒖깮?덉뒿?덈떎.');
+        ModalUtils.showAlert('\uBA54\uC77C \uBC1C\uC1A1 \uC911 \uC624\uB958\uAC00 \uBC1C\uC0DD\uD588\uC2B5\uB2C8\uB2E4.');
     }
 }
 
@@ -658,7 +759,7 @@ async function loadBlackMarketLogs(page = 1, clearFilters = false) {
         const logs = data.logs || [];
 
         if (!logs || logs.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px;">濡쒓렇媛 ?놁뒿?덈떎.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px;">\uB85C\uADF8\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.</td></tr>';
             tbody.style.opacity = '1';
             renderPagination(pgContainer, data, (p) => loadBlackMarketLogs(p));
             return;
@@ -691,7 +792,7 @@ async function loadBlackMarketLogs(page = 1, clearFilters = false) {
         if (tableContainer) tableContainer.scrollTop = 0;
     } catch (e) {
         console.error("Failed to load Black Market logs", e);
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color:red;">濡쒓렇瑜?遺덈윭?ㅻ뒗???ㅽ뙣?덉뒿?덈떎.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color:red;">\uB85C\uADF8\uB97C \uBD88\uB7EC\uC624\uB294\uB370 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.</td></tr>';
         tbody.style.opacity = '1';
     }
 }
@@ -735,7 +836,7 @@ async function loadKarazhanLogs(page = 1, clearFilters = false) {
         const logs = data.logs || [];
 
         if (!logs || logs.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px;">濡쒓렇媛 ?놁뒿?덈떎.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px;">\uB85C\uADF8\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.</td></tr>';
             tbody.style.opacity = '1';
             renderPagination(pgContainer, data, (p) => loadKarazhanLogs(p));
             return;
@@ -771,7 +872,7 @@ async function loadKarazhanLogs(page = 1, clearFilters = false) {
         if (tableContainer) tableContainer.scrollTop = 0;
     } catch (e) {
         console.error("Failed to load Karazhan logs", e);
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px; color:red;">濡쒓렇瑜?遺덈윭?ㅻ뒗???ㅽ뙣?덉뒿?덈떎.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px; color:red;">\uB85C\uADF8\uB97C \uBD88\uB7EC\uC624\uB294\uB370 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.</td></tr>';
         tbody.style.opacity = '1';
     }
 }
@@ -815,7 +916,7 @@ async function loadPlaytimeLogs(page = 1, clearFilters = false) {
         const logs = data.logs || [];
 
         if (!logs || logs.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px;">濡쒓렇媛 ?놁뒿?덈떎.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px;">\uB85C\uADF8\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.</td></tr>';
             tbody.style.opacity = '1';
             renderPagination(pgContainer, data, (p) => loadPlaytimeLogs(p));
             return;
@@ -841,7 +942,7 @@ async function loadPlaytimeLogs(page = 1, clearFilters = false) {
         if (tableContainer) tableContainer.scrollTop = 0;
     } catch (e) {
         console.error("Failed to load Playtime logs", e);
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color:red;">濡쒓렇瑜?遺덈윭?ㅻ뒗???ㅽ뙣?덉뒿?덈떎.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color:red;">\uB85C\uADF8\uB97C \uBD88\uB7EC\uC624\uB294\uB370 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.</td></tr>';
         tbody.style.opacity = '1';
     }
 }
@@ -928,7 +1029,7 @@ async function loadSchedule(page = 1) {
                     <td style="font-weight:700; color: var(--primary-color);">${item.action}</td>
                     <td>
                         <span style="display:inline-flex; align-items:center; gap:4px; padding:0.2rem 0.6rem; border-radius:100px; background:${statusBg}; color:${statusColor}; font-weight:700; font-size:0.75rem;">
-                            <i class="fas ${statusIcon}"></i> ${isProcessed ? '?꾨즺?? : '?湲?以?}
+                            <i class="fas ${statusIcon}"></i> ${isProcessed ? '\uC644\uB8CC' : '\uB300\uAE30 \uC911'}
                         </span>
                     </td>
                 </tr>
@@ -963,47 +1064,47 @@ async function addSchedule() {
         });
         const data = await res.json();
         if (res.ok && data.status === 'success') {
-            ModalUtils.showAlert('?먭? ?덉빟???깃끝?곸쑝濡??깅줉?섏뿀?듬땲??');
+            ModalUtils.showAlert('\uC791\uC5C5 \uC608\uC57D\uC774 \uC131\uACF5\uC801\uC73C\uB85C \uB4F1\uB85D\uB418\uC5C8\uC2B5\uB2C8\uB2E4.');
             loadSchedule();
         } else if (data.status === 'forbidden') {
             ModalUtils.showAlert(data.message);
         } else {
-            ModalUtils.showAlert('?묒뾽 ?깅줉???ㅽ뙣?덉뒿?덈떎.');
+            ModalUtils.showAlert('\uC791\uC5C5 \uB4F1\uB85D\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.');
         }
     } catch (e) {
         console.error(e);
-        ModalUtils.showAlert('?묒뾽 ?깅줉 以??ㅻ쪟媛 諛쒖깮?덉뒿?덈떎.');
+        ModalUtils.showAlert('\uC791\uC5C5 \uB4F1\uB85D \uC911 \uC624\uB958\uAC00 \uBC1C\uC0DD\uD588\uC2B5\uB2C8\uB2E4.');
     }
 }
 
 // Server Control
 async function startServer(target) {
-    appendLog(target, '?쒖뒪??, '?쒕쾭 媛??紐낅졊??蹂대깄?덈떎...');
+    appendLog(target, 'System', '\uC11C\uBC84 \uC2DC\uC791 \uBA85\uB839\uC744 \uBCF4\uB0B4\uB294 \uC911\uC785\uB2C8\uB2E4...');
     try {
         const res = await fetch(`/api/launcher/start?target=${target}`, { method: 'POST' });
         const data = await res.json();
         if (data.status === 'success') {
-            appendLog(target, '?쒖뒪??, '?깃났?곸쑝濡?媛?숇릺?덉뒿?덈떎.');
+            appendLog(target, 'System', '\uC131\uACF5\uC801\uC73C\uB85C \uAC00\uB3D9\uB418\uC5C8\uC2B5\uB2C8\uB2E4.');
             connectLogStream(target);
             updateStatusUI(target, true);
         } else if (data.status === 'forbidden') {
-            ModalUtils.showAlert(data.message);
+            appendLog(target, '\uC624\uB958', data.message);
             appendLog(target, '?ㅻ쪟', data.message);
         } else {
-            appendLog(target, '?ㅻ쪟', data.message);
+            appendLog(target, '\uC624\uB958', data.message);
         }
     } catch (e) {
-        appendLog(target, '?ㅻ쪟', e.message);
+        appendLog(target, '\uC624\uB958', e.message);
     }
 }
 
 async function stopServer(target) {
-    appendLog(target, '?쒖뒪??, '?쒕쾭 以묒? 紐낅졊??蹂대깄?덈떎...');
+    appendLog(target, 'System', '\uC11C\uBC84 \uC911\uC9C0 \uBA85\uB839\uC744 \uBCF4\uB0B4\uB294 \uC911\uC785\uB2C8\uB2E4...');
     try {
         const res = await fetch(`/api/launcher/stop?target=${target}`, { method: 'POST' });
         const data = await res.json();
         if (data.status === 'success') {
-            appendLog(target, '?쒖뒪??, '?깃났?곸쑝濡?以묒??섏뿀?듬땲??');
+            appendLog(target, 'System', '\uC131\uACF5\uC801\uC73C\uB85C \uC911\uC9C0\uB418\uC5C8\uC2B5\uB2C8\uB2E4.');
             updateStatusUI(target, false);
             if (eventSources[target]) {
                 eventSources[target].close();
@@ -1068,10 +1169,10 @@ function updateStatusUI(target, isRunning) {
     if (!badge) return; // Guard against missing element
 
     if (isRunning) {
-        badge.textContent = '媛??以?;
+        badge.textContent = '\uAC00\uB3D9 \uC911';
         badge.className = 'status-badge running';
     } else {
-        badge.textContent = '以묒???;
+        badge.textContent = '\uC911\uC9C0\uB428';
         badge.className = 'status-badge stopped';
     }
 }
@@ -1083,7 +1184,7 @@ function connectLogStream(target) {
     if (eventSources[target]) return; // Already connected
 
     const consoleDiv = document.getElementById(`${target}-log`);
-    appendLog(target, '?쒖뒪??, '濡쒓렇 ?ㅽ듃由쇱뿉 ?곌껐 以?..');
+    appendLog(target, 'System', '\uB85C\uADF8 \uC2A4\uD2B8\uB9BC\uC5D0 \uC5F0\uACB0 \uC911...');
 
     const es = new EventSource(`/api/launcher/logs?target=${target}`);
 
@@ -1121,7 +1222,7 @@ function appendLog(target, type, msg) {
 async function loadRemoteData() {
     const container = document.getElementById('remote-data');
     if (!container) return; // Might not exist in new layout? It does.
-    container.innerHTML = '<div class="loading">?곗씠??濡쒕뱶 以?..</div>';
+    container.innerHTML = '<div class="loading">\uB370\uC774\uD130\uB97C \uBD88\uB7EC\uC624\uB294 \uC911...</div>';
 
     try {
         const response = await fetch('/api/launcher/latest');
@@ -1130,7 +1231,7 @@ async function loadRemoteData() {
 
         container.innerHTML = '';
         if (Object.keys(data).length === 0) {
-            container.innerHTML = '?곗씠???놁쓬';
+            container.innerHTML = '\uB370\uC774\uD130\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.';
             return;
         }
 
@@ -1145,7 +1246,7 @@ async function loadRemoteData() {
         }
     } catch (error) {
         console.error("Failed to load remote data", error);
-        container.innerHTML = '<div class="error">?곗씠??濡쒕뱶 ?ㅽ뙣</div>';
+        container.innerHTML = '<div class="error">\uB370\uC774\uD130\uB97C \uBD88\uB7EC\uC624\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4.</div>';
     }
 }
 
@@ -1153,7 +1254,7 @@ function updateWelcomeMsg(name) {
     const welcome = document.getElementById('welcome-msg');
     const text = document.getElementById('welcome-text');
     if (welcome && text) {
-        text.textContent = `${name}???섏쁺?⑸땲??;
+        text.textContent = `${name}\uB2D8 \uD658\uC601\uD569\uB2C8\uB2E4.`;
     }
 }
 
@@ -1193,7 +1294,7 @@ async function loadUserList(page = 1, clearFilters = false) {
         const users = data.users || [];
 
         if (users.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px;">寃??寃곌낵媛 ?놁뒿?덈떎.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px;">\uAC80\uC0C9 \uACB0\uACFC\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.</td></tr>';
             tbody.style.opacity = '1';
             renderPagination(pgContainer, data, (p) => loadUserList(p));
             return;
@@ -1205,14 +1306,14 @@ async function loadUserList(page = 1, clearFilters = false) {
                 <td style="font-weight:700;">${user.username}</td>
                 <td style="color: var(--text-secondary); opacity:0.8;">${user.email}</td>
                 <td>
-                    <span class="badge ${user.gmlevel > 0 ? 'admin' : 'user'}">沅뚰븳 ${user.gmlevel}</span>
+                    <span class="badge ${user.gmlevel > 0 ? 'admin' : 'user'}">\uAD8C\uD55C ${user.gmlevel}</span>
                 </td>
                 <td>
                     <select onchange="updateUserRank(${user.id}, this.value)" class="input-premium" style="padding:0.4rem; font-size:0.85rem;">
-                        <option value="0" ${user.gmlevel === 0 ? 'selected' : ''}>?쇰컲 ?좎? (0)</option>
-                        <option value="1" ${user.gmlevel === 1 ? 'selected' : ''}>以묒옱??(1)</option>
-                        <option value="2" ${user.gmlevel === 2 ? 'selected' : ''}>寃뚯엫 留덉뒪??(2)</option>
-                        <option value="3" ${user.gmlevel === 3 ? 'selected' : ''}>愿由ъ옄 (3)</option>
+                        <option value="0" ${user.gmlevel === 0 ? 'selected' : ''}>\uC77C\uBC18 \uC720\uC800 (0)</option>
+                        <option value="1" ${user.gmlevel === 1 ? 'selected' : ''}>\uC911\uC7AC\uC790 (1)</option>
+                        <option value="2" ${user.gmlevel === 2 ? 'selected' : ''}>\uAC8C\uC784 \uB9C8\uC2A4\uD130 (2)</option>
+                        <option value="3" ${user.gmlevel === 3 ? 'selected' : ''}>\uAD00\uB9AC\uC790 (3)</option>
                     </select>
                 </td>
             </tr>
@@ -1223,7 +1324,7 @@ async function loadUserList(page = 1, clearFilters = false) {
         tbody.style.opacity = '1';
         if (tableContainer) tableContainer.scrollTop = 0;
     } catch (e) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color:red;">?ㅻ쪟媛 諛쒖깮?덉뒿?덈떎.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color:red;">\uC624\uB958\uAC00 \uBC1C\uC0DD\uD588\uC2B5\uB2C8\uB2E4.</td></tr>';
         tbody.style.opacity = '1';
     }
 }
@@ -1236,7 +1337,7 @@ function resetUserSearch() {
 }
 
 async function updateUserRank(userId, newRank) {
-    ModalUtils.showConfirm(`?ъ슜??ID: ${userId})??沅뚰븳??蹂寃쏀븯?쒓쿋?듬땲源?`, async () => {
+    ModalUtils.showConfirm(`\uC0AC\uC6A9\uC790 ID: ${userId}\uC758 \uAD8C\uD55C\uC744 \uBCC0\uACBD\uD558\uC2DC\uACA0\uC2B5\uB2C8\uAE4C?`, async () => {
         const formData = new URLSearchParams();
         formData.append('id', userId);
         formData.append('rank', newRank);
@@ -1247,13 +1348,13 @@ async function updateUserRank(userId, newRank) {
                 body: formData
             });
             if (res.ok) {
-                ModalUtils.showAlert('沅뚰븳???깃났?곸쑝濡?蹂寃쎈릺?덉뒿?덈떎.');
+                ModalUtils.showAlert('\uAD8C\uD55C\uC774 \uC131\uACF5\uC801\uC73C\uB85C \uBCC0\uACBD\uB418\uC5C8\uC2B5\uB2C8\uB2E4.');
                 loadUserList(); // This will refresh current page with current filters
             } else {
-                ModalUtils.showAlert('沅뚰븳 蹂寃쎌뿉 ?ㅽ뙣?덉뒿?덈떎.');
+                ModalUtils.showAlert('\uAD8C\uD55C \uBCC0\uACBD\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.');
             }
         } catch (e) {
-            ModalUtils.showAlert('?쒕쾭 ?ㅻ쪟媛 諛쒖깮?덉뒿?덈떎.');
+            ModalUtils.showAlert('\uC11C\uBC84 \uC624\uB958\uAC00 \uBC1C\uC0DD\uD588\uC2B5\uB2C8\uB2E4.');
         }
     }, () => {
         loadUserList(); // Reset selection if cancelled
@@ -1343,7 +1444,7 @@ async function addBan(type) {
             ModalUtils.showAlert('諛??깅줉???ㅽ뙣?덉뒿?덈떎.');
         }
     } catch (e) {
-        ModalUtils.showAlert('?쒕쾭 ?ㅻ쪟媛 諛쒖깮?덉뒿?덈떎.');
+        ModalUtils.showAlert('\uC11C\uBC84 \uC624\uB958\uAC00 \uBC1C\uC0DD\uD588\uC2B5\uB2C8\uB2E4.');
     }
 }
 
@@ -1365,7 +1466,7 @@ async function removeBan(type, target) {
                 ModalUtils.showAlert('諛??댁젣???ㅽ뙣?덉뒿?덈떎.');
             }
         } catch (e) {
-            ModalUtils.showAlert('?쒕쾭 ?ㅻ쪟媛 諛쒖깮?덉뒿?덈떎.');
+            ModalUtils.showAlert('\uC11C\uBC84 \uC624\uB958\uAC00 \uBC1C\uC0DD\uD588\uC2B5\uB2C8\uB2E4.');
         }
     });
 }
@@ -1437,7 +1538,7 @@ async function loadOnlineCount() {
                         `;
                     }).join('');
                 } else {
-                    listContainer.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px; color:var(--text-secondary);">?묒냽以묒씤 ?좎?媛 ?놁뒿?덈떎.</td></tr>';
+                    listContainer.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px; color:var(--text-secondary);">\uC811\uC18D \uC911\uC778 \uC720\uC800\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.</td></tr>';
                 }
             }
         } else {
@@ -1463,7 +1564,7 @@ async function loadUserCharacters(page = 1) {
         section.style.display = 'block';
 
         if (!chars || chars.length === 0) {
-            listContainer.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color:#999;">?꾩옱 ?묒냽 以묒씤 ?뚮젅?댁뼱媛 ?놁뒿?덈떎.</td></tr>';
+            listContainer.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color:#999;">\uD604\uC7AC \uC811\uC18D \uC911\uC778 \uD50C\uB808\uC774\uC5B4\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.</td></tr>';
             renderPagination(pgContainer, data, (p) => loadUserCharacters(p));
             return;
         }
@@ -1509,7 +1610,7 @@ async function loadUserCharacters(page = 1) {
 
     } catch (e) {
         console.error(e);
-        listContainer.innerHTML = '<tr><td colspan="5" class="loading-state" style="text-align:center; padding:20px;">罹먮┃???뺣낫瑜?遺덈윭?ㅼ? 紐삵뻽?듬땲??</td></tr>';
+        listContainer.innerHTML = '<tr><td colspan="5" class="loading-state" style="text-align:center; padding:20px;">\uCE90\uB9AD\uD130 \uC815\uBCF4\uB97C \uBD88\uB7EC\uC624\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4.</td></tr>';
     }
 }
 
@@ -1575,7 +1676,7 @@ async function loadMailLogs(page = 1, clearFilters = false) {
         const logs = data.logs || [];
 
         if (!logs || logs.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px;">濡쒓렇媛 ?놁뒿?덈떎.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px;">\uB85C\uADF8\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.</td></tr>';
             tbody.style.opacity = '1';
             renderPagination(pgContainer, data, (p) => loadMailLogs(p));
             return;
@@ -1612,7 +1713,7 @@ async function loadMailLogs(page = 1, clearFilters = false) {
         if (tableContainer) tableContainer.scrollTop = 0;
     } catch (e) {
         console.error("Failed to load Mail logs", e);
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px; color:red;">濡쒓렇瑜?遺덈윭?ㅻ뒗???ㅽ뙣?덉뒿?덈떎.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px; color:red;">\uB85C\uADF8\uB97C \uBD88\uB7EC\uC624\uB294\uB370 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.</td></tr>';
         tbody.style.opacity = '1';
     }
 }
@@ -1660,7 +1761,7 @@ async function loadBlackMarketItems(page = 1) {
 
     try {
         const res = await fetch(`/api/content/blackmarket/list?page=${page}`);
-        if (!res.ok) throw new Error("?곗씠?곕? 遺덈윭?ㅻ뒗???ㅽ뙣?덉뒿?덈떎.");
+        if (!res.ok) throw new Error("\uB370\uC774\uD130\uB97C \uBD88\uB7EC\uC624\uB294\uB370 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.");
         const data = await res.json();
         const items = data.items || [];
 
@@ -1797,13 +1898,13 @@ async function deleteBlackMarketItem(id) {
             });
 
             if (res.ok) {
-                ModalUtils.showAlert('?깃났?곸쑝濡???젣?섏뿀?듬땲??');
+                ModalUtils.showAlert('\uC131\uACF5\uC801\uC73C\uB85C \uD574\uC81C\uD588\uC2B5\uB2C8\uB2E4.');
                 loadBlackMarketItems();
             } else {
-                ModalUtils.showAlert('??젣???ㅽ뙣?덉뒿?덈떎.');
+                ModalUtils.showAlert('\uD574\uC81C\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.');
             }
         } catch (e) {
-            ModalUtils.showAlert('??젣 以??ㅻ쪟媛 諛쒖깮?덉뒿?덈떎.');
+            ModalUtils.showAlert('\uD574\uC81C \uC911 \uC624\uB958\uAC00 \uBC1C\uC0DD\uD588\uC2B5\uB2C8\uB2E4.');
         }
     }, () => {
         // Cancel callback (optional)
@@ -1840,7 +1941,7 @@ document.getElementById('bm-form')?.addEventListener('submit', async (e) => {
             ModalUtils.showAlert('??μ뿉 ?ㅽ뙣?덉뒿?덈떎.');
         }
     } catch (e) {
-        ModalUtils.showAlert('???以??ㅻ쪟媛 諛쒖깮?덉뒿?덈떎.');
+        ModalUtils.showAlert('\uB300\uD45C \uCC98\uB9AC \uC911 \uC624\uB958\uAC00 \uBC1C\uC0DD\uD588\uC2B5\uB2C8\uB2E4.');
     }
 });
 
@@ -1925,7 +2026,7 @@ async function loadMyPage() {
                     }
                 }
             } else if(mainCharText) {
-                mainCharText.textContent = '???罹먮┃??誘몄꽕??;
+                mainCharText.textContent = '\uB300\uD45C \uCE90\uB9AD\uD130 \uBBF8\uC124\uC815';
                 mainCharText.style.color = '#ef4444'; // Red
             }
         }
@@ -1952,27 +2053,28 @@ function getRaceImage(race, gender) {
 
 function getRaceName(race) {
     const races = {
-        1: '?대㉫', 2: '?ㅽ겕', 3: '?쒖썙??, 4: '?섏씠?몄뿕??, 5: '?몃뜲??, 6: '??곕젋', 7: '?몄?', 8: '?몃·', 10: '釉붾윭?쒖뿕??, 11: '?쒕젅?섏씠'
+        1: '\uC778\uAC04', 2: '\uC624\uD06C', 3: '\uB4DC\uC6CC\uD504', 4: '\uB098\uC774\uD2B8\uC5D8\uD504', 5: '\uC5B8\uB370\uB4DC',
+        6: '\uD0C0\uC6B0\uB80C', 7: '\uB178\uC6C0', 8: '\uD2B8\uB864', 10: '\uBE14\uB7EC\uB4DC\uC5D8\uD504', 11: '\uB4DC\uB808\uB098\uC774'
     };
-    return races[race] || '?뚯닔?놁쓬';
+    return races[race] || '\uC54C \uC218 \uC5C6\uC74C';
 }
 
 function getZoneName(mapId) {
-    // Basic Zone Map (Expand as needed)
     const zones = {
-        0: '?숇? ?뺢뎅', 1: '移쇰┝?꾩뼱', 530: '?꾩썐?쒕뱶', 571: '?몄뒪?뚮뱶',
-        1519: '?ㅽ넱?덈뱶', 1637: '?ㅺ렇由щ쭏', 1537: '?꾩씠?명룷吏', 1638: '?щ뜑釉붾윭??,
-        1657: '?ㅻⅤ?섏꽌??, 1497: '?몃뜑?쒗떚', 3487: '?ㅻ쾭臾?, 3557: '?묒냼?ㅻⅤ',
-        4395: '?щ씪?', 
+        0: '\uB3D9\uBD80 \uC655\uAD6D', 1: '\uCE7C\uB9BC\uB3C4\uC5B4', 530: '\uC544\uC6C3\uB79C\uB4DC', 571: '\uB178\uC2A4\uB80C\uB4DC',
+        1519: '\uC2A4\uD1B0\uC708\uB4DC', 1637: '\uC624\uADF8\uB9AC\uB9C8', 1537: '\uC544\uC774\uC5B8\uD3EC\uC9C0', 1638: '\uC36C\uB354 \uBE14\uB7EC\uD504',
+        1657: '\uB2E4\uB974\uB098\uC11C\uC2A4', 1497: '\uC5B8\uB354\uC2DC\uD2F0', 3487: '\uC2E4\uBC84\uBB38', 3557: '\uC5D1\uC18C\uB2E4\uB974',
+        4395: '\uB2EC\uB77C\uB780'
     };
     return zones[mapId] || `Map ${mapId}`;
 }
 
 function getClassName(cls) {
     const classes = {
-        1: '?꾩궗', 2: '?깃린??, 3: '?щ깷袁?, 4: '?꾩쟻', 5: '?ъ젣', 6: '二쎌쓬?섍린??, 7: '二쇱닠??, 8: '留덈쾿??, 9: '?묐쭏踰뺤궗', 11: '?쒕（?대뱶'
+        1: '\uC804\uC0AC', 2: '\uC131\uAE30\uC0AC', 3: '\uC0AC\uB0E5\uAFBC', 4: '\uB3C4\uC801', 5: '\uC0AC\uC81C',
+        6: '\uC8FD\uC74C\uC758 \uAE30\uC0AC', 7: '\uC8FC\uC220\uC0AC', 8: '\uB9C8\uBC95\uC0AC', 9: '\uD751\uB9C8\uBC95\uC0AC', 11: '\uB4DC\uB8E8\uC774\uB4DC'
     };
-    return classes[cls] || '?뚯닔?놁쓬';
+    return classes[cls] || '\uC54C \uC218 \uC5C6\uC74C';
 }
 
 function closeMainCharModal() {
@@ -1981,18 +2083,18 @@ function closeMainCharModal() {
 }
 
 async function loadUserCharactersForSelection(targetId = 'char-list-container') {
-    const container = document.getElementById(targetId);
+    container.innerHTML = '<div style="padding:20px; text-align:center;">\uB85C\uB529 \uC911...</div>';
     if (!container) return;
 
     container.innerHTML = '<div style="padding:20px; text-align:center;">濡쒕뵫 以?..</div>';
 
     try {
         const response = await fetch('/api/user/characters');
-        if (!response.ok) throw new Error('Failed to load characters');
+            container.innerHTML = '<div style="padding:20px; text-align:center;">\uCE90\uB9AD\uD130\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.<br>\uAC8C\uC784 \uB0B4\uC5D0\uC11C \uCE90\uB9AD\uD130\uB97C \uC0DD\uC131\uD574 \uC8FC\uC138\uC694.</div>';
         const chars = await response.json();
 
         if (!chars || !Array.isArray(chars) || chars.length === 0) {
-            container.innerHTML = '<div style="padding:20px; text-align:center;">罹먮┃?곌? ?놁뒿?덈떎.<br>寃뚯엫 ?댁뿉??罹먮┃?곕? ?앹꽦?댁＜?몄슂.</div>';
+            container.innerHTML = '<div style="padding:20px; text-align:center;">???? ????.<br>?? ??? ???? ??? ???.</div>';
             return;
         }
 
@@ -2068,7 +2170,7 @@ async function loadUserCharactersForSelection(targetId = 'char-list-container') 
 }
 
 async function setMainCharacter(guid, name) {
-    ModalUtils.showConfirm(`'${name}' 罹먮┃?곕? ???罹먮┃?곕줈 ?ㅼ젙?섏떆寃좎뒿?덇퉴?`, async () => {
+    ModalUtils.showConfirm(`'${name}' \uCE90\uB9AD\uD130\uB97C \uB300\uD45C \uCE90\uB9AD\uD130\uB85C \uC124\uC815\uD558\uC2DC\uACA0\uC2B5\uB2C8\uAE4C?`, async () => {
         try {
             const response = await fetch('/api/user/main_character', {
                 method: 'POST',
@@ -2077,19 +2179,19 @@ async function setMainCharacter(guid, name) {
             });
 
             if (response.ok) {
-                ModalUtils.showAlert('???罹먮┃?곌? ?ㅼ젙?섏뿀?듬땲??');
+                ModalUtils.showAlert('\uB300\uD45C \uCE90\uB9AD\uD130\uAC00 \uC124\uC815\uB418\uC5C8\uC2B5\uB2C8\uB2E4.');
                 currentUserMainChar = { guid: guid, name: name };
-                updateWelcomeMsg(name); 
+                updateWelcomeMsg(name);
                 closeMainCharModal();
-                
-                if(document.getElementById('char-list-container')) loadUserCharactersForSelection('char-list-container');
-                if(document.getElementById('mypage-char-list')) loadUserCharactersForSelection('mypage-char-list');
+
+                if (document.getElementById('char-list-container')) loadUserCharactersForSelection('char-list-container');
+                if (document.getElementById('mypage-char-list')) loadUserCharactersForSelection('mypage-char-list');
             } else {
-                ModalUtils.showAlert('?ㅼ젙 ?ㅽ뙣: ?쒕쾭 ?ㅻ쪟');
+                ModalUtils.showAlert('\uC124\uC815 \uC2E4\uD328: \uC11C\uBC84 \uC624\uB958');
             }
         } catch (e) {
             console.error(e);
-            ModalUtils.showAlert('?ㅼ젙 以??ㅻ쪟媛 諛쒖깮?덉뒿?덈떎.');
+            ModalUtils.showAlert('\uC124\uC815 \uC911 \uC624\uB958\uAC00 \uBC1C\uC0DD\uD588\uC2B5\uB2C8\uB2E4.');
         }
     });
 }
@@ -2110,7 +2212,7 @@ async function checkAdminAccess() {
         
         // Ban Check
         if (data.isBanned) {
-            ModalUtils.showAlert(`怨꾩젙???쒖옱?섏뿀?듬땲??\n?ъ쑀: ${data.reason}\n?댁젣?? ${data.unban}`);
+            ModalUtils.showAlert(`\uACC4\uC815\uC774 \uC815\uC9C0\uB418\uC5C8\uC2B5\uB2C8\uB2E4.\n\uC0AC\uC720: ${data.reason}\n\uD574\uC81C\uC77C: ${data.unban}`);
             await fetch('/api/logout', { method: 'POST' });
             location.href = '/';
             return;
@@ -2210,12 +2312,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (response.ok) {
                     location.replace('/home/');
                 } else {
-                    const text = await response.text();
-                    ModalUtils.showAlert('濡쒓렇???ㅽ뙣: ' + text);
+                    ModalUtils.showAlert('\uB85C\uADF8\uC778 \uC2E4\uD328: ' + text);
+                    ModalUtils.showAlert('??? ??: ' + text);
                 }
             } catch (error) {
-                console.error('Error:', error);
-                ModalUtils.showAlert('濡쒓렇???붿껌 以??ㅻ쪟媛 諛쒖깮?덉뒿?덈떎.');
+                ModalUtils.showAlert('\uB85C\uADF8\uC778 \uC694\uCCAD \uC911 \uC624\uB958\uAC00 \uBC1C\uC0DD\uD588\uC2B5\uB2C8\uB2E4.');
+                ModalUtils.showAlert('??? ?? ? ??? ??????.');
             }
         });
     }
@@ -2388,8 +2490,8 @@ function renderHomeEvents(dateStr) {
 
     // Update Title
     const d = new Date(dateStr);
-    const dayName = ['??, '??, '??, '??, '紐?, '湲?, '??][d.getDay()];
-    titleContainer.innerHTML = `<i class="far fa-calendar-check" style="color:var(--primary-color)"></i> <span>${d.getMonth() + 1}??${d.getDate()}??(${dayName}) ?쇱젙</span>`;
+    const dayName = ['\uC77C', '\uC6D4', '\uD654', '\uC218', '\uBAA9', '\uAE08', '\uD1A0'][d.getDay()];
+    titleContainer.innerHTML = `<i class="far fa-calendar-check" style="color:var(--primary-color)"></i> <span>${d.getMonth() + 1}\uC6D4 ${d.getDate()}\uC77C (${dayName}) \uC77C\uC815</span>`;
 
     const events = HomeCalendarState.monthData[dateStr] || [];
 

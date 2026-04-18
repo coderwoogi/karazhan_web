@@ -192,7 +192,7 @@ func ensureHomeSettingsTable(db *sql.DB) {
 const defaultAdminHomeJSON = `{
   "logo": "/img/wowlogo_white.png",
   "hero": {
-    "background": "/img/karazhan-purple-web-bg-wide.jpeg",
+    "background": "/img/bg.jpeg?v=20260416_1",
     "eyebrow": "전설의 성채가 당신을 부른다",
     "title": "카라잔",
     "subtitle": "모험의 시간, 운명의 세계로",

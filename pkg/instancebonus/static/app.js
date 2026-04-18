@@ -343,6 +343,28 @@ const instanceBonusApp = (() => {
         return res.text();
     }
 
+    function modalAlert(message, title = '알림') {
+        if (window.ModalUtils && typeof window.ModalUtils.showAlert === 'function') {
+            return window.ModalUtils.showAlert(message, title);
+        }
+        console.warn(`${title}: ${message}`);
+        return Promise.resolve();
+    }
+
+    function modalConfirm(message, onConfirm, title = '확인') {
+        if (window.ModalUtils && typeof window.ModalUtils.showConfirm === 'function') {
+            return window.ModalUtils.showConfirm(message, onConfirm, title);
+        }
+        return Promise.resolve().then(onConfirm);
+    }
+
+    function runProgress(message, task) {
+        if (window.ModalUtils && typeof window.ModalUtils.runWithProgress === 'function') {
+            return window.ModalUtils.runWithProgress(message, task);
+        }
+        return task();
+    }
+
     function escapeHtml(value) {
         return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
@@ -646,10 +668,11 @@ const instanceBonusApp = (() => {
     }
 
     async function importRuntimeData() {
-        if (!confirm('기존 게임 테이블의 미션과 보상 데이터를 관리 화면으로 가져오시겠습니까?\n기존 게임 테이블 자체는 수정하지 않습니다.')) return;
-        const result = await api('/instance-bonus/runtime/import', { method: 'POST', body: '{}' });
-        alert(`가져오기가 완료되었습니다.\n맵 설정 ${result.importedMaps}건\n미션 ${result.importedMissions}건\n보상 프로파일 ${result.importedRewards || 0}건`);
-        refreshCurrent();
+        return modalConfirm('기존 게임 테이블의 미션과 보상 데이터를 관리 화면으로 가져오시겠습니까?\n기존 게임 테이블 자체는 수정하지 않습니다.', async () => {
+            const result = await runProgress('기존 게임 데이터를 관리 화면으로 가져오는 중입니다.', () => api('/instance-bonus/runtime/import', { method: 'POST', body: '{}' }));
+            await modalAlert(`가져오기가 완료되었습니다.\n맵 설정 ${result.importedMaps}건\n미션 ${result.importedMissions}건\n보상 프로파일 ${result.importedRewards || 0}건`, '가져오기 완료');
+            refreshCurrent();
+        }, '가져오기 확인');
     }
 
     function resetMapsFilter() {
@@ -803,11 +826,13 @@ const instanceBonusApp = (() => {
 
     async function saveMap(keepEditing = false) {
         const payload = mapPayload();
-        if (state.mapEditingId) {
-            await api(`/instance-bonus/maps/${state.mapEditingId}`, { method: 'PUT', body: JSON.stringify(payload) });
-        } else {
-            await api('/instance-bonus/maps', { method: 'POST', body: JSON.stringify(payload) });
-        }
+        await runProgress('맵 설정을 저장하는 중입니다.', async () => {
+            if (state.mapEditingId) {
+                await api(`/instance-bonus/maps/${state.mapEditingId}`, { method: 'PUT', body: JSON.stringify(payload) });
+            } else {
+                await api('/instance-bonus/maps', { method: 'POST', body: JSON.stringify(payload) });
+            }
+        });
         await loadConfiguredMapOptions();
         loadMaps();
         if (!keepEditing) {
@@ -852,9 +877,10 @@ const instanceBonusApp = (() => {
     async function deleteMap(mapID) {
         const row = state.mapsCache.find((item) => Number(item.map_id) === Number(mapID));
         if (!row) return;
-        if (!confirm(`map_id ${mapID} ?ㅼ젙??鍮꾪솢?깊솕?섏떆寃좎뒿?덇퉴?\n湲곗〈 ?고????뚯씠釉붿? 嫄대뱶由ъ? ?딄퀬 enabled留?0?쇰줈 蹂寃쏀빀?덈떎.`)) return;
-        await api(`/instance-bonus/maps/${mapID}`, { method: 'DELETE' });
-        loadMaps(state.mapsPage);
+        return modalConfirm(`map_id ${mapID} 설정을 비활성화하시겠습니까?\n기존 게임 테이블은 건드리지 않고 enabled만 0으로 변경합니다.`, async () => {
+            await runProgress('맵 설정을 비활성화하는 중입니다.', () => api(`/instance-bonus/maps/${mapID}`, { method: 'DELETE' }));
+            loadMaps(state.mapsPage);
+        }, '맵 설정 비활성화');
     }
 
     function renderMissionForm() {
@@ -973,7 +999,7 @@ const instanceBonusApp = (() => {
             return !String(value || '').trim();
         });
         if (missing) {
-            alert(`${missing.label} 항목은 필수입니다.`);
+            modalAlert(`${missing.label} 항목은 필수입니다.`);
             return false;
         }
         return true;
@@ -1026,12 +1052,14 @@ const instanceBonusApp = (() => {
         const payload = missionPayload();
         if (!validateMissionPayload(payload)) return;
         let savedId = state.missionEditingId;
-        if (state.missionEditingId) {
-            await api(`/instance-bonus/missions/${state.missionEditingId}`, { method: 'PUT', body: JSON.stringify(payload) });
-        } else {
-            const result = await api('/instance-bonus/missions', { method: 'POST', body: JSON.stringify(payload) });
-            savedId = result?.mission_id || null;
-        }
+        await runProgress('미션을 저장하는 중입니다.', async () => {
+            if (state.missionEditingId) {
+                await api(`/instance-bonus/missions/${state.missionEditingId}`, { method: 'PUT', body: JSON.stringify(payload) });
+            } else {
+                const result = await api('/instance-bonus/missions', { method: 'POST', body: JSON.stringify(payload) });
+                savedId = result?.mission_id || null;
+            }
+        });
         loadMissions();
         loadMissionCandidates();
         if (keepEditing && savedId) {
@@ -1483,14 +1511,19 @@ function openRewardForm(data = null) {
 
     async function saveReward(keepEditing = false) {
         const payload = rewardPayload();
-        if (!payload.name) throw new Error('보상 프로파일 이름은 필수입니다.');
-        let savedId = state.rewardEditingId;
-        if (state.rewardEditingId) {
-            await api(`/instance-bonus/reward-profiles/${state.rewardEditingId}`, { method: 'PUT', body: JSON.stringify(payload) });
-        } else {
-            const result = await api('/instance-bonus/reward-profiles', { method: 'POST', body: JSON.stringify(payload) });
-            savedId = result?.reward_profile_id || null;
+        if (!payload.name) {
+            await modalAlert('보상 프로파일 이름은 필수입니다.');
+            return;
         }
+        let savedId = state.rewardEditingId;
+        await runProgress('보상 프로파일을 저장하는 중입니다.', async () => {
+            if (state.rewardEditingId) {
+                await api(`/instance-bonus/reward-profiles/${state.rewardEditingId}`, { method: 'PUT', body: JSON.stringify(payload) });
+            } else {
+                const result = await api('/instance-bonus/reward-profiles', { method: 'POST', body: JSON.stringify(payload) });
+                savedId = result?.reward_profile_id || null;
+            }
+        });
         await loadRewardProfileOptions();
         loadRewards();
         if (keepEditing && savedId) {
@@ -1584,12 +1617,13 @@ function openRewardForm(data = null) {
     }
 
     async function resetDailyUsage(usageDate, mapId, guid, characterName) {
-        if (!confirm(`${characterName}의 ${usageDate} 사용량 기록을 초기화하시겠습니까?`)) return;
-        await api('/instance-bonus/daily-usage/reset', {
-            method: 'POST',
-            body: JSON.stringify({ usage_date: usageDate, map_id: Number(mapId), guid: Number(guid) })
-        });
-        loadDailyUsage(state.dailyUsagePage);
+        return modalConfirm(`${characterName}의 ${usageDate} 사용량 기록을 초기화하시겠습니까?`, async () => {
+            await runProgress('일일 사용량 기록을 초기화하는 중입니다.', () => api('/instance-bonus/daily-usage/reset', {
+                method: 'POST',
+                body: JSON.stringify({ usage_date: usageDate, map_id: Number(mapId), guid: Number(guid) })
+            }));
+            loadDailyUsage(state.dailyUsagePage);
+        }, '사용량 초기화');
     }
 
     async function loadRuns(page = state.runsPage) {

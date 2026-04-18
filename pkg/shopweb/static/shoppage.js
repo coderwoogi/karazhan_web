@@ -66,7 +66,7 @@ async function initShopStandalonePage() {
         const allowed = permissions.menu_shop === true || allowedMenus.includes('shop') || webRank >= 2 || data.isAdmin === true;
         if (!allowed) {
             await Swal.fire({ icon: 'warning', title: '선술집 접근 권한이 없습니다.' });
-            location.href = '/home/';
+            location.href = '/';
             return;
         }
 

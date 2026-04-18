@@ -2,6 +2,21 @@
 // Character Management Sub-Tab Management
 let currentCharTab = 'characters';
 
+function charAlert(message, title = '\uC54C\uB9BC') {
+    if (window.ModalUtils && typeof window.ModalUtils.showAlert === 'function') {
+        return window.ModalUtils.showAlert(message, title);
+    }
+    console.warn(title + ': ' + message);
+    return Promise.resolve();
+}
+
+function charWithProgress(message, task) {
+    if (window.ModalUtils && typeof window.ModalUtils.runWithProgress === 'function') {
+        return window.ModalUtils.runWithProgress(message, task);
+    }
+    return task();
+}
+
 function openCharSubTab(tabName) {
     // Update current tab tracker
     currentCharTab = tabName;
@@ -131,19 +146,16 @@ async function sendMailToCharacter() {
     const itemEntry = document.getElementById('mail-item-entry')?.value || 0;
     const itemCount = document.getElementById('mail-item-count')?.value || 1;
     const gold = document.getElementById('mail-gold')?.value || 0;
-
     if (!charName) {
-        alert('캐릭터 이름을 입력해주세요.');
+        await charAlert('\uCE90\uB9AD\uD130 \uC774\uB984\uC744 \uC785\uB825\uD574\uC8FC\uC138\uC694.');
         return;
     }
-
     if (!subject) {
-        alert('메일 제목을 입력해주세요.');
+        await charAlert('\uBA54\uC77C \uC81C\uBAA9\uC744 \uC785\uB825\uD574\uC8FC\uC138\uC694.');
         return;
     }
-
     try {
-        const response = await fetch('/api/characters/sendmail', {
+        const response = await charWithProgress('\uCE90\uB9AD\uD130 \uC6B0\uD3B8\uC744 \uBC1C\uC1A1\uD558\uB294 \uC911\uC785\uB2C8\uB2E4.', () => fetch('/api/characters/sendmail', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -154,13 +166,10 @@ async function sendMailToCharacter() {
                 item_count: parseInt(itemCount),
                 gold: parseInt(gold)
             })
-        });
-
+        }));
         const result = await response.json();
-
         if (response.ok && result.status === 'success') {
-            alert(`메일이 ${charName}에게 성공적으로 발송되었습니다!`);
-            // Clear form
+            await charAlert(`\uBA54\uC77C\uC774 ${charName}\uC5D0\uAC8C \uC131\uACF5\uC801\uC73C\uB85C \uBC1C\uC1A1\uB418\uC5C8\uC2B5\uB2C8\uB2E4!`, '\uBC1C\uC1A1 \uC644\uB8CC');
             document.getElementById('mail-char-name').value = '';
             document.getElementById('mail-subject').value = '';
             document.getElementById('mail-body').value = '';
@@ -168,11 +177,11 @@ async function sendMailToCharacter() {
             document.getElementById('mail-item-count').value = '1';
             document.getElementById('mail-gold').value = '0';
         } else {
-            alert(`메일 발송 실패: ${result.message || '알 수 없는 오류'}`);
+            await charAlert(`\uBA54\uC77C \uBC1C\uC1A1 \uC2E4\uD328: ${result.message || '\uC54C \uC218 \uC5C6\uB294 \uC624\uB958'}`, '\uBC1C\uC1A1 \uC2E4\uD328');
         }
     } catch (e) {
-        console.error("Failed to send mail", e);
-        alert('메일 발송 중 오류가 발생했습니다.');
+        console.error('Failed to send mail', e);
+        await charAlert('\uBA54\uC77C \uBC1C\uC1A1 \uC911 \uC624\uB958\uAC00 \uBC1C\uC0DD\uD588\uC2B5\uB2C8\uB2E4.', '\uBC1C\uC1A1 \uC624\uB958');
     }
 }
 

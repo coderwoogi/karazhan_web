@@ -259,8 +259,16 @@
         const messageEl = document.getElementById("carddraw-notice-message");
         const confirmBtn = document.getElementById("carddraw-notice-confirm");
         if (!modal || !messageEl || !confirmBtn) {
-            window.alert(String(message || ""));
-            return Promise.resolve();
+            const fallback = document.createElement('div');
+            fallback.style.cssText = 'position:fixed;inset:0;z-index:20000;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(7,7,13,.72);backdrop-filter:blur(6px)';
+            fallback.innerHTML = '<div style="width:min(420px,calc(100vw - 32px));background:linear-gradient(180deg,rgba(22,16,35,.96),rgba(13,10,20,.98));border:1px solid rgba(218,183,109,.28);border-radius:18px;box-shadow:0 24px 90px rgba(0,0,0,.45);padding:24px;color:#f4ecdc"><h3 style="margin:0 0 10px;font-size:22px;font-weight:800;color:#f3dfab">' + String(title || "알림") + '</h3><p style="margin:0;white-space:pre-wrap;line-height:1.7;color:#ddd3bf">' + String(message || "") + '</p><div style="display:flex;justify-content:flex-end;margin-top:20px"><button type="button" style="border:1px solid rgba(218,183,109,.28);background:linear-gradient(180deg,rgba(119,72,29,.92),rgba(64,36,18,.96));color:#f7ecd4;border-radius:12px;padding:10px 18px;font-weight:700;cursor:pointer">확인</button></div></div>';
+            document.body.appendChild(fallback);
+            return new Promise((resolve) => {
+                fallback.querySelector('button').addEventListener('click', () => {
+                    fallback.remove();
+                    resolve();
+                }, { once: true });
+            });
         }
         if (titleEl) titleEl.textContent = String(title || "알림");
         messageEl.textContent = String(message || "");

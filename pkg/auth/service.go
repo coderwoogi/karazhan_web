@@ -31,6 +31,10 @@ func RegisterRoutes(mux *http.ServeMux) {
 		w.Header().Set("Expires", "0")
 
 		if r.URL.Path == "/login/" {
+			if cookie, err := r.Cookie("session_user"); err == nil && strings.TrimSpace(cookie.Value) != "" {
+				http.Redirect(w, r, "/", http.StatusSeeOther)
+				return
+			}
 			http.ServeFile(w, r, "./pkg/auth/static/index.html")
 			return
 		}
@@ -387,18 +391,40 @@ func userStatusHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 3-1. Get Character Details (from characters DB)
-	if mainCharGUID > 0 {
-		charsDSN := config.CharactersDSN()
-		charsDB, err := sql.Open("mysql", charsDSN)
-		if err == nil {
-			defer charsDB.Close()
+	charsDSN := config.CharactersDSN()
+	charsDB, err := sql.Open("mysql", charsDSN)
+	if err == nil {
+		defer charsDB.Close()
+
+		if mainCharGUID > 0 {
 			err = charsDB.QueryRow("SELECT race, class, gender, level FROM characters WHERE guid = ?", mainCharGUID).Scan(&charRace, &charClass, &charGender, &charLevel)
 			if err != nil {
 				log.Printf("Char Details Error: %v", err)
 			}
 		} else {
-			log.Printf("Chars DB Conn Error: %v", err)
+			autoGuid := 0
+			autoName := ""
+			err = charsDB.QueryRow(`
+				SELECT guid, name, race, class, gender, level
+				FROM characters
+				WHERE account = ?
+				ORDER BY guid ASC
+				LIMIT 1
+			`, id).Scan(&autoGuid, &autoName, &charRace, &charClass, &charGender, &charLevel)
+			if err == nil && autoGuid > 0 && strings.TrimSpace(autoName) != "" {
+				mainCharGUID = autoGuid
+				mainCharName = strings.TrimSpace(autoName)
+				if updateDB != nil {
+					if saveErr := saveMainCharacterProfile(updateDB, id, mainCharGUID, mainCharName); saveErr != nil {
+						log.Printf("Auto Set Main Char Error: %v", saveErr)
+					} else if syncErr := syncBoardAuthorNames(updateDB, id, mainCharName); syncErr != nil {
+						log.Printf("Auto Sync Board Author Error: %v", syncErr)
+					}
+				}
+			}
 		}
+	} else {
+		log.Printf("Chars DB Conn Error: %v", err)
 	}
 
 	// 4. Get Effective Permissions Details
@@ -409,6 +435,8 @@ func userStatusHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	response := map[string]interface{}{
+		"id":                           id,
+		"accountID":                    id,
 		"username":                     username,
 		"email":                        email,
 		"points":                       GetPoints(id),
@@ -554,8 +582,25 @@ func handleSetMainCharacter(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 2. Verify Ownership (Optional but recommended)
-	// We trust the GUID if it comes from our list, but strictly should verify.
-	// For now, assuming client sends valid GUID from the list we gave them.
+	charDSN := config.CharactersDSN()
+	charDB, err := sql.Open("mysql", charDSN)
+	if err != nil {
+		http.Error(w, "Char DB Error", http.StatusInternalServerError)
+		return
+	}
+	defer charDB.Close()
+
+	var verifiedName string
+	err = charDB.QueryRow("SELECT name FROM characters WHERE guid = ? AND account = ?", req.Guid, accountID).Scan(&verifiedName)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, "Character not found", http.StatusBadRequest)
+			return
+		}
+		http.Error(w, "Char Query Error", http.StatusInternalServerError)
+		return
+	}
+	req.Name = strings.TrimSpace(verifiedName)
 
 	// 3. Update User Profile
 	updateDSN := config.UpdateDSN()
@@ -566,19 +611,49 @@ func handleSetMainCharacter(w http.ResponseWriter, r *http.Request) {
 	}
 	defer updateDB.Close()
 
-	_, err = updateDB.Exec(`
-		INSERT INTO user_profiles (user_id, main_char_guid, main_char_name)
-		VALUES (?, ?, ?)
-		ON DUPLICATE KEY UPDATE main_char_guid = ?, main_char_name = ?
-	`, accountID, req.Guid, req.Name, req.Guid, req.Name)
-
-	if err != nil {
+	if err := saveMainCharacterProfile(updateDB, accountID, req.Guid, req.Name); err != nil {
 		log.Printf("Set Main Char Error: %v", err)
 		http.Error(w, fmt.Sprintf("Failed to set main character: %v", err), http.StatusInternalServerError)
 		return
 	}
 
+	if err := syncBoardAuthorNames(updateDB, accountID, req.Name); err != nil {
+		log.Printf("Sync Board Author Error: %v", err)
+		http.Error(w, fmt.Sprintf("Failed to sync board author names: %v", err), http.StatusInternalServerError)
+		return
+	}
+
 	w.WriteHeader(http.StatusOK)
+}
+
+func saveMainCharacterProfile(updateDB *sql.DB, accountID, guid int, name string) error {
+	if updateDB == nil || accountID <= 0 || guid <= 0 || strings.TrimSpace(name) == "" {
+		return fmt.Errorf("invalid main character profile arguments")
+	}
+	_, err := updateDB.Exec(`
+		INSERT INTO user_profiles (user_id, main_char_guid, main_char_name)
+		VALUES (?, ?, ?)
+		ON DUPLICATE KEY UPDATE main_char_guid = ?, main_char_name = ?
+	`, accountID, guid, strings.TrimSpace(name), guid, strings.TrimSpace(name))
+	return err
+}
+
+func syncBoardAuthorNames(updateDB *sql.DB, accountID int, authorName string) error {
+	if updateDB == nil || accountID <= 0 || strings.TrimSpace(authorName) == "" {
+		return nil
+	}
+
+	trimmedName := strings.TrimSpace(authorName)
+	if _, err := updateDB.Exec("UPDATE web_posts SET author_name = ? WHERE account_id = ?", trimmedName, accountID); err != nil {
+		return err
+	}
+	if _, err := updateDB.Exec("UPDATE web_comments SET author_name = ? WHERE account_id = ?", trimmedName, accountID); err != nil {
+		return err
+	}
+	if _, err := updateDB.Exec("UPDATE web_inquiry_messages SET author_name = ? WHERE account_id = ?", trimmedName, accountID); err != nil {
+		return err
+	}
+	return nil
 }
 
 func adminUserListHandler(w http.ResponseWriter, r *http.Request) {

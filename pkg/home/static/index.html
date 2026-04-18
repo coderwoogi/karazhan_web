@@ -1,9 +1,10 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>카라잔</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.snow.css" />
   <style>
     :root {
       --bg: #07070d;
@@ -68,44 +69,37 @@
     }
 
     .nav {
-      display: flex;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
       align-items: center;
-      justify-content: space-between;
       width: min(1180px, calc(100% - 40px));
       height: 100%;
       margin: 0 auto;
+      column-gap: 24px;
     }
 
-    .nav-logo {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      min-width: 170px;
-    }
-
-    .nav-logo img {
-      width: 104px;
-      height: auto;
-      filter: drop-shadow(0 0 18px rgba(122, 56, 230, 0.34));
-    }
-
-    .nav-logo span {
-      display: grid;
-      color: var(--gold);
-      font-size: 12px;
-      line-height: 1.2;
+    .nav-brand {
+      justify-self: start;
+      color: #f3dfab;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 25px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
       text-transform: uppercase;
-      letter-spacing: 0.16em;
+      white-space: nowrap;
+      text-shadow: 0 0 18px rgba(122, 56, 230, 0.18);
     }
 
     .nav-links {
       display: flex;
       align-items: center;
+      justify-self: center;
       gap: 42px;
       color: #e9e0ce;
       font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
       font-size: 15px;
       font-weight: 800;
+      white-space: nowrap;
     }
 
     .nav-links a {
@@ -136,55 +130,60 @@
       align-items: center;
     }
 
-    .nav-dropdown > a {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-    }
-
     .nav-dropdown > a::before {
       content: "";
       position: absolute;
-      inset: 100% -18px auto;
-      height: 18px;
+      right: -14px;
+      top: 50%;
+      width: 6px;
+      height: 6px;
+      border-right: 1px solid rgba(243, 223, 171, 0.8);
+      border-bottom: 1px solid rgba(243, 223, 171, 0.8);
+      transform: translateY(-62%) rotate(45deg);
     }
 
     .board-dropdown-menu {
       position: absolute;
-      top: calc(100% + 12px);
+      top: calc(100% + 14px);
       left: 50%;
-      min-width: 190px;
-      max-height: 360px;
-      overflow-y: auto;
-      padding: 8px;
-      border: 1px solid rgba(218, 183, 109, 0.35);
-      background: rgba(8, 7, 13, 0.96);
-      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.48), 0 0 24px rgba(122, 56, 230, 0.2);
-      transform: translate(-50%, 8px);
+      display: grid;
+      gap: 4px;
+      min-width: 220px;
+      padding: 12px;
+      border: 1px solid rgba(218, 183, 109, 0.22);
+      background: rgba(10, 8, 16, 0.98);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
       opacity: 0;
-      visibility: hidden;
-      transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s ease;
-    }
-
-    .nav-dropdown:hover .board-dropdown-menu,
-    .nav-dropdown:focus-within .board-dropdown-menu {
-      opacity: 1;
-      visibility: visible;
-      transform: translate(-50%, 0);
+      pointer-events: none;
+      transform: translateX(-50%) translateY(8px);
+      transition: opacity 0.18s ease, transform 0.18s ease;
+      z-index: 40;
     }
 
     .board-dropdown-menu a {
       display: block;
       padding: 10px 12px;
-      color: #e8dece;
-      border-radius: 6px;
-      font-size: 13px;
+      border: 1px solid transparent;
+      color: #efe6d1;
+      font-size: 14px;
+      font-weight: 700;
       white-space: nowrap;
     }
 
+    .board-dropdown-menu a::after {
+      display: none;
+    }
+
     .board-dropdown-menu a:hover {
-      color: #fff6dc;
-      background: rgba(122, 56, 230, 0.28);
+      border-color: rgba(218, 183, 109, 0.22);
+      background: rgba(122, 56, 230, 0.12);
+    }
+
+    .nav-dropdown:hover .board-dropdown-menu,
+    .nav-dropdown:focus-within .board-dropdown-menu {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateX(-50%) translateY(0);
     }
 
     .nav-action,
@@ -210,19 +209,59 @@
       transition: transform 0.18s ease, filter 0.18s ease;
     }
 
+    .nav-action {
+      justify-self: end;
+    }
+
     .nav-action:hover,
     .btn:hover {
       transform: translateY(-1px);
       filter: brightness(1.1);
     }
 
+    .nav-user {
+      min-width: 0;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      box-shadow: none;
+      cursor: default;
+      gap: 10px;
+    }
+
+    .nav-user:hover {
+      transform: none;
+      filter: none;
+    }
+
+    .nav-user-avatar {
+      width: 42px;
+      height: 42px;
+      border: 1px solid rgba(218, 183, 109, 0.35);
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 0.3), transparent 28%),
+        radial-gradient(circle at 50% 38%, rgba(122, 56, 230, 0.78), rgba(30, 16, 47, 0.92));
+      box-shadow:
+        inset 0 0 18px rgba(255, 255, 255, 0.1),
+        0 0 24px rgba(122, 56, 230, 0.22);
+    }
+
+    .nav-user-text {
+      color: #f4ecdc;
+      font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+      font-size: 14px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
     .hero {
       position: relative;
-      min-height: 900px;
+      min-height: 1100px;
       border-bottom: 1px solid var(--line);
       background:
         linear-gradient(180deg, transparent 0%, transparent 70%, rgba(7, 7, 13, 0.5) 100%),
-        var(--public-hero-bg, url("/img/karazhan-purple-web-bg-wide.jpeg")) top center / cover no-repeat;
+        var(--public-hero-bg, url("/img/main_bg.png?v=20260416_1")) center 26% / cover no-repeat;
       background-color: #05050a;
       isolation: isolate;
     }
@@ -262,12 +301,6 @@
       background: linear-gradient(90deg, rgba(5, 5, 9, 0.62), rgba(5, 5, 9, 0.18));
       backdrop-filter: blur(2px);
       animation: rise 0.8s ease both;
-    }
-
-    .hero-emblem {
-      width: 150px;
-      margin-bottom: 10px;
-      filter: drop-shadow(0 0 30px rgba(122, 56, 230, 0.38));
     }
 
     .eyebrow {
@@ -844,58 +877,59 @@
       font-weight: 900;
     }
 
-    .public-board {
+
+    #public-board-view[hidden] {
+      display: none;
+    }
+
+    .public-board-layout {
       display: grid;
       grid-template-columns: 260px minmax(0, 1fr);
-      gap: 18px;
+      gap: 24px;
+      align-items: start;
     }
 
-    .public-board-list,
-    .public-post-list,
-    .public-post-detail {
-      min-height: 420px;
-    }
-
-    .public-board-list {
-      padding: 14px;
-    }
-
-    .public-board-btn {
-      width: 100%;
-      min-height: 42px;
-      margin-bottom: 8px;
-      padding: 0 14px;
+    .public-board-panel {
+      min-height: 720px;
+      padding: 28px;
       border: 1px solid rgba(218, 183, 109, 0.18);
-      border-radius: 8px;
-      color: #d9d2e5;
-      background: rgba(255, 255, 255, 0.035);
-      text-align: left;
-      cursor: pointer;
-      font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
-      font-weight: 800;
-      transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+      background: linear-gradient(180deg, rgba(12, 10, 19, 0.96), rgba(9, 8, 15, 0.96));
+      box-shadow: var(--shadow);
     }
 
-    .public-board-btn.active,
-    .public-board-btn:hover {
-      color: #fff3ce;
-      border-color: rgba(218, 183, 109, 0.52);
-      background: rgba(122, 56, 230, 0.22);
+    .public-board-sidebar {
+      position: sticky;
+      top: 96px;
+      display: grid;
+      gap: 14px;
+      min-height: 720px;
+      padding: 22px;
+      border: 1px solid rgba(218, 183, 109, 0.18);
+      background: linear-gradient(180deg, rgba(16, 13, 24, 0.95), rgba(10, 8, 15, 0.95));
+      box-shadow: var(--shadow);
     }
 
-    .public-board-head {
+    .public-board-head,
+    .public-board-toolbar,
+    .public-post-write-actions {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 12px;
-      padding: 18px 20px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      flex-wrap: wrap;
     }
 
-    .public-board-head h2 {
+    .public-board-head {
+      margin-bottom: 22px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid rgba(218, 183, 109, 0.18);
+    }
+
+    .public-board-head h2,
+    .public-board-head h3 {
       margin: 0;
       color: #f3dfab;
-      font-size: 24px;
+      font-size: 30px;
     }
 
     .public-board-status {
@@ -904,115 +938,266 @@
       font-size: 13px;
     }
 
-    .public-post-row {
+    .public-board-list {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      gap: 14px;
-      padding: 16px 20px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.055);
+      gap: 10px;
+    }
+
+    .public-board-btn {
+      width: 100%;
+      padding: 14px 16px;
+      border: 1px solid rgba(218, 183, 109, 0.16);
+      color: #efe6d1;
+      background: rgba(255, 255, 255, 0.02);
+      text-align: left;
+      cursor: pointer;
+      transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+    }
+
+    .public-board-btn:hover,
+    .public-board-btn.active {
+      border-color: rgba(218, 183, 109, 0.44);
+      background: rgba(122, 56, 230, 0.14);
+      transform: translateY(-1px);
+    }
+
+    .public-board-search-wrap {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .public-board-search-wrap input,
+    .public-board-text-input,
+    .public-board-textarea {
+      width: 100%;
+      padding: 13px 15px;
+      border: 1px solid rgba(218, 183, 109, 0.18);
+      color: #f4ecdc;
+      background: rgba(255, 255, 255, 0.03);
+      font: inherit;
+    }
+
+    .public-board-text-input:focus,
+    .public-board-textarea:focus,
+    .public-editor-shell:focus-within {
+      outline: none;
+      border-color: rgba(218, 183, 109, 0.42);
+      box-shadow: 0 0 0 1px rgba(218, 183, 109, 0.14), 0 0 20px rgba(122, 56, 230, 0.12);
+    }
+
+    .public-board-search-wrap input {
+      flex: 1 1 220px;
+      min-width: 0;
+    }
+
+    .public-board-textarea {
+      min-height: 300px;
+      resize: vertical;
+    }
+
+    .public-post-table-wrap {
+      overflow-x: auto;
+    }
+
+    .public-post-table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 640px;
+    }
+
+    .public-post-table th,
+    .public-post-table td {
+      padding: 16px 14px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+      font-size: 14px;
+      text-align: left;
+    }
+
+    .public-post-table th {
+      color: #f3dfab;
+      background: rgba(255, 255, 255, 0.02);
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .public-post-table tbody tr {
       cursor: pointer;
       transition: background 0.18s ease;
     }
 
-    .public-post-row:hover {
-      background: rgba(122, 56, 230, 0.14);
+    .public-post-table tbody tr:hover {
+      background: rgba(122, 56, 230, 0.08);
     }
 
     .public-post-title {
-      color: #f4ecdc;
-      font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
-      font-weight: 900;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      font-weight: 700;
+    }
+
+    .public-post-detail-box,
+    .public-post-write-box {
+      min-height: 620px;
+      padding: 24px;
+      border: 1px solid rgba(218, 183, 109, 0.16);
+      background: rgba(255, 255, 255, 0.02);
     }
 
     .public-post-meta {
-      margin-top: 7px;
-      color: #9d93ae;
+      margin-top: 10px;
+      color: var(--muted);
       font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
-      font-size: 12px;
+      font-size: 13px;
     }
 
-    .public-post-number {
-      color: var(--gold);
-      font-family: Georgia, serif;
-      font-weight: 900;
-      white-space: nowrap;
+    .public-post-content {
+      min-height: 260px;
+      margin-top: 20px;
+      padding-top: 20px;
+      border-top: 1px solid rgba(218, 183, 109, 0.14);
+      font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+      line-height: 1.7;
+    }
+
+    .public-comments {
+      margin-top: 28px;
+      padding-top: 20px;
+      border-top: 1px solid rgba(218, 183, 109, 0.14);
+    }
+
+    .public-comment {
+      margin-top: 12px;
+      padding: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      background: rgba(255, 255, 255, 0.02);
+      font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
     }
 
     .public-board-pager {
       display: flex;
-      justify-content: center;
+      justify-content: flex-end;
       gap: 10px;
-      padding: 16px;
-    }
-
-    .public-board-pager button {
-      min-height: 34px;
-      padding: 0 14px;
-      border: 1px solid rgba(218, 183, 109, 0.32);
-      border-radius: 8px;
-      color: #f4ecdc;
-      background: rgba(255, 255, 255, 0.05);
-      cursor: pointer;
-    }
-
-    .public-post-detail {
-      display: none;
-      padding: 22px;
-    }
-
-    .public-post-detail.active {
-      display: block;
-    }
-
-    .public-post-detail h3 {
-      margin: 10px 0 8px;
-      color: #f3dfab;
-      font-size: 25px;
-    }
-
-    .public-post-content {
-      margin-top: 18px;
-      padding-top: 18px;
-      border-top: 1px solid rgba(255, 255, 255, 0.08);
-      color: #ddd4e7;
-      font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
-      line-height: 1.8;
-      word-break: break-word;
-    }
-
-    .public-post-content img {
-      max-width: 100%;
-      height: auto;
-      border-radius: 10px;
-    }
-
-    .public-comments {
       margin-top: 22px;
-      display: grid;
-      gap: 10px;
     }
 
-    .public-comment {
-      padding: 12px 14px;
-      border: 1px solid rgba(255, 255, 255, 0.07);
-      border-radius: 10px;
-      background: rgba(255, 255, 255, 0.035);
-      color: #cec6da;
+    .public-board-pager button,
+    .public-post-write-actions .btn {
+      white-space: nowrap;
+    }
+
+    .public-editor-shell {
+      margin-top: 16px;
+      padding: 0;
+      border: 1px solid rgba(218, 183, 109, 0.18);
+      background: rgba(255, 255, 255, 0.03);
+      overflow: hidden;
+    }
+
+    #public-write-editor {
+      width: 100%;
+      background: transparent;
+    }
+
+    #public-write-editor .ql-toolbar.ql-snow,
+    #public-write-editor .ql-container.ql-snow {
+      border: 1px solid rgba(218, 183, 109, 0.18) !important;
+      background: transparent !important;
+      color: #f4ecdc;
       font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
-      font-size: 13px;
-      line-height: 1.6;
+      box-shadow: none !important;
     }
 
-    .public-comment strong {
-      color: #f3dfab;
+    #public-write-editor .ql-toolbar.ql-snow {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      border-bottom: 0 !important;
+      padding: 10px 12px 8px;
+    }
+
+    #public-write-editor .ql-container.ql-snow {
+      min-height: 320px;
+      border-top: 1px solid rgba(218, 183, 109, 0.18) !important;
+    }
+
+    #public-write-editor .ql-editor {
+      min-height: 320px;
+      padding: 16px 15px;
+      color: #f4ecdc;
+      font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+      font-size: 14px;
+      line-height: 1.7;
+      background: transparent;
+    }
+
+    #public-write-editor .ql-editor.ql-blank::before {
+      color: #9f96ad;
+      font-style: normal;
+      left: 15px;
+      right: 15px;
+    }
+
+    #public-write-editor .ql-toolbar.ql-snow .ql-formats {
+      margin-right: 12px;
+      margin-bottom: 4px;
+    }
+
+    #public-write-editor .ql-snow .ql-stroke {
+      stroke: #ead9b0;
+    }
+
+    #public-write-editor .ql-snow .ql-fill {
+      fill: #ead9b0;
+    }
+
+    #public-write-editor .ql-snow .ql-picker {
+      color: #ead9b0;
+    }
+
+    #public-write-editor .ql-snow .ql-picker-label,
+    #public-write-editor .ql-snow .ql-picker-options {
+      color: #ead9b0;
+      border-color: rgba(218, 183, 109, 0.18);
+      background: rgba(18, 15, 27, 0.98);
+    }
+
+    #public-write-editor .ql-snow .ql-picker-options {
+      padding: 6px 0;
+      box-shadow: 0 18px 32px rgba(0, 0, 0, 0.34);
+    }
+
+    #public-write-editor .ql-snow .ql-picker-item:hover,
+    #public-write-editor .ql-snow .ql-picker-item.ql-selected {
+      color: #fff3ce;
+      background: rgba(122, 56, 230, 0.16);
+    }
+
+    #public-write-editor .ql-toolbar button:hover,
+    #public-write-editor .ql-toolbar button:focus,
+    #public-write-editor .ql-toolbar button.ql-active {
+      background: rgba(122, 56, 230, 0.16);
     }
 
     @media (max-width: 980px) {
+      .nav {
+        grid-template-columns: 1fr auto;
+      }
+
+      .nav-brand {
+        display: none;
+      }
+
       .nav-links {
         display: none;
+      }
+
+      .public-board-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .public-board-sidebar {
+        position: static;
+        min-height: 0;
       }
 
       .hero-inner,
@@ -1033,8 +1218,7 @@
       }
 
       .challenge-grid,
-      .guide-grid,
-      .public-board {
+      .guide-grid {
         grid-template-columns: 1fr;
       }
     }
@@ -1042,10 +1226,6 @@
     @media (max-width: 620px) {
       .nav {
         width: min(100% - 28px, 1180px);
-      }
-
-      .nav-logo span {
-        display: none;
       }
 
       .nav-action {
@@ -1080,6 +1260,48 @@
       .like {
         grid-column: 2;
       }
+
+      .public-post-table,
+      .public-post-table thead,
+      .public-post-table tbody,
+      .public-post-table th,
+      .public-post-table td,
+      .public-post-table tr {
+        display: block;
+      }
+
+      .public-post-table {
+        min-width: 0;
+      }
+
+      .public-post-table thead {
+        display: none;
+      }
+
+      .public-post-table tbody {
+        display: grid;
+        gap: 14px;
+      }
+
+      .public-post-table tr {
+        padding: 16px;
+        border: 1px solid rgba(218, 183, 109, 0.16);
+        background: rgba(255, 255, 255, 0.03);
+      }
+
+      .public-post-table td {
+        padding: 8px 0;
+        border: 0;
+      }
+
+      .public-post-table td::before {
+        display: block;
+        margin-bottom: 4px;
+        color: var(--gold);
+        content: attr(data-label);
+        font-size: 12px;
+        font-weight: 700;
+      }
     }
   </style>
 </head>
@@ -1087,13 +1309,7 @@
   <div class="page">
     <header class="topbar">
       <nav class="nav" aria-label="주요 메뉴">
-        <a class="nav-logo" href="#">
-          <img src="/img/wowlogo_white.png" alt="카라잔 로고" />
-          <span>
-            <strong>KARAZHAN</strong>
-            <small>Private Realm</small>
-          </span>
-        </a>
+        <a class="nav-brand" href="/">The Karazhan</a>
         <div class="nav-links">
           <a href="#notice-section">공지사항</a>
           <a href="#connect-section">접속방법</a>
@@ -1108,10 +1324,10 @@
     </header>
 
     <main>
+      <div id="public-home-view">
       <section class="hero" aria-label="카라잔 소개">
         <div class="hero-inner">
           <div class="hero-copy">
-            <img class="hero-emblem" src="/img/wowlogo_white.png" alt="월드 오브 워크래프트 로고" />
             <div class="eyebrow">전설의 성채가 당신을 부른다</div>
             <h1>카라잔</h1>
             <div class="hero-subtitle">모험의 시간, 운명의 세계로</div>
@@ -1246,29 +1462,66 @@
           <a class="btn" href="#">접속 방법 보기</a>
         </aside>
       </section>
-      <section id="public-board-section" class="section" aria-label="게시판">
-        <div class="section-title">게시판</div>
-        <div class="public-board">
-          <aside class="panel public-board-list" id="public-board-list">
-            <div class="public-board-status">게시판을 불러오는 중입니다.</div>
-          </aside>
-          <article class="panel">
+      <section id="auction-section" class="section" aria-label="경매장 안내"><div class="section-title">경매장</div><article class="panel" style="padding:24px;"><h2 style="margin:0 0 10px;color:#f3dfab;">경매장 안내</h2><p style="margin:0;color:#cfc4d8;font-family:&quot;Malgun Gothic&quot;, &quot;Apple SD Gothic Neo&quot;, sans-serif;line-height:1.7;">기존 유저 화면에서 제공하던 경매장 메뉴는 새 유저 화면의 상단 메뉴에 배치했습니다. 로그인 후 이용 가능한 기능은 각 메뉴에서 계정 확인 후 접근됩니다.</p></article></section>
+      </div>
+
+      <section id="public-board-view" class="section" hidden aria-label="게시판">
+        <div class="public-board-layout">
+          <aside class="public-board-sidebar">
             <div class="public-board-head">
-              <h2 id="public-board-title">게시판</h2>
-              <span class="public-board-status" id="public-board-status">목록을 준비 중입니다.</span>
+              <h3>게시판</h3>
+              <span id="public-board-status" class="public-board-status">게시판을 불러오는 중...</span>
             </div>
-            <div class="public-post-list" id="public-post-list"></div>
-            <div class="public-board-pager" id="public-board-pager"></div>
-            <div class="public-post-detail" id="public-post-detail"></div>
-          </article>
+            <div id="public-board-list" class="public-board-list">
+              <div class="public-board-status">게시판을 불러오는 중...</div>
+            </div>
+          </aside>
+
+          <section class="public-board-panel">
+            <div id="public-board-list-screen">
+              <div class="public-board-head">
+                <h2 id="public-board-title">공지사항</h2>
+                <div class="public-post-write-actions">
+                  <button id="public-board-home-btn" class="btn btn-small" type="button">홈으로</button>
+                  <button id="public-board-write-btn" class="btn btn-small" type="button">글쓰기</button>
+                </div>
+              </div>
+              <div class="public-board-toolbar">
+                <div class="public-board-search-wrap">
+                  <input id="public-board-search" type="text" placeholder="게시글 검색" />
+                  <button id="public-board-search-btn" class="btn btn-small" type="button">검색</button>
+                </div>
+              </div>
+              <div id="public-post-list" style="margin-top:22px;"></div>
+              <div id="public-board-pager" class="public-board-pager"></div>
+            </div>
+
+            <div id="public-post-detail-screen" hidden>
+              <div class="public-board-head">
+                <h2 id="public-board-view-title">게시글 상세</h2>
+                <button id="public-post-close" class="btn btn-small" type="button">목록으로</button>
+              </div>
+              <div id="public-post-detail" class="public-post-detail-box"></div>
+            </div>
+
+            <div id="public-post-write-screen" hidden>
+              <div class="public-board-head">
+                <h2 id="public-post-write-title">게시글 작성</h2>
+                <button id="public-write-cancel-btn" class="btn btn-small" type="button">목록으로</button>
+              </div>
+              <div class="public-post-write-box">
+                <input id="public-write-title" class="public-board-text-input" type="text" placeholder="제목을 입력해 주세요." />
+                <div class="public-editor-shell" style="border: 0px;">
+                  <div id="public-write-editor"></div>
+                </div>
+                <textarea id="public-write-content" class="public-board-textarea" hidden></textarea>
+                <div class="public-post-write-actions" style="margin-top:20px;">
+                  <button id="public-write-submit-btn" class="btn btn-small" type="button">저장</button>
+                </div>
+              </div>
+            </div>
+          </section>
         </div>
-      </section>
-      <section id="auction-section" class="section" aria-label="경매장 안내">
-        <div class="section-title">경매장</div>
-        <article class="panel" style="padding:24px;">
-          <h2 style="margin:0 0 10px;color:#f3dfab;">경매장 안내</h2>
-          <p style="margin:0;color:#cfc4d8;font-family:&quot;Malgun Gothic&quot;, &quot;Apple SD Gothic Neo&quot;, sans-serif;line-height:1.7;">기존 유저 화면에서 제공하던 경매장 메뉴는 새 유저 화면의 상단 메뉴에 배치했습니다. 로그인 후 이용 가능한 기능은 각 메뉴에서 계정 확인 후 접근됩니다.</p>
-        </article>
       </section>
     </main>
 
@@ -1306,6 +1559,11 @@
       </div>
     </footer>
   </div>
-<script src="/public-home.js?v=20260416_1"></script>
+  <script src="https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.js"></script>
+  <script src="/public-home.js?v=20260416_7"></script>
 </body>
 </html>
+
+
+
+

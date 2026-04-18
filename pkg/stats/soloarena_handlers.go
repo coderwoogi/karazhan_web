@@ -1,9 +1,11 @@
-﻿package stats
+package stats
 
 import (
+	"bytes"
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
 	"karazhan/pkg/config"
 	"net/http"
 	"strconv"
@@ -12,35 +14,35 @@ import (
 )
 
 type soloArenaStageRow struct {
-	StageID              int     `json:"stage_id"`
-	Name                 string  `json:"name"`
-	ArenaMapID           int     `json:"arena_map_id"`
-	PlayerX              float64 `json:"player_x"`
-	PlayerY              float64 `json:"player_y"`
-	PlayerZ              float64 `json:"player_z"`
-	PlayerO              float64 `json:"player_o"`
-	BotX                 float64 `json:"bot_x"`
-	BotY                 float64 `json:"bot_y"`
-	BotZ                 float64 `json:"bot_z"`
-	BotO                 float64 `json:"bot_o"`
-	PreparationMS        int     `json:"preparation_ms"`
-	HealthMultiplier     float64 `json:"health_multiplier"`
-	DamageMultiplier     float64 `json:"damage_multiplier"`
-	AttackTimeMS         int     `json:"attack_time_ms"`
-	SpellIntervalMS      int     `json:"spell_interval_ms"`
-	MoveSpeedRate        float64 `json:"move_speed_rate"`
-	MeleeTargetGS        int     `json:"melee_target_gs"`
-	MeleeHealth          int     `json:"melee_health"`
-	MeleeAttackPower     int     `json:"melee_attack_power"`
-	MeleeCritPct         float64 `json:"melee_crit_pct"`
-	MeleeArmorPenRating  int     `json:"melee_armor_pen_rating"`
-	CasterTargetGS       int     `json:"caster_target_gs"`
-	CasterHealth         int     `json:"caster_health"`
-	CasterSpellPower     int     `json:"caster_spell_power"`
-	CasterCritPct        float64 `json:"caster_crit_pct"`
-	CasterHasteRating    int     `json:"caster_haste_rating"`
-	Enabled              int     `json:"enabled"`
-	RewardCount          int     `json:"reward_count"`
+	StageID             int     `json:"stage_id"`
+	Name                string  `json:"name"`
+	ArenaMapID          int     `json:"arena_map_id"`
+	PlayerX             float64 `json:"player_x"`
+	PlayerY             float64 `json:"player_y"`
+	PlayerZ             float64 `json:"player_z"`
+	PlayerO             float64 `json:"player_o"`
+	BotX                float64 `json:"bot_x"`
+	BotY                float64 `json:"bot_y"`
+	BotZ                float64 `json:"bot_z"`
+	BotO                float64 `json:"bot_o"`
+	PreparationMS       int     `json:"preparation_ms"`
+	HealthMultiplier    float64 `json:"health_multiplier"`
+	DamageMultiplier    float64 `json:"damage_multiplier"`
+	AttackTimeMS        int     `json:"attack_time_ms"`
+	SpellIntervalMS     int     `json:"spell_interval_ms"`
+	MoveSpeedRate       float64 `json:"move_speed_rate"`
+	MeleeTargetGS       int     `json:"melee_target_gs"`
+	MeleeHealth         int     `json:"melee_health"`
+	MeleeAttackPower    int     `json:"melee_attack_power"`
+	MeleeCritPct        float64 `json:"melee_crit_pct"`
+	MeleeArmorPenRating int     `json:"melee_armor_pen_rating"`
+	CasterTargetGS      int     `json:"caster_target_gs"`
+	CasterHealth        int     `json:"caster_health"`
+	CasterSpellPower    int     `json:"caster_spell_power"`
+	CasterCritPct       float64 `json:"caster_crit_pct"`
+	CasterHasteRating   int     `json:"caster_haste_rating"`
+	Enabled             int     `json:"enabled"`
+	RewardCount         int     `json:"reward_count"`
 }
 
 type soloArenaStageRewardRow struct {
@@ -88,11 +90,11 @@ type soloArenaCharacterDetail struct {
 }
 
 type soloArenaProgressSaveRequest struct {
-	GUID                           int64  `json:"guid"`
-	HighestStageCleared            int    `json:"highest_stage_cleared"`
-	SyncRecords                    bool   `json:"sync_records"`
-	AdjustmentNote                 string `json:"adjustment_note"`
-	TargetStageIDForSync           int    `json:"target_stage_id_for_sync"`
+	GUID                 int64  `json:"guid"`
+	HighestStageCleared  int    `json:"highest_stage_cleared"`
+	SyncRecords          bool   `json:"sync_records"`
+	AdjustmentNote       string `json:"adjustment_note"`
+	TargetStageIDForSync int    `json:"target_stage_id_for_sync"`
 }
 
 type soloArenaStageRecordSaveRequest struct {
@@ -104,17 +106,17 @@ type soloArenaStageRecordSaveRequest struct {
 }
 
 type soloArenaStageRecordDeleteRequest struct {
-	GUID                    int64 `json:"guid"`
-	StageID                 int   `json:"stage_id"`
-	AdjustHighestStage      bool  `json:"adjust_highest_stage"`
+	GUID               int64 `json:"guid"`
+	StageID            int   `json:"stage_id"`
+	AdjustHighestStage bool  `json:"adjust_highest_stage"`
 }
 
 type soloArenaForceClearRequest struct {
-	GUID             int64  `json:"guid"`
-	StageID          int    `json:"stage_id"`
-	BestRank         int    `json:"best_rank"`
-	BestRankLabel    string `json:"best_rank_label"`
-	BestTimeSec      int    `json:"best_time_sec"`
+	GUID          int64  `json:"guid"`
+	StageID       int    `json:"stage_id"`
+	BestRank      int    `json:"best_rank"`
+	BestRankLabel string `json:"best_rank_label"`
+	BestTimeSec   int    `json:"best_time_sec"`
 }
 
 type soloArenaRunLogRow struct {
@@ -870,7 +872,15 @@ func handleTrialStageSave(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": err.Error()})
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]string{"status": "success", "message": "시련 단계 능력치를 저장했습니다."})
+
+	reloadErr := triggerSoloArenaReload(r)
+	message := "시련 단계 능력치를 저장했습니다."
+	if reloadErr == nil {
+		message = "시련 단계 능력치를 저장하고 월드서버 재로드 명령을 전송했습니다."
+	} else {
+		message = fmt.Sprintf("시련 단계 능력치를 저장했습니다. 다만 월드서버 재로드 명령 전송에 실패했습니다: %s", reloadErr.Error())
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "success", "message": message})
 }
 
 func handleTrialStageRewards(w http.ResponseWriter, r *http.Request) {
@@ -1031,7 +1041,64 @@ func handleTrialStageRewardSave(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"status": "success"})
+
+	reloadErr := triggerSoloArenaReload(r)
+	message := "시련 단계 보상을 저장했습니다."
+	if reloadErr == nil {
+		message = "시련 단계 보상을 저장하고 월드서버 재로드 명령을 전송했습니다."
+	} else {
+		message = fmt.Sprintf("시련 단계 보상을 저장했습니다. 다만 월드서버 재로드 명령 전송에 실패했습니다: %s", reloadErr.Error())
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"status": "success", "message": message})
+}
+
+func triggerSoloArenaReload(r *http.Request) error {
+	baseURL := "http://127.0.0.1:8080"
+	if r != nil && strings.TrimSpace(r.Host) != "" {
+		scheme := "http"
+		if r.TLS != nil {
+			scheme = "https"
+		}
+		baseURL = scheme + "://" + r.Host
+	}
+
+	payload := map[string]string{"command": ".trial reload"}
+	bodyBytes, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, baseURL+"/api/launcher/command", bytes.NewReader(bodyBytes))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Internal-Caller", "soloarena")
+
+	client := &http.Client{Timeout: 8 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	respBytes, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("launcher command failed: %s", strings.TrimSpace(string(respBytes)))
+	}
+
+	var result map[string]any
+	if err := json.Unmarshal(respBytes, &result); err != nil {
+		return nil
+	}
+	if status, ok := result["status"].(string); ok && status != "success" {
+		if message, ok := result["message"].(string); ok && strings.TrimSpace(message) != "" {
+			return fmt.Errorf("%s", message)
+		}
+		return fmt.Errorf("launcher command failed")
+	}
+
+	return nil
 }
 
 func handleTrialProgressList(w http.ResponseWriter, r *http.Request) {
@@ -1826,5 +1893,3 @@ func handleTrialRewardLogList(w http.ResponseWriter, r *http.Request) {
 		"totalPages": (total + limit - 1) / limit,
 	})
 }
-
-

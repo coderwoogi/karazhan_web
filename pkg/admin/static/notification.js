@@ -1,4 +1,4 @@
-﻿let isNotificationDropdownOpen = false;
+let isNotificationDropdownOpen = false;
 let currentMailboxData = [];
 let selectedNotifUsers = [];
 let selectedMailboxIds = new Set();
@@ -292,7 +292,7 @@ async function deleteSelectedMailboxNotifications() {
         if (window.Swal) {
             await Swal.fire({ icon: 'info', title: '선택된 메시지가 없습니다.', timer: 1200, showConfirmButton: false });
         } else {
-            alert('선택된 메시지가 없습니다.');
+            await window.ModalUtils.showAlert('선택된 메시지가 없습니다.');
         }
         return;
     }
@@ -309,16 +309,19 @@ async function deleteSelectedMailboxNotifications() {
         });
         confirmed = !!result.isConfirmed;
     } else {
-        confirmed = confirm(`선택한 ${ids.length}개 메시지를 삭제하시겠습니까?`);
+        let modalConfirmed = false;
+        await window.ModalUtils.showConfirm(`선택한 ${ids.length}개 메시지를 삭제하시겠습니까?`, async () => { modalConfirmed = true; }, '선택 삭제');
+        confirmed = modalConfirmed;
     }
     if (!confirmed) return;
 
     try {
-        const response = await fetch('/api/notifications/delete-selected', {
+        const request = () => fetch('/api/notifications/delete-selected', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ ids: ids })
         });
+        const response = window.ModalUtils && typeof window.ModalUtils.runWithProgress === 'function' ? await window.ModalUtils.runWithProgress('??? ??? ???? ????.', request) : await request();
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
         }
@@ -337,7 +340,7 @@ async function deleteSelectedMailboxNotifications() {
         if (window.Swal) {
             await Swal.fire({ icon: 'error', title: '선택 삭제에 실패했습니다.' });
         } else {
-            alert('선택 삭제에 실패했습니다.');
+            await window.ModalUtils.showAlert('선택 삭제에 실패했습니다.');
         }
     }
 }

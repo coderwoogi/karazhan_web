@@ -49,6 +49,7 @@ func main() {
 	shopweb.RegisterRoutes(mux)
 
 	// Static Assets
+	mux.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir("./frontend/dist/assets"))))
 	mux.Handle("/img/", http.StripPrefix("/img/", http.FileServer(http.Dir("./img"))))
 	mux.Handle("/sounds/", http.StripPrefix("/sounds/", http.FileServer(http.Dir("./sounds"))))
 	mux.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
@@ -95,7 +96,7 @@ func withRecovery(next http.Handler) http.Handler {
 		defer func() {
 			if rec := recover(); rec != nil {
 				log.Printf("[PANIC] %s %s: %v", r.Method, r.URL.Path, rec)
-				http.Error(w, "요청 처리 중 오류가 발생했습니다.", http.StatusInternalServerError)
+				http.Error(w, "?붿껌 泥섎━ 以??ㅻ쪟媛 諛쒖깮?덉뒿?덈떎.", http.StatusInternalServerError)
 			}
 		}()
 		next.ServeHTTP(w, r)

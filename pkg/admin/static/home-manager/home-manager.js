@@ -112,18 +112,23 @@ async function saveDraft() {
 }
 
 async function publish() {
-  if (!confirm('현재 입력한 내용을 유저 메인 화면에 운영 반영하시겠습니까?')) return;
-  await save('/api/admin/home/publish', '운영 반영했습니다. 유저 화면을 새로고침하면 적용됩니다.');
+  if (window.ModalUtils && typeof window.ModalUtils.showConfirm === 'function') {
+    return window.ModalUtils.showConfirm('\uD604\uC7AC \uC785\uB825\uD55C \uB0B4\uC6A9\uC744 \uC720\uC800 \uBA54\uC778 \uD654\uBA74\uC5D0 \uC6B4\uC601 \uBC18\uC601\uD558\uC2DC\uACA0\uC2B5\uB2C8\uAE4C?', async () => {
+      await save('/api/admin/home/publish', '\uC6B4\uC601 \uBC18\uC601\uD588\uC2B5\uB2C8\uB2E4. \uC720\uC800 \uD654\uBA74\uC744 \uC0C8\uB85C\uACE0\uCE68\uD558\uBA74 \uC801\uC6A9\uB429\uB2C8\uB2E4.');
+    }, '\uC6B4\uC601 \uBC18\uC601');
+  }
+  await save('/api/admin/home/publish', '\uC6B4\uC601 \uBC18\uC601\uD588\uC2B5\uB2C8\uB2E4. \uC720\uC800 \uD654\uBA74\uC744 \uC0C8\uB85C\uACE0\uCE68\uD558\uBA74 \uC801\uC6A9\uB429\uB2C8\uB2E4.');
 }
 
 async function save(url, okMessage) {
   try {
     const content = collect();
-    const res = await fetch(url, {
+    const request = () => fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ content })
     });
+    const res = window.ModalUtils && typeof window.ModalUtils.runWithProgress === 'function' ? await window.ModalUtils.runWithProgress('\uD648 \uC124\uC815\uC744 \uC800\uC7A5\uD558\uB294 \uC911\uC785\uB2C8\uB2E4.', request) : await request();
     if (!res.ok) throw new Error(await res.text());
     status(okMessage, 'ok');
     await loadSettings();

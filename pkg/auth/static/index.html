@@ -11,7 +11,10 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div id="iridescence-bg" class="iridescence-bg"></div>
+    <video class="login-video-bg" autoplay muted loop playsinline aria-hidden="true">
+        <source src="/img/login_bg.mp4?v=20260417_1" type="video/mp4">
+    </video>
+    <div class="login-video-overlay" aria-hidden="true"></div>
     <div class="login-container">
         <div class="login-box">
             <div class="login-header">
@@ -43,7 +46,6 @@
         </div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="iridescence-bg.js?v=1"></script>
     <script src="click-spark.js?v=1"></script>
     <script src="login.js?v=1"></script>
 </body>
