@@ -4,14 +4,26 @@ import (
 	"encoding/json"
 	"karazhan/pkg/config"
 	"net/http"
+	"os"
 	"strings"
 )
+
+func servePublicHomeEntry(w http.ResponseWriter, r *http.Request) {
+	distPath := "./frontend/dist/index.html"
+	if _, err := os.Stat(distPath); err == nil {
+		w.Header().Set("Cache-Control", "no-cache")
+		http.ServeFile(w, r, distPath)
+		return
+	}
+
+	http.ServeFile(w, r, "./pkg/home/static/index.html")
+}
 
 func RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/public/home", handlePublicHomeSettings)
 
 	mux.HandleFunc("/react-home/", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "./frontend/dist/index.html")
+		servePublicHomeEntry(w, r)
 	})
 
 	mux.HandleFunc("/legacy-home/", func(w http.ResponseWriter, r *http.Request) {
@@ -29,8 +41,7 @@ func RegisterRoutes(mux *http.ServeMux) {
 			return
 		}
 
-		w.Header().Set("Cache-Control", "no-cache")
-		http.ServeFile(w, r, "./frontend/dist/index.html")
+		servePublicHomeEntry(w, r)
 	})
 
 	mux.HandleFunc("/home/", func(w http.ResponseWriter, r *http.Request) {
