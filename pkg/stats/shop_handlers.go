@@ -79,7 +79,42 @@ func getSenderDisplayNameForShop(updateDB *sql.DB, userID int, username string) 
 	if strings.TrimSpace(username) != "" {
 		return username
 	}
-	return "system"
+	return "shop_system"
+}
+
+func normalizeShopIconPath(raw string) string {
+	path := strings.TrimSpace(raw)
+	if path == "" {
+		return ""
+	}
+	if strings.HasPrefix(path, "http://") || strings.HasPrefix(path, "https://") {
+		return path
+	}
+	if strings.HasPrefix(path, "/img/") || strings.HasPrefix(path, "/uploads/") {
+		return path
+	}
+	if strings.HasPrefix(path, "img/") || strings.HasPrefix(path, "uploads/") {
+		return "/" + strings.TrimLeft(path, "/")
+	}
+
+	filename := filepath.Base(path)
+	if filename == "." || filename == "" {
+		return ""
+	}
+
+	// Legacy rows may store only the uploaded filename without the date directory.
+	if strings.HasPrefix(filename, "shop_icon_") {
+		matches, err := filepath.Glob(filepath.Join(".", "uploads", "shop-icons", "*", filename))
+		if err == nil && len(matches) > 0 {
+			rel := filepath.ToSlash(strings.TrimPrefix(matches[0], "."))
+			if strings.HasPrefix(rel, "/") {
+				return rel
+			}
+			return "/" + strings.TrimLeft(rel, "/")
+		}
+	}
+
+	return ""
 }
 
 func ensurePointShopTables(db *sql.DB) {
@@ -754,6 +789,7 @@ func handleShopItems(w http.ResponseWriter, r *http.Request) {
 		var id, price, stock, isVisible, itemEntry int
 		var name, itemType, functionCode, iconPath, desc, createdAt string
 		if err := rows.Scan(&id, &name, &itemType, &itemEntry, &functionCode, &iconPath, &desc, &price, &stock, &isVisible, &createdAt); err == nil {
+			iconPath = normalizeShopIconPath(iconPath)
 			items = append(items, map[string]interface{}{
 				"id":            id,
 				"name":          name,
@@ -1454,6 +1490,7 @@ func handleShopMyOrders(w http.ResponseWriter, r *http.Request) {
 		var id, qty, totalPrice, itemEntry int
 		var itemName, status, adminNote, createdAt, updatedAt, itemType, iconPath string
 		if err := rows.Scan(&id, &itemName, &qty, &totalPrice, &status, &adminNote, &createdAt, &updatedAt, &itemType, &itemEntry, &iconPath); err == nil {
+			iconPath = normalizeShopIconPath(iconPath)
 			orders = append(orders, map[string]interface{}{
 				"id":          id,
 				"item_name":   itemName,
@@ -1614,6 +1651,7 @@ func handleAdminShopItems(w http.ResponseWriter, r *http.Request) {
 		var id, price, stock, isVisible, isDeleted, itemEntry int
 		var name, itemType, functionCode, iconPath, desc, createdAt, updatedAt string
 		if err := rows.Scan(&id, &name, &itemType, &itemEntry, &functionCode, &iconPath, &desc, &price, &stock, &isVisible, &isDeleted, &createdAt, &updatedAt); err == nil {
+			iconPath = normalizeShopIconPath(iconPath)
 			items = append(items, map[string]interface{}{
 				"id":            id,
 				"name":          name,
@@ -1668,7 +1706,7 @@ func handleAdminShopItemSave(w http.ResponseWriter, r *http.Request) {
 	req.Name = strings.TrimSpace(req.Name)
 	req.ItemType = strings.TrimSpace(req.ItemType)
 	req.FunctionCode = strings.TrimSpace(req.FunctionCode)
-	req.IconPath = strings.TrimSpace(req.IconPath)
+	req.IconPath = normalizeShopIconPath(req.IconPath)
 	if req.ItemType == "" {
 		req.ItemType = "game"
 	}
@@ -1684,7 +1722,7 @@ func handleAdminShopItemSave(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "\uc694\uccad \ucc98\ub9ac \uc911 \uc624\ub958\uac00 \ubc1c\uc0dd\ud588\uc2b5\ub2c8\ub2e4."})
 		return
 	}
-	if req.IconPath != "" {
+	if strings.TrimSpace(req.IconPath) != "" {
 		isIconPack := strings.HasPrefix(req.IconPath, "/img/iconpack/")
 		isUploaded := strings.HasPrefix(req.IconPath, "/uploads/shop-icons/")
 		if strings.Contains(req.IconPath, "..") || (!isIconPack && !isUploaded) {
