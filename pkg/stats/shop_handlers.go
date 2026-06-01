@@ -90,11 +90,22 @@ func normalizeShopIconPath(raw string) string {
 	if strings.HasPrefix(path, "http://") || strings.HasPrefix(path, "https://") {
 		return path
 	}
-	if strings.HasPrefix(path, "/img/") || strings.HasPrefix(path, "/uploads/") {
-		return path
-	}
 	if strings.HasPrefix(path, "img/") || strings.HasPrefix(path, "uploads/") {
-		return "/" + strings.TrimLeft(path, "/")
+		path = "/" + strings.TrimLeft(path, "/")
+	}
+
+	resolveIfExists := func(candidates ...string) string {
+		for _, candidate := range candidates {
+			candidate = strings.TrimSpace(candidate)
+			if candidate == "" {
+				continue
+			}
+			fsPath := filepath.Join(".", filepath.FromSlash(strings.TrimPrefix(candidate, "/")))
+			if info, err := os.Stat(fsPath); err == nil && !info.IsDir() {
+				return candidate
+			}
+		}
+		return ""
 	}
 
 	filename := filepath.Base(path)
@@ -102,16 +113,27 @@ func normalizeShopIconPath(raw string) string {
 		return ""
 	}
 
-	// Legacy rows may store only the uploaded filename without the date directory.
+	if strings.HasPrefix(path, "/img/") || strings.HasPrefix(path, "/uploads/") {
+		if exact := resolveIfExists(path); exact != "" {
+			return exact
+		}
+	}
+
 	if strings.HasPrefix(filename, "shop_icon_") {
+		if imgPath := resolveIfExists("/img/shop/" + filename); imgPath != "" {
+			return imgPath
+		}
 		matches, err := filepath.Glob(filepath.Join(".", "uploads", "shop-icons", "*", filename))
 		if err == nil && len(matches) > 0 {
-			rel := filepath.ToSlash(strings.TrimPrefix(matches[0], "."))
-			if strings.HasPrefix(rel, "/") {
-				return rel
+			rel := "/" + strings.TrimLeft(filepath.ToSlash(strings.TrimPrefix(matches[0], ".")), "/")
+			if exact := resolveIfExists(rel); exact != "" {
+				return exact
 			}
-			return "/" + strings.TrimLeft(rel, "/")
 		}
+	}
+
+	if strings.HasPrefix(path, "/img/") || strings.HasPrefix(path, "/uploads/") {
+		return path
 	}
 
 	return ""
@@ -1724,8 +1746,9 @@ func handleAdminShopItemSave(w http.ResponseWriter, r *http.Request) {
 	}
 	if strings.TrimSpace(req.IconPath) != "" {
 		isIconPack := strings.HasPrefix(req.IconPath, "/img/iconpack/")
+		isShopImage := strings.HasPrefix(req.IconPath, "/img/shop/")
 		isUploaded := strings.HasPrefix(req.IconPath, "/uploads/shop-icons/")
-		if strings.Contains(req.IconPath, "..") || (!isIconPack && !isUploaded) {
+		if strings.Contains(req.IconPath, "..") || (!isIconPack && !isShopImage && !isUploaded) {
 			writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "\uc694\uccad \ucc98\ub9ac \uc911 \uc624\ub958\uac00 \ubc1c\uc0dd\ud588\uc2b5\ub2c8\ub2e4."})
 			return
 		}
@@ -1796,8 +1819,7 @@ func handleAdminShopIconUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	dateDir := time.Now().Format("20060102")
-	targetDir := filepath.Join(".", "uploads", "shop-icons", dateDir)
+	targetDir := filepath.Join(".", "img", "shop")
 	if err := os.MkdirAll(targetDir, 0755); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "업로드 경로를 생성하지 못했습니다."})
 		return
@@ -1817,7 +1839,7 @@ func handleAdminShopIconUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	publicURL := "/uploads/shop-icons/" + dateDir + "/" + filename
+	publicURL := "/img/shop/" + filename
 	writeJSON(w, http.StatusOK, map[string]string{
 		"status":    "success",
 		"image_url": publicURL,
