@@ -91,7 +91,7 @@ func sortUpdateFiles(files []UpdateFile) {
 
 func RegisterRoutes(mux *http.ServeMux) {
 	var err error
-	dsn := config.UpdateDSNWithParams("parseTime=true")
+	dsn := config.UpdateAdminDSNWithParams("parseTime=true")
 	db, err = sql.Open("mysql", dsn)
 	if err != nil {
 		log.Printf("Update Service DB Error: %v", err)

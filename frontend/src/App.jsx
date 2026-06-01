@@ -64,14 +64,6 @@ const DEFAULT_HOME = {
 }
 
 const CONNECT_GUIDE_DOWNLOAD_URL = 'https://drive.google.com/file/d/1iVb54gUk3qUb0xqYwnlTXZOi4zFihGx7/view?usp=sharing'
-const CONTENT_ITEMS = [
-  {
-    id: 'trial',
-    title: '시련',
-    description: '단계별 시련 콘텐츠와 관련 정보를 한 화면에서 확인할 수 있습니다.',
-    image: '/img/contents/시련.png?v=20260417_1',
-  },
-]
 const AUCTION_CLASS_MAP = {
   0: '소모품',
   1: '가방',
@@ -135,6 +127,15 @@ function sanitizeHtml(content) {
   const template = document.createElement('template')
   template.innerHTML = String(content || '')
   template.content.querySelectorAll('script, iframe, object, embed').forEach((node) => node.remove())
+  template.content.querySelectorAll('*').forEach((node) => {
+    Array.from(node.attributes || []).forEach((attr) => {
+      const name = attr.name.toLowerCase()
+      const value = String(attr.value || '').trim().toLowerCase()
+      if (name.startsWith('on') || value.startsWith('javascript:')) {
+        node.removeAttribute(attr.name)
+      }
+    })
+  })
   return template.innerHTML
 }
 
@@ -198,6 +199,7 @@ function isAdmin(user) {
 function canRead(board, user) {
   if (!board) return false
   if (isAdmin(user)) return true
+  if (board.id === 'bugreport' || board.id === 'inquiry') return !!user
   const permissions = user?.permissions && typeof user.permissions === 'object' ? user.permissions : {}
   return permissions[`board_read_${board.id}`] === true || Number(user?.webRank ?? user?.web_rank ?? 0) >= Number(board.min_web_read || 0)
 }
@@ -311,23 +313,24 @@ function QuillEditor({ value, onChange, onAlert }) {
     </div>
   )
 }
-function InquiryFields({ category, onCategoryChange, sponsorAgree, onSponsorAgreeChange, sponsorName, onSponsorNameChange, sponsorAmount, onSponsorAmountChange }) {
+function InquiryFields({ category, onCategoryChange, sponsorAgree, onSponsorAgreeChange, sponsorName, onSponsorNameChange, sponsorAmount, onSponsorAmountChange, mode = 'inquiry' }) {
+  const isBugReport = mode === 'bugreport'
   const isSponsor = category === '후원'
   const sponsorPoint = Math.floor((Number(String(sponsorAmount || '').replace(/[^\d]/g, '')) || 0) / 1000)
+  const options = isBugReport
+    ? ['게임 오류', '웹 오류', '계정/접속', '기타']
+    : ['건의', '질문', '후원', '기타']
 
   return (
     <div className="board-special-fields">
       <div className="board-field-row">
-        <label className="board-field-label">문의 카테고리</label>
+        <label className="board-field-label">{isBugReport ? '오류 유형' : '문의 카테고리'}</label>
         <select className="public-board-text-input" value={category} onChange={(e) => onCategoryChange(e.target.value)}>
-          <option value="">카테고리를 선택해 주세요.</option>
-          <option value="건의">건의</option>
-          <option value="질문">질문</option>
-          <option value="후원">후원</option>
-          <option value="기타">기타</option>
+          <option value="">{isBugReport ? '오류 유형을 선택해 주세요.' : '카테고리를 선택해 주세요.'}</option>
+          {options.map((item) => <option key={item} value={item}>{item}</option>)}
         </select>
       </div>
-      {isSponsor && (
+      {!isBugReport && isSponsor && (
         <div className="board-sponsor-box">
           <label className="board-checkbox-row">
             <input type="checkbox" checked={sponsorAgree} onChange={(e) => onSponsorAgreeChange(e.target.checked)} />
@@ -378,6 +381,23 @@ function renderAuthor(authorName, isStaffAuthor, hasEnhancedStone) {
       <span>{authorName || '-'}</span>
     </span>
   )
+}
+
+function getSupportStatusLabel(status) {
+  switch (String(status || '').toLowerCase()) {
+    case 'in_progress':
+      return '진행중'
+    case 'done':
+      return '완료'
+    case 'received':
+    default:
+      return '접수'
+  }
+}
+
+function renderSupportStatus(status) {
+  const normalized = String(status || 'received').toLowerCase()
+  return <span className={`support-status-badge support-status-${normalized}`}>{getSupportStatusLabel(normalized)}</span>
 }
 
 function getRaceIcon(race, gender) {
@@ -474,6 +494,7 @@ function App() {
   const [home, setHome] = useState(DEFAULT_HOME)
   const [user, setUser] = useState(null)
   const [boards, setBoards] = useState([])
+  const [contentItems, setContentItems] = useState([])
   const [posts, setPosts] = useState([])
   const [detail, setDetail] = useState(null)
   const [screen, setScreen] = useState('home')
@@ -495,6 +516,8 @@ function App() {
   const [sponsorName, setSponsorName] = useState('')
   const [sponsorAmount, setSponsorAmount] = useState('')
   const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
+  const [userLoaded, setUserLoaded] = useState(false)
   const [dialogState, setDialogState] = useState({ open: false, mode: 'alert', title: '안내', message: '' })
   const [myPageCharacters, setMyPageCharacters] = useState([])
   const [myPageCharactersLoading, setMyPageCharactersLoading] = useState(false)
@@ -541,10 +564,17 @@ function App() {
   const [auctionBusyMessage, setAuctionBusyMessage] = useState('')
 
   const currentBoard = useMemo(() => boards.find((board) => board.id === boardId) || null, [boards, boardId])
+  const headerNavItems = useMemo(() => home.nav.filter((item) => item.label !== TEXT.notice), [home.nav])
   const visibleBoards = useMemo(() => boards.filter((board) => canRead(board, user)), [boards, user])
   const noticeBoard = useMemo(() => visibleBoards.find((board) => board.name.includes('공지')) || null, [visibleBoards])
   const freeBoard = useMemo(() => visibleBoards.find((board) => board.name.includes('자유')) || null, [visibleBoards])
+  const selectedContentItem = useMemo(
+    () => contentItems.find((item) => item.id === selectedContent) || null,
+    [contentItems, selectedContent],
+  )
   const isInquiryBoard = currentBoard?.id === 'inquiry'
+  const isBugReportBoard = currentBoard?.id === 'bugreport'
+  const isSupportBoard = isInquiryBoard || isBugReportBoard
   const isPromotionBoard = currentBoard?.id === 'promotion'
   const myPageMainCharacter = user?.mainCharacter && Number(user.mainCharacter.guid || 0) > 0 ? user.mainCharacter : null
   const auctionSelectedCharacter = auctionCharacters.find((character) => Number(character.guid) === Number(auctionCreateCharGuid)) || null
@@ -613,12 +643,23 @@ function App() {
     }
   }, [])
 
+  const loadContents = useCallback(async () => {
+    try {
+      const response = await apiFetch('/api/public/contents')
+      setContentItems(asArray(response))
+    } catch {
+      setContentItems([])
+    }
+  }, [])
+
   const loadUser = useCallback(async () => {
     try {
       const response = await apiFetch('/api/user/status')
       setUser(response && typeof response === 'object' ? response : null)
     } catch {
       setUser(null)
+    } finally {
+      setUserLoaded(true)
     }
   }, [])
 
@@ -774,9 +815,16 @@ function App() {
 
   useEffect(() => {
     loadHome()
+    loadContents()
     loadUser()
     loadBoards()
-  }, [loadBoards, loadHome, loadUser])
+  }, [loadBoards, loadContents, loadHome, loadUser])
+
+  useEffect(() => {
+    if (!userLoaded) return
+    if (user) return
+    window.location.replace('/login/')
+  }, [user, userLoaded])
 
   useEffect(() => {
     const params = new URLSearchParams(location.search)
@@ -842,6 +890,18 @@ function App() {
     document.addEventListener('mousedown', handlePointerDown)
     return () => document.removeEventListener('mousedown', handlePointerDown)
   }, [userMenuOpen])
+
+  useEffect(() => {
+    setMobileNavOpen(false)
+  }, [location.pathname, location.search])
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth > 980) setMobileNavOpen(false)
+    }
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   useEffect(() => {
     const handleAlert = (event) => {
@@ -927,6 +987,7 @@ function App() {
     (nextBoardId) => {
       if (!nextBoardId) return
       setUserMenuOpen(false)
+      setMobileNavOpen(false)
       resetWriteState()
       setDetail(null)
       setCommentInput('')
@@ -941,6 +1002,7 @@ function App() {
 
   const goHome = useCallback(() => {
     setUserMenuOpen(false)
+    setMobileNavOpen(false)
     resetWriteState()
     setBoardId('')
     setDetail(null)
@@ -955,6 +1017,7 @@ function App() {
 
   const openConnectGuide = useCallback(() => {
     setUserMenuOpen(false)
+    setMobileNavOpen(false)
     resetWriteState()
     setBoardId('')
     setDetail(null)
@@ -969,6 +1032,7 @@ function App() {
 
   const openContents = useCallback(() => {
     setUserMenuOpen(false)
+    setMobileNavOpen(false)
     resetWriteState()
     setBoardId('')
     setDetail(null)
@@ -983,6 +1047,7 @@ function App() {
 
   const openAuction = useCallback(() => {
     setUserMenuOpen(false)
+    setMobileNavOpen(false)
     resetWriteState()
     setBoardId('')
     setDetail(null)
@@ -996,9 +1061,10 @@ function App() {
   }, [navigate, resetWriteState])
 
   const openContentDetail = useCallback((contentId) => {
-    const target = CONTENT_ITEMS.find((item) => item.id === contentId)
+    const target = contentItems.find((item) => item.id === contentId)
     if (!target) return
     setUserMenuOpen(false)
+    setMobileNavOpen(false)
     resetWriteState()
     setBoardId('')
     setDetail(null)
@@ -1009,7 +1075,7 @@ function App() {
     setSelectedContent(contentId)
     setScreen('contents')
     navigate(`/?view=contents&content=${encodeURIComponent(contentId)}`)
-  }, [navigate, resetWriteState])
+  }, [contentItems, navigate, resetWriteState])
 
   const openWrite = useCallback(async () => {
     if (!currentBoard || !canWrite(currentBoard, user)) {
@@ -1017,6 +1083,7 @@ function App() {
       return
     }
     setUserMenuOpen(false)
+    setMobileNavOpen(false)
     resetWriteState()
     setDetail(null)
     setScreen('write')
@@ -1029,6 +1096,7 @@ function App() {
       return
     }
     setUserMenuOpen(false)
+    setMobileNavOpen(false)
     setBoardId('')
     setDetail(null)
     setCommentInput('')
@@ -1041,6 +1109,7 @@ function App() {
   const beginEdit = useCallback(() => {
     if (!detail?.post || !currentBoard || !canEditOwner(detail.post, user)) return
     setUserMenuOpen(false)
+    setMobileNavOpen(false)
     setEditingId(Number(detail.post.id || 0))
     setTitle(detail.post.title || '')
     setContent(detail.post.content || '')
@@ -1062,13 +1131,13 @@ function App() {
 
     const payload = { title: title.trim(), content, category: '', promotion_urls: [] }
 
-    if (isInquiryBoard) {
+    if (isSupportBoard) {
       if (!inquiryCategory) {
-        await showAlert('문의 카테고리를 선택해 주세요.')
+        await showAlert(isBugReportBoard ? '오류 유형을 선택해 주세요.' : '문의 카테고리를 선택해 주세요.')
         return
       }
       payload.category = inquiryCategory
-      if (inquiryCategory === '후원' && !editingId) {
+      if (isInquiryBoard && inquiryCategory === '후원' && !editingId) {
         if (!sponsorAgree) {
           await showAlert('후원 안내 동의가 필요합니다.')
           return
@@ -1105,7 +1174,7 @@ function App() {
     setSearchInput('')
     navigate(`/?board=${encodeURIComponent(currentBoard.id)}`)
     await loadPosts(currentBoard.id, 1, '')
-  }, [content, currentBoard, editingId, inquiryCategory, isInquiryBoard, isPromotionBoard, loadPosts, navigate, promotionUrls, resetWriteState, showAlert, sponsorAgree, sponsorAmount, sponsorName, title])
+  }, [content, currentBoard, editingId, inquiryCategory, isBugReportBoard, isInquiryBoard, isPromotionBoard, isSupportBoard, loadPosts, navigate, promotionUrls, resetWriteState, showAlert, sponsorAgree, sponsorAmount, sponsorName, title])
 
   const deletePost = useCallback(async () => {
     if (!detail?.post?.id) return
@@ -1118,10 +1187,31 @@ function App() {
     if (currentBoard?.id) await loadPosts(currentBoard.id, page, search)
   }, [currentBoard, detail, loadPosts, navigate, page, search, showConfirm])
 
+  const comments = isSupportBoard ? asArray(detail?.inquiry_messages) : asArray(detail?.comments)
+  const latestSupportMessage = comments.length ? comments[comments.length - 1] : null
+  const canUserReplyBugReport = isBugReportBoard && String(detail?.post?.inquiry_status || '').toLowerCase() !== 'done' && String(latestSupportMessage?.role || '').toLowerCase() === 'staff'
+
   const submitComment = useCallback(async () => {
     if (!detail?.post?.id || !commentInput.trim()) return
-    if (isInquiryBoard) {
-      await showAlert('문의 게시판 답변은 문의 관리 화면에서 처리됩니다.')
+    if (isSupportBoard) {
+      if (!isBugReportBoard) {
+        await showAlert('문의 게시판 답변은 문의 관리 화면에서 처리됩니다.')
+        return
+      }
+      if (String(detail.post.inquiry_status || '').toLowerCase() === 'done') {
+        await showAlert('완료된 리포트에는 답글을 등록할 수 없습니다.')
+        return
+      }
+      if (String(latestSupportMessage?.role || '').toLowerCase() !== 'staff') {
+        await showAlert('관리자 답글 이후에 추가 답글을 등록할 수 있습니다.')
+        return
+      }
+      await apiFetch('/api/board/inquiry/message/create', {
+        method: 'POST',
+        body: JSON.stringify({ post_id: Number(detail.post.id), content: commentInput.trim() }),
+      })
+      setCommentInput('')
+      await openPost(detail.post.id)
       return
     }
     const payload = {
@@ -1133,7 +1223,7 @@ function App() {
     setCommentInput('')
     setReplyTarget(null)
     await openPost(detail.post.id)
-  }, [commentInput, detail, isInquiryBoard, openPost, replyTarget, showAlert])
+  }, [commentInput, detail, isBugReportBoard, isSupportBoard, latestSupportMessage, openPost, replyTarget, showAlert])
 
   const deleteComment = useCallback(async (commentId) => {
     const confirmed = await showConfirm('댓글을 삭제하시겠습니까?')
@@ -1160,15 +1250,52 @@ function App() {
   const hasMainCharacter = Boolean(user?.mainCharacter?.guid && user?.mainCharacter?.name)
   const welcomeName = hasMainCharacter ? (user?.mainCharacter?.name || user?.username || '방문자') : (user?.username || '방문자')
   const headerWelcomeText = hasMainCharacter ? `${welcomeName}${TEXT.welcome}` : '대표 캐릭터를 설정해주세요'
-  const comments = isInquiryBoard ? asArray(detail?.inquiry_messages) : asArray(detail?.comments)
   const raceIcon = getRaceIcon(user?.mainCharacter?.race, user?.mainCharacter?.gender)
   const myPagePointFillCount = Math.max(0, 20 - myPagePointLogs.length)
 
   const handleLogout = useCallback(async () => {
     setUserMenuOpen(false)
+    setMobileNavOpen(false)
     await apiFetch('/api/logout', { method: 'POST', headers: { Accept: 'application/json' } })
     window.location.href = '/'
   }, [])
+
+  const handleHeaderNav = useCallback(
+    (item) => {
+      if (!item) return
+      if (item.url.startsWith('/')) {
+        setUserMenuOpen(false)
+        setMobileNavOpen(false)
+        window.location.href = item.url
+        return
+      }
+      if (item.label === TEXT.connect) {
+        openConnectGuide()
+        return
+      }
+      if (item.label === TEXT.contents) {
+        openContents()
+        return
+      }
+      if (item.label === TEXT.auction) {
+        openAuction()
+        return
+      }
+      if (boardId || screen !== 'home') {
+        goHome()
+        window.setTimeout(() => {
+          document.querySelector(item.url)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }, 120)
+        return
+      }
+      setUserMenuOpen(false)
+      setMobileNavOpen(false)
+      window.requestAnimationFrame(() => {
+        document.querySelector(item.url)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      })
+    },
+    [boardId, goHome, openAuction, openConnectGuide, openContents, screen],
+  )
 
   const handleSetMainCharacter = useCallback(async (character) => {
     if (!character?.guid) return
@@ -1182,11 +1309,28 @@ function App() {
     await loadMyPageCharacters()
   }, [loadMyPageCharacters, loadUser, showConfirm])
 
+  if (!userLoaded || !user) return null
+
   return (
     <div className="page react-home-page">
       <header className="topbar">
         <nav className="nav" aria-label="주요 메뉴">
           <button className="nav-brand nav-link-button" type="button" onClick={goHome}>The Karazhan</button>
+          <button
+            type="button"
+            className={`nav-mobile-toggle button-reset${mobileNavOpen ? ' active' : ''}`}
+            aria-expanded={mobileNavOpen}
+            aria-controls="mobile-nav-panel"
+            aria-label="모바일 메뉴 열기"
+            onClick={() => {
+              setUserMenuOpen(false)
+              setMobileNavOpen((prev) => !prev)
+            }}
+          >
+            <span></span>
+            <span></span>
+            <span></span>
+          </button>
           <div className="nav-links">
             <span className="nav-dropdown">
               <button type="button" className="nav-link-button" onClick={() => openBoard(visibleBoards[0]?.id)}>{TEXT.board}</button>
@@ -1196,32 +1340,14 @@ function App() {
                 )) : <span className="board-dropdown-empty">{TEXT.loadingBoards}</span>}
               </span>
             </span>
-            {home.nav.filter((item) => item.label !== TEXT.notice).map((item) => item.url.startsWith('/') ? (
+            {headerNavItems.map((item) => item.url.startsWith('/') ? (
               <a key={`${item.label}-${item.url}`} href={item.url}>{item.label}</a>
             ) : (
               <button
                 key={`${item.label}-${item.url}`}
                 type="button"
                 className="nav-link-button"
-                onClick={() => {
-                  if (item.label === TEXT.connect) {
-                    openConnectGuide()
-                    return
-                  }
-                  if (item.label === TEXT.contents) {
-                    openContents()
-                    return
-                  }
-                  if (item.label === TEXT.auction) {
-                    openAuction()
-                    return
-                  }
-                  if (boardId || screen !== 'home') goHome()
-                  window.requestAnimationFrame(() => {
-                    const target = document.querySelector(item.url)
-                    target?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                  })
-                }}
+                onClick={() => handleHeaderNav(item)}
               >
                 {item.label}
               </button>
@@ -1241,10 +1367,30 @@ function App() {
                 </div>
               ) : null}
             </div>
-          ) : (
-            <a className="nav-action" href="/login/">로그인</a>
-          )}
+          ) : null}
         </nav>
+        {mobileNavOpen ? <button type="button" className="nav-mobile-overlay button-reset" aria-label="모바일 메뉴 닫기" onClick={() => setMobileNavOpen(false)} /> : null}
+        <div id="mobile-nav-panel" className={`nav-mobile-panel${mobileNavOpen ? ' active' : ''}`}>
+          <div className="nav-mobile-section">
+            <div className="nav-mobile-title">{TEXT.board}</div>
+            <div className="nav-mobile-board-list">
+              {visibleBoards.length ? visibleBoards.map((board) => (
+                <button key={`mobile-board-${board.id}`} type="button" className="nav-mobile-link" onClick={() => openBoard(board.id)}>
+                  {board.name}
+                </button>
+              )) : <span className="board-dropdown-empty">{TEXT.loadingBoards}</span>}
+            </div>
+          </div>
+          <div className="nav-mobile-section">
+            {headerNavItems.map((item) => item.url.startsWith('/') ? (
+              <a key={`mobile-${item.label}-${item.url}`} className="nav-mobile-link" href={item.url} onClick={() => setMobileNavOpen(false)}>{item.label}</a>
+            ) : (
+              <button key={`mobile-${item.label}-${item.url}`} type="button" className="nav-mobile-link" onClick={() => handleHeaderNav(item)}>
+                {item.label}
+              </button>
+            ))}
+          </div>
+        </div>
       </header>
 
       <main>
@@ -1307,13 +1453,14 @@ function App() {
               <article id="contents-section" className="panel">
                 <div className="panel-head"><h2>컨텐츠</h2><button type="button" className="more button-reset" onClick={openContents}>더보기 &gt;</button></div>
                 <div className="guide-grid">
-                  {CONTENT_ITEMS.map((item) => (
+                  {contentItems.map((item) => (
                     <button key={item.id} type="button" className="guide-card guide-card-button" onClick={() => openContentDetail(item.id)}>
                       <div className="guide-thumb" style={{ '--bg-img': `url('${item.image}')` }}></div>
                       <h3>{item.title}</h3>
                       <p>{item.description}</p>
                     </button>
                   ))}
+                  {!contentItems.length ? <p className="board-empty">등록된 컨텐츠가 없습니다.</p> : null}
                 </div>
               </article>
             </section>
@@ -1402,13 +1549,13 @@ function App() {
 
         {!boardId && screen === 'contents' ? (
           <section className="section">
-            {!selectedContent ? (
+            {!selectedContent || !selectedContentItem ? (
               <div className="guide-view-shell">
                 <div className="guide-view-head">
                   <h2>컨텐츠</h2>
                 </div>
                 <div className="contents-card-grid">
-                  {CONTENT_ITEMS.map((item) => (
+                  {contentItems.map((item) => (
                     <button key={item.id} type="button" className="contents-feature-card" onClick={() => openContentDetail(item.id)}>
                       <div className="contents-feature-thumb" style={{ '--bg-img': `url('${item.image}')` }}></div>
                       <div className="contents-feature-copy">
@@ -1417,12 +1564,13 @@ function App() {
                       </div>
                     </button>
                   ))}
+                  {!contentItems.length ? <p className="board-empty">등록된 컨텐츠가 없습니다.</p> : null}
                 </div>
               </div>
             ) : (
               <div className="guide-view-shell">
                 <div className="guide-view-head">
-                  <h2>{CONTENT_ITEMS.find((item) => item.id === selectedContent)?.title || '컨텐츠'}</h2>
+                  <h2>{selectedContentItem?.title || '컨텐츠'}</h2>
                   <div className="public-board-toolbar">
                     <button type="button" className="btn" onClick={openContents}>{TEXT.back}</button>
                   </div>
@@ -1430,8 +1578,8 @@ function App() {
                 <div className="guide-view-body">
                   <div className="guide-view-image-wrap">
                     <img
-                      src={CONTENT_ITEMS.find((item) => item.id === selectedContent)?.image || '/img/contents/시련.png?v=20260417_1'}
-                      alt={`${CONTENT_ITEMS.find((item) => item.id === selectedContent)?.title || '컨텐츠'} 안내`}
+                      src={selectedContentItem?.image || ''}
+                      alt={`${selectedContentItem?.title || '컨텐츠'} 안내`}
                       className="guide-view-image"
                     />
                   </div>
@@ -2005,7 +2153,15 @@ function App() {
                             posts.map((post) => (
                               <tr key={post.id} onClick={() => navigate(`/?board=${encodeURIComponent(currentBoard.id)}&post=${post.id}`)}>
                                 <td data-label={TEXT.number}>{post.display_number || post.id}</td>
-                                <td data-label={TEXT.titleCol}><span className="public-post-title">{post.title}</span>{Number(post.comment_count || 0) > 0 ? <span className="public-comment-count">[{post.comment_count}]</span> : null}</td>
+                                <td data-label={TEXT.titleCol}>
+                                  <span className="public-post-title">{post.title}</span>
+                                  {isBugReportBoard ? (
+                                    <span className="support-list-meta">
+                                      {post.category ? <span className="support-category-pill">{post.category}</span> : null}
+                                      {renderSupportStatus(post.inquiry_status)}
+                                    </span>
+                                  ) : Number(post.comment_count || 0) > 0 ? <span className="public-comment-count">[{post.comment_count}]</span> : null}
+                                </td>
                                 <td data-label={TEXT.author}>{renderAuthor(post.author_name, post.is_staff_author, post.has_enhanced_stone)}</td>
                                 <td data-label={TEXT.time}>{formatDate(post.created_at)}</td>
                               </tr>
@@ -2042,24 +2198,78 @@ function App() {
                       </div>
                     ) : null}
 
-                    <section className="public-comments">
-                      <div className="public-comment-head"><h3>{isInquiryBoard ? '문의 진행 내용' : '댓글'}</h3><span className="public-board-status">{comments.length}개</span></div>
-                      {!comments.length ? <div className="public-comment">{TEXT.commentsEmpty}</div> : null}
-                      {comments.map((comment) => (
-                        <div key={comment.id} className={`public-comment public-comment-depth-${Math.min(Number(comment.depth || 0), 3)}`}>
-                          <div className="public-comment-head">
-                            <strong>{renderAuthor(comment.author_name, comment.is_staff_author, comment.has_enhanced_stone)}</strong>
-                            <div className="public-comment-actions">
-                              {!isInquiryBoard && user ? <button className="btn btn-small" type="button" onClick={() => setReplyTarget({ id: comment.id, authorName: comment.author_name })}>답글</button> : null}
-                              {canEditOwner(comment, user) && !isInquiryBoard ? <button className="btn btn-small btn-danger" type="button" onClick={() => deleteComment(comment.id)}>삭제</button> : null}
-                            </div>
+                    {isBugReportBoard ? (
+                      <section className="public-bug-replies">
+                        <div className="public-bug-replies-head">
+                          <div>
+                            <span className="public-bug-replies-kicker">관리자 답변</span>
+                            <h3>버그 리포트 처리 내역</h3>
                           </div>
-                          <div className="public-comment-meta">{comment.role ? <span>{comment.role === 'staff' ? '운영 답변' : '문의자'}</span> : null}<span>{formatDate(comment.created_at)}</span></div>
-                          <div className="public-comment-body">{comment.content}</div>
+                          {renderSupportStatus(detail.post.inquiry_status)}
                         </div>
-                      ))}
+                        <div className="public-bug-replies-note">
+                          답변은 관리자 확인 후 이곳에 등록됩니다. 추가 내용이 필요하면 기존 리포트를 수정해 주세요.
+                        </div>
+                        {!comments.length ? (
+                          <div className="public-bug-empty">아직 등록된 관리자 답변이 없습니다.</div>
+                        ) : (
+                          <div className="public-bug-thread">
+                            {comments.map((comment, index) => (
+                              <div key={comment.id} className={`public-bug-reply ${String(comment.role || '').toLowerCase() === 'staff' ? 'staff' : 'user'} ${index > 0 ? 'is-followup' : ''}`}>
+                                {index > 0 ? <span className="public-bug-reply-arrow" aria-hidden="true">↳</span> : null}
+                                <div className="public-bug-reply-head">
+                                  <strong>{index > 0 ? '답글의 답글' : (String(comment.role || '').toLowerCase() === 'staff' ? '관리자 답변' : '리포트 작성자')}</strong>
+                                  <span>{formatDate(comment.created_at)}</span>
+                                </div>
+                                <div className="public-bug-reply-author">{renderAuthor(comment.author_name, comment.is_staff_author, comment.has_enhanced_stone)}</div>
+                                {String(comment.role || '').toLowerCase() === 'staff' ? (
+                                  <div className="public-bug-reply-body" dangerouslySetInnerHTML={{ __html: sanitizeHtml(comment.content || '') }} />
+                                ) : (
+                                  <div className="public-bug-reply-body">{comment.content}</div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {String(detail.post.inquiry_status || '').toLowerCase() !== 'done' ? (
+                          user ? (
+                            canUserReplyBugReport ? (
+                              <div className="public-bug-user-reply">
+                                <label>추가 답글 작성</label>
+                                <textarea className="public-board-textarea" value={commentInput} onChange={(e) => setCommentInput(e.target.value)} placeholder="관리자에게 추가로 전달할 내용을 입력해 주세요." />
+                                <div className="public-post-write-actions">
+                                  <button className="btn public-comment-submit" type="button" onClick={submitComment}>답글 등록</button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="public-bug-waiting">관리자 답글이 등록되면 추가 답글을 작성할 수 있습니다.</div>
+                            )
+                          ) : (
+                            <div className="public-bug-empty">로그인 후 추가 답글을 등록할 수 있습니다.</div>
+                          )
+                        ) : (
+                          <div className="public-bug-closed">완료된 리포트입니다. 추가 답글은 등록할 수 없습니다.</div>
+                        )}
+                      </section>
+                    ) : (
+                      <section className="public-comments">
+                        <div className="public-comment-head"><h3>{isInquiryBoard ? '문의 진행 내용' : '댓글'}</h3><span className="public-board-status">{comments.length}개</span></div>
+                        {!comments.length ? <div className="public-comment">{TEXT.commentsEmpty}</div> : null}
+                        {comments.map((comment) => (
+                          <div key={comment.id} className={`public-comment public-comment-depth-${Math.min(Number(comment.depth || 0), 3)}`}>
+                            <div className="public-comment-head">
+                              <strong>{renderAuthor(comment.author_name, comment.is_staff_author, comment.has_enhanced_stone)}</strong>
+                              <div className="public-comment-actions">
+                                {!isInquiryBoard && user ? <button className="btn btn-small" type="button" onClick={() => setReplyTarget({ id: comment.id, authorName: comment.author_name })}>답글</button> : null}
+                                {canEditOwner(comment, user) && !isInquiryBoard ? <button className="btn btn-small btn-danger" type="button" onClick={() => deleteComment(comment.id)}>삭제</button> : null}
+                              </div>
+                            </div>
+                            <div className="public-comment-meta">{comment.role ? <span>{comment.role === 'staff' ? '운영 답변' : '문의자'}</span> : null}<span>{formatDate(comment.created_at)}</span></div>
+                            <div className="public-comment-body">{comment.content}</div>
+                          </div>
+                        ))}
 
-                      {!isInquiryBoard ? (
+                        {!isInquiryBoard ? (
                         user ? (
                           <div className="public-post-write-actions public-comment-write-box">
                             {replyTarget ? (
@@ -2074,8 +2284,9 @@ function App() {
                         ) : (
                           <div className="public-comment">{TEXT.commentsNeedLogin}</div>
                         )
-                      ) : null}
-                    </section>
+                        ) : null}
+                      </section>
+                    )}
                   </>
                 ) : null}
 
@@ -2084,9 +2295,9 @@ function App() {
                     <div className="public-board-head"><h2>{currentBoard.name} 글 작성</h2><div className="public-board-toolbar"><button className="btn" type="button" onClick={() => navigate(`/?board=${encodeURIComponent(currentBoard.id)}`)}>{TEXT.back}</button></div></div>
                     <div className="public-post-write-card">
                       <input className="public-board-text-input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={TEXT.titlePlaceholder} />
-                      {isInquiryBoard ? <><InquiryFields category={inquiryCategory} onCategoryChange={setInquiryCategory} sponsorAgree={sponsorAgree} onSponsorAgreeChange={setSponsorAgree} sponsorName={sponsorName} onSponsorNameChange={setSponsorName} sponsorAmount={sponsorAmount} onSponsorAmountChange={setSponsorAmount} /><QuillEditor value={content} onChange={setContent} onAlert={showAlert} /></> : null}
+                      {isSupportBoard ? <><InquiryFields mode={isBugReportBoard ? 'bugreport' : 'inquiry'} category={inquiryCategory} onCategoryChange={setInquiryCategory} sponsorAgree={sponsorAgree} onSponsorAgreeChange={setSponsorAgree} sponsorName={sponsorName} onSponsorNameChange={setSponsorName} sponsorAmount={sponsorAmount} onSponsorAmountChange={setSponsorAmount} /><QuillEditor value={content} onChange={setContent} onAlert={showAlert} /></> : null}
                       {isPromotionBoard ? <PromotionFields urls={promotionUrls} onChange={updatePromotionUrl} onAdd={addPromotionUrl} onRemove={removePromotionUrl} /> : null}
-                      {!isInquiryBoard && !isPromotionBoard ? <QuillEditor value={content} onChange={setContent} onAlert={showAlert} /> : null}
+                      {!isSupportBoard && !isPromotionBoard ? <QuillEditor value={content} onChange={setContent} onAlert={showAlert} /> : null}
                       <div className="public-post-write-actions"><button className="btn" type="button" onClick={savePost}>{TEXT.save}</button></div>
                     </div>
                   </>

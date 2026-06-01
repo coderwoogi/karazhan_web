@@ -13,6 +13,8 @@ import (
 	"time"
 )
 
+const soloArenaFallbackItemPrefix = "\uc544\uc774\ud15c "
+
 type soloArenaStageRow struct {
 	StageID             int     `json:"stage_id"`
 	Name                string  `json:"name"`
@@ -38,9 +40,14 @@ type soloArenaStageRow struct {
 	MeleeArmorPenRating int     `json:"melee_armor_pen_rating"`
 	CasterTargetGS      int     `json:"caster_target_gs"`
 	CasterHealth        int     `json:"caster_health"`
+	CasterMana          int     `json:"caster_mana"`
 	CasterSpellPower    int     `json:"caster_spell_power"`
 	CasterCritPct       float64 `json:"caster_crit_pct"`
 	CasterHasteRating   int     `json:"caster_haste_rating"`
+	RankSSeconds        int     `json:"rank_s_seconds"`
+	RankASeconds        int     `json:"rank_a_seconds"`
+	RankBSeconds        int     `json:"rank_b_seconds"`
+	RankCSeconds        int     `json:"rank_c_seconds"`
 	Enabled             int     `json:"enabled"`
 	RewardCount         int     `json:"reward_count"`
 }
@@ -53,6 +60,7 @@ type soloArenaStageRewardRow struct {
 	ItemIcon        string  `json:"item_icon"`
 	ItemCount       int     `json:"item_count"`
 	Chance          float64 `json:"chance"`
+	RewardGold      int     `json:"reward_gold"`
 	RewardRankValue int     `json:"reward_rank_value"`
 	RewardRankLabel string  `json:"reward_rank_label"`
 	SortOrder       int     `json:"sort_order"`
@@ -201,9 +209,14 @@ type soloArenaStageSaveRequest struct {
 	MeleeArmorPenRating int     `json:"melee_armor_pen_rating"`
 	CasterTargetGS      int     `json:"caster_target_gs"`
 	CasterHealth        int     `json:"caster_health"`
+	CasterMana          int     `json:"caster_mana"`
 	CasterSpellPower    int     `json:"caster_spell_power"`
 	CasterCritPct       float64 `json:"caster_crit_pct"`
 	CasterHasteRating   int     `json:"caster_haste_rating"`
+	RankSSeconds        int     `json:"rank_s_seconds"`
+	RankASeconds        int     `json:"rank_a_seconds"`
+	RankBSeconds        int     `json:"rank_b_seconds"`
+	RankCSeconds        int     `json:"rank_c_seconds"`
 	Enabled             int     `json:"enabled"`
 }
 
@@ -213,6 +226,35 @@ func openSoloArenaWorldDB() (*sql.DB, error) {
 
 func openSoloArenaCharactersDB() (*sql.DB, error) {
 	return sql.Open("mysql", config.CharactersDSN())
+}
+
+func loadSoloArenaStageNameMap() map[int]string {
+	db, err := openSoloArenaWorldDB()
+	if err != nil {
+		return map[int]string{}
+	}
+	defer db.Close()
+
+	rows, err := db.Query(`
+		SELECT
+			stage_id,
+			COALESCE(NULLIF(name, ''), CONCAT(CONVERT(0xEC8B9CEBA0A8 USING utf8mb4), stage_id, CONVERT(0xEB8BA8EAB384 USING utf8mb4))) AS stage_name
+		FROM solo_arena_stage
+	`)
+	if err != nil {
+		return map[int]string{}
+	}
+	defer rows.Close()
+
+	result := make(map[int]string)
+	for rows.Next() {
+		var stageID int
+		var stageName string
+		if err := rows.Scan(&stageID, &stageName); err == nil {
+			result[stageID] = strings.TrimSpace(stageName)
+		}
+	}
+	return result
 }
 
 func unixTimeExpr(col string) string {
@@ -225,13 +267,13 @@ func soloArenaResultLabel(code int, label string) string {
 	}
 	switch code {
 	case 1:
-		return "?깃났"
+		return "\uc131\uacf5"
 	case 2:
-		return "?ㅽ뙣"
+		return "\uc2e4\ud328"
 	case 3:
-		return "?ш린"
+		return "\ucde8\uc18c"
 	default:
-		return "湲고?"
+		return "\uc54c \uc218 \uc5c6\uc74c"
 	}
 }
 
@@ -279,6 +321,11 @@ func ensureSoloArenaStageRewardRankColumns(db *sql.DB) error {
 	if _, err := db.Exec("UPDATE solo_arena_stage_reward SET reward_rank_label = 'B' WHERE reward_rank_label = ''"); err != nil {
 		return err
 	}
+	if !hasColumnForDB(db, "solo_arena_stage_reward", "reward_gold") {
+		if _, err := db.Exec("ALTER TABLE solo_arena_stage_reward ADD COLUMN reward_gold INT UNSIGNED NOT NULL DEFAULT 0 AFTER chance"); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -305,9 +352,14 @@ func ensureSoloArenaStageColumns(db *sql.DB) error {
 		"melee_armor_pen_rating": "INT UNSIGNED NOT NULL DEFAULT 0",
 		"caster_target_gs":       "INT UNSIGNED NOT NULL DEFAULT 0",
 		"caster_health":          "INT UNSIGNED NOT NULL DEFAULT 1",
+		"caster_mana":            "INT UNSIGNED NOT NULL DEFAULT 0",
 		"caster_spell_power":     "INT NOT NULL DEFAULT 0",
 		"caster_crit_pct":        "FLOAT NOT NULL DEFAULT 0",
 		"caster_haste_rating":    "INT UNSIGNED NOT NULL DEFAULT 0",
+		"rank_s_seconds":         "INT UNSIGNED NOT NULL DEFAULT 45",
+		"rank_a_seconds":         "INT UNSIGNED NOT NULL DEFAULT 75",
+		"rank_b_seconds":         "INT UNSIGNED NOT NULL DEFAULT 105",
+		"rank_c_seconds":         "INT UNSIGNED NOT NULL DEFAULT 135",
 		"enabled":                "TINYINT UNSIGNED NOT NULL DEFAULT 1",
 	}
 	for column, ddl := range defs {
@@ -323,31 +375,40 @@ func ensureSoloArenaStageColumns(db *sql.DB) error {
 
 func validateSoloArenaStage(req *soloArenaStageSaveRequest) string {
 	if req.StageID <= 0 {
-		return "단계 번호가 올바르지 않습니다."
+		return "??壤굿?????癲ル슢???ъ쒜筌믡굥夷???쎛 ????嶺?? ??????????딅젩."
 	}
 	if strings.TrimSpace(req.Name) == "" {
-		return "단계 이름은 필수입니다."
+		return "??壤굿?????????? ????썹땟??????뉖뤁??"
 	}
 	if req.MeleeHealth < 1 || req.CasterHealth < 1 {
-		return "밀리와 캐스터 체력은 1 이상이어야 합니다."
+		return "?熬곣뫖????? ???????꿔꺂?????? 1 ?????壤????ㅿ폎?????嶺뚮ㅎ????"
 	}
 	if req.MeleeAttackPower < 0 || req.CasterSpellPower < 0 {
-		return "공격력과 주문력은 0 이상이어야 합니다."
+		return "??????轝꿸섣??????녿뮝?筌믡굥利??? 0 ?????壤????ㅿ폎?????嶺뚮ㅎ????"
+	}
+	if req.CasterMana < 0 {
+		return "???????꿔꺂???熬곻퐢夷??0 ?????壤????ㅿ폎?????嶺뚮ㅎ????"
+	}
+	if req.RankSSeconds <= 0 || req.RankASeconds <= 0 || req.RankBSeconds <= 0 || req.RankCSeconds <= 0 {
+		return "??????????? ?꿔꺂??袁ㅻ븶?癲?1???????壤????ㅿ폎?????嶺뚮ㅎ????"
+	}
+	if !(req.RankSSeconds <= req.RankASeconds && req.RankASeconds <= req.RankBSeconds && req.RankBSeconds <= req.RankCSeconds) {
+		return "??????????? S <= A <= B <= C ??嶺?筌?????繹먮냱?????ㅿ폑????嶺뚮ㅎ????"
 	}
 	if req.MeleeArmorPenRating < 0 || req.CasterHasteRating < 0 {
-		return "방관 수치와 가속 수치는 0 이상이어야 합니다."
+		return "?熬곣뫖?삥납? ????볥옖??? ??醫딆쓧???????볥옖???0 ?????壤????ㅿ폎?????嶺뚮ㅎ????"
 	}
 	if req.MeleeCritPct < 0 || req.MeleeCritPct > 100 || req.CasterCritPct < 0 || req.CasterCritPct > 100 {
-		return "치명타 확률은 0에서 100 사이여야 합니다."
+		return "??⑤㈇???レ뵛??? ?癲ル슢????? 0?????100 ?????????嶺뚮ㅎ????"
 	}
 	if req.AttackTimeMS > 0 && req.AttackTimeMS < 500 {
-		return "기본 공격속도는 500ms 이상으로 설정해주세요."
+		return "???뚯?????????????戮?덫??500ms ?????壤????Β?????繹먮냱?????κ땁??癲ル슢????"
 	}
 	if req.SpellIntervalMS > 0 && req.SpellIntervalMS < 500 {
-		return "주문 간격은 500ms 이상으로 설정해주세요."
+		return "???녿뮝?筌믡굥利???醫딆┣??醫딅??? 500ms ?????壤????Β?????繹먮냱?????κ땁??癲ル슢????"
 	}
 	if req.MoveSpeedRate > 0 && req.MoveSpeedRate < 0.1 {
-		return "이동속도는 0.1 이상으로 설정해주세요."
+		return "????????戮?덫??0.1 ?????壤????Β?????繹먮냱?????κ땁??癲ル슢????"
 	}
 	return ""
 }
@@ -368,15 +429,13 @@ func soloArenaRewardRankLabel(value int, label string) string {
 		return "C"
 	case 1:
 		return "D"
-	case 0:
-		return "怨듯넻"
 	default:
 		return "B"
 	}
 }
 
 func soloArenaRewardRankValue(value int, label string) int {
-	if value >= 0 && value <= 5 {
+	if value >= 1 && value <= 5 {
 		return value
 	}
 	switch strings.ToUpper(strings.TrimSpace(label)) {
@@ -390,8 +449,6 @@ func soloArenaRewardRankValue(value int, label string) int {
 		return 2
 	case "D":
 		return 1
-	case "怨듯넻":
-		return 0
 	default:
 		return 3
 	}
@@ -433,54 +490,54 @@ func soloArenaRankPreset(value int, label string) (int, string) {
 func soloArenaRaceName(race int) string {
 	switch race {
 	case 1:
-		return "인간"
+		return "\uc778\uac04"
 	case 2:
-		return "오크"
+		return "\uc624\ud06c"
 	case 3:
-		return "드워프"
+		return "\ub4dc\uc6cc\ud504"
 	case 4:
-		return "나이트 엘프"
+		return "\ub098\uc774\ud2b8 \uc5d8\ud504"
 	case 5:
-		return "언데드"
+		return "\uc5b8\ub370\ub4dc"
 	case 6:
-		return "타우렌"
+		return "\ud0c0\uc6b0\ub80c"
 	case 7:
-		return "노움"
+		return "\ub178\uc6c0"
 	case 8:
-		return "트롤"
+		return "\ud2b8\ub864"
 	case 10:
-		return "블러드 엘프"
+		return "\ube14\ub7ec\ub4dc \uc5d8\ud504"
 	case 11:
-		return "드레나이"
+		return "\ub4dc\ub808\ub098\uc774"
 	default:
-		return "알 수 없음"
+		return "\uc54c \uc218 \uc5c6\uc74c"
 	}
 }
 
 func soloArenaClassName(classID int) string {
 	switch classID {
 	case 1:
-		return "전사"
+		return "\uc804\uc0ac"
 	case 2:
-		return "성기사"
+		return "\uc131\uae30\uc0ac"
 	case 3:
-		return "사냥꾼"
+		return "\uc0ac\ub0e5\uafbc"
 	case 4:
-		return "도적"
+		return "\ub3c4\uc801"
 	case 5:
-		return "사제"
+		return "\uc0ac\uc81c"
 	case 6:
-		return "죽음의 기사"
+		return "\uc8fd\uc74c\uc758 \uae30\uc0ac"
 	case 7:
-		return "주술사"
+		return "\uc8fc\uc220\uc0ac"
 	case 8:
-		return "마법사"
+		return "\ub9c8\ubc95\uc0ac"
 	case 9:
-		return "흑마법사"
+		return "\ud751\ub9c8\ubc95\uc0ac"
 	case 11:
-		return "드루이드"
+		return "\ub4dc\ub8e8\uc774\ub4dc"
 	default:
-		return "알 수 없음"
+		return "\uc54c \uc218 \uc5c6\uc74c"
 	}
 }
 
@@ -561,13 +618,15 @@ func fillSoloArenaRewardItemMeta(items []soloArenaRewardLogRow) {
 		return
 	}
 
-	query := `
+	query := fmt.Sprintf(`
 		SELECT it.entry,
-		       COALESCE(NULLIF(itl.name, ''), NULLIF(it.name, ''), CONCAT('?꾩씠??', it.entry)) AS item_name,
-		       IFNULL(it.icon, '') AS item_icon
+		       COALESCE(NULLIF(itl.Name, ''), NULLIF(it.name, ''), CONCAT('%s', it.entry)) AS item_name
 		FROM item_template it
 		LEFT JOIN item_template_locale itl ON itl.ID = it.entry AND itl.locale = 'koKR'
-		WHERE it.entry IN (` + strings.Join(placeholders, ",") + `)`
+		WHERE it.entry IN (%s)`,
+		soloArenaFallbackItemPrefix,
+		strings.Join(placeholders, ","),
+	)
 	rows, err := db.Query(query, entries...)
 	if err != nil {
 		return
@@ -576,22 +635,20 @@ func fillSoloArenaRewardItemMeta(items []soloArenaRewardLogRow) {
 
 	type meta struct {
 		Name string
-		Icon string
 	}
 	metaMap := map[int]meta{}
 	for rows.Next() {
 		var entry int
-		var name, icon string
-		if err := rows.Scan(&entry, &name, &icon); err == nil {
-			metaMap[entry] = meta{Name: name, Icon: icon}
+		var name string
+		if err := rows.Scan(&entry, &name); err == nil {
+			metaMap[entry] = meta{Name: name}
 		}
 	}
 	for i := range items {
 		if m, ok := metaMap[items[i].ItemEntry]; ok {
-			if strings.TrimSpace(items[i].ItemName) == "" || strings.HasPrefix(items[i].ItemName, "?꾩씠??") {
+			if strings.TrimSpace(items[i].ItemName) == "" || strings.HasPrefix(items[i].ItemName, soloArenaFallbackItemPrefix) {
 				items[i].ItemName = m.Name
 			}
-			items[i].ItemIcon = m.Icon
 		}
 	}
 }
@@ -602,7 +659,7 @@ func handleTrialStageList(w http.ResponseWriter, r *http.Request) {
 	}
 	db, err := openSoloArenaWorldDB()
 	if err != nil {
-		http.Error(w, "시련 단계 DB 연결에 실패했습니다.", http.StatusInternalServerError)
+		http.Error(w, "???꿔꺂??틝???????傭?끆???????DB ?????怨뺤르?????????⑤슣?????????????놁졄.", http.StatusInternalServerError)
 		return
 	}
 	defer db.Close()
@@ -646,7 +703,7 @@ func handleTrialStageList(w http.ResponseWriter, r *http.Request) {
 	rows, err := db.Query(`
 		SELECT
 			s.stage_id,
-			IFNULL(s.name, CONCAT('시련 ', s.stage_id, '단계')) AS name,
+			IFNULL(s.name, CONCAT(CONVERT(0xEC8B9CEBA0A8 USING utf8mb4), s.stage_id, CONVERT(0xEB8BA8EAB384 USING utf8mb4))) AS name,
 			s.arena_map_id,
 			IFNULL(s.player_x, 0),
 			IFNULL(s.player_y, 0),
@@ -669,15 +726,20 @@ func handleTrialStageList(w http.ResponseWriter, r *http.Request) {
 			IFNULL(s.melee_armor_pen_rating, 0),
 			IFNULL(s.caster_target_gs, 0),
 			IFNULL(s.caster_health, 0),
+			IFNULL(s.caster_mana, 0),
 			IFNULL(s.caster_spell_power, 0),
 			IFNULL(s.caster_crit_pct, 0),
 			IFNULL(s.caster_haste_rating, 0),
+			IFNULL(s.rank_s_seconds, 45),
+			IFNULL(s.rank_a_seconds, 75),
+			IFNULL(s.rank_b_seconds, 105),
+			IFNULL(s.rank_c_seconds, 135),
 			IFNULL(s.enabled, 0),
 			COUNT(r.id) AS reward_count
 		FROM solo_arena_stage s
 		LEFT JOIN solo_arena_stage_reward r ON r.stage_id = s.stage_id AND IFNULL(r.enabled, 1) = 1
 		WHERE `+where+`
-		GROUP BY s.stage_id, s.name, s.arena_map_id, s.player_x, s.player_y, s.player_z, s.player_o, s.bot_x, s.bot_y, s.bot_z, s.bot_o, s.preparation_ms, s.health_multiplier, s.damage_multiplier, s.attack_time_ms, s.spell_interval_ms, s.move_speed_rate, s.melee_target_gs, s.melee_health, s.melee_attack_power, s.melee_crit_pct, s.melee_armor_pen_rating, s.caster_target_gs, s.caster_health, s.caster_spell_power, s.caster_crit_pct, s.caster_haste_rating, s.enabled
+		GROUP BY s.stage_id, s.name, s.arena_map_id, s.player_x, s.player_y, s.player_z, s.player_o, s.bot_x, s.bot_y, s.bot_z, s.bot_o, s.preparation_ms, s.health_multiplier, s.damage_multiplier, s.attack_time_ms, s.spell_interval_ms, s.move_speed_rate, s.melee_target_gs, s.melee_health, s.melee_attack_power, s.melee_crit_pct, s.melee_armor_pen_rating, s.caster_target_gs, s.caster_health, s.caster_mana, s.caster_spell_power, s.caster_crit_pct, s.caster_haste_rating, s.rank_s_seconds, s.rank_a_seconds, s.rank_b_seconds, s.rank_c_seconds, s.enabled
 		ORDER BY s.stage_id ASC
 		LIMIT ? OFFSET ?`, queryArgs...)
 	if err != nil {
@@ -714,9 +776,14 @@ func handleTrialStageList(w http.ResponseWriter, r *http.Request) {
 			&row.MeleeArmorPenRating,
 			&row.CasterTargetGS,
 			&row.CasterHealth,
+			&row.CasterMana,
 			&row.CasterSpellPower,
 			&row.CasterCritPct,
 			&row.CasterHasteRating,
+			&row.RankSSeconds,
+			&row.RankASeconds,
+			&row.RankBSeconds,
+			&row.RankCSeconds,
 			&row.Enabled,
 			&row.RewardCount,
 		); err == nil {
@@ -738,12 +805,12 @@ func handleTrialStageDetail(w http.ResponseWriter, r *http.Request) {
 	}
 	stageID, _ := strconv.Atoi(strings.TrimSpace(r.URL.Query().Get("stage_id")))
 	if stageID <= 0 {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "단계 번호가 올바르지 않습니다."})
+		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "??傭?끆????????癲?????????? ??????? ????????????놁졄."})
 		return
 	}
 	db, err := openSoloArenaWorldDB()
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "시련 단계 정보를 불러오지 못했습니다."})
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "???꿔꺂??틝???????傭?끆?????????轅붽틓????????????⑥ル럯????? ?饔낅떽???壤??얜?裕?傭??????"})
 		return
 	}
 	defer db.Close()
@@ -756,7 +823,7 @@ func handleTrialStageDetail(w http.ResponseWriter, r *http.Request) {
 	err = db.QueryRow(`
 		SELECT
 			stage_id,
-			IFNULL(name, CONCAT('시련 ', stage_id, '단계')) AS name,
+			IFNULL(name, CONCAT(CONVERT(0xEC8B9CEBA0A8 USING utf8mb4), stage_id, CONVERT(0xEB8BA8EAB384 USING utf8mb4))) AS name,
 			IFNULL(arena_map_id, 0),
 			IFNULL(player_x, 0),
 			IFNULL(player_y, 0),
@@ -779,9 +846,14 @@ func handleTrialStageDetail(w http.ResponseWriter, r *http.Request) {
 			IFNULL(melee_armor_pen_rating, 0),
 			IFNULL(caster_target_gs, 0),
 			IFNULL(caster_health, 0),
+			IFNULL(caster_mana, 0),
 			IFNULL(caster_spell_power, 0),
 			IFNULL(caster_crit_pct, 0),
 			IFNULL(caster_haste_rating, 0),
+			IFNULL(rank_s_seconds, 45),
+			IFNULL(rank_a_seconds, 75),
+			IFNULL(rank_b_seconds, 105),
+			IFNULL(rank_c_seconds, 135),
 			IFNULL(enabled, 0)
 		FROM solo_arena_stage
 		WHERE stage_id = ?`, stageID).Scan(
@@ -791,12 +863,13 @@ func handleTrialStageDetail(w http.ResponseWriter, r *http.Request) {
 		&row.PreparationMS, &row.HealthMultiplier, &row.DamageMultiplier,
 		&row.AttackTimeMS, &row.SpellIntervalMS, &row.MoveSpeedRate,
 		&row.MeleeTargetGS, &row.MeleeHealth, &row.MeleeAttackPower, &row.MeleeCritPct, &row.MeleeArmorPenRating,
-		&row.CasterTargetGS, &row.CasterHealth, &row.CasterSpellPower, &row.CasterCritPct, &row.CasterHasteRating,
+		&row.CasterTargetGS, &row.CasterHealth, &row.CasterMana, &row.CasterSpellPower, &row.CasterCritPct, &row.CasterHasteRating,
+		&row.RankSSeconds, &row.RankASeconds, &row.RankBSeconds, &row.RankCSeconds,
 		&row.Enabled,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			writeJSON(w, http.StatusNotFound, map[string]string{"status": "error", "message": "단계를 찾을 수 없습니다."})
+			writeJSON(w, http.StatusNotFound, map[string]string{"status": "error", "message": "??傭?끆???????汝뷴젆?????饔낅떽???????????????깅즽????????놁졄."})
 			return
 		}
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": err.Error()})
@@ -807,7 +880,7 @@ func handleTrialStageDetail(w http.ResponseWriter, r *http.Request) {
 
 func handleTrialStageSave(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"status": "error", "message": "잘못된 요청입니다."})
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"status": "error", "message": "???????????嫄????????戮?Ĳ??"})
 		return
 	}
 	if !CheckMenuPermission(w, r, "content") {
@@ -815,7 +888,7 @@ func handleTrialStageSave(w http.ResponseWriter, r *http.Request) {
 	}
 	var req soloArenaStageSaveRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "입력 값이 올바르지 않습니다."})
+		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "??????ㅼ굣塋?????ル늉??????????? ????????????놁졄."})
 		return
 	}
 	if msg := validateSoloArenaStage(&req); msg != "" {
@@ -825,7 +898,7 @@ func handleTrialStageSave(w http.ResponseWriter, r *http.Request) {
 
 	db, err := openSoloArenaWorldDB()
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "시련 단계 정보를 저장하지 못했습니다."})
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "???꿔꺂??틝???????傭?끆?????????轅붽틓????????????關??濡녹춻???? ?饔낅떽???壤??얜?裕?傭??????"})
 		return
 	}
 	defer db.Close()
@@ -854,9 +927,14 @@ func handleTrialStageSave(w http.ResponseWriter, r *http.Request) {
 			melee_armor_pen_rating = ?,
 			caster_target_gs = ?,
 			caster_health = ?,
+			caster_mana = ?,
 			caster_spell_power = ?,
 			caster_crit_pct = ?,
 			caster_haste_rating = ?,
+			rank_s_seconds = ?,
+			rank_a_seconds = ?,
+			rank_b_seconds = ?,
+			rank_c_seconds = ?,
 			enabled = ?
 		WHERE stage_id = ?`,
 		strings.TrimSpace(req.Name), req.ArenaMapID,
@@ -865,7 +943,8 @@ func handleTrialStageSave(w http.ResponseWriter, r *http.Request) {
 		req.HealthMultiplier, req.DamageMultiplier,
 		req.AttackTimeMS, req.SpellIntervalMS, req.MoveSpeedRate, req.PreparationMS,
 		req.MeleeTargetGS, req.MeleeHealth, req.MeleeAttackPower, req.MeleeCritPct, req.MeleeArmorPenRating,
-		req.CasterTargetGS, req.CasterHealth, req.CasterSpellPower, req.CasterCritPct, req.CasterHasteRating,
+		req.CasterTargetGS, req.CasterHealth, req.CasterMana, req.CasterSpellPower, req.CasterCritPct, req.CasterHasteRating,
+		req.RankSSeconds, req.RankASeconds, req.RankBSeconds, req.RankCSeconds,
 		req.Enabled, req.StageID,
 	)
 	if err != nil {
@@ -874,11 +953,11 @@ func handleTrialStageSave(w http.ResponseWriter, r *http.Request) {
 	}
 
 	reloadErr := triggerSoloArenaReload(r)
-	message := "시련 단계 능력치를 저장했습니다."
+	message := "???꿔꺂??틝???????傭?끆????????????影?ろ???? ????關??濡㏓븶??듬㎦??????"
 	if reloadErr == nil {
-		message = "시련 단계 능력치를 저장하고 월드서버 재로드 명령을 전송했습니다."
+		message = "???꿔꺂??틝???????傭?끆????????????影?ろ???? ????關??濡녹춻????????嫄?????꿔꺂??틝???彛???????饔낅떽???嶺뚮슢梨뜹ㅇ?????????諛몃마嶺뚮칾?고뒌????????????놁졄."
 	} else {
-		message = fmt.Sprintf("시련 단계 능력치를 저장했습니다. 다만 월드서버 재로드 명령 전송에 실패했습니다: %s", reloadErr.Error())
+		message = fmt.Sprintf("???꿔꺂??틝???????傭?끆????????????影?ろ???? ????關??濡㏓븶??듬㎦?????? ??????ㅿ폍??????嫄?????꿔꺂??틝???彛???????饔낅떽???嶺뚮슢梨뜹ㅇ????????諛몃마嶺뚮칾?고뒌????????⑤슣?????????????놁졄: %s", reloadErr.Error())
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "success", "message": message})
 }
@@ -889,13 +968,13 @@ func handleTrialStageRewards(w http.ResponseWriter, r *http.Request) {
 	}
 	stageID, _ := strconv.Atoi(r.URL.Query().Get("stage_id"))
 	if stageID <= 0 {
-		http.Error(w, "?④퀎 踰덊샇媛 ?щ컮瑜댁? ?딆뒿?덈떎.", http.StatusBadRequest)
+		http.Error(w, "???????????????????????? ??????? ?????????????곸죩.", http.StatusBadRequest)
 		return
 	}
 
 	db, err := openSoloArenaWorldDB()
 	if err != nil {
-		http.Error(w, "?쒕젴 蹂댁긽 DB ?곌껐???ㅽ뙣?덉뒿?덈떎.", http.StatusInternalServerError)
+		http.Error(w, "???轅붽틓?????????????곕츥???逆곷틳源??DB ??????⑤벡瑜??????????ㅼ뒩??????????????곸죩.", http.StatusInternalServerError)
 		return
 	}
 	defer db.Close()
@@ -904,15 +983,16 @@ func handleTrialStageRewards(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rows, err := db.Query(`
+	rows, err := db.Query(fmt.Sprintf(`
 		SELECT
 			r.id,
 			r.stage_id,
 			r.item_entry,
-			COALESCE(NULLIF(itl.Name, ''), NULLIF(it.name, ''), CONCAT('?꾩씠??', r.item_entry)) AS item_name,
+			COALESCE(NULLIF(itl.Name, ''), NULLIF(it.name, ''), CONCAT('%s', r.item_entry)) AS item_name,
 			'' AS item_icon,
 			IFNULL(r.item_count, 0),
 			IFNULL(r.chance, 0),
+			IFNULL(r.reward_gold, 0),
 			IFNULL(r.reward_rank_value, 3),
 			IFNULL(r.reward_rank_label, 'B'),
 			IFNULL(r.sort_order, 0),
@@ -922,7 +1002,7 @@ func handleTrialStageRewards(w http.ResponseWriter, r *http.Request) {
 		LEFT JOIN item_template it ON it.entry = r.item_entry
 		LEFT JOIN item_template_locale itl ON itl.ID = r.item_entry AND itl.locale = 'koKR'
 		WHERE r.stage_id = ?
-		ORDER BY IFNULL(r.sort_order, 0) ASC, r.id ASC`, stageID)
+		ORDER BY IFNULL(r.sort_order, 0) ASC, r.id ASC`, soloArenaFallbackItemPrefix), stageID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -932,7 +1012,7 @@ func handleTrialStageRewards(w http.ResponseWriter, r *http.Request) {
 	items := make([]soloArenaStageRewardRow, 0)
 	for rows.Next() {
 		var row soloArenaStageRewardRow
-		if err := rows.Scan(&row.ID, &row.StageID, &row.ItemEntry, &row.ItemName, &row.ItemIcon, &row.ItemCount, &row.Chance, &row.RewardRankValue, &row.RewardRankLabel, &row.SortOrder, &row.Enabled, &row.Comment); err == nil {
+		if err := rows.Scan(&row.ID, &row.StageID, &row.ItemEntry, &row.ItemName, &row.ItemIcon, &row.ItemCount, &row.Chance, &row.RewardGold, &row.RewardRankValue, &row.RewardRankLabel, &row.SortOrder, &row.Enabled, &row.Comment); err == nil {
 			row.RewardRankValue = soloArenaRewardRankValue(row.RewardRankValue, row.RewardRankLabel)
 			row.RewardRankLabel = soloArenaRewardRankLabel(row.RewardRankValue, row.RewardRankLabel)
 			items = append(items, row)
@@ -946,36 +1026,44 @@ func handleTrialStageRewardSave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.Method != http.MethodPost {
-		http.Error(w, "吏?먰븯吏 ?딅뒗 ?붿껌 諛⑹떇?낅땲??", http.StatusMethodNotAllowed)
+		http.Error(w, "\ud5c8\uc6a9\ub418\uc9c0 \uc54a\uc740 \uc694\uccad \ubc29\uc2dd\uc785\ub2c8\ub2e4.", http.StatusMethodNotAllowed)
 		return
 	}
 	var req soloArenaStageRewardSaveRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "?붿껌 ?뺤떇???щ컮瑜댁? ?딆뒿?덈떎.", http.StatusBadRequest)
+		http.Error(w, "\uc785\ub825 \ub370\uc774\ud130\uac00 \uc62c\ubc14\ub974\uc9c0 \uc54a\uc2b5\ub2c8\ub2e4.", http.StatusBadRequest)
 		return
 	}
 	if req.StageID <= 0 {
-		http.Error(w, "?④퀎 踰덊샇???꾩닔?낅땲??", http.StatusBadRequest)
+		http.Error(w, "\ub2e8\uacc4 \uc815\ubcf4\uac00 \uc62c\ubc14\ub974\uc9c0 \uc54a\uc2b5\ub2c8\ub2e4.", http.StatusBadRequest)
 		return
 	}
 	for _, row := range req.Rewards {
-		if row.ItemEntry <= 0 {
-			http.Error(w, "蹂댁긽 ?꾩씠?쒖? 紐⑤몢 ?좏깮?섏뼱???⑸땲??", http.StatusBadRequest)
+		if row.RewardGold < 0 {
+			http.Error(w, "\uae08\uc561 \ubcf4\uc0c1\uc740 0 \uc774\uc0c1\uc774\uc5b4\uc57c \ud569\ub2c8\ub2e4.", http.StatusBadRequest)
 			return
 		}
-		if row.ItemCount <= 0 {
-			http.Error(w, "蹂댁긽 ?섎웾? 1 ?댁긽?댁뼱???⑸땲??", http.StatusBadRequest)
+		if row.ItemEntry > 0 && row.RewardGold > 0 {
+			http.Error(w, "\uc544\uc774\ud15c \ubcf4\uc0c1\uacfc \uae08\uc561 \ubcf4\uc0c1\uc740 \ub3d9\uc2dc\uc5d0 \uc124\uc815\ud560 \uc218 \uc5c6\uc2b5\ub2c8\ub2e4.", http.StatusBadRequest)
+			return
+		}
+		if row.ItemEntry <= 0 && row.RewardGold <= 0 {
+			http.Error(w, "\uc544\uc774\ud15c \ubcf4\uc0c1 \ub610\ub294 \uae08\uc561 \ubcf4\uc0c1 \uc911 \ud558\ub098\ub294 \ubc18\ub4dc\uc2dc \uc124\uc815\ud574\uc57c \ud569\ub2c8\ub2e4.", http.StatusBadRequest)
+			return
+		}
+		if row.ItemEntry > 0 && row.ItemCount <= 0 {
+			http.Error(w, "\uc544\uc774\ud15c \uc218\ub7c9\uc740 1 \uc774\uc0c1\uc774\uc5b4\uc57c \ud569\ub2c8\ub2e4.", http.StatusBadRequest)
 			return
 		}
 		if row.Chance < 0 || row.Chance > 100 {
-			http.Error(w, "蹂댁긽 ?뺣쪧? 0 ?댁긽 100 ?댄븯濡??낅젰?댁＜?몄슂.", http.StatusBadRequest)
+			http.Error(w, "\ud655\ub960\uc740 0\uc5d0\uc11c 100 \uc0ac\uc774\uc5b4\uc57c \ud569\ub2c8\ub2e4.", http.StatusBadRequest)
 			return
 		}
 	}
 
 	db, err := openSoloArenaWorldDB()
 	if err != nil {
-		http.Error(w, "?쒕젴 蹂댁긽 DB ?곌껐???ㅽ뙣?덉뒿?덈떎.", http.StatusInternalServerError)
+		http.Error(w, "\uc2dc\ub828 \ubcf4\uc0c1 DB\uc5d0 \uc5f0\uacb0\ud558\uc9c0 \ubabb\ud588\uc2b5\ub2c8\ub2e4.", http.StatusInternalServerError)
 		return
 	}
 	defer db.Close()
@@ -1018,16 +1106,16 @@ func handleTrialStageRewardSave(w http.ResponseWriter, r *http.Request) {
 		if autoID {
 			_, err = tx.Exec(`
 				INSERT INTO solo_arena_stage_reward
-					(stage_id, item_entry, item_count, chance, reward_rank_value, reward_rank_label, sort_order, enabled, comment)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-				req.StageID, row.ItemEntry, row.ItemCount, row.Chance, rankValue, rankLabel, sortOrder, row.Enabled, strings.TrimSpace(row.Comment),
+				(stage_id, item_entry, item_count, chance, reward_gold, reward_rank_value, reward_rank_label, sort_order, enabled, comment)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				req.StageID, row.ItemEntry, row.ItemCount, row.Chance, row.RewardGold, rankValue, rankLabel, sortOrder, row.Enabled, strings.TrimSpace(row.Comment),
 			)
 		} else {
 			_, err = tx.Exec(`
 				INSERT INTO solo_arena_stage_reward
-					(id, stage_id, item_entry, item_count, chance, reward_rank_value, reward_rank_label, sort_order, enabled, comment)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-				nextID, req.StageID, row.ItemEntry, row.ItemCount, row.Chance, rankValue, rankLabel, sortOrder, row.Enabled, strings.TrimSpace(row.Comment),
+				(id, stage_id, item_entry, item_count, chance, reward_gold, reward_rank_value, reward_rank_label, sort_order, enabled, comment)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				nextID, req.StageID, row.ItemEntry, row.ItemCount, row.Chance, row.RewardGold, rankValue, rankLabel, sortOrder, row.Enabled, strings.TrimSpace(row.Comment),
 			)
 			nextID++
 		}
@@ -1043,11 +1131,11 @@ func handleTrialStageRewardSave(w http.ResponseWriter, r *http.Request) {
 	}
 
 	reloadErr := triggerSoloArenaReload(r)
-	message := "시련 단계 보상을 저장했습니다."
+	message := "???꿔꺂??틝???????傭?끆???????????쇰뮛???潁뺛깾???????關??濡㏓븶??듬㎦??????"
 	if reloadErr == nil {
-		message = "시련 단계 보상을 저장하고 월드서버 재로드 명령을 전송했습니다."
+		message = "???꿔꺂??틝???????傭?끆???????????쇰뮛???潁뺛깾???????關??濡녹춻????????嫄?????꿔꺂??틝???彛???????饔낅떽???嶺뚮슢梨뜹ㅇ?????????諛몃마嶺뚮칾?고뒌????????????놁졄."
 	} else {
-		message = fmt.Sprintf("시련 단계 보상을 저장했습니다. 다만 월드서버 재로드 명령 전송에 실패했습니다: %s", reloadErr.Error())
+		message = fmt.Sprintf("???꿔꺂??틝???????傭?끆???????????쇰뮛???潁뺛깾???????關??濡㏓븶??듬㎦?????? ??????ㅿ폍??????嫄?????꿔꺂??틝???彛???????饔낅떽???嶺뚮슢梨뜹ㅇ????????諛몃마嶺뚮칾?고뒌????????⑤슣?????????????놁졄: %s", reloadErr.Error())
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"status": "success", "message": message})
 }
@@ -1107,7 +1195,7 @@ func handleTrialProgressList(w http.ResponseWriter, r *http.Request) {
 	}
 	db, err := openSoloArenaCharactersDB()
 	if err != nil {
-		http.Error(w, "시련 진행 DB 연결에 실패했습니다.", http.StatusInternalServerError)
+		http.Error(w, "???꿔꺂??틝??????饔낅떽?????嶺뚮ㅎ???DB ?????怨뺤르?????????⑤슣?????????????놁졄.", http.StatusInternalServerError)
 		return
 	}
 	defer db.Close()
@@ -1240,7 +1328,7 @@ func handleTrialProgressList(w http.ResponseWriter, r *http.Request) {
 		if name := strings.TrimSpace(accountNames[items[i].AccountID]); name != "" {
 			items[i].AccountName = name
 		} else if items[i].AccountID > 0 {
-			items[i].AccountName = fmt.Sprintf("계정 %d", items[i].AccountID)
+			items[i].AccountName = fmt.Sprintf("??鶯ㅺ동??????%d", items[i].AccountID)
 		} else {
 			items[i].AccountName = "-"
 		}
@@ -1259,13 +1347,13 @@ func handleTrialCharacterDetail(w http.ResponseWriter, r *http.Request) {
 	}
 	guid, _ := strconv.ParseInt(strings.TrimSpace(r.URL.Query().Get("guid")), 10, 64)
 	if guid <= 0 {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "캐릭터 정보가 올바르지 않습니다."})
+		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "????????轅붽틓???????먯땡沃섃넄?곈툣?????쎛 ??????? ????????????놁졄."})
 		return
 	}
 
 	db, err := openSoloArenaCharactersDB()
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "시련 캐릭터 정보를 불러오지 못했습니다."})
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "???꿔꺂??틝?????????????轅붽틓????????????⑥ル럯????? ?饔낅떽???壤??얜?裕?傭??????"})
 		return
 	}
 	defer db.Close()
@@ -1295,7 +1383,7 @@ func handleTrialCharacterDetail(w http.ResponseWriter, r *http.Request) {
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			writeJSON(w, http.StatusNotFound, map[string]string{"status": "error", "message": "캐릭터를 찾을 수 없습니다."})
+			writeJSON(w, http.StatusNotFound, map[string]string{"status": "error", "message": "??????? ?饔낅떽???????????????깅즽????????놁졄."})
 			return
 		}
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": err.Error()})
@@ -1306,22 +1394,21 @@ func handleTrialCharacterDetail(w http.ResponseWriter, r *http.Request) {
 	if name := strings.TrimSpace(fetchSoloArenaAccountNames([]int{detail.Character.AccountID})[detail.Character.AccountID]); name != "" {
 		detail.Character.AccountName = name
 	} else if detail.Character.AccountID > 0 {
-		detail.Character.AccountName = fmt.Sprintf("계정 %d", detail.Character.AccountID)
+		detail.Character.AccountName = fmt.Sprintf("??鶯ㅺ동??????%d", detail.Character.AccountID)
 	} else {
 		detail.Character.AccountName = "-"
 	}
 
+	stageNameMap := loadSoloArenaStageNameMap()
 	rows, err := db.Query(`
 		SELECT
 			sr.guid,
 			sr.stage_id,
-			COALESCE(NULLIF(s.name, ''), CONCAT('시련 ', sr.stage_id, '단계')) AS stage_name,
 			IFNULL(sr.best_rank, 0),
 			IFNULL(sr.best_rank_label, ''),
 			IFNULL(sr.best_time_sec, 0),
 			`+unixTimeExpr("sr.updated_at")+`
 		FROM solo_arena_stage_record sr
-		LEFT JOIN solo_arena_stage s ON s.stage_id = sr.stage_id
 		WHERE sr.guid = ?
 		ORDER BY sr.stage_id ASC`, guid)
 	if err != nil {
@@ -1333,7 +1420,11 @@ func handleTrialCharacterDetail(w http.ResponseWriter, r *http.Request) {
 	detail.StageRecords = make([]soloArenaStageRecordRow, 0)
 	for rows.Next() {
 		var row soloArenaStageRecordRow
-		if err := rows.Scan(&row.GUID, &row.StageID, &row.StageName, &row.BestRank, &row.BestRankLabel, &row.BestTimeSec, &row.UpdatedAt); err == nil {
+		if err := rows.Scan(&row.GUID, &row.StageID, &row.BestRank, &row.BestRankLabel, &row.BestTimeSec, &row.UpdatedAt); err == nil {
+			row.StageName = strings.TrimSpace(stageNameMap[row.StageID])
+			if row.StageName == "" {
+				row.StageName = fmt.Sprintf("\uc2dc\ub828 %d\ub2e8\uacc4", row.StageID)
+			}
 			row.BestRank, row.BestRankLabel = soloArenaRankPreset(row.BestRank, row.BestRankLabel)
 			detail.StageRecords = append(detail.StageRecords, row)
 		}
@@ -1343,7 +1434,7 @@ func handleTrialCharacterDetail(w http.ResponseWriter, r *http.Request) {
 
 func handleTrialProgressSave(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"status": "error", "message": "잘못된 요청입니다."})
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"status": "error", "message": "???????????嫄????????戮?Ĳ??"})
 		return
 	}
 	if !CheckMenuPermission(w, r, "content") {
@@ -1351,24 +1442,24 @@ func handleTrialProgressSave(w http.ResponseWriter, r *http.Request) {
 	}
 	var req soloArenaProgressSaveRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "입력 값이 올바르지 않습니다."})
+		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "??????ㅼ굣塋?????ル늉??????????? ????????????놁졄."})
 		return
 	}
 	if req.GUID <= 0 || req.HighestStageCleared < 0 {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "진행도 값을 확인해 주세요."})
+		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "?饔낅떽?????嶺뚮ㅎ????????ル늉??????轅붽틓??????????????⑹름??????뭽??"})
 		return
 	}
 
 	db, err := openSoloArenaCharactersDB()
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "시련 진행도를 저장하지 못했습니다."})
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "???꿔꺂??틝??????饔낅떽?????嶺뚮ㅎ????? ????關??濡녹춻???? ?饔낅떽???壤??얜?裕?傭??????"})
 		return
 	}
 	defer db.Close()
 
 	tx, err := db.Begin()
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "시련 진행도를 저장하지 못했습니다."})
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "???꿔꺂??틝??????饔낅떽?????嶺뚮ㅎ????? ????關??濡녹춻???? ?饔낅떽???壤??얜?裕?傭??????"})
 		return
 	}
 	defer tx.Rollback()
@@ -1393,15 +1484,15 @@ func handleTrialProgressSave(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := tx.Commit(); err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "시련 진행도를 저장하지 못했습니다."})
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "???꿔꺂??틝??????饔낅떽?????嶺뚮ㅎ????? ????關??濡녹춻???? ?饔낅떽???壤??얜?裕?傭??????"})
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]string{"status": "success", "message": "최고 클리어 단계가 저장되었습니다."})
+	writeJSON(w, http.StatusOK, map[string]string{"status": "success", "message": "?饔낅떽?????壤??????????傭?끆???????汝??繹?? ?????얜궙??뷀떐??궰????????????놁졄."})
 }
 
 func handleTrialStageRecordSave(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"status": "error", "message": "잘못된 요청입니다."})
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"status": "error", "message": "???????????嫄????????戮?Ĳ??"})
 		return
 	}
 	if !CheckMenuPermission(w, r, "content") {
@@ -1409,25 +1500,25 @@ func handleTrialStageRecordSave(w http.ResponseWriter, r *http.Request) {
 	}
 	var req soloArenaStageRecordSaveRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "입력 값이 올바르지 않습니다."})
+		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "??????ㅼ굣塋?????ル늉??????????? ????????????놁졄."})
 		return
 	}
 	if req.GUID <= 0 || req.StageID <= 0 || req.BestTimeSec < 0 {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "단계 기록 값을 확인해 주세요."})
+		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "??傭?끆?????????????????됰븗?????ル늉??????轅붽틓??????????????⑹름??????뭽??"})
 		return
 	}
 	req.BestRank, req.BestRankLabel = soloArenaRankPreset(req.BestRank, req.BestRankLabel)
 
 	db, err := openSoloArenaCharactersDB()
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "단계 기록을 저장하지 못했습니다."})
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "??傭?끆?????????????????됰븗??????關??濡녹춻???? ?饔낅떽???壤??얜?裕?傭??????"})
 		return
 	}
 	defer db.Close()
 
 	tx, err := db.Begin()
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "단계 기록을 저장하지 못했습니다."})
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "??傭?끆?????????????????됰븗??????關??濡녹춻???? ?饔낅떽???壤??얜?裕?傭??????"})
 		return
 	}
 	defer tx.Rollback()
@@ -1463,15 +1554,15 @@ func handleTrialStageRecordSave(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := tx.Commit(); err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "단계 기록을 저장하지 못했습니다."})
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "??傭?끆?????????????????됰븗??????關??濡녹춻???? ?饔낅떽???壤??얜?裕?傭??????"})
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]string{"status": "success", "message": "단계 기록이 저장되었습니다."})
+	writeJSON(w, http.StatusOK, map[string]string{"status": "success", "message": "??傭?끆?????????????????됰븗???????얜궙??뷀떐??궰????????????놁졄."})
 }
 
 func handleTrialStageRecordDelete(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"status": "error", "message": "잘못된 요청입니다."})
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"status": "error", "message": "???????????嫄????????戮?Ĳ??"})
 		return
 	}
 	if !CheckMenuPermission(w, r, "content") {
@@ -1479,24 +1570,24 @@ func handleTrialStageRecordDelete(w http.ResponseWriter, r *http.Request) {
 	}
 	var req soloArenaStageRecordDeleteRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "입력 값이 올바르지 않습니다."})
+		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "??????ㅼ굣塋?????ル늉??????????? ????????????놁졄."})
 		return
 	}
 	if req.GUID <= 0 || req.StageID <= 0 {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "삭제할 단계 기록이 올바르지 않습니다."})
+		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "???????傭?끆?????????????????됰븗????????? ????????????놁졄."})
 		return
 	}
 
 	db, err := openSoloArenaCharactersDB()
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "단계 기록을 삭제하지 못했습니다."})
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "??傭?끆?????????????????됰븗???????? ?饔낅떽???壤??얜?裕?傭??????"})
 		return
 	}
 	defer db.Close()
 
 	tx, err := db.Begin()
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "단계 기록을 삭제하지 못했습니다."})
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "??傭?끆?????????????????됰븗???????? ?饔낅떽???壤??얜?裕?傭??????"})
 		return
 	}
 	defer tx.Rollback()
@@ -1521,15 +1612,15 @@ func handleTrialStageRecordDelete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := tx.Commit(); err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "단계 기록을 삭제하지 못했습니다."})
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "??傭?끆?????????????????됰븗???????? ?饔낅떽???壤??얜?裕?傭??????"})
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]string{"status": "success", "message": "단계 기록이 삭제되었습니다."})
+	writeJSON(w, http.StatusOK, map[string]string{"status": "success", "message": "??傭?끆?????????????????됰븗???????????????"})
 }
 
 func handleTrialCharacterReset(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"status": "error", "message": "잘못된 요청입니다."})
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"status": "error", "message": "???????????嫄????????戮?Ĳ??"})
 		return
 	}
 	if !CheckMenuPermission(w, r, "content") {
@@ -1539,20 +1630,20 @@ func handleTrialCharacterReset(w http.ResponseWriter, r *http.Request) {
 		GUID int64 `json:"guid"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.GUID <= 0 {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "초기화할 캐릭터 정보가 올바르지 않습니다."})
+		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "??????멸괜????????????????轅붽틓???????먯땡沃섃넄?곈툣?????쎛 ??????? ????????????놁졄."})
 		return
 	}
 
 	db, err := openSoloArenaCharactersDB()
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "시련 기록을 초기화하지 못했습니다."})
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "???꿔꺂??틝???????????????됰븗????????멸괜?????????? ?饔낅떽???壤??얜?裕?傭??????"})
 		return
 	}
 	defer db.Close()
 
 	tx, err := db.Begin()
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "시련 기록을 초기화하지 못했습니다."})
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "???꿔꺂??틝???????????????됰븗????????멸괜?????????? ?饔낅떽???壤??얜?裕?傭??????"})
 		return
 	}
 	defer tx.Rollback()
@@ -1566,15 +1657,15 @@ func handleTrialCharacterReset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := tx.Commit(); err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "시련 기록을 초기화하지 못했습니다."})
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "???꿔꺂??틝???????????????됰븗????????멸괜?????????? ?饔낅떽???壤??얜?裕?傭??????"})
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]string{"status": "success", "message": "시련 진행도와 단계 기록을 초기화했습니다."})
+	writeJSON(w, http.StatusOK, map[string]string{"status": "success", "message": "???꿔꺂??틝??????饔낅떽?????嶺뚮ㅎ????? ??傭?끆?????????????????됰븗????????멸괜?????????????"})
 }
 
 func handleTrialCharacterForceClear(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"status": "error", "message": "잘못된 요청입니다."})
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"status": "error", "message": "???????????嫄????????戮?Ĳ??"})
 		return
 	}
 	if !CheckMenuPermission(w, r, "content") {
@@ -1582,25 +1673,25 @@ func handleTrialCharacterForceClear(w http.ResponseWriter, r *http.Request) {
 	}
 	var req soloArenaForceClearRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "입력 값이 올바르지 않습니다."})
+		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "??????ㅼ굣塋?????ル늉??????????? ????????????놁졄."})
 		return
 	}
 	if req.GUID <= 0 || req.StageID <= 0 || req.BestTimeSec < 0 {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "강제 통과 값이 올바르지 않습니다."})
+		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "????ル늉?????????????ル늉??????????? ????????????놁졄."})
 		return
 	}
 	req.BestRank, req.BestRankLabel = soloArenaRankPreset(req.BestRank, req.BestRankLabel)
 
 	db, err := openSoloArenaCharactersDB()
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "강제 통과를 저장하지 못했습니다."})
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "????ル늉??????????????關??濡녹춻???? ?饔낅떽???壤??얜?裕?傭??????"})
 		return
 	}
 	defer db.Close()
 
 	tx, err := db.Begin()
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "강제 통과를 저장하지 못했습니다."})
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "????ル늉??????????????關??濡녹춻???? ?饔낅떽???壤??얜?裕?傭??????"})
 		return
 	}
 	defer tx.Rollback()
@@ -1630,10 +1721,10 @@ func handleTrialCharacterForceClear(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := tx.Commit(); err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "강제 통과를 저장하지 못했습니다."})
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "????ル늉??????????????關??濡녹춻???? ?饔낅떽???壤??얜?裕?傭??????"})
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]string{"status": "success", "message": "단계 기록을 강제로 반영했습니다."})
+	writeJSON(w, http.StatusOK, map[string]string{"status": "success", "message": "??傭?끆?????????????????됰븗??????ル늉???傭?끆?????ㅿ폑獄?????썹땟戮녹???????????????놁졄."})
 }
 
 func handleTrialRunLogList(w http.ResponseWriter, r *http.Request) {
@@ -1642,7 +1733,7 @@ func handleTrialRunLogList(w http.ResponseWriter, r *http.Request) {
 	}
 	db, err := openSoloArenaCharactersDB()
 	if err != nil {
-		http.Error(w, "?쒕젴 ??濡쒓렇 DB ?곌껐???ㅽ뙣?덉뒿?덈떎.", http.StatusInternalServerError)
+		http.Error(w, "???轅붽틓??????????????癲??DB ??????⑤벡瑜??????????ㅼ뒩??????????????곸죩.", http.StatusInternalServerError)
 		return
 	}
 	defer db.Close()
@@ -1690,7 +1781,7 @@ func handleTrialRunLogList(w http.ResponseWriter, r *http.Request) {
 			rl.id, rl.run_uid, rl.guid, rl.account_id,
 			COALESCE(NULLIF(rl.player_name, ''), NULLIF(c.name, ''), CONCAT('GUID ', rl.guid)) AS player_name,
 			rl.stage_id,
-			IFNULL(NULLIF(rl.stage_name, ''), CONCAT('?쒕젴 ', rl.stage_id, '?④퀎')) AS stage_name,
+			COALESCE(NULLIF(rl.stage_name, ''), CONCAT(CONVERT(0xEC8B9CEBA0A8 USING utf8mb4), rl.stage_id, CONVERT(0xEB8BA8EAB384 USING utf8mb4))) AS stage_name,
 			rl.result,
 			IFNULL(rl.result_label, ''),
 			IFNULL(rl.session_state, 0),
@@ -1721,7 +1812,14 @@ func handleTrialRunLogList(w http.ResponseWriter, r *http.Request) {
 		if err := rows.Scan(&row.ID, &row.RunUID, &row.GUID, &row.AccountID, &row.PlayerName, &row.StageID, &row.StageName, &row.Result, &rawLabel, &row.SessionState, &row.StartedAt, &row.EndedAt, &row.CompletedAt, &row.FailedAt, &row.AbandonedAt, &row.DurationSec, &row.ArenaMapID, &row.ArenaInstanceID, &row.ReturnMapID); err == nil {
 			row.ResultLabel = soloArenaResultLabel(row.Result, rawLabel)
 			items = append(items, row)
+		} else {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
+	}
+	if err := rows.Err(); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"items":      items,
@@ -1737,7 +1835,7 @@ func handleTrialEventLogList(w http.ResponseWriter, r *http.Request) {
 	}
 	db, err := openSoloArenaCharactersDB()
 	if err != nil {
-		http.Error(w, "?쒕젴 ?대깽??濡쒓렇 DB ?곌껐???ㅽ뙣?덉뒿?덈떎.", http.StatusInternalServerError)
+		http.Error(w, "???轅붽틓??????????????????癲??DB ??????⑤벡瑜??????????ㅼ뒩??????????????곸죩.", http.StatusInternalServerError)
 		return
 	}
 	defer db.Close()
@@ -1818,7 +1916,7 @@ func handleTrialRewardLogList(w http.ResponseWriter, r *http.Request) {
 	}
 	db, err := openSoloArenaCharactersDB()
 	if err != nil {
-		http.Error(w, "?쒕젴 蹂댁긽 濡쒓렇 DB ?곌껐???ㅽ뙣?덉뒿?덈떎.", http.StatusInternalServerError)
+		http.Error(w, "???轅붽틓?????????????곕츥???逆곷틳源??????癲??DB ??????⑤벡瑜??????????ㅼ뒩??????????????곸죩.", http.StatusInternalServerError)
 		return
 	}
 	defer db.Close()
@@ -1856,12 +1954,12 @@ func handleTrialRewardLogList(w http.ResponseWriter, r *http.Request) {
 	}
 
 	queryArgs := append(append([]any{}, args...), limit, offset)
-	rows, err := db.Query(`
+	rows, err := db.Query(fmt.Sprintf(`
 		SELECT
 			rl.id, rl.run_uid, rl.guid, rl.account_id,
 			COALESCE(NULLIF(rl.player_name, ''), NULLIF(c.name, ''), CONCAT('GUID ', rl.guid)) AS player_name,
 			rl.stage_id, rl.item_entry,
-			CONCAT('?꾩씠??', rl.item_entry) AS item_name,
+			CONCAT('%s', rl.item_entry) AS item_name,
 			'' AS item_icon,
 			IFNULL(rl.item_count, 0),
 			IFNULL(rl.chance, 0),
@@ -1871,7 +1969,7 @@ func handleTrialRewardLogList(w http.ResponseWriter, r *http.Request) {
 		LEFT JOIN characters c ON c.guid = rl.guid
 		WHERE `+where+`
 		ORDER BY rl.id DESC
-		LIMIT ? OFFSET ?`, queryArgs...)
+		LIMIT ? OFFSET ?`, soloArenaFallbackItemPrefix), queryArgs...)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

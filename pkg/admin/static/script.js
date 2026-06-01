@@ -235,6 +235,7 @@ function normalizeKoreanLabels() {
     setHtml('tab-btn-auction', '<i class="fas fa-gavel"></i> 경매장');
     setHtml('tab-btn-content', '<i class="fas fa-cubes"></i> 콘텐츠 관리');
     setHtml('tab-btn-board-admin', '<i class="fas fa-edit"></i> 게시판 관리 (CMS)');
+    setHtml('tab-btn-bug-report-admin', '<i class="fas fa-bug"></i> 버그리포트');
     setHtml('tab-btn-notification-admin', '<i class="fas fa-bullhorn"></i> 알림발송');
     setHtml('tab-btn-shop-admin', '<i class="fas fa-store-alt"></i> 선술집관리');
     setHtml('tab-btn-instance-bonus-admin', '<i class="fas fa-dungeon"></i> 던전/레이드');
@@ -643,7 +644,7 @@ function openTab(tabName, options) {
         pushTabHistory(tabName);
     }
 
-    const subTabParents = ['remote', 'account', 'gm', 'ban', 'log', 'logs', 'stats', 'content', 'board-admin', 'notification-admin', 'shop-admin', 'instance-bonus-admin'];
+    const subTabParents = ['remote', 'account', 'gm', 'ban', 'log', 'logs', 'stats', 'content', 'board-admin', 'bug-report-admin', 'notification-admin', 'shop-admin', 'instance-bonus-admin'];
     
     if (subTabParents.includes(tabName)) {
         if (tabName === 'remote') {
@@ -674,6 +675,9 @@ function openTab(tabName, options) {
         if (tabName === 'board-admin') {
             if (typeof openBoardSubTab === 'function') openBoardSubTab('list');
             else if (typeof loadBoardListAdmin === 'function') loadBoardListAdmin();
+        }
+        if (tabName === 'bug-report-admin' && typeof loadBugReportAdminPage === 'function') {
+            loadBugReportAdminPage(1);
         }
         if (tabName === 'notification-admin' && typeof loadNotificationHistory === 'function') {
             loadNotificationHistory(1);
@@ -1354,11 +1358,90 @@ function openServerSubTab(tabName) {
         // but we can force check if needed. Existing startServer/stopServer handlers usually trigger updates.
     } else if (tabName === 'schedule') {
         loadSchedule(1);
+    } else if (tabName === 'web') {
+        loadWebGuardSettings();
     }
 }
 
 function refreshCurrentServerTab() {
     openServerSubTab(currentServerTab);
+}
+
+async function loadWebGuardSettings() {
+    const enabledEl = document.getElementById('web-guard-enabled');
+    const ipsEl = document.getElementById('web-guard-ips');
+    const modeEl = document.getElementById('web-guard-display-mode');
+    const titleEl = document.getElementById('web-guard-title');
+    const messageEl = document.getElementById('web-guard-message');
+    const metaEl = document.getElementById('web-guard-meta');
+    const statusTextEl = document.getElementById('web-guard-status-text');
+    if (!enabledEl || !ipsEl || !modeEl || !titleEl || !messageEl || !metaEl || !statusTextEl) return;
+
+    metaEl.textContent = '설정을 불러오는 중입니다.';
+    try {
+        const res = await fetch('/api/admin/web-guard', { cache: 'no-store' });
+        const text = await res.text();
+        if (!res.ok) {
+            throw new Error(text || '웹 접근 제어 설정을 불러오지 못했습니다.');
+        }
+        const data = JSON.parse(text);
+        enabledEl.checked = !!data.enabled;
+        ipsEl.value = Array.isArray(data.allowedIps) ? data.allowedIps.join('\n') : '';
+        modeEl.value = String(data.displayMode || 'maintenance');
+        titleEl.value = String(data.title || '');
+        messageEl.value = String(data.message || '');
+        statusTextEl.textContent = enabledEl.checked ? 'ON' : 'OFF';
+        const currentIp = String(data.clientIp || '').trim();
+        const updatedBy = String(data.updatedBy || '').trim();
+        const updatedAt = String(data.updatedAt || '').trim();
+        metaEl.innerHTML = `
+            현재 접속 IP: <strong>${escapeHtml(currentIp || '-')}</strong><br>
+            마지막 수정자: <strong>${escapeHtml(updatedBy || '-')}</strong><br>
+            마지막 수정 시각: <strong>${escapeHtml(updatedAt || '-')}</strong>
+        `;
+    } catch (e) {
+        metaEl.textContent = '설정을 불러오지 못했습니다.';
+        ModalUtils.showAlert(`웹 접근 제어 정보를 불러오지 못했습니다.\n${String(e.message || '')}`.trim());
+    }
+}
+
+async function saveWebGuardSettings() {
+    const enabledEl = document.getElementById('web-guard-enabled');
+    const ipsEl = document.getElementById('web-guard-ips');
+    const modeEl = document.getElementById('web-guard-display-mode');
+    const titleEl = document.getElementById('web-guard-title');
+    const messageEl = document.getElementById('web-guard-message');
+    const statusTextEl = document.getElementById('web-guard-status-text');
+    if (!enabledEl || !ipsEl || !modeEl || !titleEl || !messageEl || !statusTextEl) return;
+
+    const payload = {
+        enabled: !!enabledEl.checked,
+        allowedIps: String(ipsEl.value || '').trim(),
+        displayMode: String(modeEl.value || 'maintenance').trim(),
+        title: String(titleEl.value || '').trim(),
+        message: String(messageEl.value || '').trim()
+    };
+
+    if (payload.enabled && !payload.allowedIps) {
+        ModalUtils.showAlert('웹 접근 제한을 켜려면 허용 IP를 최소 1개 이상 입력해야 합니다.');
+        ipsEl.focus();
+        return;
+    }
+
+    await ModalUtils.runWithProgress('웹 접근 제어 설정을 저장하는 중입니다.', async () => {
+        const res = await fetch('/api/admin/web-guard', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const text = await res.text();
+        if (!res.ok) {
+            throw new Error(text || '웹 접근 제어 저장에 실패했습니다.');
+        }
+        statusTextEl.textContent = payload.enabled ? 'ON' : 'OFF';
+        ModalUtils.showAlert('웹 접근 제어 설정이 저장되었습니다.');
+        await loadWebGuardSettings();
+    });
 }
 
 // Account Management Sub-Tab Management
@@ -3023,6 +3106,10 @@ function openContentSubTab(tabName) {
         loadCarddrawContentItems(1);
     } else if (tabName === 'trial') {
         openTrialContentSubTab('stages');
+    } else if (tabName === 'drop') {
+        loadDropCreatures(1);
+    } else if (tabName === 'vendor') {
+        loadVendorCreatures(1);
     }
 }
 
@@ -3033,6 +3120,18 @@ function refreshCurrentContentTab() {
         loadCarddrawContentItems(1);
     } else if (currentContentTab === 'trial') {
         refreshCurrentTrialContentTab();
+    } else if (currentContentTab === 'drop') {
+        if (currentDropCreatureEntry > 0) {
+            loadDropLoot(currentDropCreatureEntry);
+        } else {
+            loadDropCreatures(currentDropCreaturePage || 1);
+        }
+    } else if (currentContentTab === 'vendor') {
+        if (currentVendorCreatureEntry > 0) {
+            loadVendorItems(currentVendorCreatureEntry);
+        } else {
+            loadVendorCreatures(currentVendorCreaturePage || 1);
+        }
     }
 }
 
@@ -3460,6 +3559,718 @@ document.getElementById('carddraw-content-form')?.addEventListener('submit', asy
     }
 });
 
+// Creature Drop Content Manager Logic
+let currentDropCreaturePage = 1;
+let currentDropCreatureEntry = 0;
+let currentDropCreatureName = '';
+let currentDropReferenceEntry = 0;
+
+function dropEsc(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function dropQualityClass(quality) {
+    return `quality-${Number(quality || 0)}`;
+}
+
+async function loadDropCreatures(page = 1) {
+    currentDropCreaturePage = page;
+    const tbody = document.getElementById('drop-creature-list');
+    const pg = document.getElementById('drop-creature-pagination');
+    if (!tbody) return;
+
+    const q = String(document.getElementById('drop-creature-search')?.value || '').trim();
+    const params = new URLSearchParams({ page: String(page), limit: '20' });
+    if (q) params.set('q', q);
+
+    tbody.style.opacity = '0.45';
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px;">크리처를 불러오는 중...</td></tr>';
+    try {
+        const res = await fetch(`/api/content/drop/creatures?${params.toString()}`);
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.message || '크리처 목록을 불러오지 못했습니다.');
+        const items = Array.isArray(data.items) ? data.items : [];
+        if (!items.length) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:24px; color:#64748b;">검색 결과가 없습니다.</td></tr>';
+            renderPagination(pg, data, (p) => loadDropCreatures(p));
+            return;
+        }
+        tbody.innerHTML = items.map((item) => {
+            const entry = Number(item.entry || 0);
+            const name = String(item.name || `Creature ${entry}`);
+            const active = entry === currentDropCreatureEntry ? 'drop-creature-selected' : '';
+            return `
+                <tr class="${active}">
+                    <td style="font-weight:700;">${entry}</td>
+                    <td>
+                        <div style="font-weight:800; color:#0f172a;">${dropEsc(name)}</div>
+                        ${item.sub_name ? `<div style="font-size:0.82rem; color:#64748b;">${dropEsc(item.sub_name)}</div>` : ''}
+                    </td>
+                    <td>${Number(item.min_level || 0)} ~ ${Number(item.max_level || 0)}</td>
+                    <td style="text-align:center;">
+                        <button class="btn-action btn-edit" onclick="selectDropCreature(${entry}, decodeURIComponent('${encodeURIComponent(name)}'))">선택</button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+        renderPagination(pg, data, (p) => loadDropCreatures(p));
+    } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:20px; color:#dc2626;">${dropEsc(e.message)}</td></tr>`;
+    } finally {
+        tbody.style.opacity = '1';
+    }
+}
+
+function searchDropCreatures() {
+    loadDropCreatures(1);
+}
+
+function resetDropCreatures() {
+    const q = document.getElementById('drop-creature-search');
+    if (q) q.value = '';
+    loadDropCreatures(1);
+}
+
+function selectDropCreature(entry, name) {
+    currentDropCreatureEntry = Number(entry || 0);
+    currentDropCreatureName = String(name || `Creature ${entry}`);
+    const title = document.getElementById('drop-selected-title');
+    const meta = document.getElementById('drop-selected-meta');
+    const addBtn = document.getElementById('drop-add-btn');
+    const refAddBtn = document.getElementById('drop-ref-add-btn');
+    if (title) title.textContent = `${currentDropCreatureName} 드랍 목록`;
+    if (meta) meta.textContent = `크리처 번호 ${currentDropCreatureEntry}의 드랍 테이블 정보를 관리합니다.`;
+    if (addBtn) addBtn.disabled = currentDropCreatureEntry <= 0;
+    if (refAddBtn) refAddBtn.disabled = currentDropCreatureEntry <= 0;
+    document.querySelectorAll('#drop-creature-list tr').forEach((row) => {
+        const firstCell = row.querySelector('td:first-child');
+        const rowEntry = Number(String(firstCell?.textContent || '').trim());
+        row.classList.toggle('drop-creature-selected', rowEntry === currentDropCreatureEntry);
+    });
+    loadDropLoot(currentDropCreatureEntry);
+}
+
+async function loadDropLoot(entry) {
+    const tbody = document.getElementById('drop-loot-list');
+    if (!tbody) return;
+    if (Number(entry || 0) <= 0) {
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:24px; color:#64748b;">크리처를 먼저 선택해주세요.</td></tr>';
+        return;
+    }
+    tbody.style.opacity = '0.45';
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:20px;">드랍 정보를 불러오는 중...</td></tr>';
+    try {
+        const res = await fetch(`/api/content/drop/list?entry=${Number(entry)}`);
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.message || '드랍 정보를 불러오지 못했습니다.');
+        const items = Array.isArray(data.items) ? data.items : [];
+        if (!items.length) {
+            tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:24px; color:#64748b;">등록된 드랍 정보가 없습니다.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = items.map((item) => {
+            const itemEntry = Number(item.item_entry || 0);
+            const itemName = String(item.item_name || `아이템 ${itemEntry}`);
+            const payload = encodeURIComponent(JSON.stringify(item));
+            const isReference = !!item.is_reference || Number(item.reference || 0) > 0;
+            const referenceEntry = Number(item.reference || 0);
+            const typeBadge = isReference
+                ? '<span class="drop-type-badge ref">참조 묶음</span>'
+                : '<span class="drop-type-badge item">직접 드랍</span>';
+            const targetCell = isReference
+                ? `<div style="font-weight:800; color:#4338ca;">참조 묶음 #${referenceEntry}</div><div style="font-size:0.82rem; color:#64748b;">reference_loot_template 내부 목록을 사용합니다.</div>`
+                : wrapWithWowheadItemLink(itemEntry, `<span class="${dropQualityClass(item.item_quality)}">${dropEsc(itemName)}</span>`, itemName);
+            const iconCell = isReference
+                ? `<span style="display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; border-radius:6px; background:#eef2ff; color:#4338ca;"><i class="fas fa-layer-group"></i></span><span>${referenceEntry}</span>`
+                : `<div class="trial-entry-icon" data-entry="${itemEntry}" data-size="30" style="width:30px; height:30px;"></div><span>${itemEntry}</span>`;
+            return `
+                <tr>
+                    <td>${typeBadge}</td>
+                    <td>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            ${iconCell}
+                        </div>
+                    </td>
+                    <td style="font-weight:800;">${targetCell}</td>
+                    <td>${Number(item.chance || 0).toFixed(2)}%</td>
+                    <td>${Number(item.group_id || 0)}</td>
+                    <td>${Number(item.min_count || 1)} ~ ${Number(item.max_count || 1)}</td>
+                    <td>${Number(item.loot_mode || 1)}</td>
+                    <td>${Number(item.quest_required || 0) === 1 ? '예' : '아니오'}</td>
+                    <td>
+                        <div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
+                            ${isReference ? `<button class="btn-action btn-edit" onclick="openDropReferenceModal(${referenceEntry})"><i class="fas fa-list"></i> 묶음 관리</button>` : ''}
+                            <button class="btn-action btn-edit" onclick="${isReference ? `openDropReferenceLinkModal(JSON.parse(decodeURIComponent('${payload}')))` : `openDropItemModal(JSON.parse(decodeURIComponent('${payload}')))`}"><i class="fas fa-edit"></i> 수정</button>
+                            <button class="btn-action btn-delete" onclick="deleteDropItem(${Number(item.entry || entry)}, ${itemEntry})"><i class="fas fa-trash"></i> 삭제</button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+        hydrateTrialEntryIcons(tbody);
+        refreshWowheadTooltips();
+    } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:20px; color:#dc2626;">${dropEsc(e.message)}</td></tr>`;
+    } finally {
+        tbody.style.opacity = '1';
+    }
+}
+
+function openDropItemModal(item = null) {
+    if (currentDropCreatureEntry <= 0) {
+        ModalUtils.showAlert('크리처를 먼저 선택해주세요.');
+        return;
+    }
+    const modal = document.getElementById('drop-item-modal');
+    if (!modal) return;
+    document.getElementById('drop-item-form')?.reset();
+    document.getElementById('drop-item-creature-entry').value = String(currentDropCreatureEntry);
+    document.getElementById('drop-item-modal-title').textContent = item ? '드랍 아이템 수정' : '드랍 아이템 추가';
+    document.getElementById('drop-item-entry').readOnly = !!item;
+    document.getElementById('drop-item-entry').value = item ? Number(item.item_entry || 0) : '';
+    document.getElementById('drop-item-name').value = item ? String(item.item_name || '') : '';
+    document.getElementById('drop-item-chance').value = item ? Number(item.chance || 0).toFixed(2) : '100';
+    document.getElementById('drop-item-min-count').value = item ? Number(item.min_count || 1) : '1';
+    document.getElementById('drop-item-max-count').value = item ? Number(item.max_count || 1) : '1';
+    document.getElementById('drop-item-group-id').value = item ? Number(item.group_id || 0) : '0';
+    document.getElementById('drop-item-loot-mode').value = item ? Number(item.loot_mode || 1) : '1';
+    document.getElementById('drop-item-reference').value = item ? Number(item.reference || 0) : '0';
+    document.getElementById('drop-item-quest-required').value = item && Number(item.quest_required || 0) === 1 ? '1' : '0';
+    document.getElementById('drop-item-comment').value = item ? String(item.comment || '') : '';
+    modal.style.display = 'flex';
+}
+
+function closeDropItemModal() {
+    const modal = document.getElementById('drop-item-modal');
+    if (modal) modal.style.display = 'none';
+}
+
+function openDropItemPicker() {
+    if (typeof ItemPicker?.open !== 'function') return;
+    ItemPicker.open((item) => {
+        document.getElementById('drop-item-entry').value = String(Number(item.entry || 0));
+        document.getElementById('drop-item-name').value = String(item.name || '');
+    });
+}
+
+document.getElementById('drop-item-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const entry = Number(document.getElementById('drop-item-creature-entry')?.value || currentDropCreatureEntry || 0);
+    const itemEntry = Number(document.getElementById('drop-item-entry')?.value || 0);
+    const chance = Number(document.getElementById('drop-item-chance')?.value || 0);
+    const minCount = Number(document.getElementById('drop-item-min-count')?.value || 1);
+    const maxCount = Number(document.getElementById('drop-item-max-count')?.value || 1);
+    if (entry <= 0) return ModalUtils.showAlert('크리처를 먼저 선택해주세요.');
+    if (itemEntry <= 0) return ModalUtils.showAlert('아이템을 선택해주세요.');
+    if (chance < 0 || chance > 100) return ModalUtils.showAlert('드랍 확률은 0~100 사이로 입력해주세요.');
+    if (minCount < 1 || maxCount < 1 || minCount > maxCount) return ModalUtils.showAlert('수량 범위를 확인해주세요.');
+
+    const form = new URLSearchParams();
+    form.set('entry', String(entry));
+    form.set('item_entry', String(itemEntry));
+    form.set('chance', String(chance));
+    form.set('min_count', String(minCount));
+    form.set('max_count', String(maxCount));
+    form.set('group_id', String(Number(document.getElementById('drop-item-group-id')?.value || 0)));
+    form.set('loot_mode', String(Number(document.getElementById('drop-item-loot-mode')?.value || 1)));
+    form.set('reference', String(Number(document.getElementById('drop-item-reference')?.value || 0)));
+    form.set('quest_required', String(Number(document.getElementById('drop-item-quest-required')?.value || 0)));
+    form.set('comment', String(document.getElementById('drop-item-comment')?.value || '').trim());
+
+    try {
+        const res = await fetch('/api/content/drop/save', { method: 'POST', body: form });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.message || '저장에 실패했습니다.');
+        showDropReloadResult(data, '드랍 정보가 저장되었습니다.');
+        closeDropItemModal();
+        loadDropLoot(entry);
+    } catch (err) {
+        ModalUtils.showAlert(err.message || '저장 중 오류가 발생했습니다.');
+    }
+});
+
+function deleteDropItem(entry, itemEntry) {
+    ModalUtils.showConfirm('이 드랍 아이템을 삭제하시겠습니까?', async () => {
+        const form = new URLSearchParams();
+        form.set('entry', String(Number(entry || 0)));
+        form.set('item_entry', String(Number(itemEntry || 0)));
+        try {
+            const res = await fetch('/api/content/drop/delete', { method: 'POST', body: form });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.message || '삭제에 실패했습니다.');
+            showDropReloadResult(data, '삭제되었습니다.');
+            loadDropLoot(entry);
+        } catch (err) {
+            ModalUtils.showAlert(err.message || '삭제 중 오류가 발생했습니다.');
+        }
+    });
+}
+
+function showDropReloadResult(data, successMessage) {
+    if (data && data.reload === 'failed') {
+        ModalUtils.showAlert(`${successMessage}\n다만 월드서버 즉시 반영 명령은 실패했습니다.\n${data.reload_message || ''}`);
+        return;
+    }
+    ModalUtils.showAlert(successMessage);
+}
+
+function openDropReferenceLinkModal(item = null) {
+    if (currentDropCreatureEntry <= 0) {
+        ModalUtils.showAlert('크리처를 먼저 선택해주세요.');
+        return;
+    }
+    const modal = document.getElementById('drop-reference-link-modal');
+    if (!modal) return;
+    document.getElementById('drop-reference-link-form')?.reset();
+    document.getElementById('drop-ref-link-creature-entry').value = String(currentDropCreatureEntry);
+    document.getElementById('drop-ref-link-reference').value = item ? Number(item.reference || item.item_entry || 0) : '';
+    document.getElementById('drop-ref-link-chance').value = item ? Number(item.chance || 0).toFixed(2) : '100';
+    document.getElementById('drop-ref-link-group-id').value = item ? Number(item.group_id || 0) : '0';
+    document.getElementById('drop-ref-link-loot-mode').value = item ? Number(item.loot_mode || 1) : '1';
+    document.getElementById('drop-ref-link-quest-required').value = item && Number(item.quest_required || 0) === 1 ? '1' : '0';
+    document.getElementById('drop-ref-link-comment').value = item ? String(item.comment || '') : '';
+    modal.style.display = 'flex';
+}
+
+function closeDropReferenceLinkModal() {
+    const modal = document.getElementById('drop-reference-link-modal');
+    if (modal) modal.style.display = 'none';
+}
+
+document.getElementById('drop-reference-link-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const creatureEntry = Number(document.getElementById('drop-ref-link-creature-entry')?.value || currentDropCreatureEntry || 0);
+    const referenceEntry = Number(document.getElementById('drop-ref-link-reference')?.value || 0);
+    const chance = Number(document.getElementById('drop-ref-link-chance')?.value || 0);
+    if (creatureEntry <= 0) return ModalUtils.showAlert('크리처를 먼저 선택해주세요.');
+    if (referenceEntry <= 0) return ModalUtils.showAlert('참조 묶음 번호를 입력해주세요.');
+    if (chance < 0 || chance > 100) return ModalUtils.showAlert('연결 확률은 0~100 사이로 입력해주세요.');
+
+    const form = new URLSearchParams();
+    form.set('entry', String(creatureEntry));
+    form.set('item_entry', String(referenceEntry));
+    form.set('reference', String(referenceEntry));
+    form.set('chance', String(chance));
+    form.set('min_count', '1');
+    form.set('max_count', '1');
+    form.set('group_id', String(Number(document.getElementById('drop-ref-link-group-id')?.value || 0)));
+    form.set('loot_mode', String(Number(document.getElementById('drop-ref-link-loot-mode')?.value || 1)));
+    form.set('quest_required', String(Number(document.getElementById('drop-ref-link-quest-required')?.value || 0)));
+    form.set('comment', String(document.getElementById('drop-ref-link-comment')?.value || '').trim() || `참조 묶음 ${referenceEntry}`);
+
+    try {
+        const res = await fetch('/api/content/drop/save', { method: 'POST', body: form });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.message || '참조 묶음 연결에 실패했습니다.');
+        showDropReloadResult(data, '참조 묶음이 연결되었습니다.');
+        closeDropReferenceLinkModal();
+        loadDropLoot(creatureEntry);
+    } catch (err) {
+        ModalUtils.showAlert(err.message || '저장 중 오류가 발생했습니다.');
+    }
+});
+
+async function openDropReferenceModal(referenceEntry) {
+    currentDropReferenceEntry = Number(referenceEntry || 0);
+    if (currentDropReferenceEntry <= 0) {
+        ModalUtils.showAlert('참조 묶음 번호가 올바르지 않습니다.');
+        return;
+    }
+    const modal = document.getElementById('drop-reference-modal');
+    const title = document.getElementById('drop-reference-modal-title');
+    const meta = document.getElementById('drop-reference-meta');
+    const entryEl = document.getElementById('drop-reference-entry');
+    if (!modal) return;
+    if (title) title.textContent = `참조 묶음 #${currentDropReferenceEntry} 관리`;
+    if (meta) meta.textContent = `reference_loot_template.Entry = ${currentDropReferenceEntry} 내부 아이템을 관리합니다. 이 묶음을 사용하는 모든 드랍에 영향이 갈 수 있습니다.`;
+    if (entryEl) entryEl.value = String(currentDropReferenceEntry);
+    modal.style.display = 'flex';
+    await loadDropReferenceItems(currentDropReferenceEntry);
+}
+
+function closeDropReferenceModal() {
+    const modal = document.getElementById('drop-reference-modal');
+    if (modal) modal.style.display = 'none';
+}
+
+async function loadDropReferenceItems(referenceEntry) {
+    const tbody = document.getElementById('drop-reference-list');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:20px;">참조 묶음 정보를 불러오는 중...</td></tr>';
+    try {
+        const res = await fetch(`/api/content/drop/reference/list?entry=${Number(referenceEntry || 0)}`);
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.message || '참조 묶음 정보를 불러오지 못했습니다.');
+        const items = Array.isArray(data.items) ? data.items : [];
+        if (!items.length) {
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:24px; color:#64748b;">묶음 내부 아이템이 없습니다.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = items.map((item) => {
+            const itemEntry = Number(item.item_entry || 0);
+            const itemName = String(item.item_name || `아이템 ${itemEntry}`);
+            const payload = encodeURIComponent(JSON.stringify(item));
+            const isReference = !!item.is_reference || Number(item.reference || 0) > 0;
+            const reference = Number(item.reference || 0);
+            const target = isReference
+                ? `<span style="font-weight:800; color:#4338ca;">하위 참조 묶음 #${reference}</span>`
+                : wrapWithWowheadItemLink(itemEntry, `<span class="${dropQualityClass(item.item_quality)}">${dropEsc(itemName)}</span>`, itemName);
+            return `
+                <tr>
+                    <td>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            ${isReference
+                                ? `<span style="display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; border-radius:6px; background:#eef2ff; color:#4338ca;"><i class="fas fa-layer-group"></i></span><span>${reference}</span>`
+                                : `<div class="trial-entry-icon" data-entry="${itemEntry}" data-size="30" style="width:30px; height:30px;"></div><span>${itemEntry}</span>`}
+                        </div>
+                    </td>
+                    <td style="font-weight:800;">${target}</td>
+                    <td>${Number(item.chance || 0).toFixed(2)}%</td>
+                    <td>${Number(item.group_id || 0)}</td>
+                    <td>${Number(item.min_count || 1)} ~ ${Number(item.max_count || 1)}</td>
+                    <td>${Number(item.loot_mode || 1)}</td>
+                    <td>${Number(item.quest_required || 0) === 1 ? '예' : '아니오'}</td>
+                    <td>
+                        <div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
+                            ${isReference ? `<button class="btn-action btn-edit" onclick="openDropReferenceModal(${reference})"><i class="fas fa-list"></i> 하위 묶음</button>` : ''}
+                            <button class="btn-action btn-edit" onclick="openDropReferenceItemModal(JSON.parse(decodeURIComponent('${payload}')))"><i class="fas fa-edit"></i> 수정</button>
+                            <button class="btn-action btn-delete" onclick="deleteDropReferenceItem(${Number(item.entry || referenceEntry)}, ${itemEntry})"><i class="fas fa-trash"></i> 삭제</button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+        hydrateTrialEntryIcons(tbody);
+        refreshWowheadTooltips();
+    } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:20px; color:#dc2626;">${dropEsc(e.message)}</td></tr>`;
+    }
+}
+
+function openDropReferenceItemModal(item = null) {
+    const entry = Number(document.getElementById('drop-reference-entry')?.value || currentDropReferenceEntry || 0);
+    if (entry <= 0) {
+        ModalUtils.showAlert('참조 묶음을 먼저 선택해주세요.');
+        return;
+    }
+    const modal = document.getElementById('drop-reference-item-modal');
+    if (!modal) return;
+    document.getElementById('drop-reference-item-form')?.reset();
+    document.getElementById('drop-reference-item-entry').value = String(entry);
+    document.getElementById('drop-reference-item-modal-title').textContent = item ? '묶음 아이템 수정' : '묶음 아이템 추가';
+    document.getElementById('drop-reference-item-item-entry').readOnly = !!item;
+    document.getElementById('drop-reference-item-item-entry').value = item ? Number(item.item_entry || 0) : '';
+    document.getElementById('drop-reference-item-name').value = item ? String(item.item_name || '') : '';
+    document.getElementById('drop-reference-item-chance').value = item ? Number(item.chance || 0).toFixed(2) : '100';
+    document.getElementById('drop-reference-item-min-count').value = item ? Number(item.min_count || 1) : '1';
+    document.getElementById('drop-reference-item-max-count').value = item ? Number(item.max_count || 1) : '1';
+    document.getElementById('drop-reference-item-group-id').value = item ? Number(item.group_id || 0) : '0';
+    document.getElementById('drop-reference-item-loot-mode').value = item ? Number(item.loot_mode || 1) : '1';
+    document.getElementById('drop-reference-item-reference').value = item ? Number(item.reference || 0) : '0';
+    document.getElementById('drop-reference-item-quest-required').value = item && Number(item.quest_required || 0) === 1 ? '1' : '0';
+    document.getElementById('drop-reference-item-comment').value = item ? String(item.comment || '') : '';
+    modal.style.display = 'flex';
+}
+
+function closeDropReferenceItemModal() {
+    const modal = document.getElementById('drop-reference-item-modal');
+    if (modal) modal.style.display = 'none';
+}
+
+function openDropReferenceItemPicker() {
+    if (typeof ItemPicker?.open !== 'function') return;
+    ItemPicker.open((item) => {
+        document.getElementById('drop-reference-item-item-entry').value = String(Number(item.entry || 0));
+        document.getElementById('drop-reference-item-name').value = String(item.name || '');
+    });
+}
+
+document.getElementById('drop-reference-item-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const entry = Number(document.getElementById('drop-reference-item-entry')?.value || currentDropReferenceEntry || 0);
+    const itemEntry = Number(document.getElementById('drop-reference-item-item-entry')?.value || 0);
+    const reference = Number(document.getElementById('drop-reference-item-reference')?.value || 0);
+    const chance = Number(document.getElementById('drop-reference-item-chance')?.value || 0);
+    const minCount = Number(document.getElementById('drop-reference-item-min-count')?.value || 1);
+    const maxCount = Number(document.getElementById('drop-reference-item-max-count')?.value || 1);
+    if (entry <= 0) return ModalUtils.showAlert('참조 묶음 번호가 올바르지 않습니다.');
+    if (itemEntry <= 0 && reference <= 0) return ModalUtils.showAlert('아이템 또는 하위 참조 번호를 입력해주세요.');
+    if (chance < 0 || chance > 100) return ModalUtils.showAlert('드랍 확률은 0~100 사이로 입력해주세요.');
+    if (minCount < 1 || maxCount < 1 || minCount > maxCount) return ModalUtils.showAlert('수량 범위를 확인해주세요.');
+
+    const form = new URLSearchParams();
+    form.set('entry', String(entry));
+    form.set('item_entry', String(itemEntry > 0 ? itemEntry : reference));
+    form.set('reference', String(reference));
+    form.set('chance', String(chance));
+    form.set('min_count', String(minCount));
+    form.set('max_count', String(maxCount));
+    form.set('group_id', String(Number(document.getElementById('drop-reference-item-group-id')?.value || 0)));
+    form.set('loot_mode', String(Number(document.getElementById('drop-reference-item-loot-mode')?.value || 1)));
+    form.set('quest_required', String(Number(document.getElementById('drop-reference-item-quest-required')?.value || 0)));
+    form.set('comment', String(document.getElementById('drop-reference-item-comment')?.value || '').trim());
+
+    try {
+        const res = await fetch('/api/content/drop/reference/save', { method: 'POST', body: form });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.message || '저장에 실패했습니다.');
+        showDropReloadResult(data, '참조 묶음 아이템이 저장되었습니다.');
+        closeDropReferenceItemModal();
+        loadDropReferenceItems(entry);
+    } catch (err) {
+        ModalUtils.showAlert(err.message || '저장 중 오류가 발생했습니다.');
+    }
+});
+
+function deleteDropReferenceItem(entry, itemEntry) {
+    ModalUtils.showConfirm('이 묶음 아이템을 삭제하시겠습니까?', async () => {
+        const form = new URLSearchParams();
+        form.set('entry', String(Number(entry || 0)));
+        form.set('item_entry', String(Number(itemEntry || 0)));
+        try {
+            const res = await fetch('/api/content/drop/reference/delete', { method: 'POST', body: form });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.message || '삭제에 실패했습니다.');
+            showDropReloadResult(data, '삭제되었습니다.');
+            loadDropReferenceItems(entry);
+        } catch (err) {
+            ModalUtils.showAlert(err.message || '삭제 중 오류가 발생했습니다.');
+        }
+    });
+}
+
+// Vendor Content Manager Logic
+let currentVendorCreaturePage = 1;
+let currentVendorCreatureEntry = 0;
+let currentVendorCreatureName = '';
+
+async function loadVendorCreatures(page = 1) {
+    currentVendorCreaturePage = page;
+    const tbody = document.getElementById('vendor-creature-list');
+    const pg = document.getElementById('vendor-creature-pagination');
+    if (!tbody) return;
+
+    const q = String(document.getElementById('vendor-creature-search')?.value || '').trim();
+    const params = new URLSearchParams({ page: String(page), limit: '20' });
+    if (q) params.set('q', q);
+
+    tbody.style.opacity = '0.45';
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px;">NPC를 불러오는 중...</td></tr>';
+    try {
+        const res = await fetch(`/api/content/vendor/creatures?${params.toString()}`);
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.message || 'NPC 목록을 불러오지 못했습니다.');
+        const items = Array.isArray(data.items) ? data.items : [];
+        if (!items.length) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:24px; color:#64748b;">검색 결과가 없습니다.</td></tr>';
+            renderPagination(pg, data, (p) => loadVendorCreatures(p));
+            return;
+        }
+        tbody.innerHTML = items.map((item) => {
+            const entry = Number(item.entry || 0);
+            const name = String(item.name || `Creature ${entry}`);
+            const active = entry === currentVendorCreatureEntry ? 'drop-creature-selected' : '';
+            return `
+                <tr class="${active}">
+                    <td style="font-weight:700;">${entry}</td>
+                    <td>
+                        <div style="font-weight:800; color:#0f172a;">${dropEsc(name)}</div>
+                        ${item.sub_name ? `<div style="font-size:0.82rem; color:#64748b;">${dropEsc(item.sub_name)}</div>` : ''}
+                    </td>
+                    <td>${Number(item.min_level || 0)} ~ ${Number(item.max_level || 0)}</td>
+                    <td style="text-align:center;">
+                        <button class="btn-action btn-edit" onclick="selectVendorCreature(${entry}, decodeURIComponent('${encodeURIComponent(name)}'))">선택</button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+        renderPagination(pg, data, (p) => loadVendorCreatures(p));
+    } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:20px; color:#dc2626;">${dropEsc(e.message)}</td></tr>`;
+    } finally {
+        tbody.style.opacity = '1';
+    }
+}
+
+function searchVendorCreatures() {
+    loadVendorCreatures(1);
+}
+
+function resetVendorCreatures() {
+    const q = document.getElementById('vendor-creature-search');
+    if (q) q.value = '';
+    loadVendorCreatures(1);
+}
+
+function selectVendorCreature(entry, name) {
+    currentVendorCreatureEntry = Number(entry || 0);
+    currentVendorCreatureName = String(name || `Creature ${entry}`);
+    const title = document.getElementById('vendor-selected-title');
+    const meta = document.getElementById('vendor-selected-meta');
+    const addBtn = document.getElementById('vendor-add-btn');
+    if (title) title.textContent = `${currentVendorCreatureName} 판매 목록`;
+    if (meta) meta.textContent = `NPC 번호 ${currentVendorCreatureEntry}의 npc_vendor 정보를 관리합니다.`;
+    if (addBtn) addBtn.disabled = currentVendorCreatureEntry <= 0;
+    document.querySelectorAll('#vendor-creature-list tr').forEach((row) => {
+        const firstCell = row.querySelector('td:first-child');
+        const rowEntry = Number(String(firstCell?.textContent || '').trim());
+        row.classList.toggle('drop-creature-selected', rowEntry === currentVendorCreatureEntry);
+    });
+    loadVendorItems(currentVendorCreatureEntry);
+}
+
+async function loadVendorItems(entry) {
+    const tbody = document.getElementById('vendor-item-list');
+    if (!tbody) return;
+    if (Number(entry || 0) <= 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:24px; color:#64748b;">NPC를 먼저 선택해주세요.</td></tr>';
+        return;
+    }
+    tbody.style.opacity = '0.45';
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:20px;">판매 정보를 불러오는 중...</td></tr>';
+    try {
+        const res = await fetch(`/api/content/vendor/list?entry=${Number(entry)}`);
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.message || '판매 정보를 불러오지 못했습니다.');
+        const items = Array.isArray(data.items) ? data.items : [];
+        if (!items.length) {
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:24px; color:#64748b;">등록된 판매 정보가 없습니다.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = items.map((item) => {
+            const itemEntry = Number(item.item_entry || 0);
+            const itemName = String(item.item_name || `아이템 ${itemEntry}`);
+            const payload = encodeURIComponent(JSON.stringify(item));
+            const stockText = Number(item.max_count || 0) > 0 ? `${Number(item.max_count || 0)}개` : '무제한';
+            return `
+                <tr>
+                    <td>${Number(item.slot || 0)}</td>
+                    <td>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <div class="trial-entry-icon" data-entry="${itemEntry}" data-size="30" style="width:30px; height:30px;"></div>
+                            <span>${itemEntry}</span>
+                        </div>
+                    </td>
+                    <td style="font-weight:800;">${wrapWithWowheadItemLink(itemEntry, `<span class="${dropQualityClass(item.item_quality)}">${dropEsc(itemName)}</span>`, itemName)}</td>
+                    <td>${stockText}</td>
+                    <td>${Number(item.incr_time || 0)}</td>
+                    <td>${Number(item.extended_cost || 0)}</td>
+                    <td>${Number(item.verified_build || 0)}</td>
+                    <td>
+                        <div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
+                            <button class="btn-action btn-edit" onclick="openVendorItemModal(JSON.parse(decodeURIComponent('${payload}')))"><i class="fas fa-edit"></i> 수정</button>
+                            <button class="btn-action btn-delete" onclick="deleteVendorItem(${Number(item.entry || entry)}, ${itemEntry}, ${Number(item.extended_cost || 0)})"><i class="fas fa-trash"></i> 삭제</button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+        hydrateTrialEntryIcons(tbody);
+        refreshWowheadTooltips();
+    } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:20px; color:#dc2626;">${dropEsc(e.message)}</td></tr>`;
+    } finally {
+        tbody.style.opacity = '1';
+    }
+}
+
+function openVendorItemModal(item = null) {
+    if (currentVendorCreatureEntry <= 0) {
+        ModalUtils.showAlert('NPC를 먼저 선택해주세요.');
+        return;
+    }
+    const modal = document.getElementById('vendor-item-modal');
+    if (!modal) return;
+    document.getElementById('vendor-item-form')?.reset();
+    document.getElementById('vendor-item-creature-entry').value = String(currentVendorCreatureEntry);
+    document.getElementById('vendor-item-modal-title').textContent = item ? '판매 아이템 수정' : '판매 아이템 추가';
+    document.getElementById('vendor-item-entry').value = item ? Number(item.item_entry || 0) : '';
+    document.getElementById('vendor-item-name').value = item ? String(item.item_name || '') : '';
+    document.getElementById('vendor-item-slot').value = item ? Number(item.slot || 0) : '0';
+    document.getElementById('vendor-item-max-count').value = item ? Number(item.max_count || 0) : '0';
+    document.getElementById('vendor-item-incr-time').value = item ? Number(item.incr_time || 0) : '0';
+    document.getElementById('vendor-item-extended-cost').value = item ? Number(item.extended_cost || 0) : '0';
+    document.getElementById('vendor-item-verified-build').value = item ? Number(item.verified_build || 0) : '0';
+    document.getElementById('vendor-item-original-entry').value = item ? Number(item.item_entry || 0) : '';
+    document.getElementById('vendor-item-original-extended-cost').value = item ? Number(item.extended_cost || 0) : '0';
+    modal.style.display = 'flex';
+}
+
+function closeVendorItemModal() {
+    const modal = document.getElementById('vendor-item-modal');
+    if (modal) modal.style.display = 'none';
+}
+
+function openVendorItemPicker() {
+    if (typeof ItemPicker?.open !== 'function') return;
+    ItemPicker.open((item) => {
+        document.getElementById('vendor-item-entry').value = String(Number(item.entry || 0));
+        document.getElementById('vendor-item-name').value = String(item.name || '');
+    });
+}
+
+document.getElementById('vendor-item-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const entry = Number(document.getElementById('vendor-item-creature-entry')?.value || currentVendorCreatureEntry || 0);
+    const itemEntry = Number(document.getElementById('vendor-item-entry')?.value || 0);
+    const slot = Number(document.getElementById('vendor-item-slot')?.value || 0);
+    const maxCount = Number(document.getElementById('vendor-item-max-count')?.value || 0);
+    const incrTime = Number(document.getElementById('vendor-item-incr-time')?.value || 0);
+    const extendedCost = Number(document.getElementById('vendor-item-extended-cost')?.value || 0);
+    const verifiedBuild = Number(document.getElementById('vendor-item-verified-build')?.value || 0);
+    const originalItemEntry = Number(document.getElementById('vendor-item-original-entry')?.value || itemEntry || 0);
+    const originalExtendedCost = Number(document.getElementById('vendor-item-original-extended-cost')?.value || 0);
+
+    if (entry <= 0) return ModalUtils.showAlert('NPC를 먼저 선택해주세요.');
+    if (itemEntry <= 0) return ModalUtils.showAlert('아이템을 선택해주세요.');
+    if (slot < 0 || maxCount < 0 || incrTime < 0 || extendedCost < 0) return ModalUtils.showAlert('수치는 0 이상으로 입력해주세요.');
+
+    const form = new URLSearchParams();
+    form.set('entry', String(entry));
+    form.set('item_entry', String(itemEntry));
+    form.set('slot', String(slot));
+    form.set('max_count', String(maxCount));
+    form.set('incr_time', String(incrTime));
+    form.set('extended_cost', String(extendedCost));
+    form.set('verified_build', String(verifiedBuild));
+    form.set('original_item_entry', String(originalItemEntry));
+    form.set('original_extended_cost', String(originalExtendedCost));
+
+    try {
+        const res = await fetch('/api/content/vendor/save', { method: 'POST', body: form });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.message || '저장에 실패했습니다.');
+        showDropReloadResult(data, '판매 정보가 저장되었습니다.');
+        closeVendorItemModal();
+        loadVendorItems(entry);
+    } catch (err) {
+        ModalUtils.showAlert(err.message || '저장 중 오류가 발생했습니다.');
+    }
+});
+
+function deleteVendorItem(entry, itemEntry, extendedCost) {
+    ModalUtils.showConfirm('이 판매 아이템을 삭제하시겠습니까?', async () => {
+        const form = new URLSearchParams();
+        form.set('entry', String(Number(entry || 0)));
+        form.set('item_entry', String(Number(itemEntry || 0)));
+        form.set('extended_cost', String(Number(extendedCost || 0)));
+        try {
+            const res = await fetch('/api/content/vendor/delete', { method: 'POST', body: form });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.message || '삭제에 실패했습니다.');
+            showDropReloadResult(data, '삭제되었습니다.');
+            loadVendorItems(entry);
+        } catch (err) {
+            ModalUtils.showAlert(err.message || '삭제 중 오류가 발생했습니다.');
+        }
+    });
+}
+
 // Trial Content Manager Logic
 let currentTrialContentTab = 'stages';
 let currentTrialStagePage = 1;
@@ -3591,16 +4402,27 @@ function getTrialStageRecordRankLabelOptions(selectedLabel = 'B') {
 }
 
 function getTrialRewardRankOptions(selectedValue) {
-    const current = Number(selectedValue);
+    const selected = Number(selectedValue);
+    const current = selected >= 1 && selected <= 5 ? selected : 3;
     const options = [
         { value: 5, label: 'S등급' },
         { value: 4, label: 'A등급' },
         { value: 3, label: 'B등급' },
         { value: 2, label: 'C등급' },
-        { value: 1, label: 'D등급' },
-        { value: 0, label: '공통' }
+        { value: 1, label: 'D등급' }
     ];
     return options.map(option => `<option value="${option.value}" ${current === option.value ? 'selected' : ''}>${option.label}</option>`).join('');
+}
+
+function getTrialRewardRankText(value) {
+    switch (Number(value)) {
+        case 5: return 'S등급';
+        case 4: return 'A등급';
+        case 3: return 'B등급';
+        case 2: return 'C등급';
+        case 1: return 'D등급';
+        default: return 'B등급';
+    }
 }
 
 function trialIconHtml(entry, iconName, size = 32) {
@@ -3788,9 +4610,14 @@ async function openTrialStageEditModal(stageId) {
             'trial-stage-edit-melee-arp': data.melee_armor_pen_rating,
             'trial-stage-edit-caster-target-gs': data.caster_target_gs,
             'trial-stage-edit-caster-health': data.caster_health,
+            'trial-stage-edit-caster-mana': data.caster_mana,
             'trial-stage-edit-caster-spell-power': data.caster_spell_power,
             'trial-stage-edit-caster-crit': data.caster_crit_pct,
             'trial-stage-edit-caster-haste': data.caster_haste_rating,
+            'trial-stage-edit-rank-s-seconds': data.rank_s_seconds,
+            'trial-stage-edit-rank-a-seconds': data.rank_a_seconds,
+            'trial-stage-edit-rank-b-seconds': data.rank_b_seconds,
+            'trial-stage-edit-rank-c-seconds': data.rank_c_seconds,
             'trial-stage-edit-enabled': data.enabled
         };
         Object.entries(mappings).forEach(([id, value]) => {
@@ -3836,9 +4663,14 @@ function collectTrialStagePayload() {
         melee_armor_pen_rating: Number((document.getElementById('trial-stage-edit-melee-arp') || {}).value || 0),
         caster_target_gs: Number((document.getElementById('trial-stage-edit-caster-target-gs') || {}).value || 0),
         caster_health: Number((document.getElementById('trial-stage-edit-caster-health') || {}).value || 0),
+        caster_mana: Number((document.getElementById('trial-stage-edit-caster-mana') || {}).value || 0),
         caster_spell_power: Number((document.getElementById('trial-stage-edit-caster-spell-power') || {}).value || 0),
         caster_crit_pct: Number((document.getElementById('trial-stage-edit-caster-crit') || {}).value || 0),
         caster_haste_rating: Number((document.getElementById('trial-stage-edit-caster-haste') || {}).value || 0),
+        rank_s_seconds: Number((document.getElementById('trial-stage-edit-rank-s-seconds') || {}).value || 0),
+        rank_a_seconds: Number((document.getElementById('trial-stage-edit-rank-a-seconds') || {}).value || 0),
+        rank_b_seconds: Number((document.getElementById('trial-stage-edit-rank-b-seconds') || {}).value || 0),
+        rank_c_seconds: Number((document.getElementById('trial-stage-edit-rank-c-seconds') || {}).value || 0),
         enabled: Number((document.getElementById('trial-stage-edit-enabled') || {}).value || 0)
     };
 }
@@ -3848,6 +4680,9 @@ function validateTrialStagePayload(payload) {
     if (!payload.name) return '단계 이름은 필수입니다.';
     if (payload.melee_health < 1 || payload.caster_health < 1) return '밀리와 캐스터 체력은 1 이상이어야 합니다.';
     if (payload.melee_attack_power < 0 || payload.caster_spell_power < 0) return '공격력과 주문력은 0 이상이어야 합니다.';
+    if (payload.rank_s_seconds <= 0 || payload.rank_a_seconds <= 0 || payload.rank_b_seconds <= 0 || payload.rank_c_seconds <= 0) return '랭크 시간은 모두 1초 이상이어야 합니다.';
+    if (!(payload.rank_s_seconds <= payload.rank_a_seconds && payload.rank_a_seconds <= payload.rank_b_seconds && payload.rank_b_seconds <= payload.rank_c_seconds)) return '랭크 시간은 S <= A <= B <= C 순으로 설정해야 합니다.';
+    if (payload.caster_mana < 0) return '캐스터 마나는 0 이상이어야 합니다.';
     if (payload.melee_armor_pen_rating < 0 || payload.caster_haste_rating < 0) return '방관 수치와 가속 수치는 0 이상이어야 합니다.';
     if (payload.melee_crit_pct < 0 || payload.melee_crit_pct > 100 || payload.caster_crit_pct < 0 || payload.caster_crit_pct > 100) return '치명타 확률은 0에서 100 사이여야 합니다.';
     if (payload.attack_time_ms > 0 && payload.attack_time_ms < 500) return '기본 공격속도는 500ms 이상으로 설정해주세요.';
@@ -3878,11 +4713,35 @@ async function saveTrialStageDetail() {
     }
 }
 
+function splitTrialRewardMoney(value) {
+    const totalCopper = Math.max(0, Math.floor(Number(value) || 0));
+    return {
+        gold: Math.floor(totalCopper / 10000),
+        silver: Math.floor((totalCopper % 10000) / 100),
+        copper: totalCopper % 100
+    };
+}
+
+function readTrialRewardMoney(row) {
+    const gold = Math.floor(Number(row.querySelector('.trial-reward-money-gold')?.value || 0));
+    const silver = Math.floor(Number(row.querySelector('.trial-reward-money-silver')?.value || 0));
+    const copper = Math.floor(Number(row.querySelector('.trial-reward-money-copper')?.value || 0));
+    return {
+        gold,
+        silver,
+        copper,
+        valid: gold >= 0 && silver >= 0 && silver <= 99 && copper >= 0 && copper <= 99,
+        total: (gold * 10000) + (silver * 100) + copper
+    };
+}
+
 function buildTrialRewardRow(row = {}) {
     const itemEntry = Number(row.item_entry || 0);
     const itemName = String(row.item_name || '').trim() || (itemEntry > 0 ? `아이템 ${itemEntry}` : '아이템을 선택하세요.');
     const itemIcon = String(row.item_icon || '').trim();
     const rewardRankValue = Number(row.reward_rank_value ?? 3);
+    const rewardMoney = splitTrialRewardMoney(row.reward_gold || 0);
+    const rewardType = itemEntry > 0 ? 'item' : 'gold';
     return `
         <tr class="trial-reward-row">
             <td>
@@ -3891,6 +4750,12 @@ function buildTrialRewardRow(row = {}) {
                 </select>
             </td>
             <td><input type="number" class="input-premium trial-reward-sort" value="${Number(row.sort_order || 0)}" min="1" placeholder="순서"></td>
+            <td>
+                <select class="input-premium trial-reward-type" onchange="syncTrialRewardType(this.closest('tr'))">
+                    <option value="item" ${rewardType === 'item' ? 'selected' : ''}>아이템</option>
+                    <option value="gold" ${rewardType === 'gold' ? 'selected' : ''}>골드</option>
+                </select>
+            </td>
             <td>
                 <input type="hidden" class="trial-reward-id" value="${Number(row.id || 0)}">
                 <input type="hidden" class="trial-reward-entry" value="${itemEntry}">
@@ -3907,6 +4772,13 @@ function buildTrialRewardRow(row = {}) {
             <td><input type="number" class="input-premium trial-reward-count" value="${Number(row.item_count || 1)}" min="1"></td>
             <td><input type="number" class="input-premium trial-reward-chance" value="${Number(row.chance || 100).toFixed(2)}" min="0" max="100" step="0.01"></td>
             <td>
+                <div class="trial-reward-money-cell">
+                    <label><input type="number" class="input-premium trial-reward-money-gold" value="${rewardMoney.gold}" min="0" step="1"><span>골</span></label>
+                    <label><input type="number" class="input-premium trial-reward-money-silver" value="${rewardMoney.silver}" min="0" max="99" step="1"><span>실</span></label>
+                    <label><input type="number" class="input-premium trial-reward-money-copper" value="${rewardMoney.copper}" min="0" max="99" step="1"><span>쿠</span></label>
+                </div>
+            </td>
+            <td>
                 <select class="input-premium trial-reward-enabled">
                     <option value="1" ${Number(row.enabled) !== 0 ? 'selected' : ''}>활성</option>
                     <option value="0" ${Number(row.enabled) === 0 ? 'selected' : ''}>비활성</option>
@@ -3918,6 +4790,33 @@ function buildTrialRewardRow(row = {}) {
     `;
 }
 
+function syncTrialRewardType(row) {
+    if (!row) return;
+    const type = String(row.querySelector('.trial-reward-type')?.value || 'item');
+    const isItem = type === 'item';
+    const itemButton = row.querySelector('.trial-reward-item-cell .btn-edit');
+    const countInput = row.querySelector('.trial-reward-count');
+    const moneyInputs = row.querySelectorAll('.trial-reward-money-cell input');
+
+    row.classList.toggle('trial-reward-row-gold', !isItem);
+    row.classList.toggle('trial-reward-row-item', isItem);
+
+    if (itemButton) itemButton.disabled = !isItem;
+    if (countInput) countInput.disabled = !isItem;
+    moneyInputs.forEach((input) => { input.disabled = isItem; });
+
+    if (isItem) {
+        moneyInputs.forEach((input) => { input.value = '0'; });
+    } else {
+        row.querySelector('.trial-reward-entry').value = '0';
+        row.querySelector('.trial-reward-icon').value = '';
+        row.querySelector('.trial-reward-item-icon').innerHTML = trialIconHtml(0, '', 34);
+        row.querySelector('.trial-reward-item-name').textContent = '골드 보상';
+        row.querySelector('.trial-reward-item-entry-text').textContent = '아이템 없이 금액만 지급합니다.';
+        if (countInput) countInput.value = '0';
+    }
+}
+
 function addTrialRewardRow(row = {}) {
     const tbody = document.getElementById('trial-stage-reward-list');
     if (!tbody) return;
@@ -3926,26 +4825,57 @@ function addTrialRewardRow(row = {}) {
         tbody.innerHTML = '';
     }
     tbody.insertAdjacentHTML('beforeend', buildTrialRewardRow(row));
+    const rowEl = tbody.querySelector('.trial-reward-row:last-child');
+    syncTrialRewardType(rowEl);
+    refreshWowheadTooltips();
+    hydrateTrialEntryIcons(tbody);
+}
+
+function renderTrialRewardRows(items = []) {
+    const tbody = document.getElementById('trial-stage-reward-list');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    const normalized = (Array.isArray(items) ? items : []).slice().sort((a, b) => {
+        const rankA = Number(a.reward_rank_value || 3);
+        const rankB = Number(b.reward_rank_value || 3);
+        if (rankA !== rankB) return rankB - rankA;
+        return Number(a.sort_order || 0) - Number(b.sort_order || 0);
+    });
+    const groups = [5, 4, 3, 2, 1];
+    groups.forEach((rank) => {
+        const groupItems = normalized.filter(item => {
+            const value = Number(item.reward_rank_value || 3);
+            return (value >= 1 && value <= 5 ? value : 3) === rank;
+        });
+        if (!groupItems.length) return;
+        tbody.insertAdjacentHTML('beforeend', `
+            <tr class="trial-reward-group-row">
+                <td colspan="10">
+                    <div class="trial-reward-group-title">${getTrialRewardRankText(rank)} 보상</div>
+                </td>
+            </tr>
+        `);
+        groupItems.forEach(item => addTrialRewardRow(item));
+    });
     refreshWowheadTooltips();
     hydrateTrialEntryIcons(tbody);
 }
 
 function openTrialRewardAddPicker() {
     const tbody = document.getElementById('trial-stage-reward-list');
-    if (!tbody || typeof ItemPicker?.open !== 'function') return;
+    if (!tbody) return;
     const nextSort = tbody.querySelectorAll('.trial-reward-row').length + 1;
-    ItemPicker.open((item) => {
-        addTrialRewardRow({
-            reward_rank_value: 3,
-            item_entry: Number(item.entry || 0),
-            item_name: String(item.name || '').trim(),
-            item_icon: String(item.icon_url || '').trim(),
-            item_count: 1,
-            chance: 100,
-            sort_order: nextSort,
-            enabled: 1,
-            comment: ''
-        });
+    addTrialRewardRow({
+        reward_rank_value: 3,
+        item_entry: 0,
+        item_name: '',
+        item_icon: '',
+        item_count: 1,
+        chance: 100,
+        reward_gold: 0,
+        sort_order: nextSort,
+        enabled: 1,
+        comment: ''
     });
 }
 
@@ -3977,7 +4907,7 @@ async function openTrialStageRewardModal(stageId, stageName) {
     stageIdEl.value = String(stageId);
     if (title) title.textContent = `${stageName} 보상 관리`;
     if (meta) meta.textContent = `${stageName} 단계에서 지급할 보상 목록을 관리합니다.`;
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:20px;">보상 정보를 불러오는 중...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; padding:20px;">보상 정보를 불러오는 중...</td></tr>';
     modal.style.display = 'flex';
     try {
         const res = await fetch(`/api/content/trial/stage-rewards?stage_id=${Number(stageId)}`);
@@ -3986,13 +4916,12 @@ async function openTrialStageRewardModal(stageId, stageName) {
         const items = data.items || [];
         tbody.innerHTML = '';
         if (!items.length) {
-            tbody.innerHTML = '<tr class="trial-stage-reward-empty"><td colspan="8" style="text-align:center; padding:24px; color:#64748b;">등록된 보상이 없습니다. 상단의 보상 추가 버튼으로 아이템을 검색해 추가하세요.</td></tr>';
+            tbody.innerHTML = '<tr class="trial-stage-reward-empty"><td colspan="10" style="text-align:center; padding:24px; color:#64748b;">등록된 보상이 없습니다. 상단의 보상 추가 버튼으로 보상 행을 추가하세요.</td></tr>';
             return;
         }
-        items.forEach(item => addTrialRewardRow(item));
-        hydrateTrialEntryIcons(tbody);
+        renderTrialRewardRows(items);
     } catch (e) {
-        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:20px; color:red;">${trialEsc(e.message)}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; padding:20px; color:red;">${trialEsc(e.message)}</td></tr>`;
     }
 }
 
@@ -4008,21 +4937,38 @@ async function saveTrialStageRewards() {
         return;
     }
     const rows = Array.from(document.querySelectorAll('#trial-stage-reward-list .trial-reward-row'));
-    const rewards = rows.map((row, idx) => ({
-        id: Number(row.querySelector('.trial-reward-id')?.value || 0),
-        reward_rank_value: Number(row.querySelector('.trial-reward-rank')?.value || 3),
-        item_entry: Number(row.querySelector('.trial-reward-entry')?.value || 0),
-        item_count: Number(row.querySelector('.trial-reward-count')?.value || 0),
-        chance: Number(row.querySelector('.trial-reward-chance')?.value || 0),
-        sort_order: Number(row.querySelector('.trial-reward-sort')?.value || (idx + 1)),
-        enabled: Number(row.querySelector('.trial-reward-enabled')?.value || 1),
-        comment: String(row.querySelector('.trial-reward-comment')?.value || '').trim()
-    }));
-    const invalid = rewards.find((reward) => reward.item_entry <= 0 || reward.item_count <= 0 || reward.chance < 0 || reward.chance > 100);
+    const rewards = rows.map((row, idx) => {
+        const money = readTrialRewardMoney(row);
+        return {
+            id: Number(row.querySelector('.trial-reward-id')?.value || 0),
+            reward_type: String(row.querySelector('.trial-reward-type')?.value || 'item'),
+            reward_rank_value: Number(row.querySelector('.trial-reward-rank')?.value || 3),
+            item_entry: Number(row.querySelector('.trial-reward-entry')?.value || 0),
+            item_count: Number(row.querySelector('.trial-reward-count')?.value || 0),
+            chance: Number(row.querySelector('.trial-reward-chance')?.value || 0),
+            reward_gold: money.total,
+            sort_order: Number(row.querySelector('.trial-reward-sort')?.value || (idx + 1)),
+            enabled: Number(row.querySelector('.trial-reward-enabled')?.value || 1),
+            comment: String(row.querySelector('.trial-reward-comment')?.value || '').trim(),
+            _moneyValid: money.valid
+        };
+    });
+    const invalid = rewards.find((reward) =>
+        reward._moneyValid === false ||
+        reward.reward_gold < 0 ||
+        (reward.reward_type === 'item' && (reward.item_entry <= 0 || reward.item_count <= 0 || reward.reward_gold !== 0)) ||
+        (reward.reward_type === 'gold' && (reward.item_entry !== 0 || reward.item_count !== 0 || reward.reward_gold <= 0)) ||
+        reward.chance < 0 ||
+        reward.chance > 100
+    );
     if (invalid) {
-        ModalUtils.showAlert('보상 아이템, 수량, 확률을 다시 확인해주세요.');
+        ModalUtils.showAlert('보상 유형에 맞게 입력해주세요. 아이템 보상은 아이템만, 골드 보상은 금액만 입력해야 합니다.');
         return;
     }
+    rewards.forEach((reward) => {
+        delete reward._moneyValid;
+        delete reward.reward_type;
+    });
     try {
         const res = await fetch('/api/content/trial/stage-rewards/save', {
             method: 'POST',
@@ -4373,8 +5319,9 @@ async function loadTrialRuns(page = 1) {
     tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:20px;">로딩 중...</td></tr>';
     try {
         const res = await fetch(`/api/content/trial/run-logs?${params.toString()}`);
-        if (!res.ok) throw new Error('런 기록을 불러오는데 실패했습니다.');
-        const data = await res.json();
+        const text = await res.text();
+        if (!res.ok) throw new Error(text.trim() || '런 기록을 불러오는데 실패했습니다.');
+        const data = JSON.parse(text || '{}');
         const items = data.items || [];
         if (!items.length) {
             tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:20px;">기록이 없습니다.</td></tr>';
@@ -5027,6 +5974,7 @@ async function checkAdminAccess() {
                     'stats',
                     'content',
                     'board-admin',
+                    'bug-report-admin',
                     'notification-admin',
                     'shop-admin',
                     'instance-bonus-admin'
@@ -5083,7 +6031,7 @@ async function applyAdminMenuOrder() {
         const res = await fetch('/api/admin/menu-order/list');
         if (!res.ok) return;
         const data = await res.json();
-        const adminMenuIds = new Set(['gm', 'remote', 'update', 'account', 'ban', 'logs', 'stats', 'content', 'board-admin', 'notification-admin', 'shop-admin', 'instance-bonus-admin']);
+        const adminMenuIds = new Set(['gm', 'remote', 'update', 'account', 'ban', 'logs', 'stats', 'content', 'board-admin', 'bug-report-admin', 'notification-admin', 'shop-admin', 'instance-bonus-admin']);
         const menus = (Array.isArray(data.menus) ? data.menus : []).filter(m => adminMenuIds.has(m.id));
         if (!menus.length) return;
 

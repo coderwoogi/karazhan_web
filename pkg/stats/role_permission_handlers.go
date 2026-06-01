@@ -50,12 +50,26 @@ func ensureMenuRegistryDefaults(db *sql.DB) {
 	_, _ = db.Exec(`INSERT IGNORE INTO web_menu_registry (id, type, name, order_index) VALUES ('stats', 'menu', '통계', 75)`)
 	_, _ = db.Exec(`INSERT IGNORE INTO web_menu_registry (id, type, name, order_index) VALUES ('content', 'menu', 'Content', 80)`)
 	_, _ = db.Exec(`INSERT IGNORE INTO web_menu_registry (id, type, name, order_index) VALUES ('board-admin', 'menu', 'Board Admin', 90)`)
+	_, _ = db.Exec(`INSERT IGNORE INTO web_menu_registry (id, type, name, order_index) VALUES ('bug-report-admin', 'menu', '버그리포트', 91)`)
 	_, _ = db.Exec(`INSERT IGNORE INTO web_menu_registry (id, type, name, order_index) VALUES ('shop', 'menu', '선술집', 13)`)
 	_, _ = db.Exec(`INSERT IGNORE INTO web_menu_registry (id, type, name, order_index) VALUES ('shop-admin', 'menu', '선술집관리', 96)`)
 	_, _ = db.Exec(`UPDATE web_menu_registry SET name = '선술집' WHERE id = 'shop'`)
 	_, _ = db.Exec(`UPDATE web_menu_registry SET name = '선술집관리' WHERE id = 'shop-admin'`)
 	_, _ = db.Exec(`INSERT IGNORE INTO web_menu_registry (id, type, name, order_index) VALUES ('notification-admin', 'menu', '알림발송', 95)`)
 	_, _ = db.Exec(`UPDATE web_menu_registry SET name = '알림발송' WHERE id = 'notification-admin'`)
+	_, _ = db.Exec(`UPDATE web_menu_registry SET name = '버그리포트' WHERE id = 'bug-report-admin'`)
+}
+
+func ensureRolePermissionDefaults() {
+	db, err := openUpdateDBForPerm()
+	if err != nil {
+		return
+	}
+	defer db.Close()
+
+	ensureMenuRegistryDefaults(db)
+	_, _ = db.Exec(`INSERT IGNORE INTO web_role_permissions (resource_type, resource_id, resource_name, rank_1, rank_2, rank_3, order_index) VALUES ('menu', 'bug-report-admin', '버그리포트', 0, 1, 1, 91)`)
+	_, _ = db.Exec(`UPDATE web_role_permissions SET resource_name = '버그리포트', rank_1 = 0, rank_2 = 1, rank_3 = 1, order_index = 91 WHERE resource_type = 'menu' AND resource_id = 'bug-report-admin'`)
 }
 
 // handleGetRolePermissions returns all role permissions (menus + boards)
@@ -97,6 +111,8 @@ func handleGetRolePermissions(w http.ResponseWriter, r *http.Request) {
 	_, _ = db.Exec(`UPDATE web_role_permissions SET resource_name = '선술집관리' WHERE resource_type = 'menu' AND resource_id = 'shop-admin'`)
 	_, _ = db.Exec(`INSERT IGNORE INTO web_role_permissions (resource_type, resource_id, resource_name, rank_1, rank_2, rank_3, order_index) VALUES ('menu', 'notification-admin', '알림발송', 0, 1, 1, 95)`)
 	_, _ = db.Exec(`UPDATE web_role_permissions SET resource_name = '알림발송' WHERE resource_type = 'menu' AND resource_id = 'notification-admin'`)
+	_, _ = db.Exec(`INSERT IGNORE INTO web_role_permissions (resource_type, resource_id, resource_name, rank_1, rank_2, rank_3, order_index) VALUES ('menu', 'bug-report-admin', '버그리포트', 0, 1, 1, 91)`)
+	_, _ = db.Exec(`UPDATE web_role_permissions SET resource_name = '버그리포트', rank_1=0, rank_2=1, rank_3=1, order_index=91 WHERE resource_type = 'menu' AND resource_id = 'bug-report-admin'`)
 	_, _ = db.Exec(`INSERT IGNORE INTO web_role_permissions (resource_type, resource_id, resource_name, rank_1, rank_2, rank_3, order_index) VALUES ('menu', 'stats', '통계', 0, 1, 1, 75)`)
 	_, _ = db.Exec(`UPDATE web_role_permissions SET resource_name = '통계', rank_1=0, rank_2=1, rank_3=1, order_index=75 WHERE resource_type = 'menu' AND resource_id = 'stats'`)
 
@@ -128,6 +144,7 @@ func handleGetRolePermissions(w http.ResponseWriter, r *http.Request) {
 	foundNotificationAdmin := false
 	foundShop := false
 	foundShopAdmin := false
+	foundBugReportAdmin := false
 	for rows.Next() {
 		var p RolePermission
 		var r1, r2, r3 int
@@ -149,6 +166,9 @@ func handleGetRolePermissions(w http.ResponseWriter, r *http.Request) {
 		}
 		if p.ResourceType == "menu" && p.ResourceID == "shop-admin" {
 			foundShopAdmin = true
+		}
+		if p.ResourceType == "menu" && p.ResourceID == "bug-report-admin" {
+			foundBugReportAdmin = true
 		}
 		permissions = append(permissions, p)
 	}
@@ -194,6 +214,17 @@ func handleGetRolePermissions(w http.ResponseWriter, r *http.Request) {
 			Rank2:        true,
 			Rank3:        true,
 			OrderIndex:   96,
+		})
+	}
+	if !foundBugReportAdmin {
+		permissions = append(permissions, RolePermission{
+			ResourceType: "menu",
+			ResourceID:   "bug-report-admin",
+			ResourceName: "버그리포트",
+			Rank1:        false,
+			Rank2:        true,
+			Rank3:        true,
+			OrderIndex:   91,
 		})
 	}
 
@@ -288,7 +319,7 @@ func handleAdminMenuOrderList(w http.ResponseWriter, r *http.Request) {
 		SELECT id, name, order_index
 		FROM web_menu_registry
 		WHERE type = 'menu'
-		  AND id IN ('mailbox','calendar','auction','connect-guide','carddraw','shop','gm','remote','update','account','ban','logs','content','board-admin','notification-admin','shop-admin')
+		  AND id IN ('mailbox','calendar','auction','connect-guide','carddraw','shop','gm','remote','update','account','ban','logs','content','board-admin','bug-report-admin','notification-admin','shop-admin')
 		ORDER BY order_index ASC, id ASC`)
 	if err != nil {
 		http.Error(w, "Query Error: "+err.Error(), http.StatusInternalServerError)

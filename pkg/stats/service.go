@@ -80,6 +80,17 @@ func RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/content/trial/run-logs", handleTrialRunLogList)
 	mux.HandleFunc("/api/content/trial/event-logs", handleTrialEventLogList)
 	mux.HandleFunc("/api/content/trial/reward-logs", handleTrialRewardLogList)
+	mux.HandleFunc("/api/content/drop/creatures", handleCreatureDropCreatureSearch)
+	mux.HandleFunc("/api/content/drop/list", handleCreatureDropList)
+	mux.HandleFunc("/api/content/drop/save", handleCreatureDropSave)
+	mux.HandleFunc("/api/content/drop/delete", handleCreatureDropDelete)
+	mux.HandleFunc("/api/content/drop/reference/list", handleCreatureDropReferenceList)
+	mux.HandleFunc("/api/content/drop/reference/save", handleCreatureDropReferenceSave)
+	mux.HandleFunc("/api/content/drop/reference/delete", handleCreatureDropReferenceDelete)
+	mux.HandleFunc("/api/content/vendor/creatures", handleVendorCreatureSearch)
+	mux.HandleFunc("/api/content/vendor/list", handleVendorList)
+	mux.HandleFunc("/api/content/vendor/save", handleVendorSave)
+	mux.HandleFunc("/api/content/vendor/delete", handleVendorDelete)
 	mux.HandleFunc("/api/carddraw/pool/random", handleCarddrawRandomPack)
 
 	// Item Search
@@ -116,6 +127,7 @@ func RegisterRoutes(mux *http.ServeMux) {
 	ensureShopPermissionSeeds()
 	ensureAuctionPermissionSeeds()
 	ensureStatsPermissionSeeds()
+	ensureRolePermissionDefaults()
 	ensureCarddrawPoolSchema()
 }
 

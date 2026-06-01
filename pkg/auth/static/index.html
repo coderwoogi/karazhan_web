@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=2">
 </head>
 <body>
     <video class="login-video-bg" autoplay muted loop playsinline aria-hidden="true">
@@ -36,8 +36,12 @@
                     </label>
                 </div>
                 <button type="submit" class="login-btn">로그인</button>
-                <div style="text-align: center; margin-top: 15px;">
-                    <a href="/register/" style="color: #6366f1; text-decoration: none; font-size: 0.9rem;">회원가입</a>
+                <div class="account-link-row">
+                    <a href="/register/" class="account-link-item">회원가입</a>
+                    <span class="account-link-divider">|</span>
+                    <button type="button" class="account-link-item account-link-btn" data-recovery-open="username">아이디 찾기</button>
+                    <span class="account-link-divider">|</span>
+                    <button type="button" class="account-link-item account-link-btn" data-recovery-open="password">비밀번호 찾기</button>
                 </div>
                 <div class="signup-notice">
                     사이트 회원가입 시 인게임 계정과 연동됩니다.
@@ -45,9 +49,96 @@
             </form>
         </div>
     </div>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <div id="recoveryModal" class="recovery-modal" aria-hidden="true">
+        <div class="recovery-modal-backdrop" data-recovery-close></div>
+        <div class="recovery-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="recoveryModalTitle">
+            <div class="recovery-modal-shell">
+                <div class="recovery-modal-header">
+                    <div>
+                        <div class="recovery-kicker">Karazhan Account Center</div>
+                        <h2 id="recoveryModalTitle">계정 찾기</h2>
+                        <p id="recoveryModalDesc">가입 시 입력한 정보로 계정 복구를 진행할 수 있습니다.</p>
+                    </div>
+                    <button type="button" class="recovery-close-btn" data-recovery-close>&times;</button>
+                </div>
+
+                <div class="recovery-tab-row">
+                    <button type="button" class="recovery-tab active" data-recovery-tab="username">아이디 찾기</button>
+                    <button type="button" class="recovery-tab" data-recovery-tab="password">비밀번호 찾기</button>
+                </div>
+
+                <div class="recovery-panel active" data-recovery-panel="username">
+                    <div id="findUsernameContent" class="recovery-username-content">
+                        <div class="recovery-hero-card">
+                            <strong>가입 이메일 확인 후 아이디 즉시 표시</strong>
+                            <span>가입 시 사용한 이메일이 일치하면 화면에서 바로 아이디를 확인할 수 있습니다.</span>
+                        </div>
+                        <form id="findUsernameForm" class="recovery-form">
+                            <div class="form-group">
+                                <label for="find-username-email">이메일</label>
+                                <input type="email" id="find-username-email" name="email" placeholder="가입한 이메일을 입력하세요" required>
+                            </div>
+                            <button type="submit" class="login-btn recovery-submit">아이디 확인</button>
+                            <div id="find-username-feedback" class="recovery-feedback" aria-live="polite"></div>
+                        </form>
+                    </div>
+                    <div id="findUsernameResult" class="recovery-username-result" hidden>
+                        <div class="recovery-result-card">
+                            <div class="recovery-result-kicker">Karazhan Account</div>
+                            <h3>아이디 확인 완료</h3>
+                            <p>입력한 이메일과 일치하는 계정을 찾았습니다.</p>
+                            <div id="findUsernameResultValue" class="recovery-result-value"></div>
+                            <button type="button" id="findUsernameResetBtn" class="login-btn recovery-submit">다시 찾기</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="recovery-panel" data-recovery-panel="password">
+                    <div class="recovery-hero-card">
+                        <strong>가입 정보 확인 후 새 비밀번호 설정</strong>
+                        <span>아이디와 이메일이 일치하면 바로 새 비밀번호를 설정할 수 있습니다.</span>
+                    </div>
+
+                    <div class="recovery-stepper">
+                        <div class="recovery-step active" data-step-indicator="request"><span>1</span><em>정보 확인</em></div>
+                        <div class="recovery-step" data-step-indicator="reset"><span>2</span><em>새 비밀번호 설정</em></div>
+                    </div>
+
+                    <form id="passwordRecoveryRequestForm" class="recovery-form recovery-step-panel active" data-step-panel="request">
+                        <div class="form-group">
+                            <label for="find-password-username">아이디</label>
+                            <input type="text" id="find-password-username" name="username" placeholder="아이디를 입력하세요" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="find-password-email">이메일</label>
+                            <input type="email" id="find-password-email" name="email" placeholder="가입한 이메일을 입력하세요" required>
+                        </div>
+                        <button type="submit" class="login-btn recovery-submit">정보 확인</button>
+                        <div id="password-request-feedback" class="recovery-feedback" aria-live="polite"></div>
+                    </form>
+
+                    <form id="passwordRecoveryResetForm" class="recovery-form recovery-step-panel" data-step-panel="reset">
+                        <div class="form-group">
+                            <label for="find-password-new">새 비밀번호</label>
+                            <input type="password" id="find-password-new" name="password" placeholder="새 비밀번호를 입력하세요" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="find-password-confirm">새 비밀번호 확인</label>
+                            <input type="password" id="find-password-confirm" name="confirm_password" placeholder="새 비밀번호를 다시 입력하세요" required>
+                        </div>
+                        <div class="recovery-inline-actions">
+                            <button type="submit" class="login-btn recovery-submit">새 비밀번호 저장</button>
+                            <button type="button" class="recovery-secondary-btn" data-recovery-back="request">이전 단계</button>
+                        </div>
+                        <div id="password-reset-feedback" class="recovery-feedback" aria-live="polite"></div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="vendor/sweetalert2.all.min.js?v=1"></script>
     <script src="click-spark.js?v=1"></script>
-    <script src="login.js?v=1"></script>
+    <script src="login.js?v=7"></script>
 </body>
 </html>
 

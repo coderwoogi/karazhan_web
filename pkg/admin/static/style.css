@@ -1563,6 +1563,103 @@ table.premium-table {
     border-bottom: none;
 }
 
+#trial-stage-reward-modal .trial-stage-reward-modal-content {
+    max-width: 1960px !important;
+    width: calc(100vw - 32px) !important;
+    box-sizing: border-box;
+}
+
+#trial-stage-reward-modal .trial-stage-reward-table-wrap {
+    max-height: 560px !important;
+    overflow-x: hidden !important;
+}
+
+#trial-stage-reward-modal .trial-stage-reward-table-wrap table {
+    min-width: 0 !important;
+    width: 100% !important;
+    table-layout: fixed;
+}
+
+#trial-stage-reward-modal .trial-reward-item-cell {
+    min-width: 0;
+    width: 100%;
+}
+
+#trial-stage-reward-modal .trial-reward-item-name {
+    max-width: 100%;
+}
+
+#trial-stage-reward-modal .trial-reward-group-row td {
+    padding: 0.75rem 1rem !important;
+    background: #eef2ff !important;
+    border-top: 1px solid #c7d2fe;
+    border-bottom: 1px solid #c7d2fe;
+}
+
+#trial-stage-reward-modal .trial-reward-group-title {
+    color: #312e81;
+    font-weight: 800;
+    font-size: 0.9rem;
+}
+
+#trial-stage-reward-modal .trial-reward-rank,
+#trial-stage-reward-modal .trial-reward-type,
+#trial-stage-reward-modal .trial-reward-enabled {
+    min-width: 120px;
+}
+
+#trial-stage-reward-modal .trial-reward-row-gold .trial-reward-item-cell {
+    opacity: 0.72;
+}
+
+#trial-stage-reward-modal .trial-reward-row-gold .trial-reward-count,
+#trial-stage-reward-modal .trial-reward-row-gold .trial-reward-item-cell .btn-edit,
+#trial-stage-reward-modal .trial-reward-row-item .trial-reward-money-cell input {
+    cursor: not-allowed;
+    opacity: 0.55;
+}
+
+#trial-stage-reward-modal .trial-reward-sort,
+#trial-stage-reward-modal .trial-reward-count {
+    min-width: 108px;
+}
+
+#trial-stage-reward-modal .trial-reward-chance {
+    min-width: 126px;
+}
+
+#trial-stage-reward-modal .trial-reward-money-cell {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(76px, 1fr));
+    gap: 6px;
+    min-width: 244px;
+}
+
+#trial-stage-reward-modal .trial-reward-money-cell label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin: 0;
+}
+
+#trial-stage-reward-modal .trial-reward-money-cell input {
+    min-width: 0;
+    width: 100%;
+    padding-left: 0.55rem;
+    padding-right: 0.55rem;
+}
+
+#trial-stage-reward-modal .trial-reward-money-cell span {
+    flex: none;
+    color: #475569;
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+#trial-stage-reward-modal .trial-reward-comment {
+    min-width: 320px;
+}
+
 /* Notification admin: whole send area (6:4 grid) */
 .notif-send-grid {
     display: grid;
@@ -3359,6 +3456,15 @@ img.img-loaded {
         max-height: 94vh;
     }
 
+    #trial-stage-reward-modal .trial-stage-reward-modal-content {
+        width: calc(100vw - 20px) !important;
+    }
+
+    #trial-stage-reward-modal .trial-stage-reward-table-wrap table {
+        min-width: 1480px !important;
+        table-layout: auto;
+    }
+
     /* Layout Safety */
     .main-layout,
     .container,
@@ -4344,6 +4450,191 @@ img.img-loaded {
     transform: translateX(16px);
 }
 
+.web-guard-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.web-guard-card {
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    background: #ffffff;
+    padding: 1.25rem;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+}
+
+.web-guard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.web-guard-header h3 {
+    margin: 0 0 0.45rem;
+    color: var(--text-primary);
+    font-size: 1.2rem;
+}
+
+.web-guard-header p {
+    margin: 0;
+    color: var(--text-secondary);
+    line-height: 1.7;
+}
+
+.web-guard-textarea {
+    width: 100%;
+    min-height: 260px;
+    resize: vertical;
+    padding: 0.95rem 1rem;
+    background: #ffffff;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-family: "Malgun Gothic", sans-serif;
+    font-size: 0.95rem;
+    line-height: 1.7;
+}
+
+.web-guard-textarea:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.web-guard-form-grid {
+    display: grid;
+    grid-template-columns: 240px minmax(0, 1fr);
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.web-guard-meta {
+    margin-bottom: 1rem;
+    padding: 0.85rem 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    background: #f8fafc;
+    color: var(--text-secondary);
+    line-height: 1.7;
+}
+
+.web-guard-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.drop-admin-layout {
+    display: grid;
+    grid-template-columns: minmax(360px, 0.9fr) minmax(560px, 1.35fr);
+    gap: 1rem;
+}
+
+.drop-admin-panel {
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    background: #ffffff;
+    padding: 1rem;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+    min-width: 0;
+}
+
+.drop-admin-panel-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.drop-admin-panel-header h3 {
+    margin: 0 0 0.35rem;
+    color: var(--text-primary);
+    font-size: 1.05rem;
+}
+
+.drop-admin-panel-header p {
+    margin: 0;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    font-size: 0.9rem;
+}
+
+.drop-creature-table-wrap,
+.drop-loot-table-wrap {
+    max-height: 700px;
+    margin-top: 1rem;
+}
+
+.drop-creature-selected {
+    background: rgba(99, 102, 241, 0.1) !important;
+}
+
+.drop-creature-selected td:first-child {
+    color: var(--primary-color);
+}
+
+.drop-type-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 72px;
+    padding: 4px 8px;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 800;
+}
+
+.drop-type-badge.item {
+    background: #ecfdf5;
+    color: #047857;
+    border: 1px solid #a7f3d0;
+}
+
+.drop-type-badge.ref {
+    background: #eef2ff;
+    color: #4338ca;
+    border: 1px solid #c7d2fe;
+}
+
+#drop-item-modal .modal-body-premium {
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+}
+
+.drop-help-box {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    padding: 0.85rem 1rem;
+    border: 1px solid #dbeafe;
+    border-radius: 12px;
+    background: #eff6ff;
+    color: #1e40af;
+    line-height: 1.6;
+}
+
+.drop-help-box strong {
+    color: #1e3a8a;
+}
+
+#drop-item-modal .field-help {
+    margin-top: 0.35rem;
+    color: #64748b;
+    font-size: 0.82rem;
+    line-height: 1.5;
+}
+
+@media (max-width: 1180px) {
+    .drop-admin-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
 /* Connect Guide */
 .connect-guide-wrap {
     position: relative;
@@ -4423,4 +4714,2479 @@ img.img-loaded {
     color: var(--text-secondary);
     font-size: 1rem;
     line-height: 1.7;
+}
+
+/* Bug Report Admin */
+.bug-admin-layout {
+    display: grid;
+    grid-template-columns: minmax(340px, 0.82fr) minmax(520px, 1.35fr);
+    gap: 18px;
+    min-height: 720px;
+}
+
+.bug-admin-list-panel,
+.bug-admin-detail-panel {
+    min-width: 0;
+    height: 100%;
+}
+
+.bug-admin-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.bug-admin-item {
+    border: 1px solid #dbe3f4;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+    border-radius: 14px;
+    padding: 15px;
+    cursor: pointer;
+    transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease, background 0.16s ease;
+}
+
+.bug-admin-item:hover,
+.bug-admin-item.active {
+    border-color: #60a5fa;
+    box-shadow: 0 14px 34px rgba(15, 23, 42, 0.11);
+    transform: translateY(-1px);
+}
+
+.bug-admin-item.active {
+    background: linear-gradient(180deg, #eff6ff 0%, #ffffff 100%);
+}
+
+.bug-admin-item-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 8px;
+    color: #0f172a;
+    font-weight: 800;
+}
+
+.bug-admin-item-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    color: #64748b;
+    font-size: 0.84rem;
+}
+
+.bug-admin-item-foot {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed #e2e8f0;
+    color: #94a3b8;
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+.bug-admin-empty,
+.bug-admin-detail-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 240px;
+    border: 1px dashed #cbd5e1;
+    border-radius: 8px;
+    color: #94a3b8;
+    background: #f8fafc;
+    font-weight: 700;
+}
+
+.bug-admin-detail {
+    border: 1px solid #dbe3f4;
+    border-radius: 18px;
+    background: #ffffff;
+    overflow: hidden;
+    box-shadow: 0 18px 50px rgba(15, 23, 42, 0.08);
+}
+
+.bug-admin-hero {
+    padding: 22px 24px;
+    border-bottom: 1px solid #dbeafe;
+    background:
+        radial-gradient(circle at top right, rgba(37, 99, 235, 0.13), transparent 36%),
+        linear-gradient(135deg, #f8fbff 0%, #eff6ff 100%);
+}
+
+.bug-admin-hero-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.bug-admin-post-id {
+    color: #94a3b8;
+    font-size: 0.82rem;
+    font-weight: 800;
+}
+
+.bug-admin-hero h3 {
+    margin: 10px 0 8px;
+    color: #0f172a;
+    font-size: 1.35rem;
+    line-height: 1.45;
+}
+
+.bug-admin-main-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 230px;
+    gap: 16px;
+    padding: 18px;
+    background: #ffffff;
+}
+
+.bug-admin-report-card,
+.bug-admin-control-card {
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    background: #ffffff;
+    overflow: hidden;
+}
+
+.bug-admin-control-card {
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background: #f8fafc;
+}
+
+.bug-admin-control-card select {
+    width: 100%;
+    max-width: none !important;
+}
+
+.bug-admin-control-card p {
+    margin: 2px 0 0;
+    color: #64748b;
+    font-size: 0.82rem;
+    line-height: 1.5;
+}
+
+.bug-admin-section-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 12px 14px;
+    border-bottom: 1px solid #e2e8f0;
+    color: #0f172a;
+    background: #f8fafc;
+    font-weight: 900;
+}
+
+.bug-admin-section-title strong {
+    color: #2563eb;
+    font-size: 0.86rem;
+}
+
+.bug-admin-detail-body {
+    padding: 16px;
+    color: #334155;
+    line-height: 1.8;
+    min-height: 210px;
+}
+
+.bug-admin-thread {
+    border-top: 1px solid #e2e8f0;
+    padding: 18px;
+    background: #fbfdff;
+}
+
+.bug-admin-message-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-top: 14px;
+}
+
+.bug-admin-message {
+    max-width: 86%;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    background: #ffffff;
+    padding: 13px 14px;
+    margin: 0;
+}
+
+.bug-admin-message.staff {
+    align-self: flex-end;
+    border-color: #bfdbfe;
+    background: linear-gradient(180deg, #eff6ff 0%, #ffffff 100%);
+}
+
+.bug-admin-message.user {
+    align-self: flex-start;
+    border-color: #e2e8f0;
+    background: #ffffff;
+}
+
+.bug-admin-message-meta {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 6px;
+    color: #64748b;
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.bug-admin-message-body {
+    white-space: pre-wrap;
+    color: #334155;
+    line-height: 1.65;
+}
+
+.bug-admin-reply {
+    border-top: 1px solid #e2e8f0;
+    padding: 18px;
+    background: #ffffff;
+}
+
+.bug-admin-reply label {
+    display: block;
+    margin-bottom: 8px;
+    color: #0f172a;
+    font-weight: 900;
+}
+
+.bug-admin-reply textarea {
+    width: 100%;
+    min-height: 128px;
+    resize: vertical;
+    border: 1px solid #cbd5e1;
+    border-radius: 12px;
+    padding: 12px;
+    box-sizing: border-box;
+    line-height: 1.6;
+}
+
+.bug-admin-reply-locked {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #64748b;
+    font-weight: 800;
+    background: #f8fafc;
+}
+
+.bug-admin-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.bug-admin-actions span {
+    color: #64748b;
+    font-size: 0.84rem;
+}
+
+@media (max-width: 1100px) {
+    .bug-admin-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .bug-admin-main-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .bug-admin-message {
+        max-width: 100%;
+    }
+}
+
+/* Bug report admin: simplified conversation layout */
+.bug-admin-card .card-body {
+    background: #f6f8fc;
+}
+
+.bug-admin-layout {
+    align-items: stretch;
+}
+
+.bug-admin-list-panel,
+.bug-admin-detail-panel {
+    border: 1px solid #e2e8f0;
+    border-radius: 18px;
+    background: #ffffff;
+    padding: 14px;
+}
+
+.bug-admin-list-panel .filter-bar {
+    margin: 0 0 14px !important;
+    padding: 0;
+    border: 0;
+    background: transparent;
+}
+
+.bug-admin-list {
+    max-height: 650px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.bug-admin-item-title span:first-child {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.bug-admin-clean {
+    height: 100%;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    overflow: visible;
+}
+
+.bug-admin-clean-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 220px;
+    gap: 18px;
+    padding: 6px 4px 18px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.bug-admin-clean-head-main {
+    min-width: 0;
+}
+
+.bug-admin-badge-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.bug-admin-clean-head h3 {
+    margin: 0 0 10px;
+    color: #0f172a;
+    font-size: 1.42rem;
+    line-height: 1.35;
+    word-break: keep-all;
+}
+
+.bug-admin-status-box {
+    display: grid;
+    gap: 8px;
+    align-self: start;
+    padding: 12px;
+    border: 1px solid #dbeafe;
+    border-radius: 14px;
+    background: #f8fbff;
+}
+
+.bug-admin-status-box label {
+    color: #334155;
+    font-size: 0.82rem;
+    font-weight: 900;
+}
+
+.bug-admin-status-box .search-select,
+.bug-admin-status-box .btn {
+    width: 100%;
+}
+
+.bug-admin-chat {
+    padding: 18px 4px;
+}
+
+.bug-admin-chat-note {
+    margin-bottom: 14px;
+    padding: 11px 14px;
+    border: 1px solid #dbeafe;
+    border-radius: 12px;
+    color: #475569;
+    background: #eff6ff;
+    font-size: 0.86rem;
+    font-weight: 700;
+}
+
+.bug-admin-clean .bug-admin-message-list {
+    gap: 14px;
+    padding-top: 0;
+}
+
+.bug-admin-clean .bug-admin-message {
+    max-width: 78%;
+    border-radius: 16px;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+}
+
+.bug-admin-clean .bug-admin-message.user {
+    align-self: flex-start;
+    border-color: #e2e8f0;
+    background: #ffffff;
+}
+
+.bug-admin-clean .bug-admin-message.staff {
+    align-self: flex-end;
+    border-color: #bfdbfe;
+    background: #eff6ff;
+}
+
+.bug-admin-clean .bug-admin-message.original {
+    max-width: 88%;
+    border-color: #fde68a;
+    background: #fffbeb;
+}
+
+.bug-admin-message-body.rich {
+    white-space: normal;
+}
+
+.bug-admin-clean .bug-admin-reply {
+    margin: 0 -14px -14px;
+    padding: 16px 18px;
+    border-top: 1px solid #e2e8f0;
+    border-radius: 0 0 18px 18px;
+    background: #ffffff;
+}
+
+.bug-admin-clean .bug-admin-actions {
+    align-items: flex-end;
+}
+
+@media (max-width: 1280px) {
+    .bug-admin-clean-head {
+        grid-template-columns: 1fr;
+    }
+
+    .bug-admin-status-box {
+        grid-template-columns: 1fr auto;
+        align-items: end;
+    }
+
+    .bug-admin-status-box label {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 760px) {
+    .bug-admin-list-panel,
+    .bug-admin-detail-panel {
+        padding: 10px;
+    }
+
+    .bug-admin-status-box {
+        grid-template-columns: 1fr;
+    }
+
+    .bug-admin-clean .bug-admin-message,
+    .bug-admin-clean .bug-admin-message.original {
+        max-width: 100%;
+    }
+}
+
+/* Bug report admin v5: hard reset to a clean ticket inbox */
+#bug-report-admin .bug-admin-card {
+    background: #f6f8fc;
+}
+
+#bug-report-admin .bug-admin-card > .card-header {
+    border-bottom: 1px solid #e2e8f0;
+    background: linear-gradient(135deg, #ffffff 0%, #f8fbff 100%);
+}
+
+#bug-report-admin .card-body {
+    padding: 18px !important;
+    background:
+        radial-gradient(circle at 12% 8%, rgba(59, 130, 246, 0.08), transparent 28%),
+        #f4f7fb !important;
+}
+
+#bug-report-admin .bug-admin-layout {
+    display: grid !important;
+    grid-template-columns: 380px minmax(0, 1fr) !important;
+    gap: 18px !important;
+    height: calc(100vh - 230px);
+    min-height: 720px;
+    align-items: stretch;
+}
+
+#bug-report-admin .bug-admin-list-panel,
+#bug-report-admin .bug-admin-detail-panel {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    padding: 0 !important;
+    border: 1px solid #d9e2ef !important;
+    border-radius: 20px !important;
+    background: #ffffff !important;
+    box-shadow: 0 18px 42px rgba(15, 23, 42, 0.07);
+    overflow: hidden;
+}
+
+#bug-report-admin .bug-admin-list-panel .filter-bar {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: end;
+    margin: 0 !important;
+    padding: 16px !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+    background: #fbfdff !important;
+}
+
+#bug-report-admin .bug-admin-list-panel .filter-group {
+    display: grid !important;
+    grid-template-columns: 122px minmax(0, 1fr);
+    gap: 8px;
+    min-width: 0;
+}
+
+#bug-report-admin #bug-admin-status-filter,
+#bug-report-admin #bug-admin-search {
+    height: 38px;
+    border-radius: 12px;
+}
+
+#bug-report-admin .bug-admin-list-panel .search-btn {
+    height: 38px;
+    border-radius: 12px;
+    white-space: nowrap;
+}
+
+#bug-report-admin .bug-admin-list {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none !important;
+    gap: 0 !important;
+    overflow-y: auto;
+    padding: 8px !important;
+    background: #ffffff;
+}
+
+#bug-report-admin .bug-admin-item {
+    position: relative;
+    margin: 0 0 8px;
+    padding: 14px 14px 12px 18px !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 16px !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
+    transform: none !important;
+}
+
+#bug-report-admin .bug-admin-item::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 12px;
+    bottom: 12px;
+    width: 4px;
+    border-radius: 0 8px 8px 0;
+    background: #60a5fa;
+}
+
+#bug-report-admin .bug-admin-item.status-in_progress::before {
+    background: #f59e0b;
+}
+
+#bug-report-admin .bug-admin-item.status-done::before {
+    background: #22c55e;
+}
+
+#bug-report-admin .bug-admin-item:hover,
+#bug-report-admin .bug-admin-item.active {
+    border-color: #93c5fd !important;
+    background: #f8fbff !important;
+    box-shadow: 0 10px 22px rgba(37, 99, 235, 0.09) !important;
+}
+
+#bug-report-admin .bug-admin-item-title {
+    margin-bottom: 10px !important;
+    align-items: flex-start;
+}
+
+#bug-report-admin .bug-admin-item-title > span:first-child {
+    display: -webkit-box;
+    min-width: 0;
+    overflow: hidden;
+    color: #0f172a;
+    font-size: 0.94rem;
+    line-height: 1.35;
+    white-space: normal !important;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+#bug-report-admin .bug-admin-item-meta,
+#bug-report-admin .bug-admin-item-foot {
+    font-size: 0.78rem !important;
+}
+
+#bug-report-admin .bug-admin-item-foot {
+    margin-top: 10px !important;
+    padding-top: 9px !important;
+}
+
+#bug-report-admin #bug-admin-pagination {
+    flex: 0 0 auto;
+    margin: 0 !important;
+    padding: 12px 14px;
+    border-top: 1px solid #e2e8f0;
+    background: #fbfdff;
+}
+
+#bug-report-admin .bug-admin-detail-panel {
+    padding: 0 !important;
+}
+
+#bug-report-admin .bug-admin-detail-empty {
+    flex: 1 1 auto;
+    min-height: 0 !important;
+    margin: 18px;
+    border-radius: 18px;
+    background: #f8fafc;
+}
+
+#bug-report-admin .bug-admin-clean {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    height: 100%;
+    min-height: 0;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: #ffffff;
+    box-shadow: none !important;
+    overflow: hidden !important;
+}
+
+#bug-report-admin .bug-admin-clean-head {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) 238px !important;
+    gap: 18px;
+    padding: 20px 22px !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+    background:
+        linear-gradient(135deg, #ffffff 0%, #f8fbff 100%) !important;
+}
+
+#bug-report-admin .bug-admin-clean-head h3 {
+    margin: 8px 0 10px !important;
+    color: #0f172a !important;
+    font-size: 1.28rem !important;
+    line-height: 1.38 !important;
+}
+
+#bug-report-admin .bug-admin-badge-row {
+    margin-bottom: 0 !important;
+}
+
+#bug-report-admin .bug-admin-status-box {
+    align-self: start;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 9px;
+    padding: 12px !important;
+    border: 1px solid #dbeafe !important;
+    border-radius: 16px !important;
+    background: #eff6ff !important;
+}
+
+#bug-report-admin .bug-admin-status-box.is-done {
+    border-color: #bbf7d0 !important;
+    background: #f0fdf4 !important;
+}
+
+#bug-report-admin .bug-admin-status-box label {
+    color: #334155;
+    font-size: 0.78rem;
+    font-weight: 900;
+}
+
+#bug-report-admin .bug-admin-status-box select,
+#bug-report-admin .bug-admin-status-box button {
+    width: 100%;
+    height: 38px;
+    border-radius: 12px;
+}
+
+#bug-report-admin .bug-admin-chat {
+    min-height: 0;
+    overflow-y: auto;
+    padding: 18px 22px 22px !important;
+    background:
+        linear-gradient(180deg, #f8fafc 0%, #ffffff 44%);
+}
+
+#bug-report-admin .bug-admin-chat-note {
+    margin: 0 0 16px !important;
+    border-radius: 14px !important;
+}
+
+#bug-report-admin .bug-admin-message-list {
+    gap: 14px !important;
+    padding: 0 !important;
+}
+
+#bug-report-admin .bug-admin-message {
+    max-width: min(760px, 84%) !important;
+    padding: 14px 16px !important;
+    border-radius: 18px !important;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.07) !important;
+}
+
+#bug-report-admin .bug-admin-message.user {
+    align-self: flex-start !important;
+    background: #ffffff !important;
+}
+
+#bug-report-admin .bug-admin-message.staff {
+    align-self: flex-end !important;
+    border-color: #bfdbfe !important;
+    background: #eff6ff !important;
+}
+
+#bug-report-admin .bug-admin-message.original {
+    max-width: min(860px, 92%) !important;
+    border-color: #fde68a !important;
+    background: #fffbeb !important;
+}
+
+#bug-report-admin .bug-admin-message-meta {
+    margin-bottom: 8px !important;
+    color: #64748b !important;
+    font-size: 0.8rem !important;
+}
+
+#bug-report-admin .bug-admin-message-body {
+    color: #1e293b !important;
+    font-size: 0.94rem;
+    line-height: 1.7 !important;
+}
+
+#bug-report-admin .bug-admin-reply {
+    flex: 0 0 auto;
+    margin: 0 !important;
+    padding: 16px 22px 18px !important;
+    border-top: 1px solid #e2e8f0 !important;
+    border-radius: 0 !important;
+    background: #ffffff !important;
+    box-shadow: 0 -12px 28px rgba(15, 23, 42, 0.04);
+}
+
+#bug-report-admin .bug-admin-reply textarea {
+    min-height: 96px !important;
+    border-radius: 14px !important;
+    background: #f8fafc;
+}
+
+#bug-report-admin .bug-admin-actions {
+    margin-top: 10px !important;
+}
+
+#bug-report-admin .bug-admin-reply-locked {
+    justify-content: center;
+    min-height: 72px;
+}
+
+@media (max-width: 1280px) {
+    #bug-report-admin .bug-admin-layout {
+        grid-template-columns: 340px minmax(0, 1fr) !important;
+    }
+
+    #bug-report-admin .bug-admin-clean-head {
+        grid-template-columns: 1fr !important;
+    }
+
+    #bug-report-admin .bug-admin-status-box {
+        grid-template-columns: 1fr auto;
+        align-items: end;
+    }
+
+    #bug-report-admin .bug-admin-status-box label {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 980px) {
+    #bug-report-admin .bug-admin-layout {
+        height: auto;
+        grid-template-columns: 1fr !important;
+    }
+
+    #bug-report-admin .bug-admin-list {
+        max-height: 360px !important;
+    }
+
+    #bug-report-admin .bug-admin-clean {
+        min-height: 720px;
+    }
+}
+
+/* Bug report admin v6: match user-side report detail layout */
+#bug-report-admin .bug-admin-userlike {
+    display: block !important;
+    height: auto !important;
+    min-height: 100%;
+    padding: 22px;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: #ffffff;
+    box-shadow: none !important;
+    overflow-y: auto !important;
+}
+
+#bug-report-admin .bug-admin-userlike-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+#bug-report-admin .bug-admin-userlike-head h3 {
+    margin: 0 0 10px;
+    color: #0f172a;
+    font-size: 1.45rem;
+    line-height: 1.35;
+}
+
+#bug-report-admin .bug-admin-userlike-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    color: #64748b;
+    font-size: 0.85rem;
+}
+
+#bug-report-admin .bug-admin-userlike-status {
+    flex: 0 0 auto;
+}
+
+#bug-report-admin .bug-admin-userlike-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 14px;
+}
+
+#bug-report-admin .bug-admin-userlike-content {
+    min-height: 220px;
+    margin-top: 18px;
+    padding-top: 18px;
+    border-top: 1px solid #e2e8f0;
+    color: #334155;
+    font-size: 0.95rem;
+    line-height: 1.75;
+}
+
+#bug-report-admin .bug-admin-userlike-replies {
+    margin-top: 28px;
+    padding: 20px;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    background:
+        radial-gradient(circle at top left, rgba(37, 99, 235, 0.06), transparent 28%),
+        #fbfdff;
+}
+
+#bug-report-admin .bug-admin-userlike-replies-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 14px;
+}
+
+#bug-report-admin .bug-admin-userlike-replies-head span {
+    display: block;
+    margin-bottom: 5px;
+    color: #64748b;
+    font-size: 0.78rem;
+    font-weight: 900;
+    letter-spacing: 0.06em;
+}
+
+#bug-report-admin .bug-admin-userlike-replies-head h4 {
+    margin: 0;
+    color: #0f172a;
+    font-size: 1.18rem;
+}
+
+#bug-report-admin .bug-admin-userlike-note,
+#bug-report-admin .bug-admin-userlike-empty,
+#bug-report-admin .bug-admin-userlike-closed {
+    color: #64748b;
+    font-size: 0.9rem;
+}
+
+#bug-report-admin .bug-admin-userlike-note {
+    margin-bottom: 16px;
+    padding: 13px 15px;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    background: #ffffff;
+}
+
+#bug-report-admin .bug-admin-userlike-empty,
+#bug-report-admin .bug-admin-userlike-closed {
+    padding: 26px 16px;
+    border: 1px dashed #cbd5e1;
+    border-radius: 12px;
+    text-align: center;
+    background: #ffffff;
+}
+
+#bug-report-admin .bug-admin-userlike-thread {
+    display: grid;
+    gap: 14px;
+}
+
+#bug-report-admin .bug-admin-userlike-message {
+    position: relative;
+    padding: 16px 18px 16px 20px;
+    border: 1px solid #e2e8f0;
+    border-left: 3px solid #93c5fd;
+    border-radius: 12px;
+    background: #ffffff;
+}
+
+#bug-report-admin .bug-admin-userlike-message.staff {
+    border-left-color: #2563eb;
+    background:
+        linear-gradient(90deg, rgba(37, 99, 235, 0.08), transparent 42%),
+        #ffffff;
+}
+
+#bug-report-admin .bug-admin-userlike-message.user {
+    border-left-color: #f59e0b;
+}
+
+#bug-report-admin .bug-admin-userlike-message-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    color: #0f172a;
+}
+
+#bug-report-admin .bug-admin-userlike-message-head span,
+#bug-report-admin .bug-admin-userlike-message-author {
+    color: #64748b;
+    font-size: 0.82rem;
+}
+
+#bug-report-admin .bug-admin-userlike-message-author {
+    margin-top: 6px;
+}
+
+#bug-report-admin .bug-admin-userlike-message-body {
+    margin-top: 12px;
+    color: #334155;
+    white-space: pre-wrap;
+    word-break: break-word;
+    line-height: 1.7;
+}
+
+#bug-report-admin .bug-admin-userlike-status-edit,
+#bug-report-admin .bug-admin-userlike-reply {
+    margin-top: 18px;
+    padding: 16px;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    background: #ffffff;
+}
+
+#bug-report-admin .bug-admin-userlike-status-edit {
+    display: grid;
+    grid-template-columns: auto minmax(180px, 240px) auto;
+    gap: 10px;
+    align-items: center;
+}
+
+#bug-report-admin .bug-admin-userlike-status-edit label,
+#bug-report-admin .bug-admin-userlike-reply label {
+    color: #334155;
+    font-size: 0.9rem;
+    font-weight: 900;
+}
+
+#bug-report-admin .bug-admin-userlike-reply {
+    display: grid;
+    gap: 12px;
+}
+
+#bug-report-admin .bug-admin-userlike-reply textarea {
+    width: 100%;
+    min-height: 150px;
+    resize: vertical;
+    border: 1px solid #cbd5e1;
+    border-radius: 12px;
+    padding: 12px;
+    box-sizing: border-box;
+    line-height: 1.6;
+}
+
+#bug-report-admin .bug-admin-userlike .bug-admin-actions {
+    margin-top: 0 !important;
+}
+
+@media (max-width: 980px) {
+    #bug-report-admin .bug-admin-userlike-status-edit {
+        grid-template-columns: 1fr;
+    }
+
+    #bug-report-admin .bug-admin-userlike-head,
+    #bug-report-admin .bug-admin-userlike-replies-head {
+        flex-direction: column;
+    }
+}
+
+/* Bug report admin v7: same structure as the user bug-report detail */
+#bug-report-admin .bug-admin-public-detail {
+    display: block !important;
+    height: auto !important;
+    min-height: 100%;
+    padding: 24px !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
+    overflow-y: auto !important;
+}
+
+#bug-report-admin .bug-admin-public-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 14px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+#bug-report-admin .bug-admin-public-head h2 {
+    margin: 0;
+    color: #0f172a;
+    font-size: 1.45rem;
+    line-height: 1.38;
+}
+
+#bug-report-admin .bug-admin-public-head-actions {
+    flex: 0 0 auto;
+}
+
+#bug-report-admin .bug-admin-public-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 16px;
+    color: #64748b;
+    font-size: 0.86rem;
+}
+
+#bug-report-admin .bug-admin-public-chip {
+    display: inline-flex;
+    align-items: center;
+    margin-bottom: 14px;
+    padding: 8px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 999px;
+    color: #334155;
+    background: #f8fafc;
+    font-size: 0.84rem;
+    font-weight: 800;
+}
+
+#bug-report-admin .bug-admin-public-content {
+    min-height: 260px;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #e2e8f0;
+    color: #334155;
+    font-size: 0.95rem;
+    line-height: 1.75;
+}
+
+#bug-report-admin .bug-admin-public-replies {
+    margin-top: 28px;
+    padding: 20px;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    background:
+        radial-gradient(circle at top left, rgba(37, 99, 235, 0.06), transparent 28%),
+        #fbfdff;
+}
+
+#bug-report-admin .bug-admin-public-replies-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 14px;
+}
+
+#bug-report-admin .bug-admin-public-kicker {
+    display: block;
+    margin-bottom: 5px;
+    color: #64748b;
+    font-size: 0.78rem;
+    font-weight: 900;
+    letter-spacing: 0.06em;
+}
+
+#bug-report-admin .bug-admin-public-replies h4 {
+    margin: 0;
+    color: #0f172a;
+    font-size: 1.18rem;
+}
+
+#bug-report-admin .bug-admin-public-note {
+    margin-bottom: 16px;
+    padding: 13px 15px;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    color: #64748b;
+    background: #ffffff;
+    font-size: 0.9rem;
+}
+
+#bug-report-admin .bug-admin-public-empty,
+#bug-report-admin .bug-admin-public-closed {
+    padding: 26px 16px;
+    border: 1px dashed #cbd5e1;
+    border-radius: 12px;
+    color: #64748b;
+    background: #ffffff;
+    text-align: center;
+}
+
+#bug-report-admin .bug-admin-public-thread {
+    display: grid;
+    gap: 14px;
+}
+
+#bug-report-admin .bug-admin-public-message {
+    position: relative;
+    padding: 16px 18px 16px 20px;
+    border: 1px solid #e2e8f0;
+    border-left: 3px solid #f59e0b;
+    border-radius: 12px;
+    background: #ffffff;
+}
+
+#bug-report-admin .bug-admin-public-message.staff {
+    border-left-color: #2563eb;
+    background:
+        linear-gradient(90deg, rgba(37, 99, 235, 0.08), transparent 42%),
+        #ffffff;
+}
+
+#bug-report-admin .bug-admin-public-message-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    color: #0f172a;
+}
+
+#bug-report-admin .bug-admin-public-message-head span,
+#bug-report-admin .bug-admin-public-message-author {
+    color: #64748b;
+    font-size: 0.82rem;
+}
+
+#bug-report-admin .bug-admin-public-message-author {
+    margin-top: 6px;
+}
+
+#bug-report-admin .bug-admin-public-message-body {
+    margin-top: 12px;
+    color: #334155;
+    white-space: pre-wrap;
+    word-break: break-word;
+    line-height: 1.7;
+}
+
+#bug-report-admin .bug-admin-public-status-edit,
+#bug-report-admin .bug-admin-public-reply {
+    margin-top: 18px;
+    padding: 16px;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    background: #ffffff;
+}
+
+#bug-report-admin .bug-admin-public-status-edit {
+    display: grid;
+    grid-template-columns: auto minmax(180px, 240px) auto;
+    gap: 10px;
+    align-items: center;
+}
+
+#bug-report-admin .bug-admin-public-status-edit label,
+#bug-report-admin .bug-admin-public-reply label {
+    color: #334155;
+    font-size: 0.9rem;
+    font-weight: 900;
+}
+
+#bug-report-admin .bug-admin-public-reply {
+    display: grid;
+    gap: 12px;
+}
+
+#bug-report-admin .bug-admin-public-reply textarea {
+    width: 100%;
+    min-height: 150px;
+    resize: vertical;
+    border: 1px solid #cbd5e1;
+    border-radius: 12px;
+    padding: 12px;
+    box-sizing: border-box;
+    line-height: 1.6;
+}
+
+@media (max-width: 980px) {
+    #bug-report-admin .bug-admin-public-head,
+    #bug-report-admin .bug-admin-public-replies-head {
+        flex-direction: column;
+    }
+
+    #bug-report-admin .bug-admin-public-status-edit {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Bug report admin v8: separate list screen and detail screen */
+#bug-report-admin .bug-admin-layout {
+    display: block !important;
+    height: auto !important;
+    min-height: 0 !important;
+}
+
+#bug-report-admin .bug-admin-list-panel,
+#bug-report-admin .bug-admin-detail-panel {
+    width: 100%;
+    min-height: 680px;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 18px !important;
+    background: #ffffff !important;
+    box-shadow: 0 16px 36px rgba(15, 23, 42, 0.06);
+    overflow: hidden;
+}
+
+#bug-report-admin .bug-admin-list {
+    padding: 0 !important;
+}
+
+#bug-report-admin .bug-admin-item {
+    display: grid !important;
+    grid-template-columns: 86px minmax(0, 1fr) 120px 82px;
+    gap: 14px;
+    align-items: center;
+    margin: 0 !important;
+    padding: 16px 18px !important;
+    border: 0 !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+    border-radius: 0 !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
+}
+
+#bug-report-admin .bug-admin-item::before {
+    top: 14px;
+    bottom: 14px;
+}
+
+#bug-report-admin .bug-admin-list-no {
+    color: #64748b;
+    font-size: 0.86rem;
+    font-weight: 900;
+}
+
+#bug-report-admin .bug-admin-list-main {
+    min-width: 0;
+}
+
+#bug-report-admin .bug-admin-list-status {
+    display: flex;
+    justify-content: flex-start;
+}
+
+#bug-report-admin .bug-admin-list-action {
+    min-height: 34px;
+    padding: 0 14px;
+    border-radius: 10px;
+}
+
+#bug-report-admin .bug-admin-page-detail {
+    padding: 22px !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+}
+
+#bug-report-admin .bug-admin-detail-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+#bug-report-admin .bug-admin-detail-toolbar .btn,
+#bug-report-admin .bug-admin-detail-toolbar .refresh-btn {
+    min-height: 38px;
+    border-radius: 10px;
+}
+
+#bug-report-admin .bug-admin-detail-section {
+    margin-top: 16px;
+    padding: 18px;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    background: #ffffff;
+}
+
+#bug-report-admin .bug-admin-detail-summary {
+    margin-top: 0;
+    background: #f8fafc;
+}
+
+#bug-report-admin .bug-admin-detail-title-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+    margin-bottom: 16px;
+}
+
+#bug-report-admin .bug-admin-detail-kicker {
+    margin-bottom: 6px;
+    color: #64748b;
+    font-size: 0.78rem;
+    font-weight: 900;
+    letter-spacing: 0.06em;
+}
+
+#bug-report-admin .bug-admin-detail-title-row h3 {
+    margin: 0;
+    color: #0f172a;
+    font-size: 1.42rem;
+    line-height: 1.35;
+}
+
+#bug-report-admin .bug-admin-detail-meta-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+}
+
+#bug-report-admin .bug-admin-detail-meta-grid > div {
+    padding: 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    background: #ffffff;
+}
+
+#bug-report-admin .bug-admin-detail-meta-grid strong {
+    display: block;
+    margin-bottom: 5px;
+    color: #64748b;
+    font-size: 0.76rem;
+}
+
+#bug-report-admin .bug-admin-detail-meta-grid span {
+    color: #0f172a;
+    font-size: 0.9rem;
+    font-weight: 800;
+}
+
+#bug-report-admin .bug-admin-section-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+#bug-report-admin .bug-admin-section-heading h4 {
+    margin: 0;
+    color: #0f172a;
+    font-size: 1rem;
+}
+
+#bug-report-admin .bug-admin-section-heading span {
+    color: #64748b;
+    font-size: 0.84rem;
+    font-weight: 800;
+}
+
+#bug-report-admin .bug-admin-detail-content {
+    min-height: 220px;
+    color: #334155;
+    line-height: 1.75;
+}
+
+#bug-report-admin .bug-admin-status-form {
+    display: grid;
+    grid-template-columns: minmax(180px, 240px) auto minmax(0, 1fr);
+    gap: 10px;
+    align-items: center;
+}
+
+#bug-report-admin .bug-admin-status-form span {
+    color: #64748b;
+    font-size: 0.86rem;
+}
+
+#bug-report-admin .bug-admin-history-list {
+    display: grid;
+    gap: 12px;
+}
+
+#bug-report-admin .bug-admin-history-item {
+    padding: 15px 16px;
+    border: 1px solid #e2e8f0;
+    border-left: 3px solid #f59e0b;
+    border-radius: 12px;
+    background: #ffffff;
+}
+
+#bug-report-admin .bug-admin-history-item.staff {
+    border-left-color: #2563eb;
+    background: linear-gradient(90deg, rgba(37, 99, 235, 0.06), transparent 44%), #ffffff;
+}
+
+#bug-report-admin .bug-admin-history-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    color: #0f172a;
+}
+
+#bug-report-admin .bug-admin-history-head span,
+#bug-report-admin .bug-admin-history-author {
+    color: #64748b;
+    font-size: 0.82rem;
+}
+
+#bug-report-admin .bug-admin-history-author {
+    margin-top: 6px;
+}
+
+#bug-report-admin .bug-admin-history-body {
+    margin-top: 10px;
+    color: #334155;
+    white-space: pre-wrap;
+    line-height: 1.7;
+}
+
+#bug-report-admin .bug-admin-history-empty {
+    padding: 24px 16px;
+    border: 1px dashed #cbd5e1;
+    border-radius: 12px;
+    color: #64748b;
+    background: #f8fafc;
+    text-align: center;
+}
+
+#bug-report-admin .bug-admin-reply-form {
+    display: grid;
+    gap: 12px;
+}
+
+#bug-report-admin .bug-admin-reply-form textarea {
+    width: 100%;
+    min-height: 150px;
+    resize: vertical;
+    border: 1px solid #cbd5e1;
+    border-radius: 12px;
+    padding: 12px;
+    box-sizing: border-box;
+    line-height: 1.6;
+}
+
+@media (max-width: 980px) {
+    #bug-report-admin .bug-admin-item {
+        grid-template-columns: 1fr;
+    }
+
+    #bug-report-admin .bug-admin-detail-meta-grid,
+    #bug-report-admin .bug-admin-status-form {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Bug report admin v9: plain board list/detail layout */
+#bug-report-admin .bug-admin-card {
+    overflow: visible !important;
+}
+
+#bug-report-admin .bug-admin-layout {
+    display: block !important;
+    width: 100% !important;
+    min-height: 0 !important;
+    height: auto !important;
+}
+
+#bug-report-admin .bug-admin-list-panel,
+#bug-report-admin .bug-admin-detail-panel {
+    width: 100% !important;
+    min-height: 0 !important;
+    height: auto !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+}
+
+#bug-report-admin .bug-admin-list {
+    max-height: none !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    overflow: visible !important;
+}
+
+#bug-report-admin .bug-admin-table-wrap {
+    max-height: none;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    background: #ffffff;
+    overflow-x: auto;
+}
+
+#bug-report-admin .bug-admin-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+#bug-report-admin .bug-admin-table th,
+#bug-report-admin .bug-admin-table td {
+    vertical-align: middle;
+}
+
+#bug-report-admin .bug-admin-row {
+    cursor: pointer;
+}
+
+#bug-report-admin .bug-admin-row:hover,
+#bug-report-admin .bug-admin-row.active {
+    background: #f8fafc;
+}
+
+#bug-report-admin .bug-admin-title-cell {
+    color: #0f172a;
+    font-weight: 700;
+    text-align: left;
+}
+
+#bug-report-admin .btn-sm {
+    min-height: 30px;
+    padding: 0 10px;
+    border-radius: 6px;
+    font-size: 0.82rem;
+}
+
+#bug-report-admin .board-admin-detail {
+    padding: 0 !important;
+    color: #334155;
+}
+
+#bug-report-admin .board-detail-toolbar {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+#bug-report-admin .board-view-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 18px 20px;
+    border: 1px solid #e2e8f0;
+    border-bottom: 0;
+    border-radius: 12px 12px 0 0;
+    background: #ffffff;
+}
+
+#bug-report-admin .board-view-header h3 {
+    margin: 0;
+    color: #0f172a;
+    font-size: 1.15rem;
+    line-height: 1.4;
+}
+
+#bug-report-admin .bug-admin-meta-table {
+    width: 100%;
+    border: 1px solid #e2e8f0;
+    border-collapse: collapse;
+    background: #ffffff;
+}
+
+#bug-report-admin .bug-admin-meta-table th,
+#bug-report-admin .bug-admin-meta-table td {
+    padding: 11px 14px;
+    border: 1px solid #e2e8f0;
+    text-align: left;
+}
+
+#bug-report-admin .bug-admin-meta-table th {
+    width: 110px;
+    color: #475569;
+    background: #f8fafc;
+    font-weight: 800;
+}
+
+#bug-report-admin .board-view-content {
+    min-height: 240px;
+    padding: 22px 20px;
+    border: 1px solid #e2e8f0;
+    border-top: 0;
+    border-radius: 0 0 12px 12px;
+    background: #ffffff;
+    line-height: 1.75;
+}
+
+#bug-report-admin .bug-admin-status-line {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 16px;
+    padding: 14px;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    background: #f8fafc;
+}
+
+#bug-report-admin .bug-admin-status-line label {
+    color: #334155;
+    font-weight: 800;
+}
+
+#bug-report-admin .bug-admin-status-line span {
+    color: #64748b;
+    font-size: 0.88rem;
+}
+
+#bug-report-admin .board-reply-section,
+#bug-report-admin .board-reply-write {
+    margin-top: 18px;
+    padding: 16px;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    background: #ffffff;
+}
+
+#bug-report-admin .board-reply-section h4,
+#bug-report-admin .board-reply-write h4 {
+    margin: 0 0 12px;
+    color: #0f172a;
+    font-size: 1rem;
+}
+
+#bug-report-admin .bug-admin-history-list {
+    display: block !important;
+}
+
+#bug-report-admin .bug-admin-history-item {
+    margin-top: 10px;
+    padding: 12px 14px !important;
+    border: 1px solid #e2e8f0 !important;
+    border-left: 0 !important;
+    border-radius: 8px !important;
+    background: #ffffff !important;
+}
+
+#bug-report-admin .bug-admin-history-item:first-child {
+    margin-top: 0;
+}
+
+#bug-report-admin .bug-admin-history-item.staff {
+    background: #f8fafc !important;
+}
+
+#bug-report-admin .bug-admin-history-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    color: #0f172a;
+}
+
+#bug-report-admin .bug-admin-history-body {
+    margin-top: 8px;
+    color: #334155;
+    white-space: pre-wrap;
+    line-height: 1.65;
+}
+
+#bug-report-admin .bug-admin-reply-form textarea {
+    width: 100%;
+    min-height: 120px;
+    padding: 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    resize: vertical;
+    box-sizing: border-box;
+}
+
+#bug-report-admin .bug-admin-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 10px !important;
+}
+
+@media (max-width: 980px) {
+    #bug-report-admin .bug-admin-status-line,
+    #bug-report-admin .bug-admin-actions,
+    #bug-report-admin .board-view-header {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    #bug-report-admin .bug-admin-meta-table th,
+    #bug-report-admin .bug-admin-meta-table td {
+        display: block;
+        width: 100%;
+        box-sizing: border-box;
+    }
+}
+
+/* Bug report admin v11: final reset to existing board UI */
+#bug-report-admin .bug-admin-card,
+#bug-report-admin .bug-admin-card > .card-header,
+#bug-report-admin .bug-admin-card .card-body {
+    background: #ffffff !important;
+    box-shadow: none;
+}
+
+#bug-report-admin .bug-admin-card > .card-header {
+    border-left: 0 !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+    padding: 1.25rem 1.5rem !important;
+}
+
+#bug-report-admin .bug-admin-card .card-body {
+    padding: 1.5rem !important;
+}
+
+#bug-report-admin .bug-admin-layout,
+#bug-report-admin .bug-admin-list-panel,
+#bug-report-admin .bug-admin-detail-panel,
+#bug-report-admin .bug-admin-list,
+#bug-report-admin .bug-admin-detail {
+    display: block;
+    width: 100%;
+    min-height: 0 !important;
+    height: auto !important;
+    max-height: none !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+}
+
+#bug-report-admin .bug-admin-list-panel .filter-bar {
+    display: flex !important;
+    flex-direction: row !important;
+    grid-template-columns: none !important;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin: 0 0 1rem !important;
+    padding: 1rem !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 12px !important;
+    background: #f8fafc !important;
+}
+
+#bug-report-admin .bug-admin-list-panel .filter-group {
+    display: flex !important;
+    flex: 1 1 auto;
+    flex-direction: row !important;
+    grid-template-columns: none !important;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+}
+
+#bug-report-admin #bug-admin-search {
+    flex: 1 1 auto;
+    min-width: 260px;
+}
+
+#bug-report-admin .bug-admin-table-wrap {
+    max-height: none !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    overflow-x: auto;
+}
+
+#bug-report-admin .bug-admin-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+#bug-report-admin .bug-admin-table th,
+#bug-report-admin .bug-admin-table td {
+    height: auto !important;
+    padding: 0.9rem 1rem !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+    vertical-align: middle;
+}
+
+#bug-report-admin .bug-admin-table th {
+    color: #475569;
+    background: #f8fafc;
+    font-weight: 700;
+}
+
+#bug-report-admin .bug-admin-row {
+    cursor: pointer;
+}
+
+#bug-report-admin .bug-admin-row:hover,
+#bug-report-admin .bug-admin-row.active {
+    background: #f8fafc !important;
+}
+
+#bug-report-admin .bug-admin-title-cell {
+    color: #1e293b;
+    font-weight: 700;
+    text-align: left;
+}
+
+#bug-report-admin .btn-sm {
+    min-height: 30px;
+    padding: 0 10px;
+    border-radius: 6px;
+    font-size: 0.82rem;
+}
+
+#bug-report-admin .board-like-detail {
+    padding: 0 !important;
+}
+
+#bug-report-admin .bug-admin-detail-empty {
+    min-height: 240px !important;
+    margin: 0;
+    border: 1px dashed #cbd5e1 !important;
+    border-radius: 8px !important;
+    color: #94a3b8;
+    background: #f8fafc !important;
+}
+
+#bug-report-admin #bug-admin-comments-list > div,
+#bug-report-admin .comments-section > div > div {
+    max-width: none !important;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+#bug-report-admin .bug-admin-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-top: 0.5rem !important;
+}
+
+@media (max-width: 760px) {
+    #bug-report-admin .bug-admin-list-panel .filter-bar,
+    #bug-report-admin .bug-admin-list-panel .filter-group {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    #bug-report-admin #bug-admin-search {
+        min-width: 0;
+        width: 100%;
+    }
+}
+
+/* Bug report admin v12: styled to match the existing admin board */
+#bug-report-admin .bug-admin-card {
+    background: #ffffff !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 16px !important;
+    box-shadow: var(--shadow-sm) !important;
+    overflow: hidden !important;
+}
+
+#bug-report-admin .bug-admin-card > .card-header {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    min-height: 78px;
+    padding: 1.25rem 1.75rem !important;
+    border-left: 4px solid var(--primary-color) !important;
+    border-bottom: 1px solid var(--border-color) !important;
+    background: #ffffff !important;
+}
+
+#bug-report-admin .bug-admin-card > .card-header p {
+    margin: 0.35rem 0 0 !important;
+    color: var(--text-secondary) !important;
+    font-size: 0.85rem !important;
+}
+
+#bug-report-admin .bug-admin-card .card-body {
+    padding: 1.5rem !important;
+    background: #ffffff !important;
+}
+
+#bug-report-admin .bug-admin-layout,
+#bug-report-admin .bug-admin-list-panel,
+#bug-report-admin .bug-admin-detail-panel,
+#bug-report-admin .bug-admin-list {
+    display: block !important;
+    width: 100% !important;
+    min-height: 0 !important;
+    height: auto !important;
+    max-height: none !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+}
+
+#bug-report-admin .bug-admin-list-panel .filter-bar {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 1rem !important;
+    margin: 0 0 1rem !important;
+    padding: 1.25rem !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 12px !important;
+    background: #ffffff !important;
+    box-shadow: var(--shadow-sm) !important;
+}
+
+#bug-report-admin .kb-report-tabs {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 0 0 1rem;
+    padding: 0 0 0.75rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+#bug-report-admin .kb-report-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    min-height: 42px;
+    padding: 0 0.95rem;
+    border: 0;
+    border-bottom: 3px solid transparent;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 0.95rem;
+    font-weight: 900;
+    transition: color 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+}
+
+#bug-report-admin .kb-report-tab:hover {
+    color: var(--primary-color);
+    background: #f8fafc;
+}
+
+#bug-report-admin .kb-report-tab.active {
+    border-bottom-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+#bug-report-admin .kb-report-tab span {
+    color: inherit;
+    font-weight: 900;
+}
+
+#bug-report-admin .bug-admin-list-panel .filter-group {
+    display: flex !important;
+    flex: 1 1 auto !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
+}
+
+#bug-report-admin #bug-admin-status-filter,
+#bug-report-admin #bug-admin-search {
+    height: 48px !important;
+    min-height: 48px !important;
+    padding: 0 12px !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 8px !important;
+    background: #f8fafc !important;
+    color: var(--text-primary) !important;
+    font-size: 1rem !important;
+}
+
+#bug-report-admin #bug-admin-search {
+    flex: 1 1 auto !important;
+    min-width: 320px;
+}
+
+#bug-report-admin .bug-admin-list-panel .search-btn {
+    height: 48px !important;
+    min-height: 48px !important;
+    padding: 0 1.75rem !important;
+    border-radius: 8px !important;
+}
+
+#bug-report-admin .kb-report-table-wrap {
+    height: 640px;
+    min-height: 640px;
+    max-height: 640px !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 8px !important;
+    background: #ffffff !important;
+    overflow: auto !important;
+}
+
+#bug-report-admin .kb-report-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+#bug-report-admin .kb-report-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    padding: 1rem 1.25rem !important;
+    border-bottom: 1px solid var(--border-color) !important;
+    color: var(--text-secondary) !important;
+    background: #f8fafc !important;
+    font-size: 0.75rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.05em;
+    text-align: left;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+#bug-report-admin .kb-report-table tbody tr:nth-child(even) {
+    background-color: #fafbfc;
+}
+
+#bug-report-admin .kb-report-table tbody tr:hover,
+#bug-report-admin .kb-report-table tbody tr.active {
+    background-color: #f1f5f9 !important;
+}
+
+#bug-report-admin .kb-report-table tbody td {
+    padding: 0.85rem 1.25rem !important;
+    border-bottom: 1px solid #f1f5f9 !important;
+    color: var(--text-primary) !important;
+    font-size: 0.9rem !important;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+#bug-report-admin .bug-admin-title-cell {
+    max-width: 460px;
+    overflow: hidden;
+    color: #334155 !important;
+    font-weight: 600 !important;
+    text-overflow: ellipsis;
+}
+
+#bug-report-admin .btn-sm {
+    min-height: 32px;
+    padding: 0 12px;
+    border-radius: 8px;
+    font-size: 0.82rem;
+}
+
+#bug-report-admin #bug-admin-pagination {
+    margin-top: 1rem !important;
+}
+
+#bug-report-admin .kb-report-detail {
+    width: 100%;
+    min-height: 640px;
+    padding: 24px 26px;
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    background: #ffffff;
+    box-shadow: var(--shadow-sm);
+}
+
+#bug-report-admin .kb-report-detail-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+#bug-report-admin .kb-report-back-btn {
+    background: #e2e8f0 !important;
+    color: #475569 !important;
+    padding: 8px 16px !important;
+    border-radius: 8px !important;
+    font-weight: 700 !important;
+}
+
+#bug-report-admin .kb-report-detail-head {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+#bug-report-admin .kb-report-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 0.75rem;
+}
+
+#bug-report-admin .kb-report-detail-head h2 {
+    margin: 0 0 1rem;
+    color: #1e293b;
+    font-size: 1.5rem;
+    font-weight: 800;
+    line-height: 1.4;
+}
+
+#bug-report-admin .kb-report-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    color: #64748b;
+    font-size: 0.9rem;
+}
+
+#bug-report-admin .kb-report-meta span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+#bug-report-admin .kb-report-meta i {
+    color: var(--primary-color);
+}
+
+#bug-report-admin .kb-report-divider {
+    color: #94a3b8;
+}
+
+#bug-report-admin .kb-report-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 18px;
+}
+
+#bug-report-admin .kb-report-summary-label {
+    margin-top: 16px;
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+    font-weight: 900;
+    letter-spacing: 0.04em;
+}
+
+#bug-report-admin .kb-report-summary-item {
+    min-width: 0;
+    padding: 13px;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    background: #f8fafc;
+}
+
+#bug-report-admin .kb-report-summary-item strong {
+    display: block;
+    margin-bottom: 5px;
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    font-weight: 900;
+}
+
+#bug-report-admin .kb-report-summary-item span {
+    display: block;
+    overflow: hidden;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    font-weight: 800;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#bug-report-admin .kb-report-content {
+    min-height: 180px;
+    padding: 22px 0;
+    color: #334155;
+    font-size: 1.05rem;
+    line-height: 1.8;
+}
+
+#bug-report-admin .kb-report-comments {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #e2e8f0;
+}
+
+#bug-report-admin .kb-report-comments h4 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 1.5rem;
+    color: #1e293b;
+    font-size: 1.1rem;
+    font-weight: 700;
+}
+
+#bug-report-admin .kb-report-comments h4 i,
+#bug-report-admin .kb-report-comments h4 span {
+    color: var(--primary-color);
+}
+
+#bug-report-admin .kb-report-comment-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+#bug-report-admin .kb-report-comment {
+    position: relative;
+    padding: 1rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    background: #f8fafc;
+}
+
+#bug-report-admin .kb-report-comment.is-followup {
+    margin-left: 30px;
+    border-left: 3px solid var(--primary-color);
+}
+
+#bug-report-admin .kb-report-comment-arrow {
+    position: absolute;
+    top: 16px;
+    left: -27px;
+    color: var(--primary-color);
+    font-size: 20px;
+    font-weight: 900;
+    line-height: 1;
+}
+
+#bug-report-admin .kb-report-comment.staff {
+    background: #eff6ff;
+    border-color: #bfdbfe;
+}
+
+#bug-report-admin .kb-report-comment-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 0.5rem;
+}
+
+#bug-report-admin .kb-report-comment-author {
+    color: #1e293b;
+    font-size: 0.9rem;
+    font-weight: 700;
+}
+
+#bug-report-admin .kb-report-comment-date {
+    margin-left: 8px;
+    color: #94a3b8;
+    font-size: 0.8rem;
+}
+
+#bug-report-admin .kb-report-comment-body {
+    color: #334155;
+    line-height: 1.65;
+    white-space: pre-wrap;
+}
+
+#bug-report-admin .kb-report-comment-body p {
+    margin: 0 0 0.75rem;
+}
+
+#bug-report-admin .kb-report-comment-body p:last-child {
+    margin-bottom: 0;
+}
+
+#bug-report-admin .kb-report-admin-box {
+    margin-top: 2rem;
+    padding: 1.25rem 1.5rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    background: #f8fafc;
+}
+
+#bug-report-admin .kb-report-status-control {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+}
+
+#bug-report-admin .kb-report-status-control label {
+    color: #334155;
+    font-weight: 800;
+}
+
+#bug-report-admin .kb-report-status-control strong {
+    color: #1e293b;
+    font-weight: 900;
+}
+
+#bug-report-admin .kb-report-status-control select {
+    min-width: 170px;
+}
+
+#bug-report-admin #bug-admin-status-select {
+    height: 44px;
+    min-height: 44px;
+    padding: 0 38px 0 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    background: #ffffff;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    font-weight: 700;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+#bug-report-admin .kb-report-status-control span {
+    color: #64748b;
+    font-size: 0.9rem;
+}
+
+#bug-report-admin .kb-report-reply-input {
+    width: 100%;
+    min-height: 90px;
+    box-sizing: border-box;
+    margin-bottom: 1rem;
+    padding: 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #334155;
+    font-size: 0.95rem;
+    line-height: 1.6;
+    resize: vertical;
+}
+
+#bug-report-admin .kb-report-reply-editor-wrap {
+    margin-bottom: 1rem;
+}
+
+#bug-report-admin .kb-report-reply-editor-wrap .ql-toolbar {
+    border: 1px solid #cbd5e1;
+    border-bottom: 0;
+    border-radius: 10px 10px 0 0;
+    background: #f8fafc;
+}
+
+#bug-report-admin .kb-report-reply-editor-wrap .ql-container {
+    min-height: 150px;
+    border: 1px solid #cbd5e1;
+    border-radius: 0 0 10px 10px;
+    background: #ffffff;
+    color: #334155;
+    font-size: 0.95rem;
+}
+
+#bug-report-admin .kb-report-reply-editor-wrap .ql-editor {
+    min-height: 150px;
+    line-height: 1.7;
+}
+
+#bug-report-admin .kb-report-reply-editor-wrap .ql-editor.ql-blank::before {
+    color: #94a3b8;
+    font-style: normal;
+}
+
+#bug-report-admin .kb-report-reply-editor-wrap .kb-report-reply-input {
+    margin-top: 0;
+}
+
+#bug-report-admin .kb-report-summary-admin-box {
+    padding: 18px;
+}
+
+#bug-report-admin .kb-report-reply-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+#bug-report-admin .kb-report-empty,
+#bug-report-admin .kb-report-empty-inline,
+#bug-report-admin .kb-report-locked {
+    padding: 2rem;
+    border: 1px dashed #cbd5e1;
+    border-radius: 8px;
+    color: #94a3b8;
+    background: #ffffff;
+    text-align: center;
+    font-weight: 700;
+}
+
+@media (max-width: 768px) {
+    #bug-report-admin .kb-report-tabs {
+        align-items: stretch;
+        flex-wrap: wrap;
+    }
+
+    #bug-report-admin .bug-admin-list-panel .filter-bar,
+    #bug-report-admin .bug-admin-list-panel .filter-group,
+    #bug-report-admin .kb-report-detail-toolbar,
+    #bug-report-admin .kb-report-status-control,
+    #bug-report-admin .kb-report-comment-head {
+        align-items: stretch !important;
+        flex-direction: column !important;
+    }
+
+    #bug-report-admin #bug-admin-search {
+        min-width: 0;
+        width: 100%;
+    }
+
+    #bug-report-admin .kb-report-table-wrap {
+        height: auto;
+        min-height: 0;
+        max-height: none !important;
+    }
+
+    #bug-report-admin .kb-report-summary-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+/* Bug report admin v13: view switching must override old panel resets */
+#bug-report-admin #bug-admin-list-view[hidden],
+#bug-report-admin #bug-admin-detail-view[hidden] {
+    display: none !important;
+}
+
+#bug-report-admin #bug-admin-list-view:not([hidden]),
+#bug-report-admin #bug-admin-detail-view:not([hidden]) {
+    display: block !important;
 }

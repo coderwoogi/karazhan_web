@@ -110,11 +110,29 @@ func AuthDSN() string       { return get("KARAZHAN_AUTH_DSN") }
 func CharactersDSN() string { return get("KARAZHAN_CHARACTERS_DSN") }
 func WorldDSN() string      { return get("KARAZHAN_WORLD_DSN") }
 func UpdateDSN() string     { return get("KARAZHAN_UPDATE_DSN") }
+func SMTPHost() string      { return get("KARAZHAN_SMTP_HOST") }
+func SMTPPort() string      { return get("KARAZHAN_SMTP_PORT") }
+func SMTPUsername() string  { return get("KARAZHAN_SMTP_USERNAME") }
+func SMTPPassword() string  { return get("KARAZHAN_SMTP_PASSWORD") }
+func SMTPFromEmail() string { return get("KARAZHAN_SMTP_FROM_EMAIL") }
+func SMTPFromName() string  { return get("KARAZHAN_SMTP_FROM_NAME") }
+func UpdateAdminDSN() string {
+	if v := get("KARAZHAN_UPDATE_ADMIN_DSN"); v != "" {
+		return v
+	}
+	if v := get("KARAZHAN_UPDATE_PROD_DSN"); v != "" {
+		return v
+	}
+	return UpdateDSN()
+}
 
 func AuthDSNWithParams(params string) string       { return withParams(AuthDSN(), params) }
 func CharactersDSNWithParams(params string) string { return withParams(CharactersDSN(), params) }
 func WorldDSNWithParams(params string) string      { return withParams(WorldDSN(), params) }
 func UpdateDSNWithParams(params string) string     { return withParams(UpdateDSN(), params) }
+func UpdateAdminDSNWithParams(params string) string {
+	return withParams(UpdateAdminDSN(), params)
+}
 
 func OpenMySQL(dsn string) (*sql.DB, error) {
 	if strings.TrimSpace(dsn) == "" {

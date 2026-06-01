@@ -262,11 +262,22 @@ func ensureBoardSchema(db *sql.DB) {
 		_, _ = db.Exec("UPDATE web_role_permissions SET resource_name = CONVERT(0xED998DEB3CEAB28CEC8B9CED8C902028EC9390EAB8B029 USING utf8mb4) WHERE resource_type='board_write' AND resource_id='promotion'")
 		_, _ = db.Exec("INSERT IGNORE INTO web_promotion_reward_config (id, item_entry, item_count, mail_subject, mail_body, updated_by) VALUES (1, 0, 1, CONVERT(0xED998DEB3C20EAB28CEC8B9CEAB880EC8381 USING utf8mb4), CONVERT(0xED998DEB3C20ED999CEC9EB920EBB3B4EC8381EC9DB42020ECA780EAB889EB9098EC9788EC8AB5EB8B88EB8BA42E USING utf8mb4), 0)")
 		_, _ = db.Exec("INSERT IGNORE INTO web_promotion_verify_config (id, required_text, required_image, updated_by) VALUES (1, '', '', 0)")
+		_, _ = db.Exec("INSERT IGNORE INTO web_boards (id, name, min_web_read, min_web_write, allow_attachments, allow_rich_editor, allow_emoji, allow_nested_comments, type, sort_order) VALUES ('bugreport', '버그리포트', 0, 0, 1, 1, 1, 0, 'normal', 16)")
+		_, _ = db.Exec("UPDATE web_boards SET name='버그리포트', min_web_read=0, min_web_write=0, allow_attachments=1, allow_rich_editor=1, allow_emoji=1, allow_nested_comments=0, type='normal', sort_order=16 WHERE id='bugreport'")
+		_, _ = db.Exec("INSERT IGNORE INTO web_role_permissions (resource_type, resource_id, resource_name, rank_1, rank_2, rank_3, order_index) VALUES ('board_read', 'bugreport', '버그리포트 (읽기)', 1, 1, 1, 16)")
+		_, _ = db.Exec("INSERT IGNORE INTO web_role_permissions (resource_type, resource_id, resource_name, rank_1, rank_2, rank_3, order_index) VALUES ('board_write', 'bugreport', '버그리포트 (쓰기)', 1, 1, 1, 16)")
+		_, _ = db.Exec("UPDATE web_role_permissions SET resource_name='버그리포트 (읽기)', rank_1=1, rank_2=1, rank_3=1, order_index=16 WHERE resource_type='board_read' AND resource_id='bugreport'")
+		_, _ = db.Exec("UPDATE web_role_permissions SET resource_name='버그리포트 (쓰기)', rank_1=1, rank_2=1, rank_3=1, order_index=16 WHERE resource_type='board_write' AND resource_id='bugreport'")
 	})
 }
 
 func isInquiryBoard(boardID string) bool {
-	return strings.EqualFold(strings.TrimSpace(boardID), "inquiry")
+	id := strings.ToLower(strings.TrimSpace(boardID))
+	return id == "inquiry" || id == "bugreport"
+}
+
+func isBugReportBoard(boardID string) bool {
+	return strings.EqualFold(strings.TrimSpace(boardID), "bugreport")
 }
 
 func isPromotionBoard(boardID string) bool {
@@ -275,6 +286,24 @@ func isPromotionBoard(boardID string) bool {
 
 func isStaffUser(user userInfo) bool {
 	return user.WebRank >= 1 || user.GMLevel > 0
+}
+
+func isBugReportAdmin(user userInfo) bool {
+	return user.WebRank >= 2 || user.GMLevel > 0
+}
+
+func canViewAllSupportPosts(boardID string, user userInfo) bool {
+	if isBugReportBoard(boardID) {
+		return isBugReportAdmin(user)
+	}
+	return isStaffUser(user)
+}
+
+func canManageSupportPost(boardID string, user userInfo) bool {
+	if isBugReportBoard(boardID) {
+		return isBugReportAdmin(user)
+	}
+	return isStaffUser(user)
 }
 
 func normalizeInquiryCategory(value string) string {
@@ -287,6 +316,24 @@ func normalizeInquiryCategory(value string) string {
 		return "\ud6c4\uc6d0"
 	case "\uae30\ud0c0":
 		return "\uae30\ud0c0"
+	default:
+		return ""
+	}
+}
+
+func normalizeSupportCategory(boardID, value string) string {
+	if !isBugReportBoard(boardID) {
+		return normalizeInquiryCategory(value)
+	}
+	switch strings.TrimSpace(value) {
+	case "게임 오류":
+		return "게임 오류"
+	case "웹 오류":
+		return "웹 오류"
+	case "계정/접속":
+		return "계정/접속"
+	case "기타":
+		return "기타"
 	default:
 		return ""
 	}
@@ -520,7 +567,7 @@ func GetPostsHandler(w http.ResponseWriter, r *http.Request) {
 	var total int
 	countQuery := "SELECT COUNT(*) FROM web_posts WHERE board_id = ?"
 	countArgs := []interface{}{boardID}
-	if (isInquiryBoard(boardID) || isPromotionBoard(boardID)) && !isStaffUser(user) {
+	if (isInquiryBoard(boardID) && !canViewAllSupportPosts(boardID, user)) || (isPromotionBoard(boardID) && !isStaffUser(user)) {
 		countQuery += " AND account_id = ?"
 		countArgs = append(countArgs, user.AccountID)
 	}
@@ -543,7 +590,7 @@ func GetPostsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	sqlQuery += " FROM web_posts WHERE board_id = ?"
 	queryArgs := []interface{}{boardID}
-	if (isInquiryBoard(boardID) || isPromotionBoard(boardID)) && !isStaffUser(user) {
+	if (isInquiryBoard(boardID) && !canViewAllSupportPosts(boardID, user)) || (isPromotionBoard(boardID) && !isStaffUser(user)) {
 		sqlQuery += " AND account_id = ?"
 		queryArgs = append(queryArgs, user.AccountID)
 	}
@@ -603,6 +650,9 @@ func GetPostsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	commentCountMap := getPostCommentCountMap(db, postIDs)
+	if isInquiryBoard(boardID) {
+		commentCountMap = getPostInquiryMessageCountMap(db, postIDs)
+	}
 	staffMap := getStaffAuthorMap(authorIDs)
 	enhancedMap := getEnhancedStoneAuthorMap(authorIDs)
 	for _, post := range posts {
@@ -660,7 +710,7 @@ func GetPostDetailHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
-		if !isStaffUser(user) && user.AccountID != postAuthorID {
+		if !canViewAllSupportPosts(boardID, user) && user.AccountID != postAuthorID {
 			http.Error(w, "Forbidden", http.StatusForbidden)
 			return
 		}
@@ -927,6 +977,49 @@ func getPostCommentCountMap(db *sql.DB, postIDs []int) map[int]int {
 	return result
 }
 
+func getPostInquiryMessageCountMap(db *sql.DB, postIDs []int) map[int]int {
+	result := make(map[int]int)
+	if db == nil || len(postIDs) == 0 {
+		return result
+	}
+	ids := make([]int, 0, len(postIDs))
+	uniq := make(map[int]struct{}, len(postIDs))
+	for _, id := range postIDs {
+		if id <= 0 {
+			continue
+		}
+		if _, ok := uniq[id]; ok {
+			continue
+		}
+		uniq[id] = struct{}{}
+		ids = append(ids, id)
+	}
+	if len(ids) == 0 {
+		return result
+	}
+
+	placeholders := strings.TrimRight(strings.Repeat("?,", len(ids)), ",")
+	args := make([]interface{}, 0, len(ids))
+	for _, id := range ids {
+		args = append(args, id)
+	}
+
+	q := fmt.Sprintf("SELECT post_id, COUNT(*) FROM web_inquiry_messages WHERE post_id IN (%s) GROUP BY post_id", placeholders)
+	rows, err := db.Query(q, args...)
+	if err != nil {
+		return result
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var postID, cnt int
+		if rows.Scan(&postID, &cnt) == nil {
+			result[postID] = cnt
+		}
+	}
+	return result
+}
+
 func normalizePromotionURLs(urls []string) []string {
 	out := make([]string, 0, len(urls))
 	seen := map[string]bool{}
@@ -1016,9 +1109,9 @@ func CreatePostHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if isInquiryBoard(p.BoardID) {
-		p.Category = normalizeInquiryCategory(p.Category)
+		p.Category = normalizeSupportCategory(p.BoardID, p.Category)
 		if p.Category == "" {
-			http.Error(w, "?얜챷??燁삳똾?믤⑥쥓?곭몴??醫뤾문??뤾쉭??", http.StatusBadRequest)
+			http.Error(w, "카테고리를 선택하세요.", http.StatusBadRequest)
 			return
 		}
 		p.InquiryStatus = "received"
@@ -1210,12 +1303,12 @@ func UpdatePostHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if isInquiryBoard(boardID) {
-		req.Category = normalizeInquiryCategory(req.Category)
+		req.Category = normalizeSupportCategory(boardID, req.Category)
 		if req.Category == "" {
-			http.Error(w, "?얜챷??燁삳똾?믤⑥쥓?곭몴??醫뤾문??뤾쉭??", http.StatusBadRequest)
+			http.Error(w, "카테고리를 선택하세요.", http.StatusBadRequest)
 			return
 		}
-		if isStaffUser(user) {
+		if canManageSupportPost(boardID, user) {
 			if normalized := normalizeInquiryStatus(req.InquiryStatus); normalized != "" {
 				currentInquiryStatus = normalized
 			}
@@ -1301,6 +1394,10 @@ func UpdateInquiryStatusHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Not an inquiry post", http.StatusBadRequest)
 		return
 	}
+	if !canManageSupportPost(boardID, user) {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
 
 	if _, err := db.Exec("UPDATE web_posts SET inquiry_status = ? WHERE id = ?", status, req.PostID); err != nil {
 		http.Error(w, "Failed to update inquiry status", http.StatusInternalServerError)
@@ -1362,6 +1459,10 @@ func UpdateInquiryMemoHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Not an inquiry post", http.StatusBadRequest)
 		return
 	}
+	if !canManageSupportPost(boardID, user) {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
 
 	if _, err := db.Exec("UPDATE web_posts SET inquiry_memo = ? WHERE id = ?", memo, req.PostID); err != nil {
 		http.Error(w, "Failed to update inquiry memo", http.StatusInternalServerError)
@@ -1407,7 +1508,9 @@ func CreateInquiryMessageHandler(w http.ResponseWriter, r *http.Request) {
 	defer db.Close()
 
 	var boardID string
-	if err := db.QueryRow("SELECT board_id FROM web_posts WHERE id = ?", req.PostID).Scan(&boardID); err != nil {
+	var authorAccountID int
+	var inquiryStatus string
+	if err := db.QueryRow("SELECT board_id, account_id, IFNULL(inquiry_status, '') FROM web_posts WHERE id = ?", req.PostID).Scan(&boardID, &authorAccountID, &inquiryStatus); err != nil {
 		http.Error(w, "Post not found", http.StatusNotFound)
 		return
 	}
@@ -1415,13 +1518,26 @@ func CreateInquiryMessageHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Not an inquiry post", http.StatusBadRequest)
 		return
 	}
-	if !isStaffUser(user) {
-		http.Error(w, "Forbidden", http.StatusForbidden)
+	if strings.EqualFold(inquiryStatus, "done") {
+		http.Error(w, "완료된 리포트에는 답글을 등록할 수 없습니다.", http.StatusBadRequest)
 		return
+	}
+	canManage := canManageSupportPost(boardID, user)
+	if !canManage {
+		if !isBugReportBoard(boardID) || user.AccountID != authorAccountID {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+		var latestRole string
+		_ = db.QueryRow("SELECT role FROM web_inquiry_messages WHERE post_id = ? ORDER BY id DESC LIMIT 1", req.PostID).Scan(&latestRole)
+		if !strings.EqualFold(latestRole, "staff") {
+			http.Error(w, "관리자 답글 이후에 추가 답글을 등록할 수 있습니다.", http.StatusBadRequest)
+			return
+		}
 	}
 
 	role := "user"
-	if isStaffUser(user) {
+	if canManage {
 		role = "staff"
 	}
 	if _, err := db.Exec(

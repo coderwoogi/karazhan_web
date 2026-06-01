@@ -25,6 +25,8 @@ const (
 )
 
 func RegisterRoutes(mux *http.ServeMux) {
+	ensureAccountRecoverySchema()
+
 	mux.HandleFunc("/login/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
 		w.Header().Set("Pragma", "no-cache")
@@ -54,6 +56,10 @@ func RegisterRoutes(mux *http.ServeMux) {
 
 	mux.HandleFunc("/api/login", loginHandler)
 	mux.HandleFunc("/api/register", registerHandler)
+	mux.HandleFunc("/api/account/recovery/username", handleFindUsername)
+	mux.HandleFunc("/api/account/recovery/password/request", handlePasswordRecoveryRequest)
+	mux.HandleFunc("/api/account/recovery/password/verify", handlePasswordRecoveryVerify)
+	mux.HandleFunc("/api/account/recovery/password/reset", handlePasswordRecoveryReset)
 	mux.HandleFunc("/api/logout", logoutHandler)
 	mux.HandleFunc("/api/user/status", userStatusHandler)
 	mux.HandleFunc("/api/admin/users/list", adminUserListHandler)
@@ -258,6 +264,10 @@ func userStatusHandler(w http.ResponseWriter, r *http.Request) {
 
 	cookie, err := r.Cookie("session_user")
 	if err != nil || cookie.Value == "" {
+		if r.Header.Get("X-Background-Request") == "1" {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}

@@ -1,0 +1,700 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>버그리포트 상세화면 디자인 시안</title>
+  <style>
+    :root {
+      --bg: #eef2f7;
+      --surface: #ffffff;
+      --soft: #f8fafc;
+      --line: #e2e8f0;
+      --text: #172033;
+      --muted: #64748b;
+      --primary: #315bea;
+      --primary-soft: #eaf0ff;
+      --blue-line: #bfdbfe;
+      --warn: #f59e0b;
+      --green: #22c55e;
+      --red: #ef4444;
+      --shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Pretendard", "Noto Sans KR", "Malgun Gothic", sans-serif;
+      line-height: 1.5;
+    }
+
+    .page {
+      width: min(1440px, calc(100% - 48px));
+      margin: 0 auto;
+      padding: 40px 0 72px;
+    }
+
+    .top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 20px;
+      margin-bottom: 28px;
+    }
+
+    h1 {
+      margin: 0;
+      color: #111827;
+      font-size: 30px;
+      letter-spacing: -0.04em;
+    }
+
+    .top p {
+      margin: 8px 0 0;
+      color: var(--muted);
+    }
+
+    .hint {
+      padding: 13px 15px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.76);
+      color: var(--muted);
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .concept {
+      margin-top: 28px;
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .concept-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 22px 26px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .title-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 34px;
+      height: 34px;
+      border-radius: 12px;
+      background: var(--primary);
+      color: #fff;
+      font-weight: 900;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 20px;
+      letter-spacing: -0.03em;
+    }
+
+    small {
+      display: block;
+      margin-top: 4px;
+      color: var(--muted);
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      padding: 0 10px;
+      border: 1px solid #c7d2fe;
+      border-radius: 999px;
+      background: var(--primary-soft);
+      color: #2946b8;
+      font-size: 12px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .canvas {
+      padding: 24px;
+      background: linear-gradient(180deg, #fbfdff 0%, #ffffff 100%);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 42px;
+      padding: 0 16px;
+      border: 0;
+      border-radius: 10px;
+      background: var(--primary);
+      color: #fff;
+      font-weight: 900;
+    }
+
+    .btn.subtle {
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--muted);
+    }
+
+    select, textarea, input {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--soft);
+      color: var(--text);
+      font: inherit;
+    }
+
+    select, input {
+      min-height: 42px;
+      padding: 0 12px;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 90px;
+      padding: 12px;
+      resize: vertical;
+    }
+
+    .toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 22px;
+    }
+
+    .badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 26px;
+      padding: 0 9px;
+      border-radius: 999px;
+      background: #f1f5f9;
+      color: #475569;
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .badge.error { background: #fef2f2; color: #b91c1c; }
+    .badge.progress { background: #fffbeb; color: #b45309; }
+    .badge.done { background: #ecfdf5; color: #047857; }
+    .badge.received { background: #eff6ff; color: #1d4ed8; }
+
+    .post-title {
+      margin: 0 0 12px;
+      color: #111827;
+      font-size: 28px;
+      font-weight: 900;
+      letter-spacing: -0.04em;
+      line-height: 1.35;
+    }
+
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .body {
+      color: #334155;
+      font-size: 15px;
+      line-height: 1.8;
+    }
+
+    .content-balanced {
+      min-height: 180px;
+      padding: 22px 0;
+    }
+
+    .concept:nth-of-type(4) .canvas {
+      min-height: 640px;
+    }
+
+    .concept:nth-of-type(4) select {
+      min-width: 170px;
+      height: 44px;
+      min-height: 44px;
+      padding: 0 38px 0 12px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #fff;
+      color: var(--text);
+      font-size: 15px;
+      font-weight: 700;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    }
+
+    .divider {
+      margin: 28px 0;
+      border: 0;
+      border-top: 1px solid var(--line);
+    }
+
+    .reply {
+      position: relative;
+      margin-top: 10px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--soft);
+    }
+
+    .reply.followup {
+      margin-left: 30px;
+      border-left: 3px solid var(--primary);
+    }
+
+    .reply-arrow {
+      position: absolute;
+      top: 16px;
+      left: -27px;
+      color: var(--primary);
+      font-size: 20px;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .reply.staff {
+      border-color: var(--blue-line);
+      background: #eff6ff;
+    }
+
+    .reply-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 8px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 900;
+    }
+
+    .admin-box {
+      margin-top: 18px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--soft);
+    }
+
+    .status-line {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+
+    .actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .editor-box {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fff;
+    }
+
+    .editor-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 9px 10px;
+      border-bottom: 1px solid var(--line);
+      background: #f8fafc;
+    }
+
+    .editor-tool {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 30px;
+      height: 30px;
+      padding: 0 9px;
+      border: 1px solid #dbe3ef;
+      border-radius: 8px;
+      background: #fff;
+      color: #334155;
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .editor-area {
+      min-height: 128px;
+      padding: 13px 14px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.7;
+    }
+
+    .plain-detail .head {
+      padding-bottom: 22px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .plain-detail .content {
+      min-height: 210px;
+      padding: 26px 0;
+    }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 340px;
+      gap: 24px;
+    }
+
+    .side-panel {
+      align-self: start;
+      position: sticky;
+      top: 20px;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: var(--soft);
+    }
+
+    .side-panel h3 {
+      margin: 0 0 14px;
+      font-size: 16px;
+    }
+
+    .field {
+      margin-top: 14px;
+    }
+
+    .field label {
+      display: block;
+      margin-bottom: 7px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .field select,
+    .field input {
+      width: 100%;
+    }
+
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .meta-card {
+      padding: 13px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--soft);
+    }
+
+    .meta-card strong {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 5px;
+    }
+
+    .timeline {
+      position: relative;
+      display: grid;
+      gap: 16px;
+      padding-left: 24px;
+    }
+
+    .timeline::before {
+      content: "";
+      position: absolute;
+      left: 8px;
+      top: 6px;
+      bottom: 6px;
+      width: 2px;
+      background: var(--line);
+    }
+
+    .event {
+      position: relative;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fff;
+    }
+
+    .event::before {
+      content: "";
+      position: absolute;
+      left: -22px;
+      top: 18px;
+      width: 10px;
+      height: 10px;
+      border: 3px solid #fff;
+      border-radius: 50%;
+      background: var(--primary);
+      box-shadow: 0 0 0 1px var(--primary);
+    }
+
+    .compact {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 380px;
+      gap: 18px;
+    }
+
+    .summary-strip {
+      display: grid;
+      grid-template-columns: 110px 1fr 130px 110px;
+      gap: 12px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--soft);
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .summary-strip strong {
+      display: block;
+      color: var(--text);
+      font-size: 14px;
+    }
+
+    .drawer {
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: #fff;
+    }
+
+    .minimal-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 22px;
+    }
+
+    .section-title {
+      margin: 0 0 14px;
+      font-size: 17px;
+      font-weight: 900;
+    }
+
+    @media (max-width: 980px) {
+      .page { width: min(100% - 24px, 1440px); }
+      .top, .concept-head, .toolbar, .two-col, .compact, .minimal-grid { grid-template-columns: 1fr; flex-direction: column; align-items: stretch; }
+      .meta-grid, .summary-strip { grid-template-columns: 1fr 1fr; }
+      .side-panel { position: static; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="top">
+      <div>
+        <h1>버그리포트 상세화면 디자인 시안 5종</h1>
+        <p>3번 상태 탭형 목록과 연결할 수 있는 상세 화면만 따로 비교합니다.</p>
+      </div>
+      <div class="hint">목표: 일반 게시글 상세 + 관리자 처리 기능</div>
+    </section>
+
+    <section class="concept">
+      <header class="concept-head">
+        <div class="title-row">
+          <span class="num">1</span>
+          <div><h2>기본 게시글 상세형</h2><small>현재 요구인 “일반 게시판 상세”에 가장 가까운 구조</small></div>
+        </div>
+        <span class="tag">가장 안전</span>
+      </header>
+      <div class="canvas plain-detail">
+        <div class="toolbar"><button class="btn subtle">목록으로</button><button class="btn subtle">새로고침</button></div>
+        <div class="head">
+          <div class="badges"><span class="badge error">게임 오류</span><span class="badge progress">진행중</span></div>
+          <h3 class="post-title">던전 입장 시 캐릭터가 멈춥니다</h3>
+          <div class="meta"><span>#24</span><span>|</span><span>tester</span><span>|</span><span>2026-06-01 18:20</span><span>|</span><span>조회 3</span></div>
+        </div>
+        <div class="body content">문제 상세 내용입니다. 일반 게시판 상세처럼 제목과 본문이 먼저 읽히고, 답글과 관리자 기능은 아래로 이어집니다.</div>
+        <hr class="divider">
+        <h4 class="section-title">버그 리포트 답변 2</h4>
+        <div class="reply staff"><div class="reply-head"><span>관리자 답변</span><span>2026-06-01 18:30</span></div>재현 확인 후 수정 진행 중입니다.</div>
+        <div class="admin-box">
+          <div class="status-line"><strong>처리 상태</strong><select><option>진행중</option></select><button class="btn">상태 저장</button></div>
+          <textarea placeholder="답글을 남겨주세요..."></textarea>
+          <div class="actions"><button class="btn">답글 작성</button></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="concept">
+      <header class="concept-head">
+        <div class="title-row">
+          <span class="num">2</span>
+          <div><h2>검토 패널 분리형</h2><small>게시글 읽기 영역과 관리자 처리 영역을 명확히 분리</small></div>
+        </div>
+        <span class="tag">추천 후보</span>
+      </header>
+      <div class="canvas two-col">
+        <article>
+          <div class="toolbar"><button class="btn subtle">목록으로</button></div>
+          <div class="badges"><span class="badge error">게임 오류</span><span class="badge progress">진행중</span></div>
+          <h3 class="post-title">던전 입장 시 캐릭터가 멈춥니다</h3>
+          <div class="meta"><span>#24</span><span>tester</span><span>2026-06-01 18:20</span><span>조회 3</span></div>
+          <hr class="divider">
+          <div class="body" style="min-height:220px;">본문을 넓게 유지하고, 관리 기능은 우측 패널로 빼서 글 읽기 흐름이 깨지지 않습니다.</div>
+          <hr class="divider">
+          <h4 class="section-title">답글</h4>
+          <div class="reply staff">관리자: 재현 확인했습니다.</div>
+        </article>
+        <aside class="side-panel">
+          <h3>관리자 처리</h3>
+          <div class="field"><label>현재 상태</label><select><option>진행중</option></select></div>
+          <div class="field"><label>답변 작성</label><textarea placeholder="유저에게 전달할 답변"></textarea></div>
+          <div class="actions"><button class="btn" style="width:100%">답변 등록</button></div>
+          <div class="field"><button class="btn subtle" style="width:100%">완료 처리</button></div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="concept">
+      <header class="concept-head">
+        <div class="title-row">
+          <span class="num">3</span>
+          <div><h2>상단 요약 + 상세형</h2><small>리포트 핵심 정보를 먼저 보여주고 본문을 읽는 구조</small></div>
+        </div>
+        <span class="tag">정보 정리형</span>
+      </header>
+      <div class="canvas">
+        <div class="toolbar"><button class="btn subtle">목록으로</button><button class="btn">상태 저장</button></div>
+        <div class="badges"><span class="badge error">게임 오류</span><span class="badge progress">진행중</span></div>
+        <h3 class="post-title">던전 입장 시 캐릭터가 멈춥니다</h3>
+        <div class="meta-grid">
+          <div class="meta-card"><strong>리포트 번호</strong>#24</div>
+          <div class="meta-card"><strong>작성자</strong>tester</div>
+          <div class="meta-card"><strong>작성일</strong>2026-06-01</div>
+          <div class="meta-card"><strong>답글</strong>2개</div>
+        </div>
+        <hr class="divider">
+        <div class="body content-balanced">상단 정보 카드로 관리자에게 필요한 정보를 빠르게 정리합니다. 아래 본문은 일반 게시글처럼 유지합니다.</div>
+        <hr class="divider">
+        <h4 class="section-title">버그 리포트 답글</h4>
+        <div class="reply staff"><div class="reply-head"><span>관리자 답변</span><span>18:30</span></div>재현 확인 후 수정 진행 중입니다.</div>
+        <div class="reply followup"><span class="reply-arrow">↳</span><div class="reply-head"><span>답글의 답글</span><span>18:42</span></div>동일 현상이 다시 발생하면 스크린샷을 추가로 첨부해 주세요.</div>
+        <div class="admin-box">
+          <div class="status-line"><strong>답변 및 상태 처리</strong><select><option>진행중</option></select></div>
+          <div class="editor-box">
+            <div class="editor-toolbar">
+              <span class="editor-tool">H</span>
+              <span class="editor-tool">B</span>
+              <span class="editor-tool">I</span>
+              <span class="editor-tool">U</span>
+              <span class="editor-tool">색상</span>
+              <span class="editor-tool">목록</span>
+              <span class="editor-tool">링크</span>
+              <span class="editor-tool">이미지</span>
+            </div>
+            <div class="editor-area">답글을 입력하세요. 일반 게시글 작성처럼 서식이 있는 답변을 남길 수 있습니다.</div>
+          </div>
+          <div class="actions"><button class="btn">등록</button></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="concept">
+      <header class="concept-head">
+        <div class="title-row">
+          <span class="num">4</span>
+          <div><h2>처리 타임라인형</h2><small>관리자와 유저의 후속 답변 흐름을 이력으로 강조</small></div>
+        </div>
+        <span class="tag">답글 왕복 많을 때</span>
+      </header>
+      <div class="canvas two-col">
+        <article>
+          <div class="toolbar"><button class="btn subtle">목록으로</button></div>
+          <div class="badges"><span class="badge error">게임 오류</span><span class="badge progress">진행중</span></div>
+          <h3 class="post-title">던전 입장 시 캐릭터가 멈춥니다</h3>
+          <div class="body" style="min-height:150px;">본문은 짧게 읽고, 아래에서 처리 흐름을 시간순으로 확인합니다.</div>
+          <hr class="divider">
+          <h4 class="section-title">처리 타임라인</h4>
+          <div class="timeline">
+            <div class="event"><div class="reply-head"><span>유저 리포트</span><span>18:20</span></div>던전 입장 시 멈춤 현상 발생</div>
+            <div class="event"><div class="reply-head"><span>관리자 답변</span><span>18:30</span></div>재현 확인, 수정 진행 중</div>
+          </div>
+        </article>
+        <aside class="side-panel">
+          <h3>새 처리 이력 추가</h3>
+          <div class="field"><label>상태</label><select><option>진행중</option></select></div>
+          <div class="field"><label>답글</label><textarea placeholder="처리 이력 입력"></textarea></div>
+          <button class="btn" style="width:100%">이력 등록</button>
+        </aside>
+      </div>
+    </section>
+
+    <section class="concept">
+      <header class="concept-head">
+        <div class="title-row">
+          <span class="num">5</span>
+          <div><h2>고밀도 운영 상세형</h2><small>한 화면 안에서 본문과 처리 폼을 최대한 많이 보여주는 구조</small></div>
+        </div>
+        <span class="tag">운영툴형</span>
+      </header>
+      <div class="canvas compact">
+        <section>
+          <div class="toolbar"><button class="btn subtle">목록으로</button></div>
+          <div class="summary-strip">
+            <div><strong>#24</strong>번호</div>
+            <div><strong>던전 입장 시 캐릭터가 멈춥니다</strong>제목</div>
+            <div><strong>진행중</strong>상태</div>
+            <div><strong>2</strong>답글</div>
+          </div>
+          <hr class="divider">
+          <div class="minimal-grid">
+            <div>
+              <h4 class="section-title">본문</h4>
+              <div class="body">운영자가 좁은 화면에서도 본문과 답글, 처리폼을 한 번에 볼 수 있는 고밀도 구조입니다.</div>
+            </div>
+            <div>
+              <h4 class="section-title">답글</h4>
+              <div class="reply staff">관리자: 확인했습니다.</div>
+            </div>
+          </div>
+        </section>
+        <aside class="drawer">
+          <h4 class="section-title">빠른 처리</h4>
+          <div class="field"><label>상태</label><select><option>진행중</option></select></div>
+          <div class="field"><label>답글</label><textarea placeholder="답변 입력"></textarea></div>
+          <button class="btn" style="width:100%">저장</button>
+        </aside>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

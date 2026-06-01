@@ -71,7 +71,7 @@ func main() {
 	fmt.Printf("- Launcher API: http://localhost:%s/api/launcher/latest\n", port)
 	fmt.Printf("- Update Web:   http://localhost:%s/update/\n", port)
 
-	handler := withRecovery(withSecurityHeaders(mux))
+	handler := withRecovery(withSecurityHeaders(admin.WithPublicAccessGuard(mux)))
 
 	if err := http.ListenAndServe(":"+port, handler); err != nil {
 		log.Fatalf("Server failed: %v", err)

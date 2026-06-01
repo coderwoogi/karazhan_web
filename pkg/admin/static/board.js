@@ -15,6 +15,8 @@ var quillEditor = null;
 var g_boards = {}; // Cache board metadata for permission checks
 var BOARD_PAGE_SIZE = 10;
 var quillEditorSelector = null;
+var bugReportReplyEditor = null;
+var bugReportReplyEditorPostId = 0;
 var g_boardAdminAll = [];
 var g_boardAdminFiltered = [];
 var g_boardAdminPage = 1;
@@ -146,6 +148,11 @@ function ensureRepresentativeCharacterForWrite() {
     return false;
 }
 
+function requiresRepresentativeCharacterForCurrentBoard() {
+    // 버그리포트는 캐릭터가 아닌 계정 기준으로 접수한다.
+    return !isBugReportBoardActive();
+}
+
 function escapeHtml(text) {
     if (!text) return '';
     return String(text)
@@ -190,6 +197,14 @@ function isInquiryBoardActive() {
     return String(g_currentBoard || '').toLowerCase() === 'inquiry';
 }
 
+function isBugReportBoardActive() {
+    return String(g_currentBoard || '').toLowerCase() === 'bugreport';
+}
+
+function isSupportBoardActive() {
+    return isInquiryBoardActive() || isBugReportBoardActive();
+}
+
 function isPromotionBoardActive() {
     return String(g_currentBoard || '').toLowerCase() === 'promotion';
 }
@@ -205,12 +220,57 @@ function getInquiryCategoryInput() {
     return document.getElementById('board-inquiry-category');
 }
 
+function syncSupportBoardUi() {
+    const isBug = isBugReportBoardActive();
+    const infoWrap = document.getElementById('board-inquiry-info-wrap');
+    if (infoWrap) {
+        const label = infoWrap.querySelector('label');
+        const desc = infoWrap.querySelector('.filter-group > div');
+        if (label) label.textContent = isBug ? '버그리포트 안내' : '문의게시판 안내';
+        if (desc) {
+            desc.textContent = isBug
+                ? '버그 리포트는 작성자 본인과 GM/관리자만 확인할 수 있으며, 답변은 버그리포트 관리에서 등록됩니다.'
+                : '문의는 작성자 본인과 GM/관리자만 확인할 수 있으며, 답변은 문의관리에서 등록됩니다.';
+        }
+    }
+
+    const options = isBug
+        ? [
+            ['', '오류 유형 선택'],
+            ['게임 오류', '게임 오류'],
+            ['웹 오류', '웹 오류'],
+            ['계정/접속', '계정/접속'],
+            ['기타', '기타']
+        ]
+        : [
+            ['', '카테고리 선택'],
+            ['건의', '건의'],
+            ['질문', '질문'],
+            ['후원', '후원'],
+            ['기타', '기타']
+        ];
+    const filterOptions = isBug
+        ? [['', '전체 유형'], ['게임 오류', '게임 오류'], ['웹 오류', '웹 오류'], ['계정/접속', '계정/접속'], ['기타', '기타']]
+        : [['', '전체 카테고리'], ['건의', '건의'], ['질문', '질문'], ['후원', '후원'], ['기타', '기타']];
+    const setOptions = (select, items) => {
+        if (!select) return;
+        const current = select.value;
+        select.innerHTML = items.map(([value, label]) => `<option value="${escapeHtml(value)}">${escapeHtml(label)}</option>`).join('');
+        select.value = items.some(([value]) => value === current) ? current : '';
+    };
+    const categoryLabel = document.querySelector('#board-inquiry-fields .form-group-premium label');
+    if (categoryLabel) categoryLabel.textContent = isBug ? '오류 유형' : '문의 카테고리';
+    setOptions(document.getElementById('board-inquiry-category'), options);
+    setOptions(document.getElementById('board-inquiry-category-filter'), filterOptions);
+}
+
 function toggleInquiryListCategoryFilter() {
+    syncSupportBoardUi();
     const wrap = document.getElementById('board-inquiry-category-filter-wrap');
     const infoWrap = document.getElementById('board-inquiry-info-wrap');
     const promoInfoWrap = document.getElementById('board-promotion-info-wrap');
     const select = document.getElementById('board-inquiry-category-filter');
-    const show = isInquiryBoardActive();
+    const show = isSupportBoardActive();
     const showPromo = isPromotionBoardActive();
     if (wrap) wrap.style.display = show ? 'flex' : 'none';
     if (infoWrap) infoWrap.style.display = show ? 'flex' : 'none';
@@ -224,10 +284,11 @@ function getBoardSubmitButton() {
 }
 
 function toggleInquiryFields() {
+    syncSupportBoardUi();
     const wrap = document.getElementById('board-inquiry-fields');
     const promoWrap = document.getElementById('board-promotion-fields');
     const editorWrap = document.getElementById('board-content-field');
-    if (wrap) wrap.style.display = isInquiryBoardActive() ? 'block' : 'none';
+    if (wrap) wrap.style.display = isSupportBoardActive() ? 'block' : 'none';
     if (promoWrap) promoWrap.style.display = isPromotionBoardActive() ? 'block' : 'none';
     if (editorWrap) editorWrap.style.display = isPromotionBoardActive() ? 'none' : 'block';
     bindInquiryCategoryChangeHandler();
@@ -435,6 +496,9 @@ function renderInquiryCategoryBadge(category) {
         '건의': { icon: 'fa-lightbulb', bg: '#fef3c7', fg: '#92400e', bd: '#fcd34d' },
         '질문': { icon: 'fa-circle-question', bg: '#dbeafe', fg: '#1e40af', bd: '#93c5fd' },
         '후원': { icon: 'fa-hand-holding-heart', bg: '#dcfce7', fg: '#166534', bd: '#86efac' },
+        '게임 오류': { icon: 'fa-gamepad', bg: '#fee2e2', fg: '#991b1b', bd: '#fecaca' },
+        '웹 오류': { icon: 'fa-globe', bg: '#e0f2fe', fg: '#075985', bd: '#bae6fd' },
+        '계정/접속': { icon: 'fa-user-lock', bg: '#ede9fe', fg: '#5b21b6', bd: '#ddd6fe' },
         '기타': { icon: 'fa-folder-open', bg: '#f1f5f9', fg: '#334155', bd: '#cbd5e1' }
     };
     const style = map[label] || map['기타'];
@@ -580,7 +644,7 @@ function showBoardDetailView(pushHistory) {
 }
 
 function showBoardWriteView() {
-    if (!ensureRepresentativeCharacterForWrite()) {
+    if (requiresRepresentativeCharacterForCurrentBoard() && !ensureRepresentativeCharacterForWrite()) {
         return false;
     }
     const listView = document.getElementById('board-list-view');
@@ -675,6 +739,7 @@ function createBoardNavItem(container, board) {
     if (board.id === 'notice') iconClass = 'fas fa-bullhorn';
     else if (board.id === 'free') iconClass = 'fas fa-comments';
     else if (board.id === 'promotion') iconClass = 'fas fa-bullhorn';
+    else if (board.id === 'bugreport') iconClass = 'fas fa-bug';
     else if (board.type === 'gallery') iconClass = 'fas fa-images';
     else if (board.type === 'update') iconClass = 'fas fa-sync';
 
@@ -738,7 +803,7 @@ async function loadPosts(page, options) {
     }
 
     try {
-        const categoryQuery = isInquiryBoardActive() && inquiryCategoryFilter ? `&category=${encodeURIComponent(inquiryCategoryFilter)}` : '';
+        const categoryQuery = isSupportBoardActive() && inquiryCategoryFilter ? `&category=${encodeURIComponent(inquiryCategoryFilter)}` : '';
         const url = `/api/board/posts?board_id=${g_currentBoard}&page=${page}&limit=${BOARD_PAGE_SIZE}&search=${encodeURIComponent(search)}&search_type=${searchType}${categoryQuery}`;
         
         let res = await fetch(url);
@@ -751,13 +816,18 @@ async function loadPosts(page, options) {
                     g_currentBoard = firstBoardBtn.id.replace('tab-btn-board-', '');
                 }
             }
-            const retryCategoryQuery = isInquiryBoardActive() && inquiryCategoryFilter ? `&category=${encodeURIComponent(inquiryCategoryFilter)}` : '';
+            const retryCategoryQuery = isSupportBoardActive() && inquiryCategoryFilter ? `&category=${encodeURIComponent(inquiryCategoryFilter)}` : '';
             const retryUrl = `/api/board/posts?board_id=${g_currentBoard}&page=${page}&limit=${BOARD_PAGE_SIZE}&search=${encodeURIComponent(search)}&search_type=${searchType}${retryCategoryQuery}`;
             res = await fetch(retryUrl);
         }
         if (!res.ok) {
             console.error('loadPosts failed:', res.status, res.statusText);
-            if (container) container.innerHTML = `<div style="text-align:center; padding:3rem; color:#ef4444;">게시글을 불러오지 못했습니다. (${res.status})</div>`;
+            if (container) {
+                const authMessage = res.status === 401
+                    ? '로그인 후 이용할 수 있는 게시판입니다.'
+                    : `게시글을 불러오지 못했습니다. (${res.status})`;
+                container.innerHTML = `<div style="text-align:center; padding:3rem; color:#ef4444;">${authMessage}</div>`;
+            }
             return;
         }
         const data = await res.json();
@@ -806,7 +876,7 @@ function renderPostList(posts, total) {
 function renderNormalBoard(container, posts, total) {
     const isMobile = window.innerWidth <= 768;
     const pageSize = BOARD_PAGE_SIZE;
-    const isInquiry = isInquiryBoardActive();
+    const isInquiry = isSupportBoardActive();
     const isPromotion = isPromotionBoardActive();
 
     if (isMobile) {
@@ -1085,7 +1155,9 @@ async function viewPost(id, pushHistory) {
 
         const data = await res.json();
         const post = data.post;
-        const isInquiryPost = String(post.board_id || '').toLowerCase() === 'inquiry';
+        const postBoardId = String(post.board_id || '').toLowerCase();
+        const isInquiryPost = postBoardId === 'inquiry' || postBoardId === 'bugreport';
+        const isBugReportPost = postBoardId === 'bugreport';
         const comments = isInquiryPost ? (data.inquiry_messages || []) : (data.comments || []);
 
         const detailView = document.getElementById('board-detail-view');
@@ -1131,7 +1203,7 @@ async function viewPost(id, pushHistory) {
 
             <div class="comments-section">
                 <h4 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 8px;">
-                    <i class="far fa-comments" style="color: var(--primary-color);"></i> ${isInquiryPost ? '문의 대화' : '댓글'} <span style="color: var(--primary-color);">${comments.length}</span>
+                    <i class="far fa-comments" style="color: var(--primary-color);"></i> ${isInquiryPost ? (isBugReportPost ? '버그 리포트 답변' : '문의 대화') : '댓글'} <span style="color: var(--primary-color);">${comments.length}</span>
                 </h4>
 
                 <div id="post-comments-list" style="display: flex; flex-direction: column; gap: 1rem;">
@@ -1142,7 +1214,7 @@ async function viewPost(id, pushHistory) {
                     isInquiryPost
                         ? `<div style="margin-top:2rem; background:#f8fafc; padding:1.25rem 1.5rem; border-radius:12px; border:1px solid #e2e8f0; color:#64748b; font-size:0.95rem;">
                             <i class="fas fa-circle-info" style="margin-right:6px; color:#2563eb;"></i>
-                            답변 등록은 문의관리에서만 가능합니다.
+                            답변 등록은 ${isBugReportPost ? '버그리포트 관리' : '문의관리'}에서만 가능합니다.
                            </div>`
                         : `<div style="margin-top: 2rem; background: #f8fafc; padding: 1.5rem; border-radius: 12px; border: 1px solid #e2e8f0;">
                             <textarea id="comment-input" placeholder="댓글을 남겨주세요..."
@@ -1232,7 +1304,7 @@ function renderCommentTree(nodes) {
                     </span>
                     <div style="display: flex; align-items: center; gap: 0.5rem;">
                         <span style="font-size: 0.8rem; color: #94a3b8;">${comment.created_at}</span>
-                        <button onclick="openReplyForm(${comment.id})" style="background:none; border:none; color:#3b82f6; cursor:pointer; font-size:0.8rem; margin-left:8px;">${isInquiryBoardActive() ? '문의/답변' : '답글'}</button>
+                        <button onclick="openReplyForm(${comment.id})" style="background:none; border:none; color:#3b82f6; cursor:pointer; font-size:0.8rem; margin-left:8px;">${isSupportBoardActive() ? '문의/답변' : '답글'}</button>
                         ${canDelete ? `<button onclick="deleteComment(${comment.id})" style="background:none; border:none; color:#ef4444; cursor:pointer; font-size:0.8rem;">삭제</button>` : ''}
                     </div>
                 </div>
@@ -1240,7 +1312,7 @@ function renderCommentTree(nodes) {
                 
                 <!-- Reply Form -->
                 <div id="reply-form-${comment.id}" style="display:none; margin-top:10px; padding-top:10px; border-top:1px dashed #e2e8f0;">
-                    <textarea id="reply-input-${comment.id}" placeholder="${isInquiryBoardActive() ? '문의/답변 내용을 입력하세요...' : '답글을 입력하세요...'}" style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px; min-height:60px;"></textarea>
+                    <textarea id="reply-input-${comment.id}" placeholder="${isSupportBoardActive() ? '문의/답변 내용을 입력하세요...' : '답글을 입력하세요...'}" style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px; min-height:60px;"></textarea>
                     <div style="text-align:right; margin-top:6px;">
                         <button onclick="submitReply(${g_currentPostId}, ${comment.id})" class="btn btn-primary" style="padding:4px 12px; font-size:0.8rem;">등록</button>
                     </div>
@@ -1285,8 +1357,8 @@ function focusBoardComment(commentId) {
 window.focusBoardComment = focusBoardComment;
 
 async function submitReply(postId, parentId) {
-    if (isInquiryBoardActive()) {
-        ModalUtils.showAlert('문의 답변은 문의관리에서만 가능합니다.');
+    if (isSupportBoardActive()) {
+        ModalUtils.showAlert(isBugReportBoardActive() ? '버그 리포트 답변은 버그리포트 관리에서만 가능합니다.' : '문의 답변은 문의관리에서만 가능합니다.');
         return;
     }
     const contentEl = document.getElementById(`reply-input-${parentId}`);
@@ -1511,7 +1583,7 @@ function initQuillEditor() {
 }
 
 async function submitPost() {
-    if (!ensureRepresentativeCharacterForWrite()) {
+    if (requiresRepresentativeCharacterForCurrentBoard() && !ensureRepresentativeCharacterForWrite()) {
         return;
     }
     const titleEl = getBoardTitleInput();
@@ -1555,11 +1627,11 @@ async function submitPost() {
             }
             payload.promotion_urls = urls;
         }
-        if (isInquiryBoardActive()) {
+        if (isSupportBoardActive()) {
             const inquiryCategoryEl = getInquiryCategoryInput();
             const category = inquiryCategoryEl ? inquiryCategoryEl.value : '';
             if (!category) {
-                ModalUtils.showAlert('문의 카테고리를 선택하세요');
+                ModalUtils.showAlert(isBugReportBoardActive() ? '오류 유형을 선택하세요' : '문의 카테고리를 선택하세요');
                 return;
             }
             if (!g_editingPostId && String(category).trim() === '후원') {
@@ -1606,7 +1678,14 @@ async function submitPost() {
             }
             g_editingPostId = null;
         } else {
-            ModalUtils.showAlert(g_editingPostId ? '게시글 수정에 실패했습니다' : '게시글 작성에 실패했습니다');
+            const errorText = await res.text();
+            if (res.status === 401) {
+                ModalUtils.showAlert('로그인 후 이용할 수 있습니다.');
+            } else if (errorText) {
+                ModalUtils.showAlert(errorText);
+            } else {
+                ModalUtils.showAlert(g_editingPostId ? '게시글 수정에 실패했습니다' : '게시글 작성에 실패했습니다');
+            }
         }
     } catch (e) {
         console.error('Failed to submit post:', e);
@@ -1648,8 +1727,8 @@ async function deletePost(id) {
 // Comments
 // ========================================
 async function submitComment(postId, parentId) {
-    if (isInquiryBoardActive()) {
-        ModalUtils.showAlert('문의 답변은 문의관리에서만 가능합니다.');
+    if (isSupportBoardActive()) {
+        ModalUtils.showAlert(isBugReportBoardActive() ? '버그 리포트 답변은 버그리포트 관리에서만 가능합니다.' : '문의 답변은 문의관리에서만 가능합니다.');
         return;
     }
 
@@ -1699,6 +1778,420 @@ async function deleteComment(commentId) {
         }
     });
 }
+
+// ========================================
+// Bug Report Admin
+// ========================================
+var g_bugReportAdminPage = 1;
+var g_bugReportAdminSelectedId = 0;
+var g_bugReportAdminStatus = '';
+
+function showBugReportAdminListView() {
+    const listView = document.getElementById('bug-admin-list-view');
+    const detailView = document.getElementById('bug-admin-detail-view');
+    if (listView) {
+        listView.hidden = false;
+        listView.style.display = 'block';
+    }
+    if (detailView) {
+        detailView.hidden = true;
+        detailView.style.display = 'none';
+    }
+}
+window.showBugReportAdminListView = showBugReportAdminListView;
+
+function showBugReportAdminDetailView() {
+    const listView = document.getElementById('bug-admin-list-view');
+    const detailView = document.getElementById('bug-admin-detail-view');
+    if (listView) {
+        listView.hidden = true;
+        listView.style.display = 'none';
+    }
+    if (detailView) {
+        detailView.hidden = false;
+        detailView.style.display = 'block';
+    }
+}
+
+function setBugReportAdminStatus(status) {
+    g_bugReportAdminStatus = String(status || '').trim();
+    document.querySelectorAll('#bug-admin-status-tabs .kb-report-tab').forEach((tab) => {
+        tab.classList.toggle('active', String(tab.dataset.status || '') === g_bugReportAdminStatus);
+    });
+    loadBugReportAdminPage(1);
+}
+window.setBugReportAdminStatus = setBugReportAdminStatus;
+
+function updateBugReportAdminStatusCounts(posts) {
+    const counts = { all: 0, received: 0, in_progress: 0, done: 0 };
+    (Array.isArray(posts) ? posts : []).forEach((post) => {
+        const status = String(post.inquiry_status || 'received').toLowerCase();
+        counts.all += 1;
+        if (Object.prototype.hasOwnProperty.call(counts, status)) {
+            counts[status] += 1;
+        }
+    });
+    const setText = (id, value) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = String(value);
+    };
+    setText('bug-admin-count-all', counts.all);
+    setText('bug-admin-count-received', counts.received);
+    setText('bug-admin-count-in-progress', counts.in_progress);
+    setText('bug-admin-count-done', counts.done);
+}
+
+async function loadBugReportAdminPage(page = 1, keepDetail = false) {
+    g_bugReportAdminPage = Math.max(1, Number(page || 1));
+    const list = document.getElementById('bug-admin-list');
+    const pg = document.getElementById('bug-admin-pagination');
+    if (!list) return;
+    if (!keepDetail) showBugReportAdminListView();
+    list.innerHTML = '<div class="bug-admin-empty">버그 리포트를 불러오는 중입니다.</div>';
+    if (pg) pg.innerHTML = '';
+
+    const search = String(document.getElementById('bug-admin-search')?.value || '').trim();
+    const status = String(g_bugReportAdminStatus || '').trim();
+    const query = new URLSearchParams({
+        board_id: 'bugreport',
+        page: '1',
+        limit: '100',
+        search,
+        search_type: 'title_content'
+    });
+
+    try {
+        const res = await fetch(`/api/board/posts?${query.toString()}`);
+        if (!res.ok) {
+            const error = new Error(await res.text());
+            error.status = res.status;
+            throw error;
+        }
+        const data = await res.json();
+        const allPosts = Array.isArray(data.posts) ? data.posts : [];
+        updateBugReportAdminStatusCounts(allPosts);
+        let posts = allPosts;
+        if (status) {
+            posts = posts.filter((p) => String(p.inquiry_status || '').toLowerCase() === status);
+        }
+        const pageSize = BOARD_PAGE_SIZE;
+        const totalPages = Math.max(1, Math.ceil(posts.length / pageSize));
+        const pagePosts = posts.slice((g_bugReportAdminPage - 1) * pageSize, g_bugReportAdminPage * pageSize);
+        renderBugReportAdminList(pagePosts, totalPages);
+    } catch (e) {
+        console.error('Failed to load bug reports:', e);
+        const message = e && e.status === 401
+            ? '로그인 후 이용할 수 있습니다.'
+            : (e && e.status === 403 ? '버그리포트 관리 권한이 없습니다.' : '버그 리포트를 불러오지 못했습니다.');
+        list.innerHTML = `<div class="bug-admin-empty" style="color:#dc2626;">${message}</div>`;
+    }
+}
+window.loadBugReportAdminPage = loadBugReportAdminPage;
+
+function renderBugReportAdminList(posts, totalPages) {
+    const list = document.getElementById('bug-admin-list');
+    const pg = document.getElementById('bug-admin-pagination');
+    if (!list) return;
+    if (!posts.length) {
+        list.innerHTML = '<div class="bug-admin-empty">등록된 버그 리포트가 없습니다.</div>';
+        if (pg) pg.innerHTML = '';
+        return;
+    }
+    const rows = posts.map((post) => {
+        const status = String(post.inquiry_status || 'received').toLowerCase();
+        return `
+            <tr class="bug-admin-row status-${escapeHtml(status)} ${Number(post.id) === Number(g_bugReportAdminSelectedId) ? 'active' : ''}" onclick="openBugReportAdminDetail(${Number(post.id)})">
+                <td>${Number(post.id || 0)}</td>
+                <td>${renderInquiryCategoryBadge(post.category)}</td>
+                <td class="bug-admin-title-cell">${escapeHtml(post.title || '')}</td>
+                <td>${renderBoardAuthor(post.author_name, post.is_staff_author === true, post.has_enhanced_stone === true)}</td>
+                <td>${escapeHtml(post.created_at || '')}</td>
+                <td>${Number(post.comment_count || 0)}</td>
+                <td>${renderInquiryStatusBadge(post.inquiry_status)}</td>
+                <td><button type="button" class="btn btn-primary btn-sm" onclick="event.stopPropagation(); openBugReportAdminDetail(${Number(post.id)})">상세</button></td>
+            </tr>
+    `;
+    }).join('');
+    list.innerHTML = `
+        <div class="scroll-table premium-table kb-report-table-wrap">
+            <table class="kb-report-table">
+                <thead>
+                    <tr>
+                        <th style="width:80px;">번호</th>
+                        <th style="width:120px;">유형</th>
+                        <th>제목</th>
+                        <th style="width:140px;">작성자</th>
+                        <th style="width:170px;">작성일</th>
+                        <th style="width:80px;">답글</th>
+                        <th style="width:100px;">상태</th>
+                        <th style="width:90px;">관리</th>
+                    </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+            </table>
+        </div>
+    `;
+    if (pg && typeof renderPagination === 'function') {
+        renderPagination(pg, {
+            page: g_bugReportAdminPage,
+            totalPages: Math.max(1, Number(totalPages || 1))
+        }, (p) => loadBugReportAdminPage(p));
+    }
+}
+
+async function openBugReportAdminDetail(postId) {
+    g_bugReportAdminSelectedId = Number(postId || 0);
+    const detail = document.getElementById('bug-admin-detail');
+    if (!detail || !g_bugReportAdminSelectedId) return;
+    showBugReportAdminDetailView();
+    detail.innerHTML = '<div class="bug-admin-detail-empty kb-report-empty">버그 리포트를 불러오는 중입니다.</div>';
+
+    try {
+        const res = await fetch(`/api/board/post?id=${g_bugReportAdminSelectedId}`);
+        if (!res.ok) throw new Error(await res.text());
+        const data = await res.json();
+        const post = data.post || {};
+        const messages = Array.isArray(data.inquiry_messages) ? data.inquiry_messages : [];
+        const isDone = String(post.inquiry_status || '').toLowerCase() === 'done';
+        detail.innerHTML = `
+            <div class="kb-report-detail">
+                <div class="kb-report-detail-toolbar">
+                    <button type="button" onclick="showBugReportAdminListView()" class="btn kb-report-back-btn">
+                        <i class="fas fa-arrow-left"></i> 목록으로
+                    </button>
+                    <button type="button" class="refresh-btn" onclick="openBugReportAdminDetail(${Number(post.id || postId)})"><i class="fas fa-sync"></i> 새로고침</button>
+                </div>
+
+                <div class="kb-report-detail-head">
+                    <div class="kb-report-badges">
+                        ${renderInquiryCategoryBadge(post.category)}
+                        ${renderInquiryStatusBadge(post.inquiry_status)}
+                    </div>
+                    <h2>${escapeHtml(post.title || '')}</h2>
+                    <div class="kb-report-summary-label">리포트 요약</div>
+                    <div class="kb-report-summary-grid">
+                        <div class="kb-report-summary-item">
+                            <strong>리포트 번호</strong>
+                            <span>#${Number(post.id || postId)}</span>
+                        </div>
+                        <div class="kb-report-summary-item">
+                            <strong>작성자</strong>
+                            <span>${renderBoardAuthor(post.author_name, post.is_staff_author === true, post.has_enhanced_stone === true)}</span>
+                        </div>
+                        <div class="kb-report-summary-item">
+                            <strong>작성일</strong>
+                            <span>${escapeHtml(post.created_at || '-')}</span>
+                        </div>
+                        <div class="kb-report-summary-item">
+                            <strong>답글</strong>
+                            <span>${messages.length}개</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="kb-report-content">${post.content || '<span style="color:#94a3b8;">내용이 없습니다.</span>'}</div>
+
+                <div class="comments-section kb-report-comments">
+                    <h4>
+                        <i class="far fa-comments"></i> 버그 리포트 답변 <span>${messages.length}</span>
+                    </h4>
+
+                    <div id="bug-admin-comments-list" class="kb-report-comment-list">
+                        ${messages.length ? messages.map(renderBugReportAdminMessage).join('') : '<div class="kb-report-empty-inline">등록된 답변이 없습니다.</div>'}
+                    </div>
+
+                    <div class="kb-report-admin-box kb-report-summary-admin-box">
+                        <div class="kb-report-status-control">
+                            <strong>답변 및 상태 처리</strong>
+                            <select id="bug-admin-status-select" class="search-select">
+                                <option value="received" ${String(post.inquiry_status || 'received') === 'received' ? 'selected' : ''}>접수</option>
+                                <option value="in_progress" ${String(post.inquiry_status || '') === 'in_progress' ? 'selected' : ''}>진행중</option>
+                                <option value="done" ${String(post.inquiry_status || '') === 'done' ? 'selected' : ''}>완료</option>
+                            </select>
+                            <button class="btn btn-primary" onclick="updateBugReportAdminStatus(${Number(post.id || postId)})"><i class="fas fa-check"></i> 상태 저장</button>
+                            <span>${isDone ? '완료 상태입니다. 다시 답변하려면 진행중으로 변경하세요.' : '완료 전까지 답글을 등록할 수 있습니다.'}</span>
+                        </div>
+                        ${isDone ? `
+                            <div class="kb-report-locked">
+                                <i class="fas fa-lock"></i> 완료된 리포트입니다. 상태를 진행중으로 변경하면 다시 답변할 수 있습니다.
+                            </div>
+                        ` : `
+                            <div class="kb-report-reply-editor-wrap">
+                                <div id="bug-admin-reply-editor" class="kb-report-reply-editor"></div>
+                                <textarea id="bug-admin-reply-input" placeholder="답글을 남겨주세요..."
+                                    class="kb-report-reply-input"></textarea>
+                            </div>
+                            <div class="kb-report-reply-actions">
+                                <button onclick="submitBugReportAdminReply(${Number(post.id || postId)})" class="btn btn-primary">답글 작성</button>
+                            </div>
+                        `}
+                    </div>
+                </div>
+            </div>
+        `;
+        if (!isDone) initBugReportReplyEditor(Number(post.id || postId));
+        document.querySelectorAll('.bug-admin-row').forEach((item) => item.classList.remove('active'));
+        const activeItem = Array.from(document.querySelectorAll('.bug-admin-row'))
+            .find((item) => String(item.getAttribute('onclick') || '').includes(`(${g_bugReportAdminSelectedId})`));
+        if (activeItem) activeItem.classList.add('active');
+    } catch (e) {
+        console.error('Failed to load bug report detail:', e);
+        detail.innerHTML = '<div class="bug-admin-detail-empty" style="color:#dc2626;">상세 내용을 불러오지 못했습니다.</div>';
+    }
+}
+window.openBugReportAdminDetail = openBugReportAdminDetail;
+
+function initBugReportReplyEditor(postId) {
+    const editorEl = document.getElementById('bug-admin-reply-editor');
+    const fallback = document.getElementById('bug-admin-reply-input');
+    bugReportReplyEditor = null;
+    bugReportReplyEditorPostId = Number(postId || 0);
+
+    if (!editorEl || typeof Quill === 'undefined') {
+        if (fallback) fallback.style.display = 'block';
+        return;
+    }
+
+    bugReportReplyEditor = new Quill(editorEl, {
+        theme: 'snow',
+        placeholder: '답글을 입력하세요...',
+        modules: {
+            toolbar: {
+                container: [
+                    [{ 'header': [1, 2, 3, false] }],
+                    ['bold', 'italic', 'underline', 'strike'],
+                    [{ 'color': [] }, { 'background': [] }],
+                    [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+                    ['link', 'image'],
+                    ['clean']
+                ],
+                handlers: {
+                    image: function() {
+                        const input = document.createElement('input');
+                        input.setAttribute('type', 'file');
+                        input.setAttribute('accept', 'image/*');
+                        input.click();
+                        input.onchange = async () => {
+                            const file = input.files[0];
+                            if (!file) return;
+                            const formData = new FormData();
+                            formData.append('file', file);
+                            try {
+                                const res = await fetch('/api/board/upload', {
+                                    method: 'POST',
+                                    body: formData
+                                });
+                                if (res.ok) {
+                                    const data = await res.json();
+                                    const range = bugReportReplyEditor.getSelection(true);
+                                    bugReportReplyEditor.insertEmbed(range.index, 'image', data.url);
+                                    bugReportReplyEditor.setSelection(range.index + 1);
+                                } else {
+                                    ModalUtils.showAlert('이미지 업로드에 실패했습니다.');
+                                }
+                            } catch (e) {
+                                console.error('Bug report reply image upload error:', e);
+                                ModalUtils.showAlert('이미지 업로드 중 오류가 발생했습니다.');
+                            }
+                        };
+                    }
+                }
+            }
+        }
+    });
+    if (fallback) fallback.style.display = 'none';
+}
+
+function getBugReportReplyContent() {
+    if (bugReportReplyEditor && Number(bugReportReplyEditorPostId || 0) === Number(g_bugReportAdminSelectedId || 0)) {
+        return String(bugReportReplyEditor.root.innerHTML || '').trim();
+    }
+    const input = document.getElementById('bug-admin-reply-input');
+    return String(input?.value || '').trim();
+}
+
+function getBugReportReplyText(content) {
+    const temp = document.createElement('div');
+    temp.innerHTML = String(content || '');
+    return String(temp.textContent || temp.innerText || '')
+        .replace(/\u00a0/g, ' ')
+        .trim();
+}
+
+function resetBugReportReplyEditor() {
+    if (bugReportReplyEditor) {
+        bugReportReplyEditor.setContents([]);
+    }
+    const input = document.getElementById('bug-admin-reply-input');
+    if (input) input.value = '';
+}
+
+function renderBugReportAdminMessage(message, index) {
+    const role = String(message.role || '').toLowerCase() === 'staff' ? 'staff' : 'user';
+    const isFollowup = Number(index || 0) > 0;
+    const roleBadge = role === 'staff'
+        ? '<span style="display:inline-flex;align-items:center;gap:4px;background:#dbeafe;color:#1e40af;border:1px solid #93c5fd;padding:2px 8px;border-radius:999px;font-size:0.75rem;font-weight:700;"><i class="fas fa-user-shield"></i>답변</span>'
+        : '<span style="display:inline-flex;align-items:center;gap:4px;background:#f1f5f9;color:#334155;border:1px solid #cbd5e1;padding:2px 8px;border-radius:999px;font-size:0.75rem;font-weight:700;"><i class="fas fa-bug"></i>리포트</span>';
+    const contentHtml = role === 'staff'
+        ? getPostContentHtml(message.content || '')
+        : escapeHtml(message.content || '');
+    return `
+        <div class="kb-report-comment ${role} ${isFollowup ? 'is-followup' : ''}">
+            ${isFollowup ? '<span class="kb-report-comment-arrow" aria-hidden="true">↳</span>' : ''}
+            <div class="kb-report-comment-head">
+                <span class="kb-report-comment-author">${renderBoardAuthor(message.author_name, message.is_staff_author === true, message.has_enhanced_stone === true)}</span>
+                <div>
+                    ${roleBadge}
+                    <span class="kb-report-comment-date">${escapeHtml(message.created_at || '')}</span>
+                </div>
+            </div>
+            <div class="kb-report-comment-body">${contentHtml}</div>
+        </div>
+    `;
+}
+
+async function submitBugReportAdminReply(postId) {
+    const content = getBugReportReplyContent();
+    if (!getBugReportReplyText(content)) {
+        ModalUtils.showAlert('답변 내용을 입력하세요.');
+        return;
+    }
+    try {
+        const res = await fetch('/api/board/inquiry/message/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ post_id: Number(postId), content })
+        });
+        if (!res.ok) throw new Error(await res.text());
+        resetBugReportReplyEditor();
+        await loadBugReportAdminPage(g_bugReportAdminPage, true);
+        await openBugReportAdminDetail(postId);
+    } catch (e) {
+        console.error('Failed to submit bug report reply:', e);
+        ModalUtils.showAlert(e && e.message ? e.message : '답글 등록에 실패했습니다.');
+    }
+}
+window.submitBugReportAdminReply = submitBugReportAdminReply;
+
+async function updateBugReportAdminStatus(postId) {
+    const select = document.getElementById('bug-admin-status-select');
+    const status = String(select?.value || '').trim();
+    if (!status) return;
+    try {
+        const res = await fetch('/api/board/inquiry/status', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ post_id: Number(postId), status })
+        });
+        if (!res.ok) throw new Error(await res.text());
+        await loadBugReportAdminPage(g_bugReportAdminPage, true);
+        await openBugReportAdminDetail(postId);
+    } catch (e) {
+        console.error('Failed to update bug report status:', e);
+        ModalUtils.showAlert('상태 변경에 실패했습니다.');
+    }
+}
+window.updateBugReportAdminStatus = updateBugReportAdminStatus;
 
 // ========================================
 // Board Management (Admin)

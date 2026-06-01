@@ -397,7 +397,10 @@ func handleAnnounce(w http.ResponseWriter, r *http.Request) {
 func handleWorldCommand(w http.ResponseWriter, r *http.Request) {
 	// Allow specific internal callers from same app without remote-control menu permission.
 	internalCaller := strings.TrimSpace(r.Header.Get("X-Internal-Caller"))
-	internalCall := strings.EqualFold(internalCaller, "shop") || strings.EqualFold(internalCaller, "soloarena") || strings.EqualFold(internalCaller, "auction")
+	internalCall := strings.EqualFold(internalCaller, "shop") ||
+		strings.EqualFold(internalCaller, "soloarena") ||
+		strings.EqualFold(internalCaller, "auction") ||
+		strings.EqualFold(internalCaller, "creature-drop")
 	if !internalCall {
 		if !stats.CheckMenuPermission(w, r, "remote-control", "submenu") {
 			return
@@ -766,12 +769,12 @@ func handleLogs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "text/event-stream; charset=utf-8")
-	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("X-Accel-Buffering", "no")
 	w.Header().Set("Content-Encoding", "identity")
 
-	if _, err := io.WriteString(w, ": connected\n\n"); err != nil {
+	if _, err := io.WriteString(w, "retry: 3000\n: connected\n\n"); err != nil {
 		return
 	}
 	flusher.Flush()
@@ -802,7 +805,7 @@ func handleLogs(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	notify := r.Context().Done()
-	heartbeat := time.NewTicker(15 * time.Second)
+	heartbeat := time.NewTicker(5 * time.Second)
 	defer heartbeat.Stop()
 
 	for {

@@ -12,7 +12,7 @@
         href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="style.css?v=1007">
+    <link rel="stylesheet" href="style.css?v=1025">
     <link rel="stylesheet" href="notification.css?v=3">
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
     <script>
@@ -551,6 +551,9 @@
             </div>
             <div id="tab-btn-board-admin" class="nav-item tab-btn" onclick="openTab('board-admin')">
                 <i class="fas fa-edit"></i> 게시판 관리 (CMS)
+            </div>
+            <div id="tab-btn-bug-report-admin" class="nav-item tab-btn" onclick="openTab('bug-report-admin')" style="display: none;">
+                <i class="fas fa-bug"></i> 버그리포트
             </div>
             <div id="tab-btn-notification-admin" class="nav-item tab-btn" onclick="openTab('notification-admin')"
                 style="display: none;">
@@ -1548,6 +1551,7 @@
                     <div class="log-sub-tabs">
                         <button class="log-sub-tab-btn active" onclick="openServerSubTab('control')">서버 제어</button>
                         <button class="log-sub-tab-btn" onclick="openServerSubTab('schedule')">서버 점검 예약</button>
+                        <button class="log-sub-tab-btn" onclick="openServerSubTab('web')">웹 관리</button>
                     </div>
 
                     <!-- Server Control Sub-Tab -->
@@ -1677,6 +1681,70 @@
                                 </table>
                             </div>
                             <div id="schedule-pagination" style="margin-top: 1rem;"></div>
+                        </div>
+                    </div>
+
+                    <div id="mn-web" class="log-sub-content">
+                        <div style="padding: 1.5rem;">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h2>웹 접근 제어</h2>
+                                </div>
+                                <div class="card-body">
+                                    <div class="web-guard-layout">
+                                        <div class="web-guard-card">
+                                            <div class="web-guard-header">
+                                                <div>
+                                                    <h3>홈페이지 접근 제한</h3>
+                                                    <p>ON이면 허용된 IP 외에는 공개 웹 접근이 차단됩니다. 관리자 화면과 로그인 화면은 계속 접근 가능합니다.</p>
+                                                </div>
+                                                <div class="shop-admin-switch-group">
+                                                    <span id="web-guard-status-text">OFF</span>
+                                                    <label class="shop-admin-switch">
+                                                        <input type="checkbox" id="web-guard-enabled">
+                                                        <span class="shop-admin-switch-slider"></span>
+                                                    </label>
+                                                </div>
+                                            </div>
+
+                                            <div class="filter-group" style="margin-bottom: 1rem;">
+                                                <label><i class="fas fa-network-wired"></i> 허용 IP 목록</label>
+                                                <textarea id="web-guard-ips" class="web-guard-textarea" placeholder="허용할 IP 또는 CIDR을 한 줄씩 입력하세요.&#10;예시&#10;127.0.0.1&#10;211.198.219.121&#10;192.168.0.0/24"></textarea>
+                                            </div>
+
+                                            <div class="web-guard-form-grid">
+                                                <div class="filter-group">
+                                                    <label><i class="fas fa-window-maximize"></i> 차단 화면 유형</label>
+                                                    <select id="web-guard-display-mode">
+                                                        <option value="maintenance">점검 화면</option>
+                                                        <option value="503">503 서비스 불가</option>
+                                                        <option value="403">권한 없음</option>
+                                                        <option value="404">404 페이지 없음</option>
+                                                    </select>
+                                                </div>
+                                                <div class="filter-group">
+                                                    <label><i class="fas fa-heading"></i> 제목 문구</label>
+                                                    <input type="text" id="web-guard-title" placeholder="차단 화면 제목을 입력하세요">
+                                                </div>
+                                            </div>
+
+                                            <div class="filter-group" style="margin-bottom: 1rem;">
+                                                <label><i class="fas fa-comment-dots"></i> 안내 문구</label>
+                                                <textarea id="web-guard-message" class="web-guard-textarea" style="min-height: 140px;" placeholder="차단 시 출력할 안내 문구를 입력하세요"></textarea>
+                                            </div>
+
+                                            <div class="web-guard-meta" id="web-guard-meta">
+                                                현재 설정을 불러오는 중입니다.
+                                            </div>
+
+                                            <div class="web-guard-actions">
+                                                <button class="search-btn" onclick="saveWebGuardSettings()"><i class="fas fa-save"></i> 저장</button>
+                                                <button class="refresh-btn" onclick="loadWebGuardSettings()"><i class="fas fa-sync-alt"></i> 새로고침</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -2982,6 +3050,10 @@
                             설정</button>
                         <button class="log-sub-tab-btn" onclick="openContentSubTab('trial')">시련
                             설정</button>
+                        <button class="log-sub-tab-btn" onclick="openContentSubTab('drop')">드랍
+                            설정</button>
+                        <button class="log-sub-tab-btn" onclick="openContentSubTab('vendor')">판매
+                            설정</button>
                     </div>
 
                     <!-- Black Market Sub-Tab -->
@@ -3062,6 +3134,148 @@
                             </table>
                         </div>
                         <div id="carddraw-content-pagination"></div>
+                    </div>
+
+                    <!-- Creature Drop Sub-Tab -->
+                    <div id="content-drop" class="log-sub-content">
+                        <div class="drop-admin-layout">
+                            <div class="drop-admin-panel">
+                                <div class="drop-admin-panel-header">
+                                    <div>
+                                        <h3>크리처 검색</h3>
+                                        <p>이름 또는 크리처 번호로 검색한 뒤 드랍 목록을 관리합니다. 크리처 번호는 DB의 Entry 값입니다.</p>
+                                    </div>
+                                </div>
+                                <div class="filter-bar" style="display:grid; grid-template-columns: minmax(0, 1fr) auto auto; gap:10px; align-items:end;">
+                                    <div class="filter-group">
+                                        <label for="drop-creature-search">크리처 검색</label>
+                                        <input id="drop-creature-search" type="text" class="input-premium" placeholder="크리처명 또는 크리처 번호 입력">
+                                    </div>
+                                    <button onclick="searchDropCreatures()" class="btn btn-primary"><i class="fas fa-search"></i> 검색</button>
+                                    <button onclick="resetDropCreatures()" class="btn"><i class="fas fa-undo"></i> 초기화</button>
+                                </div>
+                                <div class="scroll-table premium-table drop-creature-table-wrap">
+                                    <table>
+                                        <thead>
+                                            <tr>
+                                                <th style="width:115px;">크리처 번호</th>
+                                                <th>크리처명</th>
+                                                <th style="width:120px;">레벨</th>
+                                                <th style="width:90px;">선택</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="drop-creature-list"></tbody>
+                                    </table>
+                                </div>
+                                <div id="drop-creature-pagination"></div>
+                            </div>
+
+                            <div class="drop-admin-panel">
+                                <div class="drop-admin-panel-header">
+                                    <div>
+                                        <h3 id="drop-selected-title">드랍 목록</h3>
+                                        <p id="drop-selected-meta">왼쪽에서 크리처를 선택하면 드랍 정보가 표시됩니다.</p>
+                                    </div>
+                                    <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end;">
+                                        <button onclick="openDropReferenceLinkModal()" class="btn" id="drop-ref-add-btn" disabled>
+                                            <i class="fas fa-layer-group"></i> 참조 묶음 연결
+                                        </button>
+                                        <button onclick="openDropItemModal()" class="btn btn-primary" id="drop-add-btn" disabled>
+                                            <i class="fas fa-plus"></i> 아이템 추가
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="scroll-table premium-table drop-loot-table-wrap">
+                                    <table>
+                                        <thead>
+                                            <tr>
+                                                <th style="width:105px;">유형</th>
+                                                <th style="width:95px;">번호</th>
+                                                <th>드랍 대상</th>
+                                                <th style="width:95px;">확률</th>
+                                                <th style="width:95px;">그룹</th>
+                                                <th style="width:110px;">수량</th>
+                                                <th style="width:105px;">루팅 방식</th>
+                                                <th style="width:90px;">퀘스트</th>
+                                                <th style="width:170px;">관리</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="drop-loot-list">
+                                            <tr><td colspan="8" style="text-align:center; padding:24px; color:#64748b;">크리처를 먼저 선택해주세요.</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Vendor Sub-Tab -->
+                    <div id="content-vendor" class="log-sub-content">
+                        <div class="drop-admin-layout">
+                            <div class="drop-admin-panel">
+                                <div class="drop-admin-panel-header">
+                                    <div>
+                                        <h3>NPC 검색</h3>
+                                        <p>이름 또는 NPC 번호로 검색한 뒤 판매 목록을 관리합니다. NPC 번호는 DB의 Entry 값입니다.</p>
+                                    </div>
+                                </div>
+                                <div class="filter-bar" style="display:grid; grid-template-columns: minmax(0, 1fr) auto auto; gap:10px; align-items:end;">
+                                    <div class="filter-group">
+                                        <label for="vendor-creature-search">NPC 검색</label>
+                                        <input id="vendor-creature-search" type="text" class="input-premium" placeholder="NPC명 또는 NPC 번호 입력">
+                                    </div>
+                                    <button onclick="searchVendorCreatures()" class="btn btn-primary"><i class="fas fa-search"></i> 검색</button>
+                                    <button onclick="resetVendorCreatures()" class="btn"><i class="fas fa-undo"></i> 초기화</button>
+                                </div>
+                                <div class="scroll-table premium-table drop-creature-table-wrap">
+                                    <table>
+                                        <thead>
+                                            <tr>
+                                                <th style="width:115px;">NPC 번호</th>
+                                                <th>NPC명</th>
+                                                <th style="width:120px;">레벨</th>
+                                                <th style="width:90px;">선택</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="vendor-creature-list"></tbody>
+                                    </table>
+                                </div>
+                                <div id="vendor-creature-pagination"></div>
+                            </div>
+
+                            <div class="drop-admin-panel">
+                                <div class="drop-admin-panel-header">
+                                    <div>
+                                        <h3 id="vendor-selected-title">판매 목록</h3>
+                                        <p id="vendor-selected-meta">왼쪽에서 NPC를 선택하면 판매 정보가 표시됩니다.</p>
+                                    </div>
+                                    <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end;">
+                                        <button onclick="openVendorItemModal()" class="btn btn-primary" id="vendor-add-btn" disabled>
+                                            <i class="fas fa-plus"></i> 판매 아이템 추가
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="scroll-table premium-table drop-loot-table-wrap">
+                                    <table>
+                                        <thead>
+                                            <tr>
+                                                <th style="width:95px;">슬롯</th>
+                                                <th style="width:95px;">번호</th>
+                                                <th>판매 아이템</th>
+                                                <th style="width:110px;">재고</th>
+                                                <th style="width:120px;">재입고(초)</th>
+                                                <th style="width:120px;">확장 비용</th>
+                                                <th style="width:110px;">빌드</th>
+                                                <th style="width:170px;">관리</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="vendor-item-list">
+                                            <tr><td colspan="8" style="text-align:center; padding:24px; color:#64748b;">NPC를 먼저 선택해주세요.</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Trial Sub-Tab -->
@@ -3298,6 +3512,7 @@
                             <div id="trial-reward-log-pagination"></div>
                         </div>
                     </div>
+
                 </div>
             </div>
 
@@ -3419,6 +3634,49 @@
                         </div>
                     </div>
                 </div>
+                </div>
+            </div>
+
+
+            <!-- Bug Report Admin Tab -->
+            <div id="bug-report-admin" class="tab-content">
+                <div class="card flex-card bug-admin-card">
+                    <div class="card-header">
+                        <div>
+                            <h2><i class="fas fa-bug"></i> 버그리포트</h2>
+                            <p style="margin:6px 0 0; color:#64748b; font-size:0.9rem;">유저가 등록한 버그 리포트를 확인하고 답변을 남깁니다.</p>
+                        </div>
+                        <button onclick="loadBugReportAdminPage(1)" class="refresh-btn">
+                            <i class="fas fa-sync"></i> 새로고침
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="bug-admin-layout">
+                            <div id="bug-admin-list-view" class="bug-admin-list-panel">
+                                <div id="bug-admin-status-tabs" class="kb-report-tabs">
+                                    <button type="button" class="kb-report-tab active" data-status="" onclick="setBugReportAdminStatus('')">전체 <span id="bug-admin-count-all">0</span></button>
+                                    <button type="button" class="kb-report-tab" data-status="received" onclick="setBugReportAdminStatus('received')">접수 <span id="bug-admin-count-received">0</span></button>
+                                    <button type="button" class="kb-report-tab" data-status="in_progress" onclick="setBugReportAdminStatus('in_progress')">진행중 <span id="bug-admin-count-in-progress">0</span></button>
+                                    <button type="button" class="kb-report-tab" data-status="done" onclick="setBugReportAdminStatus('done')">완료 <span id="bug-admin-count-done">0</span></button>
+                                </div>
+                                <div class="filter-bar" style="margin-bottom:12px;">
+                                    <div class="filter-group">
+                                        <input type="text" id="bug-admin-search" placeholder="제목 또는 작성자 검색" onkeypress="if(event.key==='Enter') loadBugReportAdminPage(1)">
+                                    </div>
+                                    <button onclick="loadBugReportAdminPage(1)" class="search-btn"><i class="fas fa-search"></i> 검색</button>
+                                </div>
+                                <div id="bug-admin-list" class="bug-admin-list">
+                                    <div class="bug-admin-empty">버그 리포트를 불러오는 중입니다.</div>
+                                </div>
+                                <div id="bug-admin-pagination" style="margin-top: 1rem;"></div>
+                            </div>
+                            <div id="bug-admin-detail-view" class="bug-admin-detail-panel" style="display:none;" hidden>
+                                <div id="bug-admin-detail" class="bug-admin-detail-empty">
+                                    목록에서 버그 리포트를 선택하세요.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -3617,8 +3875,298 @@
                 </form>
             </div>
         </div>
+        <div id="drop-item-modal" class="modal-overlay">
+            <div class="modal-content-premium" style="max-width:760px; width:94%;">
+                <div class="modal-header-premium">
+                    <h3 id="drop-item-modal-title">드랍 아이템 추가</h3>
+                    <button type="button" class="modal-close-btn" onclick="closeDropItemModal()">&times;</button>
+                </div>
+                <form id="drop-item-form">
+                    <div class="modal-body-premium">
+                        <input type="hidden" id="drop-item-creature-entry">
+                        <div class="drop-help-box">
+                            <strong>입력 항목 안내</strong>
+                            <span>아이템 번호는 DB의 Item Entry입니다. 루팅 방식은 보통 1을 사용하며, 참조 번호는 다른 드랍 그룹을 참조할 때만 입력합니다.</span>
+                        </div>
+                        <div class="form-group-premium">
+                            <label class="label-premium">아이템</label>
+                            <div style="display:grid; grid-template-columns: 150px minmax(0, 1fr) auto; gap:8px;">
+                                <input type="number" id="drop-item-entry" class="input-premium" min="0" placeholder="아이템 번호">
+                                <input type="text" id="drop-item-name" class="input-premium" placeholder="아이템 검색으로 선택 시 자동 입력" readonly>
+                                <button type="button" class="btn-action btn-edit" onclick="openDropItemPicker()">아이템 찾기</button>
+                            </div>
+                            <div class="field-help">아이템 번호는 item_template.entry 값입니다. 직접 입력보다 아이템 찾기 버튼 사용을 권장합니다.</div>
+                        </div>
+                        <div style="display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap:12px;">
+                            <div class="form-group-premium">
+                                <label class="label-premium">드랍 확률(%)</label>
+                                <input type="number" id="drop-item-chance" class="input-premium" value="100" min="0" max="100" step="0.01">
+                                <div class="field-help">0~100 사이로 입력합니다. 예: 5 입력 시 5% 확률입니다.</div>
+                            </div>
+                            <div class="form-group-premium">
+                                <label class="label-premium">최소 수량</label>
+                                <input type="number" id="drop-item-min-count" class="input-premium" value="1" min="1">
+                                <div class="field-help">아이템이 드랍될 때 최소로 지급되는 개수입니다.</div>
+                            </div>
+                            <div class="form-group-premium">
+                                <label class="label-premium">최대 수량</label>
+                                <input type="number" id="drop-item-max-count" class="input-premium" value="1" min="1">
+                                <div class="field-help">아이템이 드랍될 때 최대로 지급되는 개수입니다.</div>
+                            </div>
+                        </div>
+                        <div style="display:grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap:12px;">
+                            <div class="form-group-premium">
+                                <label class="label-premium">드랍 그룹</label>
+                                <input type="number" id="drop-item-group-id" class="input-premium" value="0" min="0">
+                                <div class="field-help">같은 그룹 안에서는 서버 드랍 규칙에 따라 하나만 선택될 수 있습니다. 일반 드랍은 0을 사용합니다.</div>
+                            </div>
+                            <div class="form-group-premium">
+                                <label class="label-premium">루팅 방식</label>
+                                <input type="number" id="drop-item-loot-mode" class="input-premium" value="1" min="1">
+                                <div class="field-help">일반 드랍은 1입니다. 특별한 루팅 조건이 있을 때만 변경합니다.</div>
+                            </div>
+                            <div class="form-group-premium">
+                                <label class="label-premium">참조 번호</label>
+                                <input type="number" id="drop-item-reference" class="input-premium" value="0" min="0">
+                                <div class="field-help">다른 드랍 묶음을 참조할 때 사용합니다. 일반 아이템 드랍은 0입니다.</div>
+                            </div>
+                            <div class="form-group-premium">
+                                <label class="label-premium">퀘스트 전용</label>
+                                <select id="drop-item-quest-required" class="input-premium">
+                                    <option value="0">아니오</option>
+                                    <option value="1">예</option>
+                                </select>
+                                <div class="field-help">예로 설정하면 퀘스트 조건용 드랍으로 처리됩니다.</div>
+                            </div>
+                        </div>
+                        <div class="form-group-premium" style="margin-bottom:0;">
+                            <label class="label-premium">메모</label>
+                            <input type="text" id="drop-item-comment" class="input-premium" placeholder="운영 메모 또는 설명">
+                        </div>
+                    </div>
+                    <div class="modal-footer-premium">
+                        <button type="button" onclick="closeDropItemModal()" class="btn" style="background:#f1f5f9; color:#64748b; flex:none; padding:0.6rem 1.25rem;">취소</button>
+                        <button type="submit" class="btn btn-primary" style="flex:none; padding:0.6rem 1.5rem;">저장</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <div id="drop-reference-link-modal" class="modal-overlay">
+            <div class="modal-content-premium" style="max-width:720px; width:94%;">
+                <div class="modal-header-premium">
+                    <h3>참조 묶음 연결</h3>
+                    <button type="button" class="modal-close-btn" onclick="closeDropReferenceLinkModal()">&times;</button>
+                </div>
+                <form id="drop-reference-link-form">
+                    <div class="modal-body-premium">
+                        <input type="hidden" id="drop-ref-link-creature-entry">
+                        <div class="drop-help-box">
+                            <strong>참조 묶음 안내</strong>
+                            <span>참조 묶음은 reference_loot_template에 저장된 공통 드랍 목록입니다. 여러 크리처가 같은 묶음을 공유할 수 있습니다.</span>
+                        </div>
+                        <div style="display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap:12px;">
+                            <div class="form-group-premium">
+                                <label class="label-premium">참조 묶음 번호</label>
+                                <input type="number" id="drop-ref-link-reference" class="input-premium" min="1" placeholder="예: 43001" required>
+                                <div class="field-help">creature_loot_template.Reference 값이며, reference_loot_template.Entry와 연결됩니다.</div>
+                            </div>
+                            <div class="form-group-premium">
+                                <label class="label-premium">연결 확률(%)</label>
+                                <input type="number" id="drop-ref-link-chance" class="input-premium" value="100" min="0" max="100" step="0.01">
+                                <div class="field-help">이 묶음 자체가 선택될 확률입니다.</div>
+                            </div>
+                            <div class="form-group-premium">
+                                <label class="label-premium">드랍 그룹</label>
+                                <input type="number" id="drop-ref-link-group-id" class="input-premium" value="0" min="0">
+                                <div class="field-help">그룹 경쟁 드랍이면 같은 그룹 번호를 사용합니다.</div>
+                            </div>
+                        </div>
+                        <div style="display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap:12px;">
+                            <div class="form-group-premium">
+                                <label class="label-premium">루팅 방식</label>
+                                <input type="number" id="drop-ref-link-loot-mode" class="input-premium" value="1" min="1">
+                            </div>
+                            <div class="form-group-premium">
+                                <label class="label-premium">퀘스트 전용</label>
+                                <select id="drop-ref-link-quest-required" class="input-premium">
+                                    <option value="0">아니오</option>
+                                    <option value="1">예</option>
+                                </select>
+                            </div>
+                            <div class="form-group-premium">
+                                <label class="label-premium">메모</label>
+                                <input type="text" id="drop-ref-link-comment" class="input-premium" placeholder="운영 메모">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer-premium">
+                        <button type="button" onclick="closeDropReferenceLinkModal()" class="btn" style="background:#f1f5f9; color:#64748b; flex:none; padding:0.6rem 1.25rem;">취소</button>
+                        <button type="submit" class="btn btn-primary" style="flex:none; padding:0.6rem 1.5rem;">연결 저장</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <div id="drop-reference-modal" class="modal-overlay">
+            <div class="modal-content-premium" style="max-width:1280px; width:96%;">
+                <div class="modal-header-premium">
+                    <h3 id="drop-reference-modal-title">참조 묶음 관리</h3>
+                    <button type="button" class="modal-close-btn" onclick="closeDropReferenceModal()">&times;</button>
+                </div>
+                <div class="modal-body-premium">
+                    <input type="hidden" id="drop-reference-entry">
+                    <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:1rem;">
+                        <div id="drop-reference-meta" style="color:#475569; line-height:1.6;">참조 묶음 정보를 불러오는 중...</div>
+                        <button type="button" class="btn btn-primary" onclick="openDropReferenceItemModal()"><i class="fas fa-plus"></i> 묶음 아이템 추가</button>
+                    </div>
+                    <div class="scroll-table premium-table" style="max-height:620px;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style="width:95px;">번호</th>
+                                    <th>아이템명</th>
+                                    <th style="width:95px;">확률</th>
+                                    <th style="width:95px;">그룹</th>
+                                    <th style="width:110px;">수량</th>
+                                    <th style="width:105px;">루팅 방식</th>
+                                    <th style="width:90px;">퀘스트</th>
+                                    <th style="width:170px;">관리</th>
+                                </tr>
+                            </thead>
+                            <tbody id="drop-reference-list"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer-premium">
+                    <button type="button" onclick="closeDropReferenceModal()" class="btn" style="background:#f1f5f9; color:#64748b; flex:none; padding:0.6rem 1.25rem;">닫기</button>
+                </div>
+            </div>
+        </div>
+        <div id="drop-reference-item-modal" class="modal-overlay">
+            <div class="modal-content-premium" style="max-width:760px; width:94%;">
+                <div class="modal-header-premium">
+                    <h3 id="drop-reference-item-modal-title">묶음 아이템 추가</h3>
+                    <button type="button" class="modal-close-btn" onclick="closeDropReferenceItemModal()">&times;</button>
+                </div>
+                <form id="drop-reference-item-form">
+                    <div class="modal-body-premium">
+                        <input type="hidden" id="drop-reference-item-entry">
+                        <div class="form-group-premium">
+                            <label class="label-premium">아이템</label>
+                            <div style="display:grid; grid-template-columns: 150px minmax(0, 1fr) auto; gap:8px;">
+                                <input type="number" id="drop-reference-item-item-entry" class="input-premium" min="0" placeholder="아이템 번호">
+                                <input type="text" id="drop-reference-item-name" class="input-premium" placeholder="아이템 검색으로 선택 시 자동 입력" readonly>
+                                <button type="button" class="btn-action btn-edit" onclick="openDropReferenceItemPicker()">아이템 찾기</button>
+                            </div>
+                        </div>
+                        <div style="display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap:12px;">
+                            <div class="form-group-premium">
+                                <label class="label-premium">드랍 확률(%)</label>
+                                <input type="number" id="drop-reference-item-chance" class="input-premium" value="100" min="0" max="100" step="0.01">
+                            </div>
+                            <div class="form-group-premium">
+                                <label class="label-premium">최소 수량</label>
+                                <input type="number" id="drop-reference-item-min-count" class="input-premium" value="1" min="1">
+                            </div>
+                            <div class="form-group-premium">
+                                <label class="label-premium">최대 수량</label>
+                                <input type="number" id="drop-reference-item-max-count" class="input-premium" value="1" min="1">
+                            </div>
+                        </div>
+                        <div style="display:grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap:12px;">
+                            <div class="form-group-premium">
+                                <label class="label-premium">드랍 그룹</label>
+                                <input type="number" id="drop-reference-item-group-id" class="input-premium" value="0" min="0">
+                            </div>
+                            <div class="form-group-premium">
+                                <label class="label-premium">루팅 방식</label>
+                                <input type="number" id="drop-reference-item-loot-mode" class="input-premium" value="1" min="1">
+                            </div>
+                            <div class="form-group-premium">
+                                <label class="label-premium">하위 참조 번호</label>
+                                <input type="number" id="drop-reference-item-reference" class="input-premium" value="0" min="0">
+                            </div>
+                            <div class="form-group-premium">
+                                <label class="label-premium">퀘스트 전용</label>
+                                <select id="drop-reference-item-quest-required" class="input-premium">
+                                    <option value="0">아니오</option>
+                                    <option value="1">예</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group-premium" style="margin-bottom:0;">
+                            <label class="label-premium">메모</label>
+                            <input type="text" id="drop-reference-item-comment" class="input-premium" placeholder="운영 메모 또는 설명">
+                        </div>
+                    </div>
+                    <div class="modal-footer-premium">
+                        <button type="button" onclick="closeDropReferenceItemModal()" class="btn" style="background:#f1f5f9; color:#64748b; flex:none; padding:0.6rem 1.25rem;">취소</button>
+                        <button type="submit" class="btn btn-primary" style="flex:none; padding:0.6rem 1.5rem;">저장</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <div id="vendor-item-modal" class="modal-overlay">
+            <div class="modal-content-premium" style="max-width:760px; width:94%;">
+                <div class="modal-header-premium">
+                    <h3 id="vendor-item-modal-title">판매 아이템 추가</h3>
+                    <button type="button" class="modal-close-btn" onclick="closeVendorItemModal()">&times;</button>
+                </div>
+                <form id="vendor-item-form">
+                    <div class="modal-body-premium">
+                        <input type="hidden" id="vendor-item-creature-entry">
+                        <input type="hidden" id="vendor-item-original-entry">
+                        <input type="hidden" id="vendor-item-original-extended-cost">
+                        <div class="drop-help-box">
+                            <strong>판매 설정 안내</strong>
+                            <span>재고 0은 무제한 판매입니다. 재입고 시간은 초 단위이며, 확장 비용은 ExtendedCost ID가 있을 때만 입력합니다.</span>
+                        </div>
+                        <div class="form-group-premium">
+                            <label class="label-premium">아이템</label>
+                            <div style="display:grid; grid-template-columns: 150px minmax(0, 1fr) auto; gap:8px;">
+                                <input type="number" id="vendor-item-entry" class="input-premium" min="1" placeholder="아이템 번호">
+                                <input type="text" id="vendor-item-name" class="input-premium" placeholder="아이템 검색으로 선택 시 자동 입력" readonly>
+                                <button type="button" class="btn-action btn-edit" onclick="openVendorItemPicker()">아이템 찾기</button>
+                            </div>
+                        </div>
+                        <div style="display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:12px;">
+                            <div class="form-group-premium">
+                                <label class="label-premium">슬롯</label>
+                                <input type="number" id="vendor-item-slot" class="input-premium" value="0" min="0">
+                                <div class="field-help">0이면 현재 NPC 판매 목록의 마지막 다음 슬롯으로 자동 배정합니다.</div>
+                            </div>
+                            <div class="form-group-premium">
+                                <label class="label-premium">확장 비용 ID</label>
+                                <input type="number" id="vendor-item-extended-cost" class="input-premium" value="0" min="0">
+                                <div class="field-help">일반 판매는 0입니다. 특별 화폐나 조건 판매일 때만 입력합니다.</div>
+                            </div>
+                        </div>
+                        <div style="display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap:12px;">
+                            <div class="form-group-premium">
+                                <label class="label-premium">재고 수량</label>
+                                <input type="number" id="vendor-item-max-count" class="input-premium" value="0" min="0">
+                                <div class="field-help">0이면 무제한 판매입니다.</div>
+                            </div>
+                            <div class="form-group-premium">
+                                <label class="label-premium">재입고 시간(초)</label>
+                                <input type="number" id="vendor-item-incr-time" class="input-premium" value="0" min="0">
+                                <div class="field-help">재고 수량이 0보다 클 때만 의미가 있습니다.</div>
+                            </div>
+                            <div class="form-group-premium">
+                                <label class="label-premium">VerifiedBuild</label>
+                                <input type="number" id="vendor-item-verified-build" class="input-premium" value="0">
+                                <div class="field-help">특별한 기준이 없으면 0으로 두면 됩니다.</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer-premium">
+                        <button type="button" onclick="closeVendorItemModal()" class="btn" style="background:#f1f5f9; color:#64748b; flex:none; padding:0.6rem 1.25rem;">취소</button>
+                        <button type="submit" class="btn btn-primary" style="flex:none; padding:0.6rem 1.5rem;">저장</button>
+                    </div>
+                </form>
+            </div>
+        </div>
         <div id="trial-stage-reward-modal" class="modal-overlay">
-            <div class="modal-content-premium" style="max-width:1180px; width:96%;">
+            <div class="modal-content-premium trial-stage-reward-modal-content" style="max-width:1960px; width:calc(100vw - 32px);">
                 <div class="modal-header-premium">
                     <h3 id="trial-stage-reward-modal-title">시련 단계 보상 관리</h3>
                     <button type="button" class="modal-close-btn" onclick="closeTrialStageRewardModal()">&times;</button>
@@ -3629,18 +4177,20 @@
                         <div id="trial-stage-reward-stage-meta" style="color:#475569; font-size:0.95rem;">단계 정보를 불러오는 중...</div>
                         <button type="button" class="btn btn-primary" onclick="openTrialRewardAddPicker()"><i class="fas fa-plus"></i> 보상 추가</button>
                     </div>
-                    <div class="scroll-table premium-table" style="max-height:520px;">
+                    <div class="scroll-table premium-table trial-stage-reward-table-wrap" style="max-height:520px;">
                         <table>
                             <thead>
                                 <tr>
-                                    <th style="width:120px;">등급</th>
-                                    <th style="width:108px;">순서</th>
-                                    <th style="width:420px;">보상 아이템</th>
-                                    <th style="width:110px;">수량</th>
-                                    <th style="width:132px;">확률(%)</th>
-                                    <th style="width:140px;">활성</th>
-                                    <th style="width:242px;">메모</th>
-                                    <th style="width:100px; text-align:center;">관리</th>
+                                    <th style="width:132px;">등급</th>
+                                    <th style="width:120px;">순서</th>
+                                    <th style="width:130px;">유형</th>
+                                    <th style="width:560px;">보상 아이템</th>
+                                    <th style="width:132px;">수량</th>
+                                    <th style="width:150px;">확률(%)</th>
+                                    <th style="width:270px;">금액</th>
+                                    <th style="width:160px;">활성</th>
+                                    <th style="width:360px;">메모</th>
+                                    <th style="width:120px; text-align:center;">관리</th>
                                 </tr>
                             </thead>
                             <tbody id="trial-stage-reward-list"></tbody>
@@ -3709,6 +4259,15 @@
                             <div class="form-group-premium"><label for="trial-stage-edit-move-speed">이동속도</label><input id="trial-stage-edit-move-speed" type="number" step="0.01" min="0.1" class="input-premium"></div>
                             <div class="form-group-premium"><label for="trial-stage-edit-preparation">준비 시간(ms)</label><input id="trial-stage-edit-preparation" type="number" min="0" class="input-premium"></div>
                         </div>
+                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:16px;">
+                        <h4 style="margin:0 0 0.85rem; color:#0f172a;">단계별 랭크 시간 설정</h4>
+                        <div style="display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:12px;">
+                            <div class="form-group-premium"><label for="trial-stage-edit-rank-s-seconds">S랭크 기준 시간(초)</label><input id="trial-stage-edit-rank-s-seconds" type="number" min="1" class="input-premium"></div>
+                            <div class="form-group-premium"><label for="trial-stage-edit-rank-a-seconds">A랭크 기준 시간(초)</label><input id="trial-stage-edit-rank-a-seconds" type="number" min="1" class="input-premium"></div>
+                            <div class="form-group-premium"><label for="trial-stage-edit-rank-b-seconds">B랭크 기준 시간(초)</label><input id="trial-stage-edit-rank-b-seconds" type="number" min="1" class="input-premium"></div>
+                            <div class="form-group-premium"><label for="trial-stage-edit-rank-c-seconds">C랭크 기준 시간(초)</label><input id="trial-stage-edit-rank-c-seconds" type="number" min="1" class="input-premium"></div>
+                        </div>
+                    </div>
                     </div>
 
                     <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
@@ -3727,6 +4286,7 @@
                             <div style="display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:12px;">
                                 <div class="form-group-premium"><label for="trial-stage-edit-caster-target-gs">목표 GS</label><input id="trial-stage-edit-caster-target-gs" type="number" min="0" class="input-premium"></div>
                                 <div class="form-group-premium"><label for="trial-stage-edit-caster-health">체력</label><input id="trial-stage-edit-caster-health" type="number" min="1" class="input-premium"></div>
+                                <div class="form-group-premium"><label for="trial-stage-edit-caster-mana">마나</label><input id="trial-stage-edit-caster-mana" type="number" min="0" class="input-premium"></div>
                                 <div class="form-group-premium"><label for="trial-stage-edit-caster-spell-power">주문력</label><input id="trial-stage-edit-caster-spell-power" type="number" min="0" class="input-premium"></div>
                                 <div class="form-group-premium"><label for="trial-stage-edit-caster-crit">치명(%)</label><input id="trial-stage-edit-caster-crit" type="number" min="0" max="100" step="0.01" class="input-premium"></div>
                                 <div class="form-group-premium"><label for="trial-stage-edit-caster-haste">가속 수치</label><input id="trial-stage-edit-caster-haste" type="number" min="0" class="input-premium"></div>
@@ -4105,12 +4665,12 @@
         </div>
 
         <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-        <script src="script.js?v=admin_fix_v33"></script>
+        <script src="script.js?v=admin_fix_v35"></script>
         <script src="notification.js?v=3"></script>
         <script src="shop.js?v=4"></script>
         <script src="auction.js?v=6"></script>
         <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.3/Sortable.min.js"></script>
-        <script src="board.js?v=board_order_v9"></script>
+        <script src="board.js?v=bug_report_v18"></script>
         <script src="account.js?v=30"></script>
         <script src="char_items_modal.js?v=29"></script>
         <script src="item_picker.js?v=29"></script>
