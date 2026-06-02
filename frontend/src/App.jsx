@@ -63,7 +63,8 @@ const DEFAULT_HOME = {
   ],
 }
 
-const CONNECT_GUIDE_DOWNLOAD_URL = 'https://drive.google.com/file/d/1iVb54gUk3qUb0xqYwnlTXZOi4zFihGx7/view?usp=sharing'
+const CONNECT_CLIENT_DOWNLOAD_URL = 'https://drive.google.com/file/d/14tO_E-R0EIbzz_aiJ0tsBO5T4hvmocGe/view?usp=sharing'
+const CONNECT_LAUNCHER_DOWNLOAD_URL = 'https://drive.google.com/file/d/119sSxI8NsWLlhp4aKkNNMQL8sabMc52A/view?usp=sharing'
 const AUCTION_CLASS_MAP = {
   0: '소모품',
   1: '가방',
@@ -1528,14 +1529,14 @@ function App() {
                 <div className="guide-view-image-wrap">
                   <img src="/img/guide.png?v=20260417_1" alt="접속방법 안내" className="guide-view-image" />
                   <a
-                    href={CONNECT_GUIDE_DOWNLOAD_URL}
+                    href={CONNECT_CLIENT_DOWNLOAD_URL}
                     target="_blank"
                     rel="noreferrer noopener"
                     className="guide-download-hitbox guide-download-hitbox-first"
                     aria-label="게임 클라이언트 다운로드"
                   />
                   <a
-                    href={CONNECT_GUIDE_DOWNLOAD_URL}
+                    href={CONNECT_LAUNCHER_DOWNLOAD_URL}
                     target="_blank"
                     rel="noreferrer noopener"
                     className="guide-download-hitbox guide-download-hitbox-second"
