@@ -124,13 +124,22 @@
       width: 100%;
     }
 
-    .nav-dropdown {
-      position: relative;
-      display: inline-flex;
-      align-items: center;
-      padding-bottom: 18px;
-      margin-bottom: -18px;
-    }
+.nav-dropdown {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  padding-bottom: 18px;
+  margin-bottom: -18px;
+}
+
+.nav-dropdown::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  height: 14px;
+}
 
     .nav-dropdown > a::before,
     .nav-dropdown > .nav-link-button::before {
@@ -145,23 +154,23 @@
       transform: translateY(-62%) rotate(45deg);
     }
 
-    .board-dropdown-menu {
-      position: absolute;
-      top: calc(100% + 2px);
-      left: 50%;
-      display: grid;
-      gap: 4px;
+.board-dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  display: grid;
+  gap: 4px;
       min-width: 220px;
       padding: 12px;
       border: 1px solid rgba(218, 183, 109, 0.22);
-      background: rgba(10, 8, 16, 0.98);
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
-      opacity: 0;
-      pointer-events: none;
-      transform: translateX(-50%) translateY(8px);
-      transition: opacity 0.18s ease, transform 0.18s ease;
-      z-index: 40;
-    }
+  background: rgba(10, 8, 16, 0.98);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-50%) translateY(0);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+  z-index: 40;
+}
 
     .board-dropdown-menu a {
       display: block;
@@ -197,12 +206,12 @@
       background: rgba(122, 56, 230, 0.12);
     }
 
-    .nav-dropdown:hover .board-dropdown-menu,
-    .nav-dropdown:focus-within .board-dropdown-menu {
-      opacity: 1;
-      pointer-events: auto;
-      transform: translateX(-50%) translateY(0);
-    }
+.nav-dropdown:hover .board-dropdown-menu,
+.nav-dropdown:focus-within .board-dropdown-menu {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(-50%) translateY(0);
+}
 
     .nav-action,
     .btn {
