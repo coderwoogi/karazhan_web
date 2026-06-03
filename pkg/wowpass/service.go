@@ -667,10 +667,43 @@ func handleCardDrawPackOpen(w http.ResponseWriter, r *http.Request) {
 	pack.OpenedSlots[req.Slot] = true
 	selected := pack.SelectedChar
 	trackLevel := pack.TrackLevel
+	bundleRewards := make([]carddrawReward, 0, len(pack.OpenableSlots))
+	allOpened := true
+	for _, slot := range pack.OpenableSlots {
+		if !pack.OpenedSlots[slot] {
+			allOpened = false
+			continue
+		}
+		if bundleReward, exists := pack.RewardsBySlot[slot]; exists {
+			bundleRewards = append(bundleRewards, bundleReward)
+		}
+	}
 	carddrawPackStoreMu.Unlock()
+
+	revertOpenedSlot := func() {
+		carddrawPackStoreMu.Lock()
+		if currentPack := carddrawPackStore[userID]; currentPack != nil {
+			delete(currentPack.OpenedSlots, req.Slot)
+		}
+		carddrawPackStoreMu.Unlock()
+	}
+
+	if allOpened {
+		if err := sendCarddrawRewardBundleMail(selected, bundleRewards, username, r); err != nil {
+			revertOpenedSlot()
+			log.Printf("[carddraw/mail] reward bundle mail send error user_id=%d char=%s rewards=%d err=%v", userID, selected.Name, len(bundleRewards), err)
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "보상 우편 발송에 실패했습니다. 잠시 후 다시 시도해 주세요."})
+			return
+		}
+	}
 
 	updateDB, err := sql.Open("mysql", updateDSN)
 	if err != nil {
+		if allOpened {
+			clearCompletedCarddrawPack(userID)
+		} else {
+			revertOpenedSlot()
+		}
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "카드 오픈에 실패했습니다."})
 		return
 	}
@@ -685,11 +718,18 @@ func handleCardDrawPackOpen(w http.ResponseWriter, r *http.Request) {
         )
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, userID, username, selected.Guid, selected.Name, selected.Race, selected.Class, selected.Gender, selected.Level, trackLevel, reward.Name, reward.Icon, reward.RarityLabel); err != nil {
+		if allOpened {
+			clearCompletedCarddrawPack(userID)
+		} else {
+			revertOpenedSlot()
+		}
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "카드 뽑기 로그 기록에 실패했습니다."})
 		return
 	}
 
-	clearCompletedCarddrawPack(userID)
+	if allOpened {
+		clearCompletedCarddrawPack(userID)
+	}
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{
 		"status": "success",
@@ -703,6 +743,103 @@ func handleCardDrawPackOpen(w http.ResponseWriter, r *http.Request) {
 			"quantity":    reward.Quantity,
 		},
 	})
+}
+
+func sendCarddrawRewardBundleMail(selected cardCharacter, rewards []carddrawReward, senderUsername string, r *http.Request) error {
+	if selected.Guid <= 0 || strings.TrimSpace(selected.Name) == "" {
+		return fmt.Errorf("invalid selected character")
+	}
+	if len(rewards) == 0 {
+		return fmt.Errorf("empty reward payload")
+	}
+
+	charDB, err := sql.Open("mysql", charDSN)
+	if err != nil {
+		return err
+	}
+	defer charDB.Close()
+
+	tx, err := charDB.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	var nextMailID int64
+	if err := tx.QueryRow("SELECT IFNULL(MAX(id), 0) + 1 FROM mail").Scan(&nextMailID); err != nil {
+		return err
+	}
+
+	subjectLabel := "보상 묶음"
+	if len(rewards) == 1 {
+		subjectLabel = strings.TrimSpace(rewards[0].Name)
+		if subjectLabel == "" {
+			subjectLabel = fmt.Sprintf("아이템 %d", rewards[0].ItemEntry)
+		}
+	}
+	subject := fmt.Sprintf("[카드뽑기] %s", subjectLabel)
+	bodyLines := []string{"카드뽑기 보상이 도착했습니다.", ""}
+	for _, reward := range rewards {
+		if reward.ItemEntry <= 0 || reward.Quantity <= 0 {
+			return fmt.Errorf("invalid reward payload")
+		}
+		rewardName := strings.TrimSpace(reward.Name)
+		if rewardName == "" {
+			rewardName = fmt.Sprintf("아이템 %d", reward.ItemEntry)
+		}
+		bodyLines = append(bodyLines, fmt.Sprintf("- %s x%d", rewardName, reward.Quantity))
+	}
+	body := strings.Join(bodyLines, "\n")
+	if _, err := tx.Exec(`
+		INSERT INTO mail (id, messageType, stationery, mailTemplateId, sender, receiver, subject, body, has_items, expire_time, deliver_time, money, cod, checked)
+		VALUES (?, 0, 41, 0, 0, ?, ?, ?, 1, UNIX_TIMESTAMP() + 2592000, UNIX_TIMESTAMP(), 0, 0, 0)
+	`, nextMailID, selected.Guid, subject, body); err != nil {
+		return err
+	}
+
+	var nextItemGUID int64
+	if err := tx.QueryRow("SELECT IFNULL(MAX(guid), 0) + 1 FROM item_instance").Scan(&nextItemGUID); err != nil {
+		return err
+	}
+
+	for _, reward := range rewards {
+		if _, err := tx.Exec(`
+			INSERT INTO item_instance (guid, itemEntry, owner_guid, creatorGuid, count, enchantments)
+			VALUES (?, ?, ?, 0, ?, '')
+		`, nextItemGUID, reward.ItemEntry, selected.Guid, reward.Quantity); err != nil {
+			return err
+		}
+
+		if _, err := tx.Exec("INSERT INTO mail_items (mail_id, item_guid, receiver) VALUES (?, ?, ?)", nextMailID, nextItemGUID, selected.Guid); err != nil {
+			return err
+		}
+		nextItemGUID++
+	}
+
+	ip := ""
+	if r != nil {
+		ip = r.RemoteAddr
+		if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
+			ip = forwarded
+		}
+	}
+	senderUsername = "The Karazhan"
+	totalCount := 0
+	firstEntry := 0
+	for idx, reward := range rewards {
+		totalCount += reward.Quantity
+		if idx == 0 {
+			firstEntry = reward.ItemEntry
+		}
+	}
+	if _, err := tx.Exec(`
+		INSERT INTO web_mail_log (sender_username, receiver_name, subject, body, item_entry, item_count, gold, ip_address)
+		VALUES (?, ?, ?, ?, ?, ?, 0, ?)
+	`, senderUsername, selected.Name, subject, body, firstEntry, totalCount, ip); err != nil {
+		log.Printf("[carddraw/mail] web_mail_log insert skipped char=%s rewards=%d err=%v", selected.Name, len(rewards), err)
+	}
+
+	return tx.Commit()
 }
 
 func handleCardDrawDraw(w http.ResponseWriter, r *http.Request) {
