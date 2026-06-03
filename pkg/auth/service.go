@@ -761,7 +761,7 @@ func adminUserListHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Get user list
 	mainQuery := `
-		SELECT a.id, a.username, a.email, MAX(IFNULL(aa.gmlevel, 0)) as gmlevel,
+		SELECT a.id, a.username, a.email, DATE_FORMAT(a.joindate, '%Y-%m-%d %H:%i:%s') as joindate, MAX(IFNULL(aa.gmlevel, 0)) as gmlevel,
 		MAX(CASE WHEN ab.active = 1 AND ab.unbandate > UNIX_TIMESTAMP() THEN 1 ELSE 0 END) as is_banned,
 		IFNULL(a.last_ip, '') as last_ip, IFNULL(a.online, 0) as online
 		FROM account a
@@ -769,7 +769,7 @@ func adminUserListHandler(w http.ResponseWriter, r *http.Request) {
 		LEFT JOIN account_banned ab ON a.id = ab.id
 		LEFT JOIN update.user_profiles up ON a.id = up.user_id
 	` + baseWhere + `
-		GROUP BY a.id, a.username, a.email, a.last_ip, a.online
+		GROUP BY a.id, a.username, a.email, a.joindate, a.last_ip, a.online
 		ORDER BY a.id DESC
 		LIMIT ? OFFSET ?
 	`
@@ -791,15 +791,16 @@ func adminUserListHandler(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var id int
 		var username, email string
+		var joinDate sql.NullString
 		var gmlevel int
 		var isBanned int
 		var lastIp string
 		var online int
-		rows.Scan(&id, &username, &email, &gmlevel, &isBanned, &lastIp, &online)
+		rows.Scan(&id, &username, &email, &joinDate, &gmlevel, &isBanned, &lastIp, &online)
 		users = append(users, map[string]interface{}{
 			"id": id, "username": username, "email": email, "gmlevel": gmlevel,
 			"webRank": 0, "points": 0, "carddrawCount": 0, "charCount": 0, "is_banned": isBanned,
-			"last_ip": lastIp, "online": online,
+			"last_ip": lastIp, "online": online, "joinDate": joinDate.String,
 		})
 		userIDs = append(userIDs, id)
 	}

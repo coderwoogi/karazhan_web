@@ -2615,7 +2615,7 @@ async function loadUserList(page = 1, clearFilters = false) {
 
     tbody.style.opacity = '0.4';
     if (page === 1 && clearFilters) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px;">로딩 중...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:20px;">로딩 중...</td></tr>';
     }
 
     try {
@@ -2639,7 +2639,7 @@ async function loadUserList(page = 1, clearFilters = false) {
         const users = data.users || [];
 
         if (users.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px;">검색 결과가 없습니다.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:20px;">검색 결과가 없습니다.</td></tr>';
             tbody.style.opacity = '1';
             renderPagination(pgContainer, data, (p) => loadUserList(p));
             return;
@@ -2650,6 +2650,7 @@ async function loadUserList(page = 1, clearFilters = false) {
                 <td>${user.id}</td>
                 <td style="font-weight:700;">${user.username}</td>
                 <td style="color: var(--text-secondary); opacity:0.8;">${user.email}</td>
+                <td style="white-space:nowrap;">${user.joinDate || '-'}</td>
                 <td>
                     <select onchange="updateUserRank(${user.id}, this.value, null)" class="input-premium" style="padding:0.4rem; font-size:0.85rem; width:100%;">
                         <option value="0" ${user.gmlevel === 0 ? 'selected' : ''}>일반 (0)</option>
@@ -2676,7 +2677,7 @@ async function loadUserList(page = 1, clearFilters = false) {
         tbody.style.opacity = '1';
         if (tableContainer) tableContainer.scrollTop = 0;
     } catch (e) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color:red;">오류가 발생했습니다.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:20px; color:red;">오류가 발생했습니다.</td></tr>';
         tbody.style.opacity = '1';
     }
 }

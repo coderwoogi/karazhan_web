@@ -49,7 +49,7 @@ async function loadAccountList(page = 1) {
 
     tbody.style.opacity = '0.4';
     if (page === 1) {
-        tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding:20px;">로딩 중...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="12" style="text-align:center; padding:20px;">로딩 중...</td></tr>';
     }
 
     try {
@@ -75,7 +75,7 @@ async function loadAccountList(page = 1) {
         g_accountList = data.users || [];
 
         if (g_accountList.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding:20px;">검색 결과가 없습니다.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="12" style="text-align:center; padding:20px;">검색 결과가 없습니다.</td></tr>';
             renderPagination(pgContainer, data, (p) => loadAccountList(p));
             tbody.style.opacity = '1';
             return;
@@ -94,6 +94,7 @@ async function loadAccountList(page = 1) {
                         ${u.online == 1 ? '<span class="badge online" style="margin-left:5px; background:#10b981; color:white; font-size:0.7rem;">Online</span>' : ''}
                     </td>
                     <td style="color:var(--text-secondary);">${u.email}</td>
+                    <td style="color:var(--text-secondary); white-space:nowrap;">${u.joinDate || '-'}</td>
                     <td style="color:var(--text-secondary); font-family:monospace;">${u.last_ip}</td>
                     <td style="text-align:center;">
                         <span class="badge ${u.gmlevel > 0 ? 'admin' : 'user'}">${u.gmlevel}</span>
@@ -137,7 +138,7 @@ async function loadAccountList(page = 1) {
         tbody.style.opacity = '1';
     } catch (e) {
         console.error(e);
-        tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding:20px; color:red;">오류가 발생했습니다.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="12" style="text-align:center; padding:20px; color:red;">오류가 발생했습니다.</td></tr>';
         tbody.style.opacity = '1';
     }
 }
