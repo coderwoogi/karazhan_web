@@ -65,8 +65,6 @@ const DEFAULT_HOME = {
     },
     { label: TEXT.carddraw, url: '/carddraw/' },
     { label: TEXT.shop, url: '/shop/' },
-    { label: TEXT.community, url: '#community-section' },
-    { label: TEXT.contents, url: '#contents-section' },
     { label: TEXT.auction, url: '#auction-section' },
   ],
 }
@@ -596,7 +594,10 @@ function App() {
   const [auctionBusyMessage, setAuctionBusyMessage] = useState('')
 
   const currentBoard = useMemo(() => boards.find((board) => board.id === boardId) || null, [boards, boardId])
-  const headerNavItems = useMemo(() => home.nav.filter((item) => item.label !== TEXT.notice), [home.nav])
+  const headerNavItems = useMemo(
+    () => home.nav.filter((item) => ![TEXT.notice, TEXT.community, TEXT.contents].includes(item.label)),
+    [home.nav],
+  )
   const visibleBoards = useMemo(() => boards.filter((board) => canRead(board, user)), [boards, user])
   const noticeBoard = useMemo(() => visibleBoards.find((board) => board.name.includes('공지')) || null, [visibleBoards])
   const freeBoard = useMemo(() => visibleBoards.find((board) => board.name.includes('자유')) || null, [visibleBoards])
