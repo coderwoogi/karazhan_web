@@ -14,6 +14,7 @@ const TEXT = {
     '어둠이 깃든 성채와 보랏빛 마력의 균열 속에서 새로운 도전이 시작됩니다. 접속 방법부터 던전 보상, 카드 뽑기, 선술집까지 필요한 정보를 한 화면에서 빠르게 확인할 수 있습니다.',
   notice: '공지사항',
   connect: '접속방법',
+  rules: '서버규칙',
   carddraw: '카드뽑기',
   shop: '선술집',
   community: '커뮤니티',
@@ -54,7 +55,14 @@ const DEFAULT_HOME = {
   },
   nav: [
     { label: TEXT.notice, url: '#notice-section' },
-    { label: TEXT.connect, url: '#connect-section' },
+    {
+      label: TEXT.connect,
+      url: '#connect-section',
+      children: [
+        { label: TEXT.connect, url: '#connect-section' },
+        { label: TEXT.rules, url: '#rules-section' },
+      ],
+    },
     { label: TEXT.carddraw, url: '/carddraw/' },
     { label: TEXT.shop, url: '/shop/' },
     { label: TEXT.community, url: '#community-section' },
@@ -65,6 +73,7 @@ const DEFAULT_HOME = {
 
 const CONNECT_CLIENT_DOWNLOAD_URL = 'https://drive.google.com/file/d/14tO_E-R0EIbzz_aiJ0tsBO5T4hvmocGe/view?usp=sharing'
 const CONNECT_LAUNCHER_DOWNLOAD_URL = 'https://drive.google.com/file/d/119sSxI8NsWLlhp4aKkNNMQL8sabMc52A/view?usp=sharing'
+const SERVER_RULES_IMAGE_URL = '/img/규칙.png?v=20260603_1'
 const AUCTION_CLASS_MAP = {
   0: '소모품',
   1: '가방',
@@ -233,6 +242,24 @@ function normalizeHomePayload(payload) {
           ...item,
           label: TEXT.contents,
           url: url === '#guide-section' ? '#contents-section' : (url || '#contents-section'),
+        }
+      }
+      if (label === TEXT.connect) {
+        const children = Array.isArray(item?.children) && item.children.length
+          ? item.children.map((child) => ({
+            ...child,
+            label: String(child?.label || '').trim() || TEXT.connect,
+            url: String(child?.url || '').trim() || '#connect-section',
+          }))
+          : [
+            { label: TEXT.connect, url: '#connect-section' },
+            { label: TEXT.rules, url: '#rules-section' },
+          ]
+        return {
+          ...item,
+          label: TEXT.connect,
+          url: url || '#connect-section',
+          children,
         }
       }
       return item
@@ -842,6 +869,7 @@ function App() {
       setBoardId('')
       if (nextView === 'mypage' && user) setScreen('mypage')
       else if (nextView === 'connect') setScreen('connect')
+      else if (nextView === 'rules') setScreen('rules')
       else if (nextView === 'contents') {
         setScreen('contents')
         setSelectedContent(params.get('content') || '')
@@ -1033,6 +1061,21 @@ function App() {
     setSearchInput('')
     setScreen('connect')
     navigate('/?view=connect')
+  }, [navigate, resetWriteState])
+
+  const openServerRules = useCallback(() => {
+    setUserMenuOpen(false)
+    setMobileNavOpen(false)
+    resetWriteState()
+    setBoardId('')
+    setDetail(null)
+    setCommentInput('')
+    setReplyTarget(null)
+    setPage(1)
+    setSearch('')
+    setSearchInput('')
+    setScreen('rules')
+    navigate('/?view=rules')
   }, [navigate, resetWriteState])
 
   const openContents = useCallback(() => {
@@ -1290,6 +1333,10 @@ function App() {
         openConnectGuide()
         return
       }
+      if (item.label === TEXT.rules) {
+        openServerRules()
+        return
+      }
       if (item.label === TEXT.contents) {
         openContents()
         return
@@ -1311,8 +1358,53 @@ function App() {
         document.querySelector(item.url)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
       })
     },
-    [boardId, goHome, openAuction, openConnectGuide, openContents, screen],
+    [boardId, goHome, openAuction, openConnectGuide, openContents, openServerRules, screen],
   )
+
+  const renderHeaderNavAction = useCallback((item, keyPrefix = 'desktop') => {
+    if (!item) return null
+    const children = Array.isArray(item.children) ? item.children.filter(Boolean) : []
+    if (children.length) {
+      return (
+        <span key={`${keyPrefix}-${item.label}-${item.url}`} className="nav-dropdown">
+          <button
+            type="button"
+            className="nav-link-button"
+            onClick={() => handleHeaderNav(item)}
+          >
+            {item.label}
+          </button>
+          <span className="board-dropdown-menu">
+            {children.map((child) => (
+              <button
+                key={`${keyPrefix}-child-${child.label}-${child.url}`}
+                type="button"
+                className="board-dropdown-item"
+                onClick={() => handleHeaderNav(child)}
+              >
+                {child.label}
+              </button>
+            ))}
+          </span>
+        </span>
+      )
+    }
+
+    if (String(item.url || '').startsWith('/')) {
+      return <a key={`${keyPrefix}-${item.label}-${item.url}`} href={item.url}>{item.label}</a>
+    }
+
+    return (
+      <button
+        key={`${keyPrefix}-${item.label}-${item.url}`}
+        type="button"
+        className="nav-link-button"
+        onClick={() => handleHeaderNav(item)}
+      >
+        {item.label}
+      </button>
+    )
+  }, [handleHeaderNav])
 
   const handleSetMainCharacter = useCallback(async (character) => {
     if (!character?.guid) return
@@ -1357,18 +1449,7 @@ function App() {
                 )) : <span className="board-dropdown-empty">{TEXT.loadingBoards}</span>}
               </span>
             </span>
-            {headerNavItems.map((item) => item.url.startsWith('/') ? (
-              <a key={`${item.label}-${item.url}`} href={item.url}>{item.label}</a>
-            ) : (
-              <button
-                key={`${item.label}-${item.url}`}
-                type="button"
-                className="nav-link-button"
-                onClick={() => handleHeaderNav(item)}
-              >
-                {item.label}
-              </button>
-            ))}
+            {headerNavItems.map((item) => renderHeaderNavAction(item))}
           </div>
           {user ? (
             <div className="nav-user-wrap" ref={userMenuRef}>
@@ -1399,13 +1480,38 @@ function App() {
             </div>
           </div>
           <div className="nav-mobile-section">
-            {headerNavItems.map((item) => item.url.startsWith('/') ? (
-              <a key={`mobile-${item.label}-${item.url}`} className="nav-mobile-link" href={item.url} onClick={() => setMobileNavOpen(false)}>{item.label}</a>
-            ) : (
-              <button key={`mobile-${item.label}-${item.url}`} type="button" className="nav-mobile-link" onClick={() => handleHeaderNav(item)}>
-                {item.label}
-              </button>
-            ))}
+            {headerNavItems.map((item) => {
+              const children = Array.isArray(item.children) ? item.children.filter(Boolean) : []
+              if (children.length) {
+                return (
+                  <div key={`mobile-group-${item.label}-${item.url}`} className="nav-mobile-submenu">
+                    <button type="button" className="nav-mobile-link nav-mobile-parent" onClick={() => handleHeaderNav(item)}>
+                      {item.label}
+                    </button>
+                    <div className="nav-mobile-submenu-list">
+                      {children.map((child) => (
+                        <button
+                          key={`mobile-child-${child.label}-${child.url}`}
+                          type="button"
+                          className="nav-mobile-link nav-mobile-child"
+                          onClick={() => handleHeaderNav(child)}
+                        >
+                          {child.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )
+              }
+              if (String(item.url || '').startsWith('/')) {
+                return <a key={`mobile-${item.label}-${item.url}`} className="nav-mobile-link" href={item.url} onClick={() => setMobileNavOpen(false)}>{item.label}</a>
+              }
+              return (
+                <button key={`mobile-${item.label}-${item.url}`} type="button" className="nav-mobile-link" onClick={() => handleHeaderNav(item)}>
+                  {item.label}
+                </button>
+              )
+            })}
           </div>
         </div>
       </header>
@@ -1558,6 +1664,21 @@ function App() {
                     className="guide-download-hitbox guide-download-hitbox-second"
                     aria-label="접속기 다운로드"
                   />
+                </div>
+              </div>
+            </div>
+          </section>
+        ) : null}
+
+        {!boardId && screen === 'rules' ? (
+          <section className="section">
+            <div className="guide-view-shell">
+              <div className="guide-view-head">
+                <h2>서버규칙</h2>
+              </div>
+              <div className="guide-view-body">
+                <div className="guide-view-image-wrap">
+                  <img src={SERVER_RULES_IMAGE_URL} alt="서버규칙 안내" className="guide-view-image" />
                 </div>
               </div>
             </div>
@@ -2335,6 +2456,9 @@ function App() {
             <h3>게임 정보</h3>
             <a href="#">게임 소개</a>
             <a href="#connect-section">접속 방법</a>
+            <button type="button" className="button-reset footer-link-button" onClick={openServerRules}>
+              서버 규칙
+            </button>
             <a href="#">시스템 안내</a>
             <a href="/shop/">선술집</a>
           </div>

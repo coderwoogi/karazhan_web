@@ -380,6 +380,27 @@
     rgba(255, 255, 255, 0.03);
 }
 
+.nav-mobile-submenu {
+  display: grid;
+  gap: 6px;
+}
+
+.nav-mobile-parent {
+  font-weight: 900;
+}
+
+.nav-mobile-submenu-list {
+  display: grid;
+  gap: 6px;
+}
+
+.nav-mobile-child {
+  min-height: 42px;
+  padding-left: 28px;
+  font-size: 14px;
+  color: rgba(239, 230, 209, 0.84);
+}
+
 .nav-mobile-overlay {
   position: fixed;
   inset: 72px 0 0;
