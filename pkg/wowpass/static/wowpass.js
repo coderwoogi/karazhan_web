@@ -40,6 +40,11 @@
     let selectedCharacter = null;
     let currentPackSession = null;
     const obtainedItems = [];
+    const obtainedHistoryState = {
+        query: "",
+        list: { page: 1, totalPages: 1, totalCount: 0 },
+        summary: { page: 1, totalPages: 1, totalCount: 0 }
+    };
     let cachedCharacters = [];
     let registeredRewardItems = [];
     let obtainedViewMode = "list";
@@ -357,7 +362,7 @@
                 <td class="obtained-item-name">
                     ${wrapWithWowheadItemLink(
                         row.itemEntry,
-                        `<img src="${esc(row.iconUrl)}" alt="" class="obtained-icon"><span>${esc(row.title)}</span>`,
+                        `<img src="${esc(row.iconUrl)}" alt="" class="obtained-icon" data-entry="${Number(row.itemEntry || 0)}"><span>${esc(row.title)}</span>`,
                         row.title
                     )}
                 </td>
@@ -366,6 +371,7 @@
             </tr>
         `).join("");
         refreshWowheadTooltips();
+        resolveObtainedIcons(tbody);
     }
 
     function renderObtainedSummaryTable() {
@@ -407,7 +413,7 @@
                 <td class="obtained-item-name">
                     ${wrapWithWowheadItemLink(
                         row.itemEntry,
-                        `<img src="${esc(row.iconUrl)}" alt="" class="obtained-icon"><span>${esc(row.title)}</span>`,
+                        `<img src="${esc(row.iconUrl)}" alt="" class="obtained-icon" data-entry="${Number(row.itemEntry || 0)}"><span>${esc(row.title)}</span>`,
                         row.title
                     )}
                 </td>
@@ -416,6 +422,23 @@
             </tr>
         `).join("");
         refreshWowheadTooltips();
+        resolveObtainedIcons(tbody);
+    }
+
+    function resolveObtainedIcons(rootEl) {
+        if (!rootEl) return;
+        rootEl.querySelectorAll(".obtained-icon").forEach((imgEl) => {
+            const entry = Number(imgEl.getAttribute("data-entry") || 0);
+            if (entry <= 0) return;
+            const current = String(imgEl.getAttribute("src") || "").trim().toLowerCase();
+            if (current && !current.includes("inv_misc_questionmark")) {
+                return;
+            }
+            resolveIconUrlByEntry(entry).then((url) => {
+                if (!url) return;
+                imgEl.setAttribute("src", url);
+            });
+        });
     }
 
     function applyObtainedViewMode() {
@@ -434,6 +457,37 @@
         renderObtainedListTable();
         renderObtainedSummaryTable();
         applyObtainedViewMode();
+    }
+
+    function renderObtainedPagination() {
+        const wrap = document.getElementById("obtained-pagination");
+        const statusEl = document.getElementById("obtained-page-status");
+        if (!wrap) return;
+        const mode = obtainedViewMode === "summary" ? "summary" : "list";
+        const state = obtainedHistoryState[mode];
+        const currentPage = Math.max(1, Number(state.page || 1));
+        const totalPages = Math.max(1, Number(state.totalPages || 1));
+        const totalCount = Math.max(0, Number(state.totalCount || 0));
+        if (statusEl) {
+            statusEl.textContent = totalCount > 0
+                ? `${totalCount.toLocaleString("ko-KR")}개 기록 중 ${currentPage}/${totalPages} 페이지`
+                : "검색된 기록이 없습니다.";
+        }
+        if (totalCount <= 0) {
+            wrap.innerHTML = "";
+            return;
+        }
+        const pageNumbers = [];
+        const start = Math.max(1, currentPage - 2);
+        const end = Math.min(totalPages, start + 4);
+        for (let page = start; page <= end; page += 1) pageNumbers.push(page);
+        wrap.innerHTML = `
+            <button type="button" class="obtained-page-btn" ${currentPage <= 1 ? "disabled" : ""} onclick="goObtainedPage(${currentPage - 1})">이전</button>
+            ${pageNumbers.map((page) => `
+                <button type="button" class="obtained-page-btn ${page === currentPage ? "active" : ""}" onclick="goObtainedPage(${page})">${page}</button>
+            `).join("")}
+            <button type="button" class="obtained-page-btn" ${currentPage >= totalPages ? "disabled" : ""} onclick="goObtainedPage(${currentPage + 1})">다음</button>
+        `;
     }
 
     function renderRegisteredItemListModal(items) {
@@ -507,6 +561,55 @@
         renderObtainedViews();
     }
 
+    function setObtainedItemsFromHistory(historyRows) {
+        obtainedItems.length = 0;
+        if (Array.isArray(historyRows)) {
+            historyRows.forEach((row) => {
+                const title = String(row && row.title ? row.title : "").trim();
+                obtainedItems.push({
+                    title: title || "알 수 없는 아이템",
+                    iconUrl: String(row && row.iconUrl ? row.iconUrl : "").trim() || buildIconUrl("inv_misc_questionmark"),
+                    itemEntry: Number(row && row.itemEntry ? row.itemEntry : 0),
+                    rarityLabel: String(row && row.rarityLabel ? row.rarityLabel : "일반").trim() || "일반",
+                    obtainedAt: String(row && row.obtainedAt ? row.obtainedAt : "").trim()
+                });
+            });
+        }
+        renderObtainedViews();
+        renderObtainedPagination();
+    }
+
+    async function loadObtainedHistory() {
+        const mode = obtainedViewMode === "summary" ? "summary" : "list";
+        const state = obtainedHistoryState[mode];
+        const params = new URLSearchParams({
+            mode,
+            page: String(Math.max(1, Number(state.page || 1))),
+            q: String(obtainedHistoryState.query || "")
+        });
+        try {
+            const res = await fetch(`/api/carddraw/history?${params.toString()}`, {
+                method: "GET",
+                credentials: "same-origin",
+                cache: "no-store"
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || !data || data.status !== "success") {
+                throw new Error((data && data.message) || "기록을 불러오지 못했습니다.");
+            }
+            obtainedHistoryState[mode].page = Math.max(1, Number(data.page || 1));
+            obtainedHistoryState[mode].totalPages = Math.max(1, Number(data.totalPages || 1));
+            obtainedHistoryState[mode].totalCount = Math.max(0, Number(data.totalCount || 0));
+            setObtainedItemsFromHistory(Array.isArray(data.items) ? data.items : []);
+        } catch (e) {
+            obtainedHistoryState[mode].totalPages = 1;
+            obtainedHistoryState[mode].totalCount = 0;
+            setObtainedItemsFromHistory([]);
+            const statusEl = document.getElementById("obtained-page-status");
+            if (statusEl) statusEl.textContent = String((e && e.message) || "기록을 불러오지 못했습니다.");
+        }
+    }
+
     function getRaceIcon(race, gender) {
         const key = `${Number(race || 0)}_${Number(gender || 0)}`;
         return RACE_ICON_MAP[key] || "/img/icons/race_human_male.gif";
@@ -568,8 +671,10 @@
                 await initDefaultCharacterFromHomeStatus();
             }
             refreshSummary();
+            await loadObtainedHistory();
             return true;
         } catch (_) {
+            setObtainedItemsFromHistory([]);
             await initDefaultCharacterFromHomeStatus();
             refreshSummary();
             return false;
@@ -1157,6 +1262,9 @@
                             rarityLabel,
                             iconUrl
                         });
+                        obtainedHistoryState.list.page = 1;
+                        obtainedHistoryState.summary.page = 1;
+                        void loadObtainedHistory();
                         if (currentPackSession && currentPackSession.openedSlots) {
                             currentPackSession.openedSlots[String(card.dataset.cardIndex || 0)] = true;
                         }
@@ -1234,6 +1342,30 @@
     window.setObtainedViewMode = function (mode) {
         obtainedViewMode = String(mode || "").toLowerCase() === "summary" ? "summary" : "list";
         applyObtainedViewMode();
+        void loadObtainedHistory();
+    };
+
+    window.goObtainedPage = function (page) {
+        const mode = obtainedViewMode === "summary" ? "summary" : "list";
+        obtainedHistoryState[mode].page = Math.max(1, Number(page || 1));
+        void loadObtainedHistory();
+    };
+
+    window.applyObtainedSearch = function () {
+        const input = document.getElementById("obtained-search-input");
+        obtainedHistoryState.query = String(input && input.value ? input.value : "").trim();
+        obtainedHistoryState.list.page = 1;
+        obtainedHistoryState.summary.page = 1;
+        void loadObtainedHistory();
+    };
+
+    window.resetObtainedSearch = function () {
+        const input = document.getElementById("obtained-search-input");
+        if (input) input.value = "";
+        obtainedHistoryState.query = "";
+        obtainedHistoryState.list.page = 1;
+        obtainedHistoryState.summary.page = 1;
+        void loadObtainedHistory();
     };
 
     window.openObtainedListModal = function () {
@@ -1283,6 +1415,15 @@
         renderObtainedViews();
         loadCardDrawState();
         syncOpenCountButtons();
+        const obtainedSearchInput = document.getElementById("obtained-search-input");
+        if (obtainedSearchInput) {
+            obtainedSearchInput.addEventListener("keydown", (ev) => {
+                if (ev.key === "Enter") {
+                    ev.preventDefault();
+                    window.applyObtainedSearch();
+                }
+            });
+        }
 
         carddrawHoverAudio = new Audio(SOUND_CARDDRAW_HOVER);
         carddrawHoverAudio.preload = "auto";

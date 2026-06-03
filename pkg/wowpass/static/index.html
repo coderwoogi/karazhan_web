@@ -83,6 +83,14 @@
                 <button type="button" id="obtained-tab-list" class="obtained-tab active" onclick="setObtainedViewMode('list')">목록형</button>
                 <button type="button" id="obtained-tab-summary" class="obtained-tab" onclick="setObtainedViewMode('summary')">항목형</button>
             </div>
+            <div class="obtained-toolbar">
+                <div class="obtained-search">
+                    <input type="text" id="obtained-search-input" class="obtained-search-input" placeholder="아이템명 또는 엔트리 검색">
+                    <button type="button" class="obtained-search-btn" onclick="applyObtainedSearch()">검색</button>
+                    <button type="button" class="obtained-search-btn ghost" onclick="resetObtainedSearch()">초기화</button>
+                </div>
+                <div id="obtained-page-status" class="obtained-page-status">최근 기록을 불러오는 중입니다.</div>
+            </div>
             <div id="obtained-list-wrap" class="obtained-table-wrap">
                 <table class="obtained-table">
                     <thead>
@@ -100,6 +108,7 @@
                     </tbody>
                 </table>
             </div>
+            <div id="obtained-pagination" class="obtained-pagination"></div>
             <div id="obtained-summary-wrap" class="obtained-table-wrap" style="display:none;">
                 <table class="obtained-table">
                     <thead>

@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -57,6 +58,14 @@ type carddrawReward struct {
 	Quantity    int    `json:"quantity"`
 }
 
+type carddrawHistoryItem struct {
+	ItemEntry   int    `json:"itemEntry"`
+	Title       string `json:"title"`
+	IconURL     string `json:"iconUrl"`
+	RarityLabel string `json:"rarityLabel"`
+	ObtainedAt  string `json:"obtainedAt"`
+}
+
 type carddrawPendingPack struct {
 	PackID        string
 	UserID        int
@@ -95,6 +104,7 @@ func RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/carddraw/world-status", handleCardDrawWorldStatus)
 	mux.HandleFunc("/api/carddraw/characters", handleCardDrawCharacters)
 	mux.HandleFunc("/api/carddraw/character/select", handleCardDrawSelectCharacter)
+	mux.HandleFunc("/api/carddraw/history", handleCardDrawHistory)
 	mux.HandleFunc("/api/carddraw/pack/create", handleCardDrawPackCreate)
 	mux.HandleFunc("/api/carddraw/pack/open", handleCardDrawPackOpen)
 	mux.HandleFunc("/api/carddraw/draw", handleCardDrawDraw)
@@ -172,6 +182,8 @@ func ensureCardDrawSchema() {
             selected_char_gender INT NOT NULL DEFAULT 0,
             selected_char_level INT NOT NULL DEFAULT 0,
             track_level INT NOT NULL DEFAULT 0,
+            reward_entry INT NOT NULL DEFAULT 0,
+            reward_count INT NOT NULL DEFAULT 1,
             reward_name VARCHAR(120) NOT NULL DEFAULT '',
             reward_icon VARCHAR(120) NOT NULL DEFAULT '',
             reward_rarity VARCHAR(20) NOT NULL DEFAULT '',
@@ -179,6 +191,8 @@ func ensureCardDrawSchema() {
             INDEX idx_carddraw_draw_logs_user_created (user_id, created_at)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `)
+	_, _ = db.Exec("ALTER TABLE carddraw_draw_logs ADD COLUMN reward_entry INT NOT NULL DEFAULT 0 AFTER track_level")
+	_, _ = db.Exec("ALTER TABLE carddraw_draw_logs ADD COLUMN reward_count INT NOT NULL DEFAULT 1 AFTER reward_entry")
 
 }
 
@@ -303,6 +317,341 @@ func loadSelectedCharacter(updateDB *sql.DB, userID int) cardCharacter {
 	return c
 }
 
+func loadRecentCarddrawHistory(updateDB *sql.DB, userID int, limit int) []carddrawHistoryItem {
+	if updateDB == nil || userID <= 0 {
+		return nil
+	}
+	if limit <= 0 {
+		limit = 100
+	}
+	rows, err := updateDB.Query(`
+		SELECT
+			IFNULL(reward_entry, 0),
+			IFNULL(reward_count, 1),
+			IFNULL(reward_name, ''),
+			IFNULL(reward_icon, ''),
+			IFNULL(reward_rarity, ''),
+			DATE_FORMAT(created_at, '%Y-%m-%d %H:%i:%s')
+		FROM carddraw_draw_logs
+		WHERE user_id = ?
+		ORDER BY created_at DESC, id DESC
+		LIMIT ?
+	`, userID, limit)
+	if err != nil {
+		return nil
+	}
+	defer rows.Close()
+
+	items := make([]carddrawPoolListItem, 0)
+	history := make([]carddrawHistoryItem, 0)
+	type rawRow struct {
+		entry      int
+		count      int
+		name       string
+		icon       string
+		rarity     string
+		obtainedAt string
+	}
+	rawRows := make([]rawRow, 0)
+	for rows.Next() {
+		var row rawRow
+		if err := rows.Scan(&row.entry, &row.count, &row.name, &row.icon, &row.rarity, &row.obtainedAt); err != nil {
+			continue
+		}
+		if row.count <= 0 {
+			row.count = 1
+		}
+		rawRows = append(rawRows, row)
+		items = append(items, carddrawPoolListItem{
+			ItemEntry:   row.entry,
+			Name:        strings.TrimSpace(row.name),
+			Icon:        strings.TrimSpace(row.icon),
+			Rarity:      strings.ToLower(strings.TrimSpace(row.rarity)),
+			RarityLabel: carddrawRarityLabel(row.rarity),
+		})
+	}
+	fillCarddrawPoolMetaFromUpdate(items)
+	fillCarddrawPoolMetaFromWorld(items)
+	for idx, row := range rawRows {
+		title := strings.TrimSpace(row.name)
+		if title == "" && idx < len(items) {
+			title = strings.TrimSpace(items[idx].Name)
+		}
+		if title == "" {
+			title = "알 수 없는 아이템"
+		}
+		if row.count > 1 {
+			title = fmt.Sprintf("%s x%d", title, row.count)
+		}
+		iconURL := ""
+		if idx < len(items) {
+			iconURL = strings.TrimSpace(items[idx].IconURL)
+		}
+		if iconURL == "" {
+			iconURL = buildCarddrawIconURL(row.icon)
+		}
+		history = append(history, carddrawHistoryItem{
+			ItemEntry:   row.entry,
+			Title:       title,
+			IconURL:     iconURL,
+			RarityLabel: carddrawRarityLabel(row.rarity),
+			ObtainedAt:  row.obtainedAt,
+		})
+	}
+	return history
+}
+
+func handleCardDrawHistory(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"status": "error", "message": "허용되지 않은 요청입니다."})
+		return
+	}
+
+	userID, _, err := getSessionUserID(r)
+	if err != nil {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"status": "error", "message": "로그인이 필요합니다."})
+		return
+	}
+
+	mode := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("mode")))
+	if mode != "summary" {
+		mode = "list"
+	}
+	page := 1
+	if v := strings.TrimSpace(r.URL.Query().Get("page")); v != "" {
+		if parsed, err := strconv.Atoi(v); err == nil && parsed > 0 {
+			page = parsed
+		}
+	}
+	pageSize := 20
+	q := strings.TrimSpace(r.URL.Query().Get("q"))
+
+	updateDB, err := sql.Open("mysql", updateDSN)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "기록을 불러오지 못했습니다."})
+		return
+	}
+	defer updateDB.Close()
+
+	offset := (page - 1) * pageSize
+	if offset < 0 {
+		offset = 0
+	}
+
+	searchClause := ""
+	args := []interface{}{userID}
+	if q != "" {
+		searchClause = " AND (reward_name LIKE ?"
+		args = append(args, "%"+q+"%")
+		if entry, err := strconv.Atoi(q); err == nil && entry > 0 {
+			searchClause += " OR reward_entry = ?"
+			args = append(args, entry)
+		}
+		searchClause += ")"
+	}
+
+	if mode == "summary" {
+		handleCardDrawHistorySummary(w, updateDB, userID, q, page, pageSize, offset, searchClause, args)
+		return
+	}
+	handleCardDrawHistoryList(w, updateDB, userID, q, page, pageSize, offset, searchClause, args)
+}
+
+func handleCardDrawHistoryList(w http.ResponseWriter, updateDB *sql.DB, userID int, q string, page, pageSize, offset int, searchClause string, args []interface{}) {
+	countQuery := "SELECT COUNT(*) FROM carddraw_draw_logs WHERE user_id = ?" + searchClause
+	var totalCount int
+	if err := updateDB.QueryRow(countQuery, args...).Scan(&totalCount); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "기록을 불러오지 못했습니다."})
+		return
+	}
+
+	rows, err := updateDB.Query(`
+		SELECT
+			IFNULL(reward_entry, 0),
+			IFNULL(reward_count, 1),
+			IFNULL(reward_name, ''),
+			IFNULL(reward_icon, ''),
+			IFNULL(reward_rarity, ''),
+			DATE_FORMAT(created_at, '%Y-%m-%d %H:%i:%s')
+		FROM carddraw_draw_logs
+		WHERE user_id = ?`+searchClause+`
+		ORDER BY created_at DESC, id DESC
+		LIMIT ? OFFSET ?
+	`, append(append(args, pageSize), offset)...)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "기록을 불러오지 못했습니다."})
+		return
+	}
+	defer rows.Close()
+
+	items := make([]carddrawPoolListItem, 0)
+	type rowItem struct {
+		entry      int
+		count      int
+		name       string
+		icon       string
+		rarity     string
+		obtainedAt string
+	}
+	rawRows := make([]rowItem, 0)
+	for rows.Next() {
+		var row rowItem
+		if err := rows.Scan(&row.entry, &row.count, &row.name, &row.icon, &row.rarity, &row.obtainedAt); err != nil {
+			continue
+		}
+		if row.count <= 0 {
+			row.count = 1
+		}
+		rawRows = append(rawRows, row)
+		items = append(items, carddrawPoolListItem{
+			ItemEntry:   row.entry,
+			Name:        strings.TrimSpace(row.name),
+			Icon:        strings.TrimSpace(row.icon),
+			Rarity:      strings.ToLower(strings.TrimSpace(row.rarity)),
+			RarityLabel: carddrawRarityLabel(row.rarity),
+		})
+	}
+	fillCarddrawPoolMetaFromUpdate(items)
+	fillCarddrawPoolMetaFromWorld(items)
+
+	history := make([]carddrawHistoryItem, 0, len(rawRows))
+	for idx, row := range rawRows {
+		title := strings.TrimSpace(row.name)
+		if title == "" && idx < len(items) {
+			title = strings.TrimSpace(items[idx].Name)
+		}
+		if title == "" {
+			title = "알 수 없는 아이템"
+		}
+		if row.count > 1 {
+			title = fmt.Sprintf("%s x%d", title, row.count)
+		}
+		iconURL := ""
+		if idx < len(items) {
+			iconURL = strings.TrimSpace(items[idx].IconURL)
+		}
+		if iconURL == "" {
+			iconURL = buildCarddrawIconURL(row.icon)
+		}
+		history = append(history, carddrawHistoryItem{
+			ItemEntry:   row.entry,
+			Title:       title,
+			IconURL:     iconURL,
+			RarityLabel: carddrawRarityLabel(row.rarity),
+			ObtainedAt:  row.obtainedAt,
+		})
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"status":     "success",
+		"mode":       "list",
+		"q":          q,
+		"page":       page,
+		"pageSize":   pageSize,
+		"totalCount": totalCount,
+		"totalPages": maxCarddrawPages(totalCount, pageSize),
+		"items":      history,
+	})
+}
+
+func handleCardDrawHistorySummary(w http.ResponseWriter, updateDB *sql.DB, userID int, q string, page, pageSize, offset int, searchClause string, args []interface{}) {
+	countQuery := `
+		SELECT COUNT(*) FROM (
+			SELECT 1
+			FROM carddraw_draw_logs
+			WHERE user_id = ?` + searchClause + `
+			GROUP BY reward_entry, reward_name, reward_icon, reward_rarity
+		) grouped`
+	var totalCount int
+	if err := updateDB.QueryRow(countQuery, args...).Scan(&totalCount); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "기록을 불러오지 못했습니다."})
+		return
+	}
+
+	rows, err := updateDB.Query(`
+		SELECT
+			IFNULL(reward_entry, 0),
+			IFNULL(reward_name, ''),
+			IFNULL(reward_icon, ''),
+			IFNULL(reward_rarity, ''),
+			COUNT(*) AS draw_count,
+			IFNULL(SUM(reward_count), 0) AS total_reward_count,
+			DATE_FORMAT(MAX(created_at), '%Y-%m-%d %H:%i:%s')
+		FROM carddraw_draw_logs
+		WHERE user_id = ?`+searchClause+`
+		GROUP BY reward_entry, reward_name, reward_icon, reward_rarity
+		ORDER BY total_reward_count DESC, MAX(created_at) DESC
+		LIMIT ? OFFSET ?
+	`, append(append(args, pageSize), offset)...)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "기록을 불러오지 못했습니다."})
+		return
+	}
+	defer rows.Close()
+
+	type summaryItem struct {
+		ItemEntry     int    `json:"itemEntry"`
+		Title         string `json:"title"`
+		IconURL       string `json:"iconUrl"`
+		RarityLabel   string `json:"rarityLabel"`
+		ObtainedCount int    `json:"obtainedCount"`
+		ObtainedAt    string `json:"obtainedAt"`
+	}
+	summaryRows := make([]summaryItem, 0)
+	metaItems := make([]carddrawPoolListItem, 0)
+	for rows.Next() {
+		var item summaryItem
+		var name, icon, rarity string
+		if err := rows.Scan(&item.ItemEntry, &name, &icon, &rarity, new(int), &item.ObtainedCount, &item.ObtainedAt); err != nil {
+			continue
+		}
+		item.Title = strings.TrimSpace(name)
+		item.RarityLabel = carddrawRarityLabel(rarity)
+		summaryRows = append(summaryRows, item)
+		metaItems = append(metaItems, carddrawPoolListItem{
+			ItemEntry:   item.ItemEntry,
+			Name:        strings.TrimSpace(name),
+			Icon:        strings.TrimSpace(icon),
+			Rarity:      strings.ToLower(strings.TrimSpace(rarity)),
+			RarityLabel: carddrawRarityLabel(rarity),
+		})
+	}
+	fillCarddrawPoolMetaFromUpdate(metaItems)
+	fillCarddrawPoolMetaFromWorld(metaItems)
+	for idx := range summaryRows {
+		if summaryRows[idx].Title == "" && idx < len(metaItems) {
+			summaryRows[idx].Title = strings.TrimSpace(metaItems[idx].Name)
+		}
+		if summaryRows[idx].Title == "" {
+			summaryRows[idx].Title = "알 수 없는 아이템"
+		}
+		if idx < len(metaItems) {
+			summaryRows[idx].IconURL = strings.TrimSpace(metaItems[idx].IconURL)
+		}
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"status":     "success",
+		"mode":       "summary",
+		"q":          q,
+		"page":       page,
+		"pageSize":   pageSize,
+		"totalCount": totalCount,
+		"totalPages": maxCarddrawPages(totalCount, pageSize),
+		"items":      summaryRows,
+	})
+}
+
+func maxCarddrawPages(totalCount, pageSize int) int {
+	if pageSize <= 0 {
+		pageSize = 20
+	}
+	if totalCount <= 0 {
+		return 1
+	}
+	return (totalCount + pageSize - 1) / pageSize
+}
+
 func handleCardDrawState(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"status": "error", "message": "허용되지 않은 요청입니다."})
@@ -351,12 +700,14 @@ func handleCardDrawState(w http.ResponseWriter, r *http.Request) {
 			selected = cardCharacter{Guid: mainGuid, Name: mainName}
 		}
 	}
+	recentHistory := loadRecentCarddrawHistory(updateDB, userID, 100)
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{
 		"status":            "success",
 		"username":          username,
 		"drawCount":         drawCount,
 		"selectedCharacter": selected,
+		"recentHistory":     recentHistory,
 	})
 }
 
@@ -714,10 +1065,10 @@ func handleCardDrawPackOpen(w http.ResponseWriter, r *http.Request) {
         (
             user_id, username,
             selected_char_guid, selected_char_name, selected_char_race, selected_char_class, selected_char_gender, selected_char_level,
-            track_level, reward_name, reward_icon, reward_rarity
+            track_level, reward_entry, reward_count, reward_name, reward_icon, reward_rarity
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `, userID, username, selected.Guid, selected.Name, selected.Race, selected.Class, selected.Gender, selected.Level, trackLevel, reward.Name, reward.Icon, reward.RarityLabel); err != nil {
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, userID, username, selected.Guid, selected.Name, selected.Race, selected.Class, selected.Gender, selected.Level, trackLevel, reward.ItemEntry, reward.Quantity, reward.Name, reward.Icon, reward.RarityLabel); err != nil {
 		if allOpened {
 			clearCompletedCarddrawPack(userID)
 		} else {
@@ -1019,10 +1370,10 @@ func handleCardDrawDraw(w http.ResponseWriter, r *http.Request) {
         (
             user_id, username,
             selected_char_guid, selected_char_name, selected_char_race, selected_char_class, selected_char_gender, selected_char_level,
-            track_level, reward_name, reward_icon, reward_rarity
+            track_level, reward_entry, reward_count, reward_name, reward_icon, reward_rarity
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `, userID, username, selected.Guid, selected.Name, selected.Race, selected.Class, selected.Gender, selected.Level, req.TrackLevel, reward.Name, reward.Icon, reward.Rarity); err != nil {
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, userID, username, selected.Guid, selected.Name, selected.Race, selected.Class, selected.Gender, selected.Level, req.TrackLevel, reward.Entry, 1, reward.Name, reward.Icon, reward.Rarity); err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "카드 뽑기 로그 기록에 실패했습니다."})
 			return
 		}
@@ -1357,6 +1708,77 @@ func fillCarddrawPoolMetaFromWorld(items []carddrawPoolListItem) {
 			}
 		}
 		items[i].IconURL = buildCarddrawIconURL(items[i].Icon)
+	}
+}
+
+func fillCarddrawPoolMetaFromUpdate(items []carddrawPoolListItem) {
+	if len(items) == 0 {
+		return
+	}
+	updateDB, err := sql.Open("mysql", updateDSN)
+	if err != nil {
+		return
+	}
+	defer updateDB.Close()
+
+	type updateMeta struct {
+		entry int
+		name  string
+		icon  string
+	}
+	metaByName := make(map[string]updateMeta, len(items))
+	metaByEntry := make(map[int]updateMeta, len(items))
+
+	for _, item := range items {
+		name := strings.TrimSpace(item.Name)
+		if name == "" {
+			continue
+		}
+		if _, exists := metaByName[name]; exists {
+			continue
+		}
+		var meta updateMeta
+		if err := updateDB.QueryRow(`
+			SELECT IFNULL(item_entry, 0), IFNULL(item_name, ''), IFNULL(item_icon, '')
+			FROM web_carddraw_items
+			WHERE item_name = ?
+			ORDER BY is_active DESC, id DESC
+			LIMIT 1
+		`, name).Scan(&meta.entry, &meta.name, &meta.icon); err == nil {
+			meta.name = strings.TrimSpace(meta.name)
+			meta.icon = strings.TrimSpace(meta.icon)
+			metaByName[name] = meta
+			if meta.entry > 0 {
+				metaByEntry[meta.entry] = meta
+			}
+		}
+	}
+
+	for idx := range items {
+		nameKey := strings.TrimSpace(items[idx].Name)
+		if items[idx].ItemEntry > 0 {
+			if meta, ok := metaByEntry[items[idx].ItemEntry]; ok {
+				if items[idx].Name == "" && meta.name != "" {
+					items[idx].Name = meta.name
+				}
+				if items[idx].Icon == "" && meta.icon != "" {
+					items[idx].Icon = meta.icon
+				}
+			}
+		}
+		if nameKey != "" {
+			if meta, ok := metaByName[nameKey]; ok {
+				if items[idx].ItemEntry <= 0 && meta.entry > 0 {
+					items[idx].ItemEntry = meta.entry
+				}
+				if items[idx].Icon == "" && meta.icon != "" {
+					items[idx].Icon = meta.icon
+				}
+			}
+		}
+		if items[idx].IconURL == "" && items[idx].Icon != "" {
+			items[idx].IconURL = buildCarddrawIconURL(items[idx].Icon)
+		}
 	}
 }
 
