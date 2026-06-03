@@ -212,6 +212,10 @@ function canWrite(board, user) {
   return permissions[`board_write_${board.id}`] === true || Number(user.webRank ?? user.web_rank ?? 0) >= Number(board.min_web_write || 999)
 }
 
+function hasRepresentativeCharacter(user) {
+  return Boolean(user?.mainCharacter?.guid && user?.mainCharacter?.name)
+}
+
 function canEditOwner(target, user) {
   return !!user && (isAdmin(user) || Number(target?.account_id || 0) === Number(user?.accountID || user?.id || 0))
 }
@@ -1083,6 +1087,10 @@ function App() {
       await showAlert(TEXT.writeDenied)
       return
     }
+    if (!isAdmin(user) && !hasRepresentativeCharacter(user)) {
+      await showAlert('대표 캐릭터를 설정해야 글을 작성할 수 있습니다.')
+      return
+    }
     setUserMenuOpen(false)
     setMobileNavOpen(false)
     resetWriteState()
@@ -1125,6 +1133,10 @@ function App() {
 
   const savePost = useCallback(async () => {
     if (!currentBoard) return
+    if (!isAdmin(user) && !hasRepresentativeCharacter(user)) {
+      await showAlert('대표 캐릭터를 설정해야 글을 작성할 수 있습니다.')
+      return
+    }
     if (!title.trim()) {
       await showAlert(TEXT.titleRequired)
       return
@@ -1175,7 +1187,7 @@ function App() {
     setSearchInput('')
     navigate(`/?board=${encodeURIComponent(currentBoard.id)}`)
     await loadPosts(currentBoard.id, 1, '')
-  }, [content, currentBoard, editingId, inquiryCategory, isBugReportBoard, isInquiryBoard, isPromotionBoard, isSupportBoard, loadPosts, navigate, promotionUrls, resetWriteState, showAlert, sponsorAgree, sponsorAmount, sponsorName, title])
+  }, [content, currentBoard, editingId, inquiryCategory, isBugReportBoard, isInquiryBoard, isPromotionBoard, isSupportBoard, loadPosts, navigate, promotionUrls, resetWriteState, showAlert, sponsorAgree, sponsorAmount, sponsorName, title, user])
 
   const deletePost = useCallback(async () => {
     if (!detail?.post?.id) return
@@ -1194,6 +1206,10 @@ function App() {
 
   const submitComment = useCallback(async () => {
     if (!detail?.post?.id || !commentInput.trim()) return
+    if (!isAdmin(user) && !hasRepresentativeCharacter(user)) {
+      await showAlert('대표 캐릭터를 설정해야 댓글을 작성할 수 있습니다.')
+      return
+    }
     if (isSupportBoard) {
       if (!isBugReportBoard) {
         await showAlert('문의 게시판 답변은 문의 관리 화면에서 처리됩니다.')
@@ -1224,7 +1240,7 @@ function App() {
     setCommentInput('')
     setReplyTarget(null)
     await openPost(detail.post.id)
-  }, [commentInput, detail, isBugReportBoard, isSupportBoard, latestSupportMessage, openPost, replyTarget, showAlert])
+  }, [commentInput, detail, isBugReportBoard, isSupportBoard, latestSupportMessage, openPost, replyTarget, showAlert, user])
 
   const deleteComment = useCallback(async (commentId) => {
     const confirmed = await showConfirm('댓글을 삭제하시겠습니까?')

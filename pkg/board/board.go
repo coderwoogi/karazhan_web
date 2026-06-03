@@ -472,10 +472,19 @@ func GetBoardsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 type userInfo struct {
-	AccountID  int
-	AuthorName string
-	GMLevel    int
-	WebRank    int
+	AccountID    int
+	AuthorName   string
+	MainCharName string
+	GMLevel      int
+	WebRank      int
+}
+
+func hasRepresentativeCharacter(user userInfo) bool {
+	return strings.TrimSpace(user.MainCharName) != ""
+}
+
+func shouldEnforceRepresentativeCharacter(user userInfo) bool {
+	return !isStaffUser(user)
 }
 
 func getUserInfo(r *http.Request) (userInfo, error) {
@@ -512,6 +521,7 @@ func getUserInfo(r *http.Request) (userInfo, error) {
 		var webRank int
 		err = uDB.QueryRow("SELECT main_char_name, web_rank FROM user_profiles WHERE user_id = ?", info.AccountID).Scan(&charName, &webRank)
 		if err == nil {
+			info.MainCharName = strings.TrimSpace(charName)
 			if charName != "" {
 				info.AuthorName = charName
 			}
@@ -1077,6 +1087,10 @@ func CreatePostHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
+	if shouldEnforceRepresentativeCharacter(user) && !hasRepresentativeCharacter(user) {
+		http.Error(w, "대표 캐릭터를 설정해야 글을 작성할 수 있습니다.", http.StatusBadRequest)
+		return
+	}
 
 	db, err := openUpdateDB()
 	if err != nil {
@@ -1479,6 +1493,10 @@ func CreateInquiryMessageHandler(w http.ResponseWriter, r *http.Request) {
 	user, err := getUserInfo(r)
 	if err != nil {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	if shouldEnforceRepresentativeCharacter(user) && !hasRepresentativeCharacter(user) {
+		http.Error(w, "대표 캐릭터를 설정해야 댓글을 작성할 수 있습니다.", http.StatusBadRequest)
 		return
 	}
 	if r.Method != http.MethodPost {
@@ -2843,6 +2861,10 @@ func CreateCommentHandler(w http.ResponseWriter, r *http.Request) {
 	user, err := getUserInfo(r)
 	if err != nil {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	if shouldEnforceRepresentativeCharacter(user) && !hasRepresentativeCharacter(user) {
+		http.Error(w, "대표 캐릭터를 설정해야 댓글을 작성할 수 있습니다.", http.StatusBadRequest)
 		return
 	}
 

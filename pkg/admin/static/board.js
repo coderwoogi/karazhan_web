@@ -149,8 +149,7 @@ function ensureRepresentativeCharacterForWrite() {
 }
 
 function requiresRepresentativeCharacterForCurrentBoard() {
-    // 버그리포트는 캐릭터가 아닌 계정 기준으로 접수한다.
-    return !isBugReportBoardActive();
+    return true;
 }
 
 function escapeHtml(text) {
@@ -1357,6 +1356,9 @@ function focusBoardComment(commentId) {
 window.focusBoardComment = focusBoardComment;
 
 async function submitReply(postId, parentId) {
+    if (requiresRepresentativeCharacterForCurrentBoard() && !ensureRepresentativeCharacterForWrite()) {
+        return;
+    }
     if (isSupportBoardActive()) {
         ModalUtils.showAlert(isBugReportBoardActive() ? '버그 리포트 답변은 버그리포트 관리에서만 가능합니다.' : '문의 답변은 문의관리에서만 가능합니다.');
         return;
@@ -1727,6 +1729,9 @@ async function deletePost(id) {
 // Comments
 // ========================================
 async function submitComment(postId, parentId) {
+    if (requiresRepresentativeCharacterForCurrentBoard() && !ensureRepresentativeCharacterForWrite()) {
+        return;
+    }
     if (isSupportBoardActive()) {
         ModalUtils.showAlert(isBugReportBoardActive() ? '버그 리포트 답변은 버그리포트 관리에서만 가능합니다.' : '문의 답변은 문의관리에서만 가능합니다.');
         return;
