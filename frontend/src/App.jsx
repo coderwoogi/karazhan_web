@@ -850,7 +850,7 @@ function App() {
   const loadNotifications = useCallback(async (quiet = false) => {
     if (!quiet) setNotificationLoading(true)
     try {
-      const response = await apiFetch('/api/notifications/list?limit=6&dropdown=true', {
+      const response = await apiFetch('/api/notifications/list?limit=6', {
         headers: quiet ? { 'X-Background-Request': '1' } : undefined,
       })
       setDropdownNotifications(asArray(response?.notifications))
@@ -1049,7 +1049,16 @@ function App() {
     const timer = window.setInterval(() => {
       loadNotifications(true).catch(() => {})
     }, 30000)
-    return () => window.clearInterval(timer)
+    const reloadNotifications = () => {
+      loadNotifications(true).catch(() => {})
+    }
+    window.addEventListener('focus', reloadNotifications)
+    document.addEventListener('visibilitychange', reloadNotifications)
+    return () => {
+      window.clearInterval(timer)
+      window.removeEventListener('focus', reloadNotifications)
+      document.removeEventListener('visibilitychange', reloadNotifications)
+    }
   }, [loadNotifications, user])
 
   useEffect(() => {
