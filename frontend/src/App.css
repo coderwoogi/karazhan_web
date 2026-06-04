@@ -1057,6 +1057,44 @@
       font-size: 26px;
     }
 
+    .media-copy {
+      position: absolute;
+      left: 16px;
+      right: 16px;
+      bottom: 16px;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      align-items: flex-start;
+      text-align: left;
+    }
+
+    .media-copy strong {
+      color: #fff7e7;
+      font-size: 16px;
+      line-height: 1.35;
+      text-shadow: 0 2px 12px rgba(0, 0, 0, 0.45);
+    }
+
+    .media-copy span:last-child {
+      color: #d8cdb8;
+      font-size: 12px;
+      font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+    }
+
+    .media-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 8px;
+      border: 1px solid rgba(218, 183, 109, 0.35);
+      background: rgba(78, 28, 18, 0.72);
+      color: #ffdca3;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+    }
+
     .media-strip {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
@@ -1065,10 +1103,52 @@
     }
 
     .media-mini {
+      position: relative;
       height: 72px;
       border: 1px solid rgba(255, 255, 255, 0.08);
       background: var(--bg-img) center / cover no-repeat;
       cursor: pointer;
+      overflow: hidden;
+    }
+
+    .media-mini::after {
+      position: absolute;
+      inset: 0;
+      content: "";
+      background: linear-gradient(180deg, transparent 18%, rgba(4, 4, 8, 0.88) 100%);
+    }
+
+    .media-mini-copy {
+      position: absolute;
+      left: 10px;
+      right: 10px;
+      bottom: 9px;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      text-align: left;
+    }
+
+    .media-mini-copy strong {
+      color: #fff4dd;
+      font-size: 11px;
+      line-height: 1.3;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .media-mini-copy em {
+      color: #c8bcaa;
+      font-style: normal;
+      font-size: 10px;
+      font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+    }
+
+    .media-notice-list {
+      padding-top: 10px;
     }
 
     .media-empty {
@@ -1919,6 +1999,32 @@
       border-top: 1px solid rgba(218, 183, 109, 0.14);
       font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
       line-height: 1.7;
+      overflow-wrap: anywhere;
+    }
+
+    .public-post-content figure,
+    .public-bug-reply-body figure,
+    .public-comment-body figure {
+      max-width: 100%;
+      margin: 14px 0;
+    }
+
+    .public-post-content img,
+    .public-bug-reply-body img,
+    .public-comment-body img {
+      display: block;
+      max-width: 100% !important;
+      width: auto !important;
+      height: auto !important;
+      margin: 12px auto;
+      border-radius: 10px;
+    }
+
+    .public-post-content video,
+    .public-post-content iframe,
+    .public-bug-reply-body video,
+    .public-bug-reply-body iframe {
+      max-width: 100%;
     }
 
     .public-comments {
@@ -2534,6 +2640,7 @@
   margin-top: 8px;
   white-space: pre-wrap;
   word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .public-comment-count {
@@ -2729,6 +2836,7 @@
   white-space: pre-wrap;
   word-break: break-word;
   line-height: 1.7;
+  overflow-wrap: anywhere;
 }
 
 .public-bug-reply-body p {
@@ -2740,11 +2848,7 @@
 }
 
 .public-bug-reply-body img {
-  display: block;
-  max-width: 100%;
-  height: auto;
-  margin: 10px 0;
-  border-radius: 10px;
+  margin: 12px auto;
 }
 
 .public-bug-reply-body a {

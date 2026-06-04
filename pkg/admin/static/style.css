@@ -2946,6 +2946,33 @@ img.img-loaded {
     animation: boardSlideIn 0.3s ease-out;
 }
 
+#post-detail-content,
+#mailbox-detail-content,
+#bug-report-admin .bug-admin-detail-content,
+#bug-report-admin .kb-report-comment-body {
+    overflow-wrap: anywhere;
+}
+
+#post-detail-content figure,
+#mailbox-detail-content figure,
+#bug-report-admin .bug-admin-detail-content figure,
+#bug-report-admin .kb-report-comment-body figure {
+    max-width: 100%;
+    margin: 14px 0;
+}
+
+#post-detail-content img,
+#mailbox-detail-content img,
+#bug-report-admin .bug-admin-detail-content img,
+#bug-report-admin .kb-report-comment-body img {
+    display: block;
+    max-width: 100% !important;
+    width: auto !important;
+    height: auto !important;
+    margin: 12px auto;
+    border-radius: 10px;
+}
+
 #board-posts-list tr:hover {
     background-color: #f8fafc !important;
 }

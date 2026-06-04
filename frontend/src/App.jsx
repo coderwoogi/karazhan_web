@@ -834,6 +834,7 @@ function App() {
 
     const notice = nextBoards.find((board) => board.name.includes('공지')) || null
     const free = nextBoards.find((board) => board.name.includes('자유')) || null
+    const updateBoard = nextBoards.find((board) => board.name.includes('업데이트')) || null
 
     if (notice) {
       try {
@@ -851,18 +852,29 @@ function App() {
         const response = await apiFetch(`/api/board/posts?board_id=${encodeURIComponent(free.id)}&page=1&limit=12`)
         const freePosts = asArray(response?.posts).map((post) => ({ ...post, board_name: free.name, board_id: free.id }))
         setCommunityPreviewPosts(freePosts.slice(0, 4))
-        setMediaPreviewPosts(
-          freePosts
-            .map((post) => ({ ...post, preview_image: extractFirstImageUrl(post.content) }))
-            .filter((post) => post.preview_image)
-            .slice(0, 3),
-        )
       } catch {
         setCommunityPreviewPosts([])
-        setMediaPreviewPosts([])
       }
     } else {
       setCommunityPreviewPosts([])
+    }
+
+    if (updateBoard) {
+      try {
+        const response = await apiFetch(`/api/board/posts?board_id=${encodeURIComponent(updateBoard.id)}&page=1&limit=5`)
+        const updatePosts = asArray(response?.posts)
+          .map((post) => ({
+            ...post,
+            board_name: updateBoard.name,
+            board_id: updateBoard.id,
+            preview_image: extractFirstImageUrl(post.content) || '/img/HS_Key_Art_SG2.avif',
+          }))
+          .slice(0, 5)
+        setMediaPreviewPosts(updatePosts)
+      } catch {
+        setMediaPreviewPosts([])
+      }
+    } else {
       setMediaPreviewPosts([])
     }
   }, [])
@@ -1707,35 +1719,24 @@ function App() {
                 </ul>
               </article>
               <article className="panel">
-                <div className="panel-head"><h2>미디어</h2><a className="more" href="#">더보기 &gt;</a></div>
+                <div className="panel-head"><h2>업데이트</h2><button type="button" className="more button-reset" onClick={() => {
+                  const updateBoard = visibleBoards.find((board) => board.name.includes('업데이트'))
+                  openBoard(updateBoard?.id || visibleBoards[0]?.id)
+                }}>더보기 &gt;</button></div>
                 {mediaPreviewPosts.length ? (
-                  <>
-                    <button
-                      type="button"
-                      className="media-main button-reset"
-                      onClick={() => navigate(`/?board=${encodeURIComponent(mediaPreviewPosts[0].board_id)}&post=${mediaPreviewPosts[0].id}`)}
-                      style={{ '--bg-img': `url('${mediaPreviewPosts[0].preview_image}')` }}
-                    >
-                      <div className="play">▶</div>
-                    </button>
-                    <div className="media-strip">
-                      {mediaPreviewPosts.slice(1).map((post) => (
-                        <button
-                          key={`media-${post.id}`}
-                          type="button"
-                          className="media-mini button-reset"
-                          onClick={() => navigate(`/?board=${encodeURIComponent(post.board_id)}&post=${post.id}`)}
-                          style={{ '--bg-img': `url('${post.preview_image}')` }}
-                          aria-label={post.title}
-                        />
-                      ))}
-                    </div>
-                  </>
+                  <ul className="notice-list media-notice-list">
+                    {mediaPreviewPosts.slice(0, 5).map((item) => (
+                      <li key={`media-${item.id}`} onClick={() => navigate(`/?board=${encodeURIComponent(item.board_id)}&post=${item.id}`)}>
+                        <span className="tag update">업데이트</span>
+                        <span>{item.title}</span>
+                        <span className="date">{formatShortDate(item.created_at)}</span>
+                      </li>
+                    ))}
+                  </ul>
                 ) : (
-                  <>
-                    <div className="media-main media-empty"><div className="play">▶</div></div>
-                    <div className="media-strip"><div className="media-mini media-empty" /><div className="media-mini media-empty" /></div>
-                  </>
+                  <ul className="notice-list media-notice-list">
+                    <li><span className="tag update">업데이트</span><span>업데이트 게시판의 최신글이 없습니다.</span><span className="date">-</span></li>
+                  </ul>
                 )}
               </article>
               <aside id="connect-section" className="panel start-panel"><h2>지금, 모험을 시작하세요</h2><p>접속기 설치, 계정 안내, 초기 설정까지 필요한 순서를 확인하고 바로 입장해 보세요.</p><a className="btn" href="#">접속 가이드 보기</a></aside>
