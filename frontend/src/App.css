@@ -3400,6 +3400,19 @@
   font-weight: 700;
 }
 
+.board-won-input-wrap {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.board-won-input-wrap span {
+  color: #f3dfab;
+  font-size: 14px;
+  font-weight: 900;
+}
+
 @media (max-width: 760px) {
   .board-sponsor-guide {
     grid-template-columns: 1fr;

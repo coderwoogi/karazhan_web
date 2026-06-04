@@ -211,6 +211,11 @@ function formatAuctionPrice(value) {
   return `${gold.toLocaleString()}골드 ${silver}실버 ${copper}코퍼`
 }
 
+function formatWonInput(value) {
+  const digits = String(value || '').replace(/[^\d]/g, '')
+  return digits ? Number(digits).toLocaleString('ko-KR') : ''
+}
+
 function auctionClassText(itemClass, itemSubclass) {
   const className = AUCTION_CLASS_MAP[Number(itemClass)] || `분류 ${Number(itemClass || 0)}`
   const subMap = AUCTION_SUBCLASS_MAP[Number(itemClass)] || {}
@@ -428,7 +433,10 @@ function InquiryFields({ category, onCategoryChange, sponsorAgree, onSponsorAgre
           </div>
           <div className="board-field-row">
             <label className="board-field-label">후원 금액</label>
-            <input className="public-board-text-input" value={sponsorAmount} onChange={(e) => onSponsorAmountChange(e.target.value.replace(/[^\d]/g, ''))} placeholder="숫자만 입력해 주세요." disabled={!sponsorAgree} />
+            <div className="board-won-input-wrap">
+              <input className="public-board-text-input" value={formatWonInput(sponsorAmount)} onChange={(e) => onSponsorAmountChange(e.target.value.replace(/[^\d]/g, ''))} placeholder="예: 10,000" disabled={!sponsorAgree} inputMode="numeric" />
+              <span>원</span>
+            </div>
           </div>
           <div className="board-sponsor-preview">예상 지급 포인트: {sponsorPoint.toLocaleString()}pt (1,000원당 1pt)</div>
         </div>
