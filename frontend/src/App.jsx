@@ -1126,6 +1126,7 @@ function App() {
     if (!commentId) return
     let attempts = 0
     let clearHighlightTimer = 0
+    let retryTimer = 0
     const highlightComment = () => {
       const target = document.getElementById(`comment-${commentId}`)
       if (!target) {
@@ -1141,12 +1142,12 @@ function App() {
       target.classList.add('comment-focus-highlight')
       clearHighlightTimer = window.setTimeout(() => target.classList.remove('comment-focus-highlight'), 3800)
     }
-    let retryTimer = window.setTimeout(highlightComment, 180)
+    retryTimer = window.setTimeout(highlightComment, 180)
     return () => {
       window.clearTimeout(retryTimer)
       window.clearTimeout(clearHighlightTimer)
     }
-  }, [comments.length, detail, location.search, screen])
+  }, [detail, location.search, screen])
 
   useEffect(() => {
     if (!boardId || screen !== 'list') return
