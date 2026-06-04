@@ -2396,9 +2396,32 @@
     }
 
 .public-comment.comment-focus-highlight {
-  border-color: rgba(218, 183, 109, 0.48);
-  background: rgba(218, 183, 109, 0.08);
-  box-shadow: 0 0 0 1px rgba(218, 183, 109, 0.18), 0 18px 36px rgba(0, 0, 0, 0.22);
+  border-color: rgba(218, 183, 109, 0.66);
+  animation: commentFocusPulse 0.72s ease-in-out 4;
+}
+
+@keyframes commentFocusPulse {
+  0%,
+  100% {
+    background: rgba(255, 255, 255, 0.02);
+    box-shadow: none;
+  }
+
+  45% {
+    background: rgba(218, 183, 109, 0.2);
+    box-shadow:
+      0 0 0 1px rgba(218, 183, 109, 0.36),
+      0 0 26px rgba(218, 183, 109, 0.26),
+      0 18px 36px rgba(0, 0, 0, 0.22);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .public-comment.comment-focus-highlight {
+    animation: none;
+    background: rgba(218, 183, 109, 0.14);
+    box-shadow: 0 0 0 1px rgba(218, 183, 109, 0.24);
+  }
 }
 
     .public-board-pager {

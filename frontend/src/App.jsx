@@ -1128,8 +1128,10 @@ function App() {
       const target = document.getElementById(`comment-${commentId}`)
       if (!target) return
       target.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      target.classList.remove('comment-focus-highlight')
+      void target.offsetWidth
       target.classList.add('comment-focus-highlight')
-      window.setTimeout(() => target.classList.remove('comment-focus-highlight'), 2200)
+      window.setTimeout(() => target.classList.remove('comment-focus-highlight'), 3200)
     }, 180)
     return () => window.clearTimeout(timer)
   }, [detail, location.search, screen])
