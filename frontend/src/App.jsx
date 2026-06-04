@@ -515,11 +515,42 @@ function emitAppAlert(message, title = '안내') {
   window.dispatchEvent(new CustomEvent('karazhan:alert', { detail: { message, title } }))
 }
 
+function getLoadingMessageByUrl(url) {
+  const text = String(url || '')
+  if (text.includes('/api/auction/')) return '경매장 데이터를 불러오는 중입니다.'
+  if (text.includes('/api/board/')) return '게시판 데이터를 불러오는 중입니다.'
+  if (text.includes('/api/user/characters')) return '캐릭터 정보를 불러오는 중입니다.'
+  if (text.includes('/api/user/points')) return '포인트 내역을 불러오는 중입니다.'
+  if (text.includes('/api/public/contents')) return '컨텐츠 정보를 불러오는 중입니다.'
+  return '데이터를 불러오는 중입니다.'
+}
+
+function GlobalLoadingOverlay({ visible, message }) {
+  return (
+    <div className={`global-loading-overlay${visible ? ' active' : ''}`} aria-hidden={visible ? 'false' : 'true'}>
+      <div className="global-loading-card" role="status" aria-live="polite" aria-busy={visible ? 'true' : 'false'}>
+        <div className="global-loading-spinner" aria-hidden="true">
+          <svg viewBox="0 0 104 104">
+            <circle className="global-loading-track" cx="52" cy="52" r="34" />
+            <circle className="global-loading-arc" cx="52" cy="52" r="34" />
+          </svg>
+        </div>
+        <strong>잠시만 기다려주세요</strong>
+        <p>{message || '데이터를 불러오는 중입니다.'}</p>
+      </div>
+    </div>
+  )
+}
+
 function App() {
   const navigate = useNavigate()
   const location = useLocation()
   const userMenuRef = useRef(null)
   const dialogResolveRef = useRef(null)
+  const globalLoadingCountRef = useRef(0)
+  const globalLoadingTimerRef = useRef(null)
+  const globalFetchPatchedRef = useRef(false)
+  const globalOriginalFetchRef = useRef(null)
 
   const [home, setHome] = useState(DEFAULT_HOME)
   const [user, setUser] = useState(null)
@@ -592,6 +623,8 @@ function App() {
   const [auctionIconMap, setAuctionIconMap] = useState({})
   const [auctionBusy, setAuctionBusy] = useState(false)
   const [auctionBusyMessage, setAuctionBusyMessage] = useState('')
+  const [globalLoadingVisible, setGlobalLoadingVisible] = useState(false)
+  const [globalLoadingMessage, setGlobalLoadingMessage] = useState('데이터를 불러오는 중입니다.')
 
   const currentBoard = useMemo(() => boards.find((board) => board.id === boardId) || null, [boards, boardId])
   const headerNavItems = useMemo(
@@ -665,6 +698,73 @@ function App() {
     setSponsorAgree(false)
     setSponsorName('')
     setSponsorAmount('')
+  }, [])
+
+  useEffect(() => {
+    if (globalFetchPatchedRef.current || typeof window === 'undefined' || typeof window.fetch !== 'function') return undefined
+
+    const shouldTrackRequest = (input, init) => {
+      const url = typeof input === 'string' ? input : String(input?.url || '')
+      if (!url.includes('/api/')) return false
+      if (url.includes('/api/external/item_icon')) return false
+      if (url.includes('/api/auction/bid') || url.includes('/api/auction/buyout') || url.includes('/api/auction/create') || url.includes('/api/auction/cancel')) return false
+
+      const headers = init?.headers
+      if (headers && typeof headers.get === 'function' && headers.get('X-Background-Request') === '1') return false
+      if (headers && typeof headers === 'object' && (headers['X-Background-Request'] === '1' || headers['x-background-request'] === '1')) return false
+
+      return true
+    }
+
+    const beginLoading = (message) => {
+      globalLoadingCountRef.current += 1
+      setGlobalLoadingMessage(message || '데이터를 불러오는 중입니다.')
+      if (globalLoadingCountRef.current === 1) {
+        globalLoadingTimerRef.current = window.setTimeout(() => {
+          setGlobalLoadingVisible(true)
+          globalLoadingTimerRef.current = null
+        }, 160)
+      }
+    }
+
+    const endLoading = () => {
+      globalLoadingCountRef.current = Math.max(0, globalLoadingCountRef.current - 1)
+      if (globalLoadingCountRef.current === 0) {
+        if (globalLoadingTimerRef.current) {
+          window.clearTimeout(globalLoadingTimerRef.current)
+          globalLoadingTimerRef.current = null
+        }
+        setGlobalLoadingVisible(false)
+      }
+    }
+
+    globalOriginalFetchRef.current = window.fetch.bind(window)
+    window.fetch = (input, init) => {
+      const shouldTrack = shouldTrackRequest(input, init)
+      if (shouldTrack) {
+        const url = typeof input === 'string' ? input : String(input?.url || '')
+        beginLoading(getLoadingMessageByUrl(url))
+      }
+
+      return globalOriginalFetchRef.current(input, init)
+        .finally(() => {
+          if (shouldTrack) endLoading()
+        })
+    }
+
+    globalFetchPatchedRef.current = true
+
+    return () => {
+      if (globalOriginalFetchRef.current) {
+        window.fetch = globalOriginalFetchRef.current
+      }
+      if (globalLoadingTimerRef.current) {
+        window.clearTimeout(globalLoadingTimerRef.current)
+        globalLoadingTimerRef.current = null
+      }
+      globalFetchPatchedRef.current = false
+      globalLoadingCountRef.current = 0
+    }
   }, [])
 
   const loadHome = useCallback(async () => {
@@ -1419,10 +1519,11 @@ function App() {
     await loadMyPageCharacters()
   }, [loadMyPageCharacters, loadUser, showConfirm])
 
-  if (!userLoaded || !user) return null
+  if (!userLoaded || !user) return <GlobalLoadingOverlay visible={globalLoadingVisible || !userLoaded} message={globalLoadingMessage} />
 
   return (
     <div className="page react-home-page">
+      <GlobalLoadingOverlay visible={globalLoadingVisible} message={globalLoadingMessage} />
       <header className="topbar">
         <nav className="nav" aria-label="주요 메뉴">
           <button className="nav-brand nav-link-button" type="button" onClick={goHome}>The Karazhan</button>

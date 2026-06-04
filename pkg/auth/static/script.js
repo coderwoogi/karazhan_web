@@ -21,8 +21,16 @@ class ModalUtils {
                 .mu-btn{border:1px solid rgba(218,183,109,.28);background:linear-gradient(180deg,rgba(119,72,29,.92),rgba(64,36,18,.96));color:#f7ecd4;border-radius:12px;padding:10px 18px;font-weight:700;cursor:pointer}
                 .mu-btn-cancel{background:rgba(255,255,255,.04);color:#e8dcc1}
                 .mu-progress{display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center}
-                .mu-spinner{width:42px;height:42px;border-radius:50%;border:3px solid rgba(218,183,109,.18);border-top-color:#dab76d;animation:mu-spin .85s linear infinite}
-                @keyframes mu-spin{to{transform:rotate(360deg)}}
+                .mu-spinner{display:inline-flex;width:72px;height:72px}
+                .mu-spinner svg{width:72px;height:72px;overflow:visible}
+                .mu-spinner circle{fill:none;stroke-linecap:round}
+                .mu-spinner .mu-spinner-track{stroke:rgba(125,211,252,.18);stroke-width:8}
+                .mu-spinner .mu-spinner-arc{stroke:#7dd3fc;stroke-width:8;stroke-dasharray:46 188;transform-origin:50% 50%;animation:mu-dashspin 1.2s ease-in-out infinite;filter:drop-shadow(0 0 12px rgba(125,211,252,.4))}
+                @keyframes mu-dashspin{
+                    0%{transform:rotate(0deg);stroke-dasharray:26 194;stroke-dashoffset:0}
+                    50%{stroke-dasharray:92 156}
+                    100%{transform:rotate(360deg);stroke-dasharray:26 194;stroke-dashoffset:-118}
+                }
             `;
             document.head.appendChild(style);
         }
@@ -109,17 +117,6 @@ class ModalUtils {
     }
 
     static showProgress(message = '\uCC98\uB9AC \uC911\uC785\uB2C8\uB2E4.', title = '\uC7A0\uC2DC\uB9CC \uAE30\uB2E4\uB824\uC8FC\uC138\uC694') {
-        if (this.hasSwal()) {
-            this._swalProgressOpen = true;
-            return Swal.fire({
-                title,
-                text: message,
-                allowOutsideClick: false,
-                allowEscapeKey: false,
-                showConfirmButton: false,
-                didOpen: () => Swal.showLoading()
-            });
-        }
         if (!this.ensureFallbackUi()) return;
         this.hideProgress();
         const overlay = document.createElement('div');
@@ -127,7 +124,12 @@ class ModalUtils {
         overlay.id = 'auth-modal-utils-progress';
         overlay.innerHTML = `
             <div class="mu-panel mu-progress" role="status" aria-live="polite">
-                <div class="mu-spinner" aria-hidden="true"></div>
+                <div class="mu-spinner" aria-hidden="true">
+                    <svg viewBox="0 0 104 104">
+                        <circle class="mu-spinner-track" cx="52" cy="52" r="34"></circle>
+                        <circle class="mu-spinner-arc" cx="52" cy="52" r="34"></circle>
+                    </svg>
+                </div>
                 <h3 class="mu-title">${String(title || '\uC7A0\uC2DC\uB9CC \uAE30\uB2E4\uB824\uC8FC\uC138\uC694')}</h3>
                 <div class="mu-message">${String(message || '\uCC98\uB9AC \uC911\uC785\uB2C8\uB2E4.')}</div>
             </div>`;
@@ -137,10 +139,6 @@ class ModalUtils {
     static hideProgress() {
         const overlay = typeof document !== 'undefined' ? document.getElementById('auth-modal-utils-progress') : null;
         if (overlay) overlay.remove();
-        if (this.hasSwal() && this._swalProgressOpen) {
-            this._swalProgressOpen = false;
-            Swal.close();
-        }
     }
 
     static async runWithProgress(message, task, title = '\uC7A0\uC2DC\uB9CC \uAE30\uB2E4\uB824\uC8FC\uC138\uC694') {

@@ -45,8 +45,15 @@
             .login-dialog-actions{display:flex;justify-content:flex-end;margin-top:20px}
             .login-dialog-btn{border:1px solid rgba(218,183,109,.28);background:linear-gradient(180deg,rgba(119,72,29,.92),rgba(64,36,18,.96));color:#f7ecd4;border-radius:12px;padding:10px 18px;font-weight:700;cursor:pointer}
             .login-dialog-progress{display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center}
-            .login-dialog-spinner{width:42px;height:42px;border-radius:50%;border:3px solid rgba(218,183,109,.18);border-top-color:#dab76d;animation:login-dialog-spin .85s linear infinite}
-            @keyframes login-dialog-spin{to{transform:rotate(360deg)}}
+            .login-dialog-spinner{position:relative;display:inline-flex;width:72px;height:72px}
+            .login-dialog-spinner::before,.login-dialog-spinner::after{content:'';position:absolute;inset:0;border-radius:50%}
+            .login-dialog-spinner::before{border:8px solid rgba(125,211,252,.18)}
+            .login-dialog-spinner::after{border:8px solid transparent;border-top-color:#7dd3fc;border-right-color:#7dd3fc;animation:login-dialog-dashspin 1.2s ease-in-out infinite;filter:drop-shadow(0 0 12px rgba(125,211,252,.4))}
+            @keyframes login-dialog-dashspin{
+                0%{transform:rotate(0deg) scale(.96)}
+                50%{transform:rotate(180deg) scale(1)}
+                100%{transform:rotate(360deg) scale(.96)}
+            }
         `;
         document.head.appendChild(style);
     }

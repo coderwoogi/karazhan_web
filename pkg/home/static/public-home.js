@@ -99,8 +99,16 @@
       .ph-dialog-btn{border:1px solid rgba(218,183,109,.28);background:linear-gradient(180deg,rgba(119,72,29,.92),rgba(64,36,18,.96));color:#f7ecd4;border-radius:12px;padding:10px 18px;font-weight:700;cursor:pointer}
       .ph-dialog-btn-cancel{background:rgba(255,255,255,.04);color:#e8dcc1}
       .ph-dialog-progress{display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center}
-      .ph-dialog-spinner{width:42px;height:42px;border-radius:50%;border:3px solid rgba(218,183,109,.18);border-top-color:#dab76d;animation:ph-dialog-spin .85s linear infinite}
-      @keyframes ph-dialog-spin{to{transform:rotate(360deg)}}
+      .ph-dialog-spinner{display:inline-flex;width:72px;height:72px}
+      .ph-dialog-spinner svg{width:72px;height:72px;overflow:visible}
+      .ph-dialog-spinner circle{fill:none;stroke-linecap:round}
+      .ph-dialog-spinner .ph-spinner-track{stroke:rgba(125,211,252,.18);stroke-width:8}
+      .ph-dialog-spinner .ph-spinner-arc{stroke:#7dd3fc;stroke-width:8;stroke-dasharray:46 188;transform-origin:50% 50%;animation:ph-dialog-dashspin 1.2s ease-in-out infinite;filter:drop-shadow(0 0 12px rgba(125,211,252,.4))}
+      @keyframes ph-dialog-dashspin{
+        0%{transform:rotate(0deg);stroke-dasharray:26 194;stroke-dashoffset:0}
+        50%{stroke-dasharray:92 156}
+        100%{transform:rotate(360deg);stroke-dasharray:26 194;stroke-dashoffset:-118}
+      }
     `;
     document.head.appendChild(style);
   }
@@ -153,17 +161,6 @@
   }
 
   function showProgress(message) {
-    if (window.Swal && typeof window.Swal.fire === 'function') {
-      window.Swal.fire({
-        title: '잠시만 기다려주세요',
-        text: message,
-        allowOutsideClick: false,
-        allowEscapeKey: false,
-        showConfirmButton: false,
-        didOpen: () => window.Swal.showLoading()
-      });
-      return;
-    }
     ensureDialogUi();
     hideProgress();
     const overlay = document.createElement('div');
@@ -171,7 +168,12 @@
     overlay.id = 'public-home-progress';
     overlay.innerHTML = `
       <div class="ph-dialog-card ph-dialog-progress" role="status" aria-live="polite">
-        <div class="ph-dialog-spinner" aria-hidden="true"></div>
+        <div class="ph-dialog-spinner" aria-hidden="true">
+          <svg viewBox="0 0 104 104">
+            <circle class="ph-spinner-track" cx="52" cy="52" r="34"></circle>
+            <circle class="ph-spinner-arc" cx="52" cy="52" r="34"></circle>
+          </svg>
+        </div>
         <h3>잠시만 기다려주세요</h3>
         <p>${esc(message || '처리 중입니다.')}</p>
       </div>`;
@@ -180,7 +182,6 @@
 
   function hideProgress() {
     document.getElementById('public-home-progress')?.remove();
-    if (window.Swal && typeof window.Swal.close === 'function') window.Swal.close();
   }
 
   async function runWithProgress(message, task) {
