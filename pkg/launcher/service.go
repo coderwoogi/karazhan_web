@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
@@ -337,7 +338,7 @@ func handleAnnounce(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Prefer SOAP path for safe Unicode delivery to clients.
-	soapCfg := readWorldSOAPConfig("E:\\server\\operate\\configs\\worldserver.conf")
+	soapCfg := loadWorldSOAPConfig()
 	if soapCfg.Enabled {
 		if soapUser == "" || soapPass == "" {
 			fileUser, filePass := utils.LoadSOAPCredentials()
@@ -439,7 +440,7 @@ func handleWorldCommand(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Match announce path behavior: try SOAP first when enabled, fallback to stdin.
-	soapCfg := readWorldSOAPConfig("E:\\server\\operate\\configs\\worldserver.conf")
+	soapCfg := loadWorldSOAPConfig()
 	if soapCfg.Enabled {
 		if soapUser == "" || soapPass == "" {
 			fileUser, filePass := utils.LoadSOAPCredentials()
@@ -467,7 +468,11 @@ func handleWorldCommand(w http.ResponseWriter, r *http.Request) {
 	worldProc, ok := processes["world"]
 	if !ok || !isRunning(worldProc.Name) || worldProc.Stdin == nil {
 		w.WriteHeader(http.StatusBadRequest)
-		_ = json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "world server console is not connected"})
+		message := "world server console is not connected"
+		if !soapCfg.Enabled {
+			message = "world server console is not connected and SOAP is not enabled"
+		}
+		_ = json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": message})
 		return
 	}
 
@@ -604,6 +609,38 @@ type worldSOAPConfig struct {
 	Enabled bool
 	IP      string
 	Port    string
+}
+
+func worldSOAPConfigCandidatePaths() []string {
+	wd, _ := os.Getwd()
+	candidates := []string{}
+	if v := strings.TrimSpace(os.Getenv("KARAZHAN_WORLDSERVER_CONF")); v != "" {
+		candidates = append(candidates, v)
+	}
+	candidates = append(candidates,
+		`configs/worldserver.conf`,
+		`E:/server/operate/configs/worldserver.conf`,
+		`/opt/homebrew/var/www/karazhan/configs/worldserver.conf`,
+		`/opt/homebrew/etc/karazhan/worldserver.conf`,
+	)
+	if wd != "" {
+		candidates = append([]string{filepath.Join(wd, "configs", "worldserver.conf")}, candidates...)
+	}
+	return candidates
+}
+
+func loadWorldSOAPConfig() worldSOAPConfig {
+	for _, path := range worldSOAPConfigCandidatePaths() {
+		cfg := readWorldSOAPConfig(path)
+		if cfg.Enabled {
+			return cfg
+		}
+	}
+	return worldSOAPConfig{
+		Enabled: false,
+		IP:      "127.0.0.1",
+		Port:    "7878",
+	}
 }
 
 func readWorldSOAPConfig(path string) worldSOAPConfig {
