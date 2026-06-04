@@ -379,7 +379,7 @@ function QuillEditor({ value, onChange, onAlert }) {
 }
 function InquiryFields({ category, onCategoryChange, sponsorAgree, onSponsorAgreeChange, sponsorName, onSponsorNameChange, sponsorAmount, onSponsorAmountChange, mode = 'inquiry' }) {
   const isBugReport = mode === 'bugreport'
-  const isSponsor = category === '후원'
+  const isSponsor = String(category || '').trim() === '후원'
   const sponsorPoint = Math.floor((Number(String(sponsorAmount || '').replace(/[^\d]/g, '')) || 0) / 1000)
   const options = isBugReport
     ? ['게임 오류', '웹 오류', '계정/접속', '기타']
@@ -396,10 +396,29 @@ function InquiryFields({ category, onCategoryChange, sponsorAgree, onSponsorAgre
       </div>
       {!isBugReport && isSponsor && (
         <div className="board-sponsor-box">
-          <label className="board-checkbox-row">
-            <input type="checkbox" checked={sponsorAgree} onChange={(e) => onSponsorAgreeChange(e.target.checked)} />
-            <span>후원 안내를 확인했으며 후원 정보를 정확하게 입력하겠습니다.</span>
-          </label>
+          <div className="board-sponsor-guide">
+            <div className="board-sponsor-copy">
+              <span className="board-sponsor-kicker">후원 안내</span>
+              <strong>입금 후 문의글을 남겨주시면 확인 후 포인트가 지급됩니다.</strong>
+              <p>카카오페이 QR 또는 등록된 입금 수단으로 후원하신 뒤, 후원자명과 후원 금액을 정확히 입력해 주세요. 입력 정보가 실제 입금 내역과 다르면 처리가 지연될 수 있습니다.</p>
+              <ul>
+                <li>후원 포인트는 1,000원당 1pt 기준으로 계산됩니다.</li>
+                <li>관리자 확인 후 문의 진행 내용에 처리 결과가 남습니다.</li>
+                <li>후원 관련 문의는 본인 글에서만 확인할 수 있습니다.</li>
+              </ul>
+            </div>
+            <div className="board-sponsor-qr">
+              <img src="/img/kakaopay.jpg" alt="카카오페이 후원 QR 코드" />
+              <span>카카오페이 QR</span>
+            </div>
+          </div>
+          <button
+            className={`board-sponsor-agree ${sponsorAgree ? 'active' : ''}`}
+            type="button"
+            onClick={() => onSponsorAgreeChange(!sponsorAgree)}
+          >
+            {sponsorAgree ? '후원 안내 동의 완료' : '후원 안내 확인 및 동의하기'}
+          </button>
           <div className="board-field-row">
             <label className="board-field-label">후원자명</label>
             <input className="public-board-text-input" value={sponsorName} onChange={(e) => onSponsorNameChange(e.target.value)} placeholder="후원자명을 입력해 주세요." disabled={!sponsorAgree} />

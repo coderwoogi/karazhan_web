@@ -3279,10 +3279,95 @@
 
 .board-sponsor-box {
   display: grid;
-  gap: 14px;
-  padding: 18px;
-  border: 1px solid rgba(218, 183, 109, 0.18);
-  background: rgba(255, 255, 255, 0.03);
+  gap: 16px;
+  padding: 20px;
+  border: 1px solid rgba(218, 183, 109, 0.28);
+  background:
+    radial-gradient(circle at 100% 0%, rgba(218, 183, 109, 0.18), transparent 32%),
+    rgba(255, 255, 255, 0.04);
+}
+
+.board-sponsor-guide {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 160px;
+  gap: 18px;
+  align-items: stretch;
+}
+
+.board-sponsor-copy {
+  display: grid;
+  gap: 10px;
+}
+
+.board-sponsor-kicker {
+  color: #d9b766;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+}
+
+.board-sponsor-copy strong {
+  color: #fff1c9;
+  font-size: 18px;
+}
+
+.board-sponsor-copy p,
+.board-sponsor-copy li {
+  color: #bfb4c9;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.board-sponsor-copy p,
+.board-sponsor-copy ul {
+  margin: 0;
+}
+
+.board-sponsor-copy ul {
+  padding-left: 18px;
+}
+
+.board-sponsor-qr {
+  display: grid;
+  place-items: center;
+  gap: 9px;
+  padding: 12px;
+  border: 1px solid rgba(218, 183, 109, 0.24);
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.board-sponsor-qr img {
+  display: block;
+  width: 132px;
+  height: 132px;
+  object-fit: contain;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: #fff;
+}
+
+.board-sponsor-qr span {
+  color: #d9b766;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.board-sponsor-agree {
+  min-height: 44px;
+  padding: 0 16px;
+  color: #f3dfab;
+  border: 1px solid rgba(218, 183, 109, 0.42);
+  background:
+    linear-gradient(180deg, rgba(218, 183, 109, 0.18), rgba(169, 135, 77, 0.18)),
+    rgba(255, 255, 255, 0.06);
+  font-weight: 900;
+  text-align: center;
+}
+
+.board-sponsor-agree.active {
+  color: #1a1204;
+  border-color: rgba(245, 202, 101, 0.72);
+  background: linear-gradient(180deg, #f8d98c, #c99d3b);
+  box-shadow: 0 0 26px rgba(218, 183, 109, 0.2);
 }
 
 .board-checkbox-row {
@@ -3301,6 +3386,16 @@
   color: #d9b766;
   font-size: 13px;
   font-weight: 700;
+}
+
+@media (max-width: 760px) {
+  .board-sponsor-guide {
+    grid-template-columns: 1fr;
+  }
+
+  .board-sponsor-qr {
+    justify-items: start;
+  }
 }
 
 .board-promotion-list {
