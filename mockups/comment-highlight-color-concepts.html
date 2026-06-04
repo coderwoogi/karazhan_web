@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>댓글 알림 강조 색상 시안</title>
+  <style>
+    :root {
+      --bg: #05050a;
+      --panel: rgba(10, 8, 18, 0.94);
+      --panel-soft: rgba(255, 255, 255, 0.05);
+      --line: rgba(218, 183, 109, 0.2);
+      --gold: #d9b766;
+      --text: #f4ecdc;
+      --muted: #a79caf;
+      --violet: #7a38e6;
+      --danger: #e65b5b;
+      --blue: #38bdf8;
+      --green: #34d399;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      padding: 42px 22px 70px;
+      color: var(--text);
+      font-family: "Noto Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+      background:
+        radial-gradient(circle at 15% 0%, rgba(122, 56, 230, 0.22), transparent 30%),
+        radial-gradient(circle at 85% 12%, rgba(218, 183, 109, 0.14), transparent 26%),
+        linear-gradient(180deg, #0b0813 0%, #05050a 68%);
+    }
+
+    .wrap {
+      width: min(1360px, 100%);
+      margin: 0 auto;
+    }
+
+    .head {
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      align-items: flex-end;
+      margin-bottom: 28px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .kicker {
+      color: var(--gold);
+      font-size: 13px;
+      font-weight: 900;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 8px 0 0;
+      color: #fff1c9;
+      font-size: clamp(32px, 4vw, 52px);
+      letter-spacing: -0.04em;
+    }
+
+    .desc {
+      max-width: 650px;
+      margin: 10px 0 0;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    .replay-all {
+      min-height: 44px;
+      padding: 0 18px;
+      color: #1a1204;
+      font-weight: 900;
+      border: 1px solid rgba(245, 202, 101, 0.7);
+      background: linear-gradient(180deg, #f8d98c, #c99d3b);
+      box-shadow: 0 14px 30px rgba(0, 0, 0, 0.26);
+      cursor: pointer;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 22px;
+    }
+
+    .concept {
+      min-height: 390px;
+      padding: 22px;
+      border: 1px solid rgba(218, 183, 109, 0.22);
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.02)),
+        var(--panel);
+      box-shadow: 0 22px 58px rgba(0, 0, 0, 0.35);
+    }
+
+    .concept-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      align-items: flex-start;
+      margin-bottom: 16px;
+    }
+
+    .concept h2 {
+      margin: 0;
+      color: #f7df9a;
+      font-size: 22px;
+    }
+
+    .concept-note {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .replay {
+      min-width: 84px;
+      min-height: 34px;
+      padding: 0 12px;
+      color: #f4ecdc;
+      border: 1px solid rgba(218, 183, 109, 0.34);
+      background: rgba(255, 255, 255, 0.07);
+      cursor: pointer;
+    }
+
+    .post-shell {
+      padding: 18px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(0, 0, 0, 0.18);
+    }
+
+    .post-title {
+      margin-bottom: 14px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid rgba(218, 183, 109, 0.16);
+      color: #fff5d8;
+      font-size: 17px;
+      font-weight: 900;
+    }
+
+    .comment {
+      margin-top: 10px;
+      padding: 15px 16px;
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      background: rgba(255, 255, 255, 0.025);
+      transition: background-color 0.18s, border-color 0.18s, box-shadow 0.18s, transform 0.18s;
+    }
+
+    .comment.target {
+      position: relative;
+      overflow: hidden;
+    }
+
+    .comment-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      color: #f3dfab;
+      font-size: 13px;
+      font-weight: 900;
+    }
+
+    .comment-meta {
+      margin-top: 4px;
+      color: #998fa6;
+      font-size: 12px;
+    }
+
+    .comment-body {
+      margin-top: 9px;
+      color: #efe6d1;
+      font-size: 14px;
+      line-height: 1.65;
+    }
+
+    .concept.active .pulse-gold {
+      animation: pulseGold 0.58s ease-in-out 6 forwards;
+    }
+
+    .concept.active .pulse-red {
+      animation: pulseRed 0.58s ease-in-out 6 forwards;
+    }
+
+    .concept.active .pulse-blue {
+      animation: pulseBlue 0.58s ease-in-out 6 forwards;
+    }
+
+    .concept.active .solid-gold {
+      animation: solidGold 2.8s ease-in-out forwards;
+    }
+
+    .concept.active .stripe-gold {
+      animation: stripeGold 0.62s ease-in-out 6 forwards;
+    }
+
+    .concept.active .border-flash {
+      animation: borderFlash 0.5s ease-in-out 7 forwards;
+    }
+
+    @keyframes pulseGold {
+      0%, 100% {
+        background: rgba(255, 255, 255, 0.025);
+        border-color: rgba(255, 255, 255, 0.07);
+        box-shadow: none;
+      }
+      45% {
+        background: #5a3f0e;
+        border-color: #ffd777;
+        box-shadow: 0 0 0 2px rgba(255, 215, 119, 0.7), 0 0 34px rgba(255, 215, 119, 0.42);
+        transform: translateY(-1px);
+      }
+    }
+
+    @keyframes pulseRed {
+      0%, 100% {
+        background: rgba(255, 255, 255, 0.025);
+        border-color: rgba(255, 255, 255, 0.07);
+        box-shadow: none;
+      }
+      45% {
+        background: #5a1616;
+        border-color: #ff8c8c;
+        box-shadow: 0 0 0 2px rgba(255, 120, 120, 0.62), 0 0 34px rgba(230, 91, 91, 0.42);
+      }
+    }
+
+    @keyframes pulseBlue {
+      0%, 100% {
+        background: rgba(255, 255, 255, 0.025);
+        border-color: rgba(255, 255, 255, 0.07);
+        box-shadow: none;
+      }
+      45% {
+        background: #0d3f56;
+        border-color: #7ddcff;
+        box-shadow: 0 0 0 2px rgba(125, 220, 255, 0.58), 0 0 34px rgba(56, 189, 248, 0.42);
+      }
+    }
+
+    @keyframes solidGold {
+      0% {
+        background: rgba(255, 255, 255, 0.025);
+      }
+      18%, 72% {
+        background: #6b4a12;
+        border-color: #ffe29a;
+        box-shadow: inset 0 0 0 999px rgba(255, 214, 113, 0.12), 0 0 0 2px rgba(255, 226, 154, 0.58), 0 0 42px rgba(255, 214, 113, 0.34);
+      }
+      100% {
+        background: rgba(255, 255, 255, 0.025);
+      }
+    }
+
+    @keyframes stripeGold {
+      0%, 100% {
+        background:
+          linear-gradient(90deg, transparent 0%, transparent 100%),
+          rgba(255, 255, 255, 0.025);
+        border-color: rgba(255, 255, 255, 0.07);
+      }
+      45% {
+        background:
+          linear-gradient(90deg, rgba(255, 218, 108, 0.95) 0 7px, transparent 7px),
+          linear-gradient(90deg, rgba(255, 218, 108, 0.24), rgba(255, 218, 108, 0.06)),
+          #261a07;
+        border-color: #ffda6c;
+        box-shadow: 0 0 30px rgba(255, 218, 108, 0.34);
+      }
+    }
+
+    @keyframes borderFlash {
+      0%, 100% {
+        background: rgba(255, 255, 255, 0.025);
+        outline: 0 solid rgba(255, 215, 119, 0);
+        box-shadow: none;
+      }
+      45% {
+        background: #3e2a09;
+        outline: 5px solid rgba(255, 215, 119, 0.52);
+        border-color: #ffe29a;
+        box-shadow: inset 0 0 0 999px rgba(255, 215, 119, 0.1), 0 0 48px rgba(255, 215, 119, 0.38);
+      }
+    }
+
+    @media (max-width: 900px) {
+      .head {
+        display: block;
+      }
+
+      .replay-all {
+        margin-top: 18px;
+      }
+
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <header class="head">
+      <div>
+        <div class="kicker">Comment Notification Highlight</div>
+        <h1>댓글 알림 이동 배경색 변화 시안</h1>
+        <p class="desc">알림 링크 클릭 후 해당 댓글 위치로 이동했을 때, 사용자가 즉시 알아볼 수 있도록 배경색이 확실하게 변하는 강조 효과입니다. 각 카드의 두 번째 댓글이 대상입니다.</p>
+      </div>
+      <button class="replay-all" type="button" onclick="replayAll()">전체 다시 보기</button>
+    </header>
+
+    <section class="grid">
+      <article class="concept active">
+        <div class="concept-top">
+          <div>
+            <h2>1. 금색 강한 점멸</h2>
+            <p class="concept-note">기존 웹의 골드 톤을 유지하면서 배경이 어두운 금색으로 확실히 바뀝니다.</p>
+          </div>
+          <button class="replay" type="button">다시 보기</button>
+        </div>
+        <div class="post-shell">
+          <div class="post-title">게시글 상세 화면 댓글 영역</div>
+          <div class="comment"><div class="comment-head"><span>이전 댓글</span><span>12:01</span></div><div class="comment-body">일반 댓글은 기존 배경을 유지합니다.</div></div>
+          <div class="comment target pulse-gold"><div class="comment-head"><span>알림 대상 댓글</span><span>12:18</span></div><div class="comment-meta">알림 클릭 시 이 댓글로 이동</div><div class="comment-body">배경색이 금색으로 반복 점멸되어 위치를 명확히 보여줍니다.</div></div>
+          <div class="comment"><div class="comment-head"><span>다음 댓글</span><span>12:30</span></div><div class="comment-body">주변 댓글과 대비를 확인하기 위한 샘플입니다.</div></div>
+        </div>
+      </article>
+
+      <article class="concept active">
+        <div class="concept-top">
+          <div>
+            <h2>2. 붉은 경고 점멸</h2>
+            <p class="concept-note">가장 눈에 잘 띄지만 경고/오류 느낌이 강합니다.</p>
+          </div>
+          <button class="replay" type="button">다시 보기</button>
+        </div>
+        <div class="post-shell">
+          <div class="post-title">게시글 상세 화면 댓글 영역</div>
+          <div class="comment"><div class="comment-head"><span>이전 댓글</span><span>12:01</span></div><div class="comment-body">일반 댓글은 기존 배경을 유지합니다.</div></div>
+          <div class="comment target pulse-red"><div class="comment-head"><span>알림 대상 댓글</span><span>12:18</span></div><div class="comment-meta">알림 클릭 시 이 댓글로 이동</div><div class="comment-body">붉은색 배경 변화로 시선 집중이 매우 강합니다.</div></div>
+          <div class="comment"><div class="comment-head"><span>다음 댓글</span><span>12:30</span></div><div class="comment-body">주변 댓글과 대비를 확인하기 위한 샘플입니다.</div></div>
+        </div>
+      </article>
+
+      <article class="concept active">
+        <div class="concept-top">
+          <div>
+            <h2>3. 푸른 안내 점멸</h2>
+            <p class="concept-note">알림/안내 느낌이 있고 골드 UI와 색상 대비가 큽니다.</p>
+          </div>
+          <button class="replay" type="button">다시 보기</button>
+        </div>
+        <div class="post-shell">
+          <div class="post-title">게시글 상세 화면 댓글 영역</div>
+          <div class="comment"><div class="comment-head"><span>이전 댓글</span><span>12:01</span></div><div class="comment-body">일반 댓글은 기존 배경을 유지합니다.</div></div>
+          <div class="comment target pulse-blue"><div class="comment-head"><span>알림 대상 댓글</span><span>12:18</span></div><div class="comment-meta">알림 클릭 시 이 댓글로 이동</div><div class="comment-body">푸른 배경이 기존 화면과 확실히 구분됩니다.</div></div>
+          <div class="comment"><div class="comment-head"><span>다음 댓글</span><span>12:30</span></div><div class="comment-body">주변 댓글과 대비를 확인하기 위한 샘플입니다.</div></div>
+        </div>
+      </article>
+
+      <article class="concept active">
+        <div class="concept-top">
+          <div>
+            <h2>4. 금색 고정 후 페이드</h2>
+            <p class="concept-note">반짝임보다 몇 초간 배경색을 유지해 놓치기 어렵습니다.</p>
+          </div>
+          <button class="replay" type="button">다시 보기</button>
+        </div>
+        <div class="post-shell">
+          <div class="post-title">게시글 상세 화면 댓글 영역</div>
+          <div class="comment"><div class="comment-head"><span>이전 댓글</span><span>12:01</span></div><div class="comment-body">일반 댓글은 기존 배경을 유지합니다.</div></div>
+          <div class="comment target solid-gold"><div class="comment-head"><span>알림 대상 댓글</span><span>12:18</span></div><div class="comment-meta">알림 클릭 시 이 댓글로 이동</div><div class="comment-body">진한 골드 배경이 유지된 뒤 천천히 사라집니다.</div></div>
+          <div class="comment"><div class="comment-head"><span>다음 댓글</span><span>12:30</span></div><div class="comment-body">주변 댓글과 대비를 확인하기 위한 샘플입니다.</div></div>
+        </div>
+      </article>
+
+      <article class="concept active">
+        <div class="concept-top">
+          <div>
+            <h2>5. 좌측 금색 바 + 배경</h2>
+            <p class="concept-note">게시판형 UI에 잘 맞고 위치 표시가 명확합니다.</p>
+          </div>
+          <button class="replay" type="button">다시 보기</button>
+        </div>
+        <div class="post-shell">
+          <div class="post-title">게시글 상세 화면 댓글 영역</div>
+          <div class="comment"><div class="comment-head"><span>이전 댓글</span><span>12:01</span></div><div class="comment-body">일반 댓글은 기존 배경을 유지합니다.</div></div>
+          <div class="comment target stripe-gold"><div class="comment-head"><span>알림 대상 댓글</span><span>12:18</span></div><div class="comment-meta">알림 클릭 시 이 댓글로 이동</div><div class="comment-body">좌측 바와 배경이 함께 점멸해 강조 범위가 분명합니다.</div></div>
+          <div class="comment"><div class="comment-head"><span>다음 댓글</span><span>12:30</span></div><div class="comment-body">주변 댓글과 대비를 확인하기 위한 샘플입니다.</div></div>
+        </div>
+      </article>
+
+      <article class="concept active">
+        <div class="concept-top">
+          <div>
+            <h2>6. 외곽선 확장 + 배경</h2>
+            <p class="concept-note">배경색과 외곽선이 동시에 변해 좁은 댓글에서도 잘 보입니다.</p>
+          </div>
+          <button class="replay" type="button">다시 보기</button>
+        </div>
+        <div class="post-shell">
+          <div class="post-title">게시글 상세 화면 댓글 영역</div>
+          <div class="comment"><div class="comment-head"><span>이전 댓글</span><span>12:01</span></div><div class="comment-body">일반 댓글은 기존 배경을 유지합니다.</div></div>
+          <div class="comment target border-flash"><div class="comment-head"><span>알림 대상 댓글</span><span>12:18</span></div><div class="comment-meta">알림 클릭 시 이 댓글로 이동</div><div class="comment-body">외곽선이 확장되며 배경도 진하게 바뀝니다.</div></div>
+          <div class="comment"><div class="comment-head"><span>다음 댓글</span><span>12:30</span></div><div class="comment-body">주변 댓글과 대비를 확인하기 위한 샘플입니다.</div></div>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <script>
+    function replayConcept(concept) {
+      concept.classList.remove('active')
+      void concept.offsetWidth
+      concept.classList.add('active')
+    }
+
+    function replayAll() {
+      document.querySelectorAll('.concept').forEach(replayConcept)
+    }
+
+    document.querySelectorAll('.replay').forEach((button) => {
+      button.addEventListener('click', () => replayConcept(button.closest('.concept')))
+    })
+  </script>
+</body>
+</html>
