@@ -72,6 +72,12 @@ const DEFAULT_HOME = {
 const CONNECT_CLIENT_DOWNLOAD_URL = 'https://drive.google.com/file/d/14tO_E-R0EIbzz_aiJ0tsBO5T4hvmocGe/view?usp=sharing'
 const CONNECT_LAUNCHER_DOWNLOAD_URL = 'https://drive.google.com/file/d/119sSxI8NsWLlhp4aKkNNMQL8sabMc52A/view?usp=sharing'
 const SERVER_RULES_IMAGE_URL = '/img/규칙.png?v=20260603_1'
+const NOTIFICATION_CATEGORIES = [
+  { value: '', label: '전체' },
+  { value: 'comment', label: '댓글' },
+  { value: 'point', label: '포인트' },
+  { value: 'admin_msg', label: '운영 알림' },
+]
 const AUCTION_CLASS_MAP = {
   0: '소모품',
   1: '가방',
@@ -615,6 +621,7 @@ function App() {
   const [notificationTotalPages, setNotificationTotalPages] = useState(1)
   const [notificationSearchInput, setNotificationSearchInput] = useState('')
   const [notificationSearch, setNotificationSearch] = useState('')
+  const [notificationCategory, setNotificationCategory] = useState('')
   const [notificationCenterLoading, setNotificationCenterLoading] = useState(false)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [userLoaded, setUserLoaded] = useState(false)
@@ -853,11 +860,12 @@ function App() {
     }
   }, [])
 
-  const loadNotificationCenter = useCallback(async (targetPage = 1, targetSearch = notificationSearch) => {
+  const loadNotificationCenter = useCallback(async (targetPage = 1, targetSearch = notificationSearch, targetCategory = notificationCategory) => {
     setNotificationCenterLoading(true)
     try {
       const query = new URLSearchParams({ limit: '20', page: String(targetPage) })
       if (targetSearch) query.set('search', targetSearch)
+      if (targetCategory) query.set('type', targetCategory)
       const response = await apiFetch(`/api/notifications/list?${query.toString()}`)
       setNotifications(asArray(response?.notifications))
       setNotificationUnreadCount(Number(response?.unread_count || 0))
@@ -866,7 +874,7 @@ function App() {
     } finally {
       setNotificationCenterLoading(false)
     }
-  }, [notificationSearch])
+  }, [notificationCategory, notificationSearch])
 
   const loadMyPageCharacters = useCallback(async () => {
     setMyPageCharactersLoading(true)
@@ -1046,10 +1054,10 @@ function App() {
 
   useEffect(() => {
     if (!user || screen !== 'notifications') return
-    loadNotificationCenter(notificationPage, notificationSearch).catch(async (error) => {
+    loadNotificationCenter(notificationPage, notificationSearch, notificationCategory).catch(async (error) => {
       await showAlert(error?.message || '알림 목록을 불러오지 못했습니다.')
     })
-  }, [loadNotificationCenter, notificationPage, notificationSearch, screen, showAlert, user])
+  }, [loadNotificationCenter, notificationCategory, notificationPage, notificationSearch, screen, showAlert, user])
 
   useEffect(() => {
     if (!userLoaded) return
@@ -1371,6 +1379,7 @@ function App() {
     setNotificationPage(1)
     setNotificationSearch('')
     setNotificationSearchInput('')
+    setNotificationCategory('')
     setScreen('notifications')
     navigate('/?view=notifications')
   }, [navigate, user])
@@ -2592,6 +2601,21 @@ function App() {
               </div>
 
               <div className="notification-panel">
+                <div className="notification-category-tabs">
+                  {NOTIFICATION_CATEGORIES.map((category) => (
+                    <button
+                      key={`notification-category-${category.value || 'all'}`}
+                      type="button"
+                      className={`notification-category-tab${notificationCategory === category.value ? ' active' : ''}`}
+                      onClick={() => {
+                        setNotificationPage(1)
+                        setNotificationCategory(category.value)
+                      }}
+                    >
+                      {category.label}
+                    </button>
+                  ))}
+                </div>
                 <div className="auction-toolbar">
                   <div className="auction-search-wrap">
                     <input

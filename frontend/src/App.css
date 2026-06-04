@@ -1771,6 +1771,30 @@
   padding: 20px 24px 24px;
 }
 
+.notification-category-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.notification-category-tab {
+  min-height: 38px;
+  padding: 0 16px;
+  border: 1px solid rgba(218, 183, 109, 0.18);
+  background: rgba(255, 255, 255, 0.03);
+  color: #d9cdb4;
+  cursor: pointer;
+}
+
+.notification-category-tab.active {
+  border-color: rgba(218, 183, 109, 0.46);
+  color: #fff5d8;
+  background:
+    linear-gradient(180deg, rgba(218, 183, 109, 0.22), rgba(169, 135, 77, 0.2)),
+    rgba(255, 255, 255, 0.04);
+}
+
 .notification-summary-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
