@@ -606,6 +606,21 @@ func notifyBugReportReplyToAuthor(updateDB *sql.DB, postID int, postTitle string
 	}
 }
 
+func notifyBugReportMessageToAuthor(updateDB *sql.DB, postID int, messageID int, postTitle string, postAuthorID int, sender userInfo) {
+	if updateDB == nil || postID <= 0 || postAuthorID <= 0 || postAuthorID == sender.AccountID {
+		return
+	}
+	notifier := services.NewNotificationService(updateDB)
+	link := fmt.Sprintf("/?board=bugreport&post=%d", postID)
+	if messageID > 0 {
+		link = fmt.Sprintf("%s&comment_id=%d", link, messageID)
+	}
+	message := fmt.Sprintf("%s님이 버그리포트에 답변을 남겼습니다: %s", sender.AuthorName, strings.TrimSpace(postTitle))
+	if err := notifier.CreateNotification(postAuthorID, "comment", "버그리포트 답변 도착", message, link, sender.AuthorName); err != nil {
+		log.Printf("Failed to create bug report reply notification for user %d: %v", postAuthorID, err)
+	}
+}
+
 func GetPostsHandler(w http.ResponseWriter, r *http.Request) {
 	boardID := r.URL.Query().Get("board_id")
 	log.Printf("[Board] GetPostsHandler: BoardID=%s, Request from %s", boardID, r.RemoteAddr)
@@ -1638,12 +1653,19 @@ func CreateInquiryMessageHandler(w http.ResponseWriter, r *http.Request) {
 	if canManage {
 		role = "staff"
 	}
-	if _, err := db.Exec(
+	result, err := db.Exec(
 		"INSERT INTO web_inquiry_messages (post_id, account_id, author_name, role, content) VALUES (?, ?, ?, ?, ?)",
 		req.PostID, user.AccountID, user.AuthorName, role, content,
-	); err != nil {
+	)
+	if err != nil {
 		http.Error(w, "Failed to create inquiry message", http.StatusInternalServerError)
 		return
+	}
+	messageID := 0
+	if result != nil {
+		if lastID, idErr := result.LastInsertId(); idErr == nil && lastID > 0 {
+			messageID = int(lastID)
+		}
 	}
 
 	// Staff answer implies progress unless already done.
@@ -1653,7 +1675,7 @@ func CreateInquiryMessageHandler(w http.ResponseWriter, r *http.Request) {
 	if isBugReportBoard(boardID) && role == "staff" {
 		var postTitle string
 		_ = db.QueryRow("SELECT IFNULL(title,'') FROM web_posts WHERE id = ?", req.PostID).Scan(&postTitle)
-		notifyBugReportReplyToAuthor(db, req.PostID, postTitle, authorAccountID, user)
+		notifyBugReportMessageToAuthor(db, req.PostID, messageID, postTitle, authorAccountID, user)
 	}
 
 	w.Header().Set("Content-Type", "application/json")

@@ -623,7 +623,7 @@ function App() {
   const [notificationSearch, setNotificationSearch] = useState('')
   const [notificationCategory, setNotificationCategory] = useState('')
   const [notificationCenterLoading, setNotificationCenterLoading] = useState(false)
-  const [commentHighlightTick, setCommentHighlightTick] = useState(0)
+  const [commentHighlightRequest, setCommentHighlightRequest] = useState({ tick: 0, fallbackLatest: false })
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [userLoaded, setUserLoaded] = useState(false)
   const [dialogState, setDialogState] = useState({ open: false, mode: 'alert', title: '안내', message: '' })
@@ -1124,13 +1124,16 @@ function App() {
     if (screen !== 'detail') return
     const params = new URLSearchParams(location.search)
     const commentId = Number(params.get('comment_id') || 0)
-    if (!commentId) return
+    const useLatestComment = !commentId && commentHighlightRequest.fallbackLatest
+    if (!commentId && !useLatestComment) return
     let attempts = 0
     let clearHighlightTimer = 0
     let retryTimer = 0
     let flashTimers = []
     const highlightComment = () => {
-      const target = document.getElementById(`comment-${commentId}`)
+      const target = commentId
+        ? document.getElementById(`comment-${commentId}`)
+        : Array.from(document.querySelectorAll('[id^="comment-"]')).pop()
       if (!target) {
         attempts += 1
         if (attempts < 20) {
@@ -1176,7 +1179,7 @@ function App() {
       window.clearTimeout(clearHighlightTimer)
       flashTimers.forEach((timerId) => window.clearTimeout(timerId))
     }
-  }, [commentHighlightTick, detail, location.search, screen])
+  }, [commentHighlightRequest, detail, location.search, screen])
 
   useEffect(() => {
     if (!boardId || screen !== 'list') return
@@ -1667,7 +1670,7 @@ function App() {
           const nextBoardId = String(postDetail?.post?.board_id || '')
           if (nextBoardId) {
             const nextUrl = `/?board=${encodeURIComponent(nextBoardId)}&post=${postId}${commentId > 0 ? `&comment_id=${commentId}` : ''}`
-            if (commentId > 0) setCommentHighlightTick((prev) => prev + 1)
+            setCommentHighlightRequest((prev) => ({ tick: prev.tick + 1, fallbackLatest: commentId <= 0 }))
             navigate(nextUrl)
             return
           }
@@ -1681,8 +1684,10 @@ function App() {
     if (link.startsWith('/?') || link.startsWith('/')) {
       try {
         const targetUrl = new URL(link, window.location.origin)
-        if (Number(targetUrl.searchParams.get('comment_id') || 0) > 0) {
-          setCommentHighlightTick((prev) => prev + 1)
+        const hasPostTarget = Number(targetUrl.searchParams.get('post') || 0) > 0
+        const commentId = Number(targetUrl.searchParams.get('comment_id') || 0)
+        if (String(notification.type || '').toLowerCase() === 'comment' && hasPostTarget) {
+          setCommentHighlightRequest((prev) => ({ tick: prev.tick + 1, fallbackLatest: commentId <= 0 }))
         }
       } catch {
         // Ignore malformed internal links and continue navigation.
