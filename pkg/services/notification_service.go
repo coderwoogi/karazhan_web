@@ -6,6 +6,7 @@ import (
 	"karazhan/pkg/config"
 	"karazhan/pkg/models"
 	"strings"
+	"sync"
 )
 
 // NotificationService handles notification logic
@@ -13,7 +14,33 @@ type NotificationService struct {
 	DB *sql.DB
 }
 
+var notificationSchemaOnce sync.Once
+
+func EnsureNotificationSchema(db *sql.DB) {
+	if db == nil {
+		return
+	}
+	notificationSchemaOnce.Do(func() {
+		_, _ = db.Exec(`
+			CREATE TABLE IF NOT EXISTS notifications (
+				id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+				user_id INT NOT NULL,
+				type VARCHAR(32) NOT NULL DEFAULT 'info',
+				title VARCHAR(255) NOT NULL DEFAULT '',
+				message TEXT NOT NULL,
+				link VARCHAR(255) NULL,
+				is_read TINYINT(1) NOT NULL DEFAULT 0,
+				created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+		`)
+		_, _ = db.Exec("ALTER TABLE notifications ADD COLUMN is_cleared TINYINT(1) DEFAULT 0")
+		_, _ = db.Exec("ALTER TABLE notifications ADD COLUMN is_hidden TINYINT(1) DEFAULT 0")
+		_, _ = db.Exec("ALTER TABLE notifications ADD COLUMN sender_name VARCHAR(100) NULL")
+	})
+}
+
 func NewNotificationService(db *sql.DB) *NotificationService {
+	EnsureNotificationSchema(db)
 	return &NotificationService{DB: db}
 }
 

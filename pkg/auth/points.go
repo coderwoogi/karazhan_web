@@ -11,15 +11,6 @@ import (
 	"strconv"
 )
 
-func ensureNotificationSchema(db *sql.DB) {
-	if db == nil {
-		return
-	}
-	_, _ = db.Exec("ALTER TABLE notifications ADD COLUMN is_cleared TINYINT(1) DEFAULT 0")
-	_, _ = db.Exec("ALTER TABLE notifications ADD COLUMN is_hidden TINYINT(1) DEFAULT 0")
-	_, _ = db.Exec("ALTER TABLE notifications ADD COLUMN sender_name VARCHAR(100) NULL")
-}
-
 // GetPoints returns the current points for a user. Returns 0 if not found.
 func GetPoints(userID int) int {
 	dsn := config.UpdateDSN()
@@ -110,7 +101,7 @@ func AddPoints(userID int, amount int, reason string, adminName string) error {
 	updateDB, err := sql.Open("mysql", updateDSN)
 	if err == nil {
 		defer updateDB.Close()
-		ensureNotificationSchema(updateDB)
+		services.EnsureNotificationSchema(updateDB)
 		ns := services.NewNotificationService(updateDB)
 		title := "포인트 변경 알림"
 		msg := fmt.Sprintf("관리자(%s)에 의해 %d 포인트가 %s되었습니다. (사유: %s)", adminName, abs(amount), getActionString(amount), reason)
