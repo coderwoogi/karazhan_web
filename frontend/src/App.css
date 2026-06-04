@@ -1168,7 +1168,7 @@
       border-color: rgba(218, 183, 109, 0.28);
       background:
         linear-gradient(0deg, rgba(4, 4, 8, 0.96), rgba(4, 4, 8, 0.24)),
-        url("/img/notice_board.png") center / cover no-repeat;
+        url("/img/guide.png?v=20260417_1") center top / cover no-repeat;
       isolation: isolate;
     }
 

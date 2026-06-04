@@ -1646,18 +1646,6 @@ function App() {
                   <div className="hero-subtitle">{home.hero.subtitle}</div>
                   <p className="hero-desc">{home.hero.description}</p>
                 </div>
-                <aside className="server-card" aria-label="서버 상태 요약">
-                  <h2>그림자 시련</h2>
-                  <div className="label">시즌 진행중</div>
-                  <div className="timer">2일 14:25:06</div>
-                  <a className="btn" href="#">지금 도전하기</a>
-                  <div className="status-grid">
-                    <div className="status-pill">서버 상태<strong>안정적</strong></div>
-                    <div className="status-pill">동접 현황<strong>384명</strong></div>
-                    <div className="status-pill">접속 가이드<strong>바로 보기</strong></div>
-                    <div className="status-pill">유저지표<strong>이용 가능</strong></div>
-                  </div>
-                </aside>
               </div>
             </section>
 
@@ -1739,7 +1727,7 @@ function App() {
                   </ul>
                 )}
               </article>
-              <aside id="connect-section" className="panel start-panel"><h2>지금, 모험을 시작하세요</h2><p>접속기 설치, 계정 안내, 초기 설정까지 필요한 순서를 확인하고 바로 입장해 보세요.</p><a className="btn" href="#">접속 가이드 보기</a></aside>
+              <aside id="connect-section" className="panel start-panel"><h2>지금, 모험을 시작하세요</h2><p>접속기 설치, 계정 안내, 초기 설정까지 필요한 순서를 확인하고 바로 입장해 보세요.</p><button type="button" className="btn" onClick={openConnectGuide}>접속 가이드 보기</button></aside>
             </section>
           </>
         )}
