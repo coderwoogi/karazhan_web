@@ -1124,17 +1124,29 @@ function App() {
     const params = new URLSearchParams(location.search)
     const commentId = Number(params.get('comment_id') || 0)
     if (!commentId) return
-    const timer = window.setTimeout(() => {
+    let attempts = 0
+    let clearHighlightTimer = 0
+    const highlightComment = () => {
       const target = document.getElementById(`comment-${commentId}`)
-      if (!target) return
+      if (!target) {
+        attempts += 1
+        if (attempts < 20) {
+          retryTimer = window.setTimeout(highlightComment, 150)
+        }
+        return
+      }
       target.scrollIntoView({ behavior: 'smooth', block: 'center' })
       target.classList.remove('comment-focus-highlight')
       void target.offsetWidth
       target.classList.add('comment-focus-highlight')
-      window.setTimeout(() => target.classList.remove('comment-focus-highlight'), 3800)
-    }, 180)
-    return () => window.clearTimeout(timer)
-  }, [detail, location.search, screen])
+      clearHighlightTimer = window.setTimeout(() => target.classList.remove('comment-focus-highlight'), 3800)
+    }
+    let retryTimer = window.setTimeout(highlightComment, 180)
+    return () => {
+      window.clearTimeout(retryTimer)
+      window.clearTimeout(clearHighlightTimer)
+    }
+  }, [comments.length, detail, location.search, screen])
 
   useEffect(() => {
     if (!boardId || screen !== 'list') return
@@ -2833,7 +2845,7 @@ function App() {
                         ) : (
                           <div className="public-bug-thread">
                             {comments.map((comment, index) => (
-                              <div key={comment.id} className={`public-bug-reply ${String(comment.role || '').toLowerCase() === 'staff' ? 'staff' : 'user'} ${index > 0 ? 'is-followup' : ''}`}>
+                              <div id={`comment-${comment.id}`} key={comment.id} className={`public-bug-reply ${String(comment.role || '').toLowerCase() === 'staff' ? 'staff' : 'user'} ${index > 0 ? 'is-followup' : ''}`}>
                                 {index > 0 ? <span className="public-bug-reply-arrow" aria-hidden="true">↳</span> : null}
                                 <div className="public-bug-reply-head">
                                   <strong>{index > 0 ? '답글의 답글' : (String(comment.role || '').toLowerCase() === 'staff' ? '관리자 답변' : '리포트 작성자')}</strong>

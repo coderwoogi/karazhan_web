@@ -2395,7 +2395,8 @@
       border-left: 2px solid rgba(122, 56, 230, 0.18);
     }
 
-.public-comment.comment-focus-highlight {
+.public-comment.comment-focus-highlight,
+.public-bug-reply.comment-focus-highlight {
   border-color: #ffd777 !important;
   animation: commentFocusPulse 0.58s ease-in-out 6 forwards;
 }
@@ -2419,7 +2420,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .public-comment.comment-focus-highlight {
+  .public-comment.comment-focus-highlight,
+  .public-bug-reply.comment-focus-highlight {
     animation: none;
     background: #5a3f0e !important;
     border-color: #ffd777 !important;
