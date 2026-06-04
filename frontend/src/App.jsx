@@ -623,6 +623,7 @@ function App() {
   const [notificationSearch, setNotificationSearch] = useState('')
   const [notificationCategory, setNotificationCategory] = useState('')
   const [notificationCenterLoading, setNotificationCenterLoading] = useState(false)
+  const [commentHighlightTick, setCommentHighlightTick] = useState(0)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [userLoaded, setUserLoaded] = useState(false)
   const [dialogState, setDialogState] = useState({ open: false, mode: 'alert', title: '안내', message: '' })
@@ -1127,6 +1128,7 @@ function App() {
     let attempts = 0
     let clearHighlightTimer = 0
     let retryTimer = 0
+    let flashTimers = []
     const highlightComment = () => {
       const target = document.getElementById(`comment-${commentId}`)
       if (!target) {
@@ -1139,15 +1141,42 @@ function App() {
       target.scrollIntoView({ behavior: 'smooth', block: 'center' })
       target.classList.remove('comment-focus-highlight')
       void target.offsetWidth
-      target.classList.add('comment-focus-highlight')
-      clearHighlightTimer = window.setTimeout(() => target.classList.remove('comment-focus-highlight'), 3800)
+      flashTimers.forEach((timerId) => window.clearTimeout(timerId))
+      flashTimers = []
+      const originalStyle = {
+        background: target.style.background,
+        borderColor: target.style.borderColor,
+        boxShadow: target.style.boxShadow,
+        transform: target.style.transform,
+      }
+      const applyFlash = (active) => {
+        if (active) {
+          target.style.setProperty('background', '#5a3f0e', 'important')
+          target.style.setProperty('border-color', '#ffd777', 'important')
+          target.style.setProperty('box-shadow', '0 0 0 2px rgba(255, 215, 119, 0.7), 0 0 34px rgba(255, 215, 119, 0.42)', 'important')
+          target.style.setProperty('transform', 'translateY(-1px)', 'important')
+          return
+        }
+        target.style.setProperty('background', originalStyle.background)
+        target.style.setProperty('border-color', originalStyle.borderColor)
+        target.style.setProperty('box-shadow', originalStyle.boxShadow)
+        target.style.setProperty('transform', originalStyle.transform)
+      }
+      for (let index = 0; index < 12; index += 1) {
+        flashTimers.push(window.setTimeout(() => applyFlash(index % 2 === 0), index * 290))
+      }
+      clearHighlightTimer = window.setTimeout(() => {
+        applyFlash(false)
+        target.classList.remove('comment-focus-highlight')
+      }, 3800)
     }
     retryTimer = window.setTimeout(highlightComment, 180)
     return () => {
       window.clearTimeout(retryTimer)
       window.clearTimeout(clearHighlightTimer)
+      flashTimers.forEach((timerId) => window.clearTimeout(timerId))
     }
-  }, [detail, location.search, screen])
+  }, [commentHighlightTick, detail, location.search, screen])
 
   useEffect(() => {
     if (!boardId || screen !== 'list') return
@@ -1638,6 +1667,7 @@ function App() {
           const nextBoardId = String(postDetail?.post?.board_id || '')
           if (nextBoardId) {
             const nextUrl = `/?board=${encodeURIComponent(nextBoardId)}&post=${postId}${commentId > 0 ? `&comment_id=${commentId}` : ''}`
+            if (commentId > 0) setCommentHighlightTick((prev) => prev + 1)
             navigate(nextUrl)
             return
           }
@@ -1649,6 +1679,14 @@ function App() {
       return
     }
     if (link.startsWith('/?') || link.startsWith('/')) {
+      try {
+        const targetUrl = new URL(link, window.location.origin)
+        if (Number(targetUrl.searchParams.get('comment_id') || 0) > 0) {
+          setCommentHighlightTick((prev) => prev + 1)
+        }
+      } catch {
+        // Ignore malformed internal links and continue navigation.
+      }
       navigate(link)
       return
     }
