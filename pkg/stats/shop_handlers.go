@@ -420,14 +420,7 @@ func runShopFunctionCommand(functionCode, characterName string, r *http.Request)
 		return fmt.Errorf("\uc9c0\uc6d0\ud558\uc9c0 \uc54a\ub294 \uae30\ub2a5 \ucf54\ub4dc\uc785\ub2c8\ub2e4: %s", functionCode)
 	}
 
-	baseURL := "http://127.0.0.1:8080"
-	if r != nil && strings.TrimSpace(r.Host) != "" {
-		scheme := "http"
-		if r.TLS != nil {
-			scheme = "https"
-		}
-		baseURL = scheme + "://" + r.Host
-	}
+	baseURL := config.LauncherBaseURL(r)
 
 	payload := map[string]string{"command": cmd}
 	bodyBytes, _ := json.Marshal(payload)

@@ -112,14 +112,7 @@ func insertMailRow(tx *sql.Tx, senderGUID, receiverGUID int, subject, body strin
 }
 
 func triggerAuctionReload(r *http.Request) error {
-	baseURL := "http://127.0.0.1:8080"
-	if r != nil && strings.TrimSpace(r.Host) != "" {
-		scheme := "http"
-		if r.TLS != nil {
-			scheme = "https"
-		}
-		baseURL = scheme + "://" + r.Host
-	}
+	baseURL := config.LauncherBaseURL(r)
 
 	payload := map[string]string{"command": ".reload auctions"}
 	bodyBytes, err := json.Marshal(payload)

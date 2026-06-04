@@ -99,6 +99,57 @@ func IsProduction() bool {
 	return env == "production" || env == "prod"
 }
 
+func RequestScheme(r *http.Request) string {
+	if r == nil {
+		return "http"
+	}
+	if v := strings.TrimSpace(r.Header.Get("X-Forwarded-Proto")); v != "" {
+		parts := strings.Split(v, ",")
+		if len(parts) > 0 {
+			if scheme := strings.ToLower(strings.TrimSpace(parts[0])); scheme == "http" || scheme == "https" {
+				return scheme
+			}
+		}
+	}
+	if r.TLS != nil {
+		return "https"
+	}
+	return "http"
+}
+
+func LauncherBaseURL(r *http.Request) string {
+	if r != nil {
+		host := HostOnly(r.Host)
+		if host == "" || host == "127.0.0.1" || host == "localhost" {
+			return "http://127.0.0.1:8080"
+		}
+	}
+
+	env := RequestEnv(r)
+	if env == "production" || env == "prod" {
+		if v := get("KARAZHAN_PROD_LAUNCHER_BASE_URL"); v != "" {
+			return strings.TrimRight(v, "/")
+		}
+		return RequestScheme(r) + "://" + ProdDomain()
+	}
+	if env == "development" || env == "dev" {
+		if v := get("KARAZHAN_DEV_LAUNCHER_BASE_URL"); v != "" {
+			return strings.TrimRight(v, "/")
+		}
+		if r != nil {
+			host := HostOnly(r.Host)
+			if host == "" || host == "127.0.0.1" || host == "localhost" {
+				return "http://127.0.0.1:8080"
+			}
+		}
+		return RequestScheme(r) + "://" + DevDomain()
+	}
+	if v := get("KARAZHAN_LAUNCHER_BASE_URL"); v != "" {
+		return strings.TrimRight(v, "/")
+	}
+	return "http://127.0.0.1:8080"
+}
+
 func Port() string {
 	if v := get("PORT"); v != "" {
 		return v

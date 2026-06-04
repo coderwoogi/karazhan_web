@@ -1141,14 +1141,7 @@ func handleTrialStageRewardSave(w http.ResponseWriter, r *http.Request) {
 }
 
 func triggerSoloArenaReload(r *http.Request) error {
-	baseURL := "http://127.0.0.1:8080"
-	if r != nil && strings.TrimSpace(r.Host) != "" {
-		scheme := "http"
-		if r.TLS != nil {
-			scheme = "https"
-		}
-		baseURL = scheme + "://" + r.Host
-	}
+	baseURL := config.LauncherBaseURL(r)
 
 	payload := map[string]string{"command": ".trial reload"}
 	bodyBytes, err := json.Marshal(payload)

@@ -46,14 +46,7 @@ func openWorldDBForContent() (*sql.DB, error) {
 }
 
 func triggerCreatureDropReload(r *http.Request, commands ...string) error {
-	baseURL := "http://127.0.0.1:8080"
-	if r != nil && strings.TrimSpace(r.Host) != "" {
-		scheme := "http"
-		if r.TLS != nil {
-			scheme = "https"
-		}
-		baseURL = scheme + "://" + r.Host
-	}
+	baseURL := config.LauncherBaseURL(r)
 
 	client := &http.Client{Timeout: 8 * time.Second}
 	for _, command := range commands {
