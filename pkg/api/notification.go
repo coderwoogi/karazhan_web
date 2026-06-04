@@ -101,6 +101,7 @@ func (h *NotificationHandler) GetList(w http.ResponseWriter, r *http.Request) {
 
 	totalPages := (totalCount + limit - 1) / limit
 
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"notifications": notifs,
 		"unread_count":  unreadCount,
@@ -139,6 +140,7 @@ func (h *NotificationHandler) MarkRead(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"status": "success"})
 }
 
@@ -157,6 +159,7 @@ func (h *NotificationHandler) DeleteAll(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"status": "success"})
 }
 
@@ -175,6 +178,7 @@ func (h *NotificationHandler) ClearDropdown(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"status": "success"})
 }
 
@@ -205,6 +209,7 @@ func (h *NotificationHandler) DeleteSelected(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"status": "success"})
 }
 
@@ -305,5 +310,6 @@ func (h *NotificationHandler) Send(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"status": "success"})
 }
