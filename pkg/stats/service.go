@@ -91,6 +91,8 @@ func RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/content/vendor/list", handleVendorList)
 	mux.HandleFunc("/api/content/vendor/save", handleVendorSave)
 	mux.HandleFunc("/api/content/vendor/delete", handleVendorDelete)
+	mux.HandleFunc("/api/content/item-price/save", handleContentItemPriceSave)
+	mux.HandleFunc("/api/content/item-template/save", handleContentItemPriceSave)
 	mux.HandleFunc("/api/carddraw/pool/random", handleCarddrawRandomPack)
 
 	// Item Search

@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 type ItemSearchResult struct {
@@ -18,24 +19,54 @@ type ItemSearchResult struct {
 }
 
 type ItemTooltipResponse struct {
-	Status        string   `json:"status"`
-	Entry         uint32   `json:"entry"`
-	Name          string   `json:"name"`
-	Description   string   `json:"description"`
-	Quality       uint8    `json:"quality"`
-	ItemLevel     int      `json:"item_level"`
-	RequiredLevel int      `json:"required_level"`
-	ClassName     string   `json:"class_name"`
-	SubClassName  string   `json:"subclass_name"`
-	InventoryName string   `json:"inventory_name"`
-	BuyPrice      int      `json:"buy_price"`
-	SellPrice     int      `json:"sell_price"`
-	Armor         int      `json:"armor"`
-	MinDamage     float64  `json:"min_damage"`
-	MaxDamage     float64  `json:"max_damage"`
-	SpeedMS       int      `json:"speed_ms"`
-	Stats         []string `json:"stats"`
-	Spells        []string `json:"spells"`
+	Status                string   `json:"status"`
+	Entry                 uint32   `json:"entry"`
+	Name                  string   `json:"name"`
+	Description           string   `json:"description"`
+	ScriptName            string   `json:"script_name"`
+	Quality               uint8    `json:"quality"`
+	ItemLevel             int      `json:"item_level"`
+	RequiredLevel         int      `json:"required_level"`
+	ClassID               int      `json:"class_id"`
+	SubClassID            int      `json:"subclass_id"`
+	ClassName             string   `json:"class_name"`
+	SubClassName          string   `json:"subclass_name"`
+	InventoryType         int      `json:"inventory_type"`
+	InventoryName         string   `json:"inventory_name"`
+	SoundOverrideSubclass int      `json:"sound_override_subclass"`
+	DisplayID             int      `json:"display_id"`
+	BuyCount              int      `json:"buy_count"`
+	BuyPrice              int      `json:"buy_price"`
+	SellPrice             int      `json:"sell_price"`
+	MaxCount              int      `json:"max_count"`
+	Stackable             int      `json:"stackable"`
+	StartQuest            int      `json:"start_quest"`
+	Material              int      `json:"material"`
+	RandomProperty        int      `json:"random_property"`
+	RandomSuffix          int      `json:"random_suffix"`
+	BagFamily             int      `json:"bag_family"`
+	ContainerSlots        int      `json:"container_slots"`
+	TotemCategory         int      `json:"totem_category"`
+	Duration              int      `json:"duration"`
+	ItemLimitCategory     int      `json:"item_limit_category"`
+	DisenchantID          int      `json:"disenchant_id"`
+	FoodType              int      `json:"food_type"`
+	MinMoneyLoot          int      `json:"min_money_loot"`
+	MaxMoneyLoot          int      `json:"max_money_loot"`
+	ItemSet               int      `json:"item_set"`
+	Bonding               int      `json:"bonding"`
+	Flags                 int      `json:"flags"`
+	FlagsExtra            int      `json:"flags_extra"`
+	FlagsCustom           int      `json:"flags_custom"`
+	PageText              int      `json:"page_text"`
+	PageMaterial          int      `json:"page_material"`
+	LanguageID            int      `json:"language_id"`
+	Armor                 int      `json:"armor"`
+	MinDamage             float64  `json:"min_damage"`
+	MaxDamage             float64  `json:"max_damage"`
+	SpeedMS               int      `json:"speed_ms"`
+	Stats                 []string `json:"stats"`
+	Spells                []string `json:"spells"`
 }
 
 func handleItemSearch(w http.ResponseWriter, r *http.Request) {
@@ -44,10 +75,14 @@ func handleItemSearch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	query := r.URL.Query().Get("q")
-	if len(query) < 2 {
-		http.Error(w, "Query too short", http.StatusBadRequest)
-		return
+	trimmedQuery := strings.TrimSpace(query)
+	if len(trimmedQuery) < 2 {
+		if _, convErr := strconv.Atoi(trimmedQuery); convErr != nil {
+			http.Error(w, "Query too short", http.StatusBadRequest)
+			return
+		}
 	}
+	query = trimmedQuery
 
 	// Connect to WORLD DB
 	worldDSN := config.WorldDSN()
@@ -59,13 +94,26 @@ func handleItemSearch(w http.ResponseWriter, r *http.Request) {
 	defer db.Close()
 
 	// Search items by name (English or Korean)
-	rows, err := db.Query(`
-		SELECT it.entry, COALESCE(itl.Name, it.name) as name, it.Quality 
-		FROM item_template it 
+	args := make([]interface{}, 0, 5)
+	sqlText := `
+		SELECT it.entry, COALESCE(itl.Name, it.name) as name, it.Quality
+		FROM item_template it
 		LEFT JOIN item_template_locale itl ON it.entry = itl.ID AND itl.locale = 'koKR'
-		WHERE it.name LIKE ? OR itl.Name LIKE ?
-		ORDER BY it.entry DESC 
-		LIMIT 50`, "%"+query+"%", "%"+query+"%")
+		WHERE (it.name LIKE ? OR itl.Name LIKE ?`
+	likeQuery := "%" + query + "%"
+	args = append(args, likeQuery, likeQuery)
+	if entry, convErr := strconv.Atoi(query); convErr == nil && entry > 0 {
+		sqlText += ` OR it.entry = ?`
+		args = append(args, entry)
+	}
+	sqlText += `)
+		ORDER BY
+			CASE WHEN CAST(it.entry AS CHAR) = ? THEN 0 ELSE 1 END,
+			it.entry DESC
+		LIMIT 50`
+	args = append(args, query)
+
+	rows, err := db.Query(sqlText, args...)
 	if err != nil {
 		log.Printf("[Item Search] Query Error: %v", err)
 		http.Error(w, "Query Error", http.StatusInternalServerError)
@@ -167,8 +215,36 @@ func handleItemTooltip(w http.ResponseWriter, r *http.Request) {
 			it.entry,
 			COALESCE(NULLIF(itl.Name, ''), it.name) AS name,
 			COALESCE(NULLIF(itl.Description, ''), it.description) AS description,
+			COALESCE(it.ScriptName, '') AS script_name,
 			it.Quality, it.ItemLevel, it.RequiredLevel, it.class, it.subclass, it.InventoryType,
-			it.BuyPrice, it.SellPrice, it.Armor, it.dmg_min1, it.dmg_max1, it.delay,
+			COALESCE(it.SoundOverrideSubclass, 0) AS sound_override_subclass,
+			COALESCE(it.displayid, 0) AS displayid,
+			COALESCE(it.BuyCount, 0) AS buy_count,
+			it.BuyPrice, it.SellPrice,
+			COALESCE(it.maxcount, 0) AS maxcount,
+			COALESCE(it.stackable, 0) AS stackable,
+			COALESCE(it.startquest, 0) AS startquest,
+			COALESCE(it.Material, 0) AS material,
+			COALESCE(it.RandomProperty, 0) AS random_property,
+			COALESCE(it.RandomSuffix, 0) AS random_suffix,
+			COALESCE(it.BagFamily, 0) AS bag_family,
+			COALESCE(it.ContainerSlots, 0) AS container_slots,
+			COALESCE(it.TotemCategory, 0) AS totem_category,
+			COALESCE(it.duration, 0) AS duration,
+			COALESCE(it.ItemLimitCategory, 0) AS item_limit_category,
+			COALESCE(it.DisenchantID, 0) AS disenchant_id,
+			COALESCE(it.FoodType, 0) AS food_type,
+			COALESCE(it.minMoneyLoot, 0) AS min_money_loot,
+			COALESCE(it.maxMoneyLoot, 0) AS max_money_loot,
+			COALESCE(it.itemset, 0) AS item_set,
+			COALESCE(it.bonding, 0) AS bonding,
+			COALESCE(it.Flags, 0) AS flags,
+			COALESCE(it.FlagsExtra, 0) AS flags_extra,
+			COALESCE(it.flagsCustom, 0) AS flags_custom,
+			COALESCE(it.PageText, 0) AS page_text,
+			COALESCE(it.PageMaterial, 0) AS page_material,
+			COALESCE(it.LanguageID, 0) AS language_id,
+			it.Armor, it.dmg_min1, it.dmg_max1, it.delay,
 			it.stat_type1, it.stat_value1, it.stat_type2, it.stat_value2, it.stat_type3, it.stat_value3,
 			it.stat_type4, it.stat_value4, it.stat_type5, it.stat_value5, it.stat_type6, it.stat_value6,
 			it.stat_type7, it.stat_value7, it.stat_type8, it.stat_value8, it.stat_type9, it.stat_value9,
@@ -182,9 +258,15 @@ func handleItemTooltip(w http.ResponseWriter, r *http.Request) {
 	`
 
 	err = db.QueryRow(q, entry).Scan(
-		&res.Entry, &res.Name, &res.Description,
+		&res.Entry, &res.Name, &res.Description, &res.ScriptName,
 		&res.Quality, &res.ItemLevel, &res.RequiredLevel, &classID, &subClassID, &inventoryType,
-		&res.BuyPrice, &res.SellPrice, &res.Armor, &res.MinDamage, &res.MaxDamage, &res.SpeedMS,
+		&res.SoundOverrideSubclass, &res.DisplayID, &res.BuyCount,
+		&res.BuyPrice, &res.SellPrice, &res.MaxCount, &res.Stackable, &res.StartQuest, &res.Material,
+		&res.RandomProperty, &res.RandomSuffix, &res.BagFamily, &res.ContainerSlots, &res.TotemCategory,
+		&res.Duration, &res.ItemLimitCategory, &res.DisenchantID, &res.FoodType, &res.MinMoneyLoot,
+		&res.MaxMoneyLoot, &res.ItemSet, &res.Bonding, &res.Flags, &res.FlagsExtra, &res.FlagsCustom,
+		&res.PageText, &res.PageMaterial, &res.LanguageID,
+		&res.Armor, &res.MinDamage, &res.MaxDamage, &res.SpeedMS,
 		&statType[0], &statValue[0], &statType[1], &statValue[1], &statType[2], &statValue[2],
 		&statType[3], &statValue[3], &statType[4], &statValue[4], &statType[5], &statValue[5],
 		&statType[6], &statValue[6], &statType[7], &statValue[7], &statType[8], &statValue[8],
@@ -202,6 +284,9 @@ func handleItemTooltip(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	res.ClassID = classID
+	res.SubClassID = subClassID
+	res.InventoryType = inventoryType
 	res.ClassName = itemClassName(classID)
 	res.SubClassName = itemSubClassName(classID, subClassID)
 	res.InventoryName = inventoryTypeName(inventoryType)

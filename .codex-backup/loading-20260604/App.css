@@ -1745,100 +1745,6 @@
   to { transform: rotate(360deg); }
 }
 
-.global-loading-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 120;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  background: rgba(6, 5, 10, 0.74);
-  backdrop-filter: blur(10px);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.2s ease;
-}
-
-.global-loading-overlay.active {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.global-loading-card {
-  display: grid;
-  justify-items: center;
-  gap: 12px;
-  width: min(100%, 420px);
-  padding: 30px 24px 26px;
-  border: 1px solid rgba(125, 211, 252, 0.22);
-  border-radius: 24px;
-  background: linear-gradient(180deg, rgba(16, 13, 24, 0.98), rgba(11, 9, 18, 0.98));
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.42);
-  text-align: center;
-}
-
-.global-loading-card strong {
-  color: #eef8ff;
-  font-size: 24px;
-}
-
-.global-loading-card p {
-  margin: 0;
-  color: #d7e5f4;
-  font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
-  font-size: 14px;
-  line-height: 1.7;
-}
-
-.global-loading-spinner {
-  display: inline-flex;
-  width: 72px;
-  height: 72px;
-}
-
-.global-loading-spinner svg {
-  width: 72px;
-  height: 72px;
-  overflow: visible;
-}
-
-.global-loading-track,
-.global-loading-arc {
-  fill: none;
-  stroke-linecap: round;
-}
-
-.global-loading-track {
-  stroke: rgba(125, 211, 252, 0.18);
-  stroke-width: 8;
-}
-
-.global-loading-arc {
-  stroke: #7dd3fc;
-  stroke-width: 8;
-  stroke-dasharray: 46 188;
-  transform-origin: 50% 50%;
-  animation: global-loading-dashspin 1.2s ease-in-out infinite;
-  filter: drop-shadow(0 0 12px rgba(125, 211, 252, 0.4));
-}
-
-@keyframes global-loading-dashspin {
-  0% {
-    transform: rotate(0deg);
-    stroke-dasharray: 26 194;
-    stroke-dashoffset: 0;
-  }
-  50% {
-    stroke-dasharray: 92 156;
-  }
-  100% {
-    transform: rotate(360deg);
-    stroke-dasharray: 26 194;
-    stroke-dashoffset: -118;
-  }
-}
-
 .auction-modal-body {
   display: grid;
   gap: 16px;
@@ -2845,11 +2751,9 @@
   font-weight: 700;
 }
 
-.public-author-mark {
-  width: 1em;
-  height: 1em;
-  object-fit: contain;
-  flex: 0 0 auto;
+.public-author-badge.staff {
+  color: #1b1028;
+  background: #d9b766;
 }
 
 .public-author-badge.gem {

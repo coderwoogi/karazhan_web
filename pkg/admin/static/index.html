@@ -3056,6 +3056,8 @@
                             설정</button>
                         <button class="log-sub-tab-btn" onclick="openContentSubTab('vendor')">판매
                             설정</button>
+                        <button class="log-sub-tab-btn" onclick="openContentSubTab('item-settings')">아이템
+                            설정</button>
                     </div>
 
                     <!-- Black Market Sub-Tab -->
@@ -3275,6 +3277,137 @@
                                             <tr><td colspan="8" style="text-align:center; padding:24px; color:#64748b;">NPC를 먼저 선택해주세요.</td></tr>
                                         </tbody>
                                     </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="content-item-settings" class="log-sub-content">
+                        <div class="drop-admin-layout">
+                            <div class="drop-admin-panel">
+                                <div class="drop-admin-panel-header">
+                                    <div>
+                                        <h3>아이템 검색</h3>
+                                        <p>아이템명 또는 Entry로 검색한 뒤 바로 가격 설정으로 넘길 수 있습니다.</p>
+                                    </div>
+                                </div>
+                                <div class="filter-bar" style="display:grid; grid-template-columns:minmax(0, 1fr) auto auto; gap:10px; align-items:end;">
+                                    <div class="filter-group">
+                                        <label for="content-item-search-query">아이템 검색</label>
+                                        <input id="content-item-search-query" type="text" class="input-premium" placeholder="아이템명 또는 Entry 입력" onkeypress="if(event.key==='Enter'){searchContentSettingItems();}">
+                                    </div>
+                                    <button onclick="searchContentSettingItems()" class="btn btn-primary"><i class="fas fa-search"></i> 검색</button>
+                                    <button onclick="resetContentSettingItems()" class="btn"><i class="fas fa-undo"></i> 초기화</button>
+                                </div>
+                                <div class="scroll-table premium-table drop-creature-table-wrap">
+                                    <table>
+                                        <thead>
+                                            <tr>
+                                                <th style="width:90px;">아이콘</th>
+                                                <th style="width:110px;">Entry</th>
+                                                <th>아이템명</th>
+                                                <th style="width:130px; text-align:center;">관리</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="content-item-search-list">
+                                            <tr><td colspan="4" style="text-align:center; padding:24px; color:#64748b;">검색어를 입력한 뒤 아이템을 찾아주세요.</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <div class="drop-admin-panel">
+                                <div class="drop-admin-panel-header">
+                                    <div>
+                                        <h3>아이템 상세 / 가격 설정</h3>
+                                        <p>검색 결과에서 아이템을 선택하면 item_template 기준 정보와 현재 구입가/판매가를 바로 수정할 수 있습니다.</p>
+                                    </div>
+                                </div>
+                                <div id="content-item-detail-empty" style="padding:28px; border:1px dashed #cbd5e1; border-radius:16px; background:linear-gradient(180deg, #f8fafc, #eef2ff); color:#64748b; text-align:center;">
+                                    검색 결과에서 아이템을 선택하면 상세 정보가 이 영역에 표시됩니다.
+                                </div>
+                                <div id="content-item-detail-panel" style="display:none;">
+                                    <div style="display:grid; grid-template-columns:96px minmax(0, 1fr); gap:18px; align-items:start; margin-bottom:18px;">
+                                        <div id="content-item-detail-icon" style="width:96px; height:96px; border-radius:18px; border:1px solid #cbd5e1; background:#f8fafc; display:flex; align-items:center; justify-content:center;"></div>
+                                        <div>
+                                            <div id="content-item-detail-name" style="font-size:1.2rem; font-weight:800; color:#0f172a;">-</div>
+                                            <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;">
+                                                <span id="content-item-detail-entry" class="badge" style="background:#e2e8f0; color:#334155;">Entry -</span>
+                                                <span id="content-item-detail-quality" class="badge" style="background:#eef2ff; color:#4338ca;">등급 -</span>
+                                                <span id="content-item-detail-level" class="badge" style="background:#ecfccb; color:#3f6212;">아이템 레벨 -</span>
+                                                <span id="content-item-detail-required-level" class="badge" style="background:#fef3c7; color:#92400e;">요구 레벨 -</span>
+                                            </div>
+                                            <div id="content-item-detail-meta" style="margin-top:10px; color:#475569; line-height:1.65;"></div>
+                                        </div>
+                                    </div>
+                                    <div style="padding:18px; border:1px solid #e2e8f0; border-radius:16px; background:#fff; margin-bottom:14px;">
+                                        <div style="font-size:1.02rem; font-weight:800; color:#0f172a; margin-bottom:14px;">기본 정보</div>
+                                        <div style="display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:12px;">
+                                            <div class="filter-group"><label for="content-item-field-entry">아이템 번호</label><input id="content-item-field-entry" type="number" class="input-premium" readonly></div>
+                                            <div class="filter-group"><label for="content-item-field-name">아이템 이름</label><input id="content-item-field-name" type="text" class="input-premium"></div>
+                                            <div class="filter-group"><label for="content-item-field-description">설명</label><input id="content-item-field-description" type="text" class="input-premium"></div>
+                                            <div class="filter-group"><label for="content-item-field-script-name">스크립트 이름</label><input id="content-item-field-script-name" type="text" class="input-premium"></div>
+
+                                            <div class="filter-group"><label for="content-item-field-class-id">클래스</label><input id="content-item-field-class-id" type="number" class="input-premium"></div>
+                                            <div class="filter-group"><label for="content-item-field-subclass-id">서브클래스</label><input id="content-item-field-subclass-id" type="number" class="input-premium"></div>
+                                            <div class="filter-group"><label for="content-item-field-sound-override-subclass">사운드 오버라이드</label><input id="content-item-field-sound-override-subclass" type="number" class="input-premium"></div>
+                                            <div class="filter-group"><label for="content-item-field-display-id">디스플레이 ID</label><input id="content-item-field-display-id" type="number" class="input-premium"></div>
+
+                                            <div class="filter-group"><label for="content-item-field-quality">품질</label><input id="content-item-field-quality" type="number" class="input-premium"></div>
+                                            <div class="filter-group"><label for="content-item-field-buy-count">구매 수량</label><input id="content-item-field-buy-count" type="number" class="input-premium"></div>
+                                            <div class="filter-group"><label for="content-item-price-buy">구입 가격</label><input id="content-item-price-buy" type="number" class="input-premium"></div>
+                                            <div class="filter-group"><label for="content-item-price-sell">판매 가격</label><input id="content-item-price-sell" type="number" class="input-premium"></div>
+
+                                            <div class="filter-group"><label for="content-item-field-inventory-type">장착 위치</label><input id="content-item-field-inventory-type" type="number" class="input-premium"></div>
+                                            <div class="filter-group"><label for="content-item-field-max-count">최대 개수</label><input id="content-item-field-max-count" type="number" class="input-premium"></div>
+                                            <div class="filter-group"><label for="content-item-field-stackable">중첩 가능 수</label><input id="content-item-field-stackable" type="number" class="input-premium"></div>
+                                            <div class="filter-group"><label for="content-item-field-start-quest">시작 퀘스트</label><input id="content-item-field-start-quest" type="number" class="input-premium"></div>
+
+                                            <div class="filter-group"><label for="content-item-field-material">재질</label><input id="content-item-field-material" type="number" class="input-premium"></div>
+                                            <div class="filter-group"><label for="content-item-field-random-property">랜덤 속성</label><input id="content-item-field-random-property" type="number" class="input-premium"></div>
+                                            <div class="filter-group"><label for="content-item-field-random-suffix">랜덤 접미사</label><input id="content-item-field-random-suffix" type="number" class="input-premium"></div>
+                                            <div class="filter-group"><label for="content-item-field-bag-family">가방 계열</label><input id="content-item-field-bag-family" type="number" class="input-premium"></div>
+
+                                            <div class="filter-group"><label for="content-item-field-container-slots">컨테이너 슬롯</label><input id="content-item-field-container-slots" type="number" class="input-premium"></div>
+                                            <div class="filter-group"><label for="content-item-field-totem-category">토템 카테고리</label><input id="content-item-field-totem-category" type="number" class="input-premium"></div>
+                                            <div class="filter-group"><label for="content-item-field-duration">지속 시간</label><input id="content-item-field-duration" type="number" class="input-premium"></div>
+                                            <div class="filter-group"><label for="content-item-field-item-limit-category">아이템 제한 카테고리</label><input id="content-item-field-item-limit-category" type="number" class="input-premium"></div>
+
+                                            <div class="filter-group"><label for="content-item-field-disenchant-id">마력 추출 ID</label><input id="content-item-field-disenchant-id" type="number" class="input-premium"></div>
+                                            <div class="filter-group"><label for="content-item-field-food-type">음식 종류</label><input id="content-item-field-food-type" type="number" class="input-premium"></div>
+                                            <div class="filter-group"><label for="content-item-field-min-money-loot">최소 골드 획득</label><input id="content-item-field-min-money-loot" type="number" class="input-premium"></div>
+                                            <div class="filter-group"><label for="content-item-field-max-money-loot">최대 골드 획득</label><input id="content-item-field-max-money-loot" type="number" class="input-premium"></div>
+
+                                            <div class="filter-group"><label for="content-item-field-item-set">아이템 세트</label><input id="content-item-field-item-set" type="number" class="input-premium"></div>
+                                            <div class="filter-group"><label for="content-item-field-bonding">귀속 타입</label><input id="content-item-field-bonding" type="number" class="input-premium"></div>
+                                        </div>
+                                    </div>
+                                    <div style="display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:14px; margin-bottom:14px;">
+                                        <div style="padding:18px; border:1px solid #e2e8f0; border-radius:16px; background:#fff;">
+                                            <div style="font-size:1.02rem; font-weight:800; color:#0f172a; margin-bottom:14px;">플래그</div>
+                                            <div style="display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:12px;">
+                                                <div class="filter-group"><label for="content-item-field-flags">기본 플래그</label><input id="content-item-field-flags" type="number" class="input-premium"></div>
+                                                <div class="filter-group"><label for="content-item-field-flags-extra">추가 플래그</label><input id="content-item-field-flags-extra" type="number" class="input-premium"></div>
+                                                <div class="filter-group"><label for="content-item-field-flags-custom">커스텀 플래그</label><input id="content-item-field-flags-custom" type="number" class="input-premium"></div>
+                                            </div>
+                                        </div>
+                                        <div style="padding:18px; border:1px solid #e2e8f0; border-radius:16px; background:#fff;">
+                                            <div style="font-size:1.02rem; font-weight:800; color:#0f172a; margin-bottom:14px;">텍스트</div>
+                                            <div style="display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:12px;">
+                                                <div class="filter-group"><label for="content-item-field-page-text">페이지 텍스트</label><input id="content-item-field-page-text" type="number" class="input-premium"></div>
+                                                <div class="filter-group"><label for="content-item-field-page-material">페이지 재질</label><input id="content-item-field-page-material" type="number" class="input-premium"></div>
+                                                <div class="filter-group"><label for="content-item-field-language-id">언어 ID</label><input id="content-item-field-language-id" type="number" class="input-premium"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="filter-group" style="margin-bottom:14px;">
+                                        <label>추가 읽기 전용 정보</label>
+                                        <div id="content-item-detail-description" class="input-premium" style="min-height:92px; white-space:pre-wrap; background:#fff; color:#334155;"></div>
+                                    </div>
+                                    <div style="display:flex; justify-content:flex-end; gap:8px;">
+                                        <button type="button" class="btn" style="background:#e2e8f0; color:#475569;" onclick="clearContentItemDetail()">선택 해제</button>
+                                        <button type="button" class="btn btn-primary" id="content-item-save-btn" onclick="saveContentItemPriceSettings()"><i class="fas fa-save"></i> 저장</button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -4667,7 +4800,7 @@
         </div>
 
         <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-        <script src="script.js?v=admin_fix_v36"></script>
+        <script src="script.js?v=admin_fix_v37"></script>
         <script src="notification.js?v=4"></script>
         <script src="shop.js?v=4"></script>
         <script src="auction.js?v=6"></script>
@@ -4740,7 +4873,7 @@
                             <div style="margin-bottom: 1.25rem;">
                                 <label style="display: block; font-size: 0.75rem; font-weight: 700; color: #64748b; margin-bottom: 4px;">보유 포인트</label>
                                 <div style="font-weight: 800; color: #f59e0b; font-size: 1.35rem;">
-                                    <i class="fas fa-coins"></i> <span id="acc-detail-points">0</span>
+                                    <img src="/img/web_point.png" alt="웹포인트" style="width: 22px; height: 22px; object-fit: contain; vertical-align: -4px; margin-right: 6px;"> <span id="acc-detail-points">0</span>
                                 </div>
                             </div>
 
@@ -4759,7 +4892,7 @@
                                     <label>웹사이트 최소 권한</label>
                                     <select id="acc-update-web" class="input-premium">
                                         <option value="0">일반 유저 (0)</option>
-                                        <option value="1">GM 스태프 (1)</option>
+                                        <option value="1">GM (1)</option>
                                         <option value="2">최고 관리자 (2)</option>
                                     </select>
                                 </div>

@@ -40,17 +40,7 @@ const LoadingUX = (() => {
         if (!chipEl) {
             chipEl = document.createElement('div');
             chipEl.id = 'global-load-chip';
-            chipEl.innerHTML = `
-                <div class="global-load-card" role="status" aria-live="polite">
-                    <div class="global-load-spinner" aria-hidden="true">
-                        <svg viewBox="0 0 104 104">
-                            <circle class="global-load-track" cx="52" cy="52" r="34"></circle>
-                            <circle class="global-load-arc" cx="52" cy="52" r="34"></circle>
-                        </svg>
-                    </div>
-                    <strong>잠시만 기다려주세요</strong>
-                    <span>데이터를 불러오는 중입니다.</span>
-                </div>`;
+            chipEl.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i><span>불러오는 중...</span>';
             chipEl.setAttribute('aria-hidden', 'true');
             document.body.appendChild(chipEl);
         }
@@ -94,7 +84,6 @@ const LoadingUX = (() => {
         if (!url) return true;
         if (url.startsWith('chrome-extension://')) return false;
         if (url.includes('.map')) return false;
-        if (document.getElementById('modal-utils-progress')) return false;
         if (document.querySelector('.modal.active')) return false;
         const headers = (init && init.headers) || {};
         if (headers && typeof headers.get === 'function') {
@@ -2673,7 +2662,7 @@ async function loadUserList(page = 1, clearFilters = false) {
                 <td>
                     <select onchange="updateUserRank(${user.id}, null, this.value)" class="input-premium" style="padding:0.4rem; font-size:0.85rem; width:100%;">
                         <option value="0" ${(user.webRank || 0) === 0 ? 'selected' : ''}>일반 (0)</option>
-                        <option value="1" ${(user.webRank || 0) === 1 ? 'selected' : ''}>GM (1)</option>
+                        <option value="1" ${(user.webRank || 0) === 1 ? 'selected' : ''}>스태프 (1)</option>
                         <option value="2" ${(user.webRank || 0) === 2 ? 'selected' : ''}>최고관리자 (2)</option>
                     </select>
                 </td>
@@ -3122,8 +3111,6 @@ function openContentSubTab(tabName) {
         loadDropCreatures(1);
     } else if (tabName === 'vendor') {
         loadVendorCreatures(1);
-    } else if (tabName === 'item-settings') {
-        clearContentItemDetail();
     }
 }
 
@@ -3146,278 +3133,6 @@ function refreshCurrentContentTab() {
         } else {
             loadVendorCreatures(currentVendorCreaturePage || 1);
         }
-    } else if (currentContentTab === 'item-settings') {
-        if (currentContentItemDetailEntry > 0) {
-            loadContentItemDetail(currentContentItemDetailEntry);
-        }
-    }
-}
-
-let currentContentItemDetailEntry = 0;
-let currentContentItemDetailData = null;
-
-function formatPriceGold(value) {
-    const gold = Number(value || 0);
-    return `${gold.toLocaleString()}g`;
-}
-
-function formatItemQualityLabel(quality) {
-    const q = Number(quality || 0);
-    if (q >= 5) return '전설';
-    if (q === 4) return '영웅';
-    if (q === 3) return '희귀';
-    if (q === 2) return '고급';
-    if (q === 1) return '일반';
-    return '하급';
-}
-
-function getItemQualityClass(quality) {
-    const q = Number(quality || 0);
-    if (q >= 5) return 'quality-5';
-    if (q >= 4) return 'quality-4';
-    if (q >= 3) return 'quality-3';
-    if (q >= 2) return 'quality-2';
-    return 'quality-1';
-}
-
-async function searchContentSettingItems() {
-    const tbody = document.getElementById('content-item-search-list');
-    const query = String(document.getElementById('content-item-search-query')?.value || '').trim();
-    if (!tbody) return;
-    if (query.length < 2) {
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:24px; color:#64748b;">검색어를 2글자 이상 입력해주세요.</td></tr>';
-        return;
-    }
-
-    tbody.style.opacity = '0.45';
-    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px;">아이템을 검색하는 중...</td></tr>';
-    try {
-        const res = await fetch(`/api/content/item/search?q=${encodeURIComponent(query)}`);
-        const items = await res.json().catch(() => ([]));
-        if (!res.ok) throw new Error('아이템 검색에 실패했습니다.');
-        if (!Array.isArray(items) || !items.length) {
-            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:24px; color:#64748b;">검색 결과가 없습니다.</td></tr>';
-            return;
-        }
-
-        tbody.innerHTML = items.map((item) => {
-            const entry = Number(item.entry || 0);
-            const name = String(item.name || `아이템 ${entry}`);
-            const quality = Number(item.quality || 0);
-            const payload = encodeURIComponent(JSON.stringify({
-                item_entry: entry,
-                item_name: name,
-                item_quality: quality
-            }));
-            return `
-                <tr>
-                    <td style="text-align:center;">
-                        <div class="trial-entry-icon" data-entry="${entry}" data-size="32" style="width:32px; height:32px; margin:0 auto;"></div>
-                    </td>
-                    <td style="font-weight:700;">${entry}</td>
-                    <td style="font-weight:800;">${wrapWithWowheadItemLink(entry, `<span class="${getItemQualityClass(quality)}">${dropEsc(name)}</span>`, name)}</td>
-                    <td style="text-align:center;">
-                        <button class="btn-action btn-edit" onclick="selectContentSettingItem(JSON.parse(decodeURIComponent('${payload}')))"><i class="fas fa-hand-pointer"></i> 선택</button>
-                    </td>
-                </tr>
-            `;
-        }).join('');
-        await hydrateTrialEntryIcons(tbody);
-        refreshWowheadTooltips();
-    } catch (err) {
-        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:24px; color:#dc2626;">${dropEsc(err.message || '아이템 검색에 실패했습니다.')}</td></tr>`;
-    } finally {
-        tbody.style.opacity = '1';
-    }
-}
-
-function resetContentSettingItems() {
-    const input = document.getElementById('content-item-search-query');
-    if (input) input.value = '';
-    const tbody = document.getElementById('content-item-search-list');
-    if (tbody) {
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:24px; color:#64748b;">검색어를 입력한 뒤 아이템을 찾아주세요.</td></tr>';
-    }
-}
-
-function clearContentItemDetail() {
-    currentContentItemDetailEntry = 0;
-    currentContentItemDetailData = null;
-    const empty = document.getElementById('content-item-detail-empty');
-    const panel = document.getElementById('content-item-detail-panel');
-    if (empty) empty.style.display = 'block';
-    if (panel) panel.style.display = 'none';
-}
-
-function renderContentItemDetail(data) {
-    currentContentItemDetailData = data;
-    currentContentItemDetailEntry = Number(data.entry || 0);
-    const empty = document.getElementById('content-item-detail-empty');
-    const panel = document.getElementById('content-item-detail-panel');
-    if (empty) empty.style.display = 'none';
-    if (panel) panel.style.display = 'block';
-
-    const icon = document.getElementById('content-item-detail-icon');
-    if (icon) {
-        icon.innerHTML = `<div class="trial-entry-icon" data-entry="${currentContentItemDetailEntry}" data-size="88" style="width:88px; height:88px; margin:0 auto;"></div>`;
-    }
-    const nameEl = document.getElementById('content-item-detail-name');
-    if (nameEl) {
-        nameEl.innerHTML = wrapWithWowheadItemLink(currentContentItemDetailEntry, `<span class="${getItemQualityClass(data.quality)}">${dropEsc(data.name || `아이템 ${currentContentItemDetailEntry}`)}</span>`, data.name || `아이템 ${currentContentItemDetailEntry}`);
-    }
-    const entryEl = document.getElementById('content-item-detail-entry');
-    if (entryEl) entryEl.textContent = `Entry ${currentContentItemDetailEntry}`;
-    const qualityEl = document.getElementById('content-item-detail-quality');
-    if (qualityEl) {
-        qualityEl.textContent = `등급 ${formatItemQualityLabel(data.quality)}`;
-        qualityEl.className = `badge ${getItemQualityClass(data.quality)}`;
-    }
-    const levelEl = document.getElementById('content-item-detail-level');
-    if (levelEl) levelEl.textContent = `아이템 레벨 ${Number(data.item_level || 0)}`;
-    const reqEl = document.getElementById('content-item-detail-required-level');
-    if (reqEl) reqEl.textContent = `요구 레벨 ${Number(data.required_level || 0)}`;
-    const metaEl = document.getElementById('content-item-detail-meta');
-    if (metaEl) {
-        const metaLines = [];
-        if (data.class_name || data.subclass_name) metaLines.push(`${dropEsc(data.class_name || '-')}${data.subclass_name ? ` / ${dropEsc(data.subclass_name)}` : ''}`);
-        if (data.inventory_name) metaLines.push(`착용 위치: ${dropEsc(data.inventory_name)}`);
-        if (Number(data.armor || 0) > 0) metaLines.push(`방어도: ${Number(data.armor)}`);
-        if (Number(data.min_damage || 0) > 0 || Number(data.max_damage || 0) > 0) metaLines.push(`공격력: ${Number(data.min_damage || 0)} ~ ${Number(data.max_damage || 0)}`);
-        metaEl.innerHTML = metaLines.length ? metaLines.map(line => `<div>${line}</div>`).join('') : '<div>추가 메타 정보가 없습니다.</div>';
-    }
-    const descEl = document.getElementById('content-item-detail-description');
-    if (descEl) {
-        const extra = [];
-        if (Array.isArray(data.stats) && data.stats.length) extra.push(`스탯: ${data.stats.join(', ')}`);
-        if (Array.isArray(data.spells) && data.spells.length) extra.push(`주문: ${data.spells.join(', ')}`);
-        extra.push(`분류명: ${String(data.class_name || '-')}/${String(data.subclass_name || '-')}`);
-        extra.push(`착용명: ${String(data.inventory_name || '-')}`);
-        descEl.textContent = extra.join('\n');
-    }
-    const fieldMap = {
-        'content-item-field-entry': data.entry,
-        'content-item-field-name': data.name,
-        'content-item-field-description': data.description,
-        'content-item-field-script-name': data.script_name,
-        'content-item-field-class-id': data.class_id,
-        'content-item-field-subclass-id': data.subclass_id,
-        'content-item-field-sound-override-subclass': data.sound_override_subclass,
-        'content-item-field-display-id': data.display_id,
-        'content-item-field-quality': data.quality,
-        'content-item-field-buy-count': data.buy_count,
-        'content-item-price-buy': data.buy_price,
-        'content-item-price-sell': data.sell_price,
-        'content-item-field-inventory-type': data.inventory_type,
-        'content-item-field-max-count': data.max_count,
-        'content-item-field-stackable': data.stackable,
-        'content-item-field-start-quest': data.start_quest,
-        'content-item-field-material': data.material,
-        'content-item-field-random-property': data.random_property,
-        'content-item-field-random-suffix': data.random_suffix,
-        'content-item-field-bag-family': data.bag_family,
-        'content-item-field-container-slots': data.container_slots,
-        'content-item-field-totem-category': data.totem_category,
-        'content-item-field-duration': data.duration,
-        'content-item-field-item-limit-category': data.item_limit_category,
-        'content-item-field-disenchant-id': data.disenchant_id,
-        'content-item-field-food-type': data.food_type,
-        'content-item-field-min-money-loot': data.min_money_loot,
-        'content-item-field-max-money-loot': data.max_money_loot,
-        'content-item-field-item-set': data.item_set,
-        'content-item-field-bonding': data.bonding,
-        'content-item-field-flags': data.flags,
-        'content-item-field-flags-extra': data.flags_extra,
-        'content-item-field-flags-custom': data.flags_custom,
-        'content-item-field-page-text': data.page_text,
-        'content-item-field-page-material': data.page_material,
-        'content-item-field-language-id': data.language_id
-    };
-    Object.entries(fieldMap).forEach(([id, value]) => {
-        const el = document.getElementById(id);
-        if (el) el.value = value ?? '';
-    });
-    hydrateTrialEntryIcons(panel || document);
-    refreshWowheadTooltips();
-}
-
-async function loadContentItemDetail(entry) {
-    const itemEntry = Number(entry || 0);
-    if (itemEntry <= 0) return;
-    const empty = document.getElementById('content-item-detail-empty');
-    if (empty) empty.innerHTML = '아이템 정보를 불러오는 중입니다...';
-    try {
-        const res = await fetch(`/api/content/item/tooltip?entry=${itemEntry}`);
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok || data.status !== 'success') throw new Error(data.message || '아이템 정보를 불러오지 못했습니다.');
-        renderContentItemDetail(data);
-    } catch (err) {
-        clearContentItemDetail();
-        if (empty) empty.innerHTML = `<span style="color:#dc2626;">${dropEsc(err.message || '아이템 정보를 불러오지 못했습니다.')}</span>`;
-    }
-}
-
-function selectContentSettingItem(item = {}) {
-    const itemEntry = Number(item.item_entry || item.entry || 0);
-    if (itemEntry <= 0) return;
-    loadContentItemDetail(itemEntry);
-}
-
-async function saveContentItemPriceSettings() {
-    const itemEntry = Number(currentContentItemDetailEntry || 0);
-    const buyPrice = Number(document.getElementById('content-item-price-buy')?.value || 0);
-    const sellPrice = Number(document.getElementById('content-item-price-sell')?.value || 0);
-
-    if (itemEntry <= 0) return ModalUtils.showAlert('아이템을 먼저 선택해주세요.');
-    if (buyPrice < 0) return ModalUtils.showAlert('구입가격은 0 이상으로 입력해주세요.');
-    if (sellPrice < 0) return ModalUtils.showAlert('판매가격은 0 이상으로 입력해주세요.');
-
-    const readValue = (id) => String(document.getElementById(id)?.value || '').trim();
-    const form = new URLSearchParams();
-    form.set('item_entry', String(itemEntry));
-    form.set('name', readValue('content-item-field-name'));
-    form.set('description', readValue('content-item-field-description'));
-    form.set('script_name', readValue('content-item-field-script-name'));
-    form.set('class_id', readValue('content-item-field-class-id'));
-    form.set('subclass_id', readValue('content-item-field-subclass-id'));
-    form.set('sound_override_subclass', readValue('content-item-field-sound-override-subclass'));
-    form.set('display_id', readValue('content-item-field-display-id'));
-    form.set('quality', readValue('content-item-field-quality'));
-    form.set('buy_count', readValue('content-item-field-buy-count'));
-    form.set('buy_price', String(buyPrice));
-    form.set('sell_price', String(sellPrice));
-    form.set('inventory_type', readValue('content-item-field-inventory-type'));
-    form.set('max_count', readValue('content-item-field-max-count'));
-    form.set('stackable', readValue('content-item-field-stackable'));
-    form.set('start_quest', readValue('content-item-field-start-quest'));
-    form.set('material', readValue('content-item-field-material'));
-    form.set('random_property', readValue('content-item-field-random-property'));
-    form.set('random_suffix', readValue('content-item-field-random-suffix'));
-    form.set('bag_family', readValue('content-item-field-bag-family'));
-    form.set('container_slots', readValue('content-item-field-container-slots'));
-    form.set('totem_category', readValue('content-item-field-totem-category'));
-    form.set('duration', readValue('content-item-field-duration'));
-    form.set('item_limit_category', readValue('content-item-field-item-limit-category'));
-    form.set('disenchant_id', readValue('content-item-field-disenchant-id'));
-    form.set('food_type', readValue('content-item-field-food-type'));
-    form.set('min_money_loot', readValue('content-item-field-min-money-loot'));
-    form.set('max_money_loot', readValue('content-item-field-max-money-loot'));
-    form.set('item_set', readValue('content-item-field-item-set'));
-    form.set('bonding', readValue('content-item-field-bonding'));
-    form.set('flags', readValue('content-item-field-flags'));
-    form.set('flags_extra', readValue('content-item-field-flags-extra'));
-    form.set('flags_custom', readValue('content-item-field-flags-custom'));
-    form.set('page_text', readValue('content-item-field-page-text'));
-    form.set('page_material', readValue('content-item-field-page-material'));
-    form.set('language_id', readValue('content-item-field-language-id'));
-
-    try {
-        const res = await fetch('/api/content/item-template/save', { method: 'POST', body: form });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data.message || '저장에 실패했습니다.');
-        ModalUtils.showAlert(data.message || '저장되었습니다.');
-        await loadContentItemDetail(itemEntry);
-    } catch (err) {
-        ModalUtils.showAlert(err.message || '저장 중 오류가 발생했습니다.');
     }
 }
 
@@ -6360,16 +6075,8 @@ class ModalUtils {
                 .mu-btn{border:1px solid rgba(218,183,109,.28);background:linear-gradient(180deg,rgba(119,72,29,.92),rgba(64,36,18,.96));color:#f7ecd4;border-radius:12px;padding:10px 18px;font-weight:700;cursor:pointer}
                 .mu-btn-cancel{background:rgba(255,255,255,.04);color:#e8dcc1}
                 .mu-progress{display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center}
-                .mu-spinner{display:inline-flex;width:72px;height:72px}
-                .mu-spinner svg{width:72px;height:72px;overflow:visible}
-                .mu-spinner circle{fill:none;stroke-linecap:round}
-                .mu-spinner .mu-spinner-track{stroke:rgba(125,211,252,.18);stroke-width:8}
-                .mu-spinner .mu-spinner-arc{stroke:#7dd3fc;stroke-width:8;stroke-dasharray:46 188;transform-origin:50% 50%;animation:mu-dashspin 1.2s ease-in-out infinite;filter:drop-shadow(0 0 12px rgba(125,211,252,.4))}
-                @keyframes mu-dashspin{
-                    0%{transform:rotate(0deg);stroke-dasharray:26 194;stroke-dashoffset:0}
-                    50%{stroke-dasharray:92 156}
-                    100%{transform:rotate(360deg);stroke-dasharray:26 194;stroke-dashoffset:-118}
-                }
+                .mu-spinner{width:42px;height:42px;border-radius:50%;border:3px solid rgba(218,183,109,.18);border-top-color:#dab76d;animation:mu-spin .85s linear infinite}
+                @keyframes mu-spin{to{transform:rotate(360deg)}}
             `;
             document.head.appendChild(style);
         }
@@ -6471,6 +6178,17 @@ class ModalUtils {
     }
 
     static showProgress(message = '처리 중입니다.', title = '잠시만 기다려주세요') {
+        if (this.hasSwal()) {
+            this._swalProgressOpen = true;
+            return Swal.fire({
+                title,
+                text: message,
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                showConfirmButton: false,
+                didOpen: () => Swal.showLoading()
+            });
+        }
         if (!this.ensureFallbackUi()) return;
         this.hideProgress();
         const overlay = document.createElement('div');
@@ -6478,12 +6196,7 @@ class ModalUtils {
         overlay.id = 'modal-utils-progress';
         overlay.innerHTML = `
             <div class="mu-panel mu-progress" role="status" aria-live="polite">
-                <div class="mu-spinner" aria-hidden="true">
-                    <svg viewBox="0 0 104 104">
-                        <circle class="mu-spinner-track" cx="52" cy="52" r="34"></circle>
-                        <circle class="mu-spinner-arc" cx="52" cy="52" r="34"></circle>
-                    </svg>
-                </div>
+                <div class="mu-spinner" aria-hidden="true"></div>
                 <h3 class="mu-title">${String(title || '잠시만 기다려주세요')}</h3>
                 <div class="mu-message">${String(message || '처리 중입니다.')}</div>
             </div>`;
@@ -6493,6 +6206,10 @@ class ModalUtils {
     static hideProgress() {
         const overlay = typeof document !== 'undefined' ? document.getElementById('modal-utils-progress') : null;
         if (overlay) overlay.remove();
+        if (this.hasSwal() && this._swalProgressOpen) {
+            this._swalProgressOpen = false;
+            Swal.close();
+        }
     }
 
     static async runWithProgress(message, task, title = '잠시만 기다려주세요') {

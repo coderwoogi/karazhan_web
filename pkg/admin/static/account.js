@@ -83,7 +83,7 @@ async function loadAccountList(page = 1) {
 
         tbody.innerHTML = g_accountList
             .map((u) => {
-                const webRankNames = { 0: '일반', 1: 'GM 스태프', 2: '최고 관리자' };
+                const webRankNames = { 0: '일반', 1: 'GM', 2: '최고 관리자' };
                 const webRankColors = { 0: 'user', 1: 'staff', 2: 'admin' };
 
                 return `
@@ -230,7 +230,7 @@ async function openAccountDetail(id) {
         gmBadge.textContent = gmLevels[user.gmlevel] || `Level ${user.gmlevel}`;
 
         const webBadge = document.getElementById('acc-detail-web');
-        const webRanks = { 0: '일반 유저', 1: 'GM 스태프', 2: '최고 관리자' };
+        const webRanks = { 0: '일반 유저', 1: 'GM', 2: '최고 관리자' };
         webBadge.textContent = webRanks[user.webRank] || `Rank ${user.webRank}`;
 
         document.getElementById('acc-detail-points').textContent = (user.points || 0).toLocaleString();
@@ -413,7 +413,7 @@ async function submitRankUpdateDetailed() {
                 loadAccountList(1);
 
                 const gmLevels = { 0: '일반 유저', 1: '중재자', 2: '게임 마스터', 3: '관리자' };
-                const webRankNames = { 0: '일반 유저', 1: 'GM 스태프', 2: '최고 관리자' };
+                const webRankNames = { 0: '일반 유저', 1: 'GM', 2: '최고 관리자' };
                 document.getElementById('acc-detail-gm').textContent = gmLevels[gmLevel] || gmLevel;
                 document.getElementById('acc-detail-web').textContent = webRankNames[webRank] || `일반 (${webRank})`;
 
