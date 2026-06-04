@@ -1131,7 +1131,7 @@ function App() {
       target.classList.remove('comment-focus-highlight')
       void target.offsetWidth
       target.classList.add('comment-focus-highlight')
-      window.setTimeout(() => target.classList.remove('comment-focus-highlight'), 3200)
+      window.setTimeout(() => target.classList.remove('comment-focus-highlight'), 3800)
     }, 180)
     return () => window.clearTimeout(timer)
   }, [detail, location.search, screen])
