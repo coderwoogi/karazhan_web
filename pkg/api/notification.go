@@ -87,8 +87,9 @@ func (h *NotificationHandler) GetList(w http.ResponseWriter, r *http.Request) {
 	offset := (page - 1) * limit
 	onlyUnread := r.URL.Query().Get("only_unread") == "true"
 	isDropdown := r.URL.Query().Get("dropdown") == "true"
+	search := r.URL.Query().Get("search")
 
-	notifs, totalCount, err := h.Service.GetNotificationsPaginated(userID, limit, offset, onlyUnread, isDropdown)
+	notifs, totalCount, err := h.Service.GetNotificationsPaginated(userID, limit, offset, onlyUnread, isDropdown, search)
 	if err != nil {
 		log.Printf("GetNotifications Error: %v", err)
 		http.Error(w, "Failed to fetch notifications", http.StatusInternalServerError)

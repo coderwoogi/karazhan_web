@@ -131,12 +131,12 @@ func (s *NotificationService) GetUnreadCount(userID int) (int, error) {
 
 // GetNotifications returns a list of notifications for a user (deprecated: use Paginated version)
 func (s *NotificationService) GetNotifications(userID int, limit int, onlyUnread bool) ([]models.Notification, error) {
-	notifs, _, err := s.GetNotificationsPaginated(userID, limit, 0, onlyUnread, false)
+	notifs, _, err := s.GetNotificationsPaginated(userID, limit, 0, onlyUnread, false, "")
 	return notifs, err
 }
 
 // GetNotificationsPaginated returns a paginated list of notifications and the total count
-func (s *NotificationService) GetNotificationsPaginated(userID int, limit int, offset int, onlyUnread bool, excludeCleared bool) ([]models.Notification, int, error) {
+func (s *NotificationService) GetNotificationsPaginated(userID int, limit int, offset int, onlyUnread bool, excludeCleared bool, search string) ([]models.Notification, int, error) {
 	// Ensure is_cleared column exists (safe to run multiple times with IF NOT EXISTS if using MariaDB, but MySQL 8 doesn't support IF NOT EXISTS for columns in ALTER TABLE directly except via procedure.
 	// For simplicity in Go, we can just execute the alter ignore or check if column exists.
 	// A safe way is to just let the query fail if the column is truly missing and log it, or run a schema migration on startup.
@@ -151,6 +151,11 @@ func (s *NotificationService) GetNotificationsPaginated(userID int, limit int, o
 	}
 	if excludeCleared {
 		countQuery += ` AND is_cleared = 0`
+	}
+	if strings.TrimSpace(search) != "" {
+		keyword := "%" + strings.TrimSpace(search) + "%"
+		countQuery += ` AND (title LIKE ? OR message LIKE ? OR sender_name LIKE ? OR type LIKE ?)`
+		countArgs = append(countArgs, keyword, keyword, keyword, keyword)
 	}
 
 	var total int
@@ -168,6 +173,11 @@ func (s *NotificationService) GetNotificationsPaginated(userID int, limit int, o
 	}
 	if excludeCleared {
 		query += ` AND is_cleared = 0`
+	}
+	if strings.TrimSpace(search) != "" {
+		keyword := "%" + strings.TrimSpace(search) + "%"
+		query += ` AND (title LIKE ? OR message LIKE ? OR sender_name LIKE ? OR type LIKE ?)`
+		args = append(args, keyword, keyword, keyword, keyword)
 	}
 
 	query += ` ORDER BY created_at DESC`

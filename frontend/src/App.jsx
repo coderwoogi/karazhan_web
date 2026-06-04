@@ -164,6 +164,34 @@ function formatShortDate(value) {
   return normalized.slice(5, 10).replace('-', '.')
 }
 
+function formatNotificationTime(value) {
+  if (!value) return '-'
+  const createdAt = new Date(value)
+  if (Number.isNaN(createdAt.getTime())) return formatDate(value)
+  const diffSeconds = Math.max(0, Math.floor((Date.now() - createdAt.getTime()) / 1000))
+  if (diffSeconds < 60) return '방금 전'
+  if (diffSeconds < 3600) return `${Math.floor(diffSeconds / 60)}분 전`
+  if (diffSeconds < 86400) return `${Math.floor(diffSeconds / 3600)}시간 전`
+  if (diffSeconds < 604800) return `${Math.floor(diffSeconds / 86400)}일 전`
+  return formatDate(value)
+}
+
+function notificationTypeMeta(type) {
+  const normalized = String(type || '').toLowerCase()
+  if (normalized === 'comment') return { icon: '✉', className: 'comment' }
+  if (normalized === 'point') return { icon: 'P', className: 'point' }
+  if (normalized === 'admin_msg') return { icon: 'GM', className: 'admin' }
+  return { icon: '•', className: 'default' }
+}
+
+function notificationTypeLabel(type) {
+  const normalized = String(type || '').toLowerCase()
+  if (normalized === 'comment') return '댓글'
+  if (normalized === 'point') return '포인트'
+  if (normalized === 'admin_msg') return '운영 알림'
+  return '알림'
+}
+
 function formatAuctionCoins(value) {
   const amount = Math.max(0, Number(value || 0))
   const gold = Math.floor(amount / 10000)
@@ -546,6 +574,7 @@ function App() {
   const navigate = useNavigate()
   const location = useLocation()
   const userMenuRef = useRef(null)
+  const notificationMenuRef = useRef(null)
   const dialogResolveRef = useRef(null)
   const globalLoadingCountRef = useRef(0)
   const globalLoadingTimerRef = useRef(null)
@@ -577,6 +606,16 @@ function App() {
   const [sponsorName, setSponsorName] = useState('')
   const [sponsorAmount, setSponsorAmount] = useState('')
   const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const [notificationOpen, setNotificationOpen] = useState(false)
+  const [dropdownNotifications, setDropdownNotifications] = useState([])
+  const [notifications, setNotifications] = useState([])
+  const [notificationUnreadCount, setNotificationUnreadCount] = useState(0)
+  const [notificationLoading, setNotificationLoading] = useState(false)
+  const [notificationPage, setNotificationPage] = useState(1)
+  const [notificationTotalPages, setNotificationTotalPages] = useState(1)
+  const [notificationSearchInput, setNotificationSearchInput] = useState('')
+  const [notificationSearch, setNotificationSearch] = useState('')
+  const [notificationCenterLoading, setNotificationCenterLoading] = useState(false)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [userLoaded, setUserLoaded] = useState(false)
   const [dialogState, setDialogState] = useState({ open: false, mode: 'alert', title: '안내', message: '' })
@@ -801,6 +840,34 @@ function App() {
     setBoards(asArray(response))
   }, [])
 
+  const loadNotifications = useCallback(async (quiet = false) => {
+    if (!quiet) setNotificationLoading(true)
+    try {
+      const response = await apiFetch('/api/notifications/list?limit=6&dropdown=true', {
+        headers: quiet ? { 'X-Background-Request': '1' } : undefined,
+      })
+      setDropdownNotifications(asArray(response?.notifications))
+      setNotificationUnreadCount(Number(response?.unread_count || 0))
+    } finally {
+      if (!quiet) setNotificationLoading(false)
+    }
+  }, [])
+
+  const loadNotificationCenter = useCallback(async (targetPage = 1, targetSearch = notificationSearch) => {
+    setNotificationCenterLoading(true)
+    try {
+      const query = new URLSearchParams({ limit: '20', page: String(targetPage) })
+      if (targetSearch) query.set('search', targetSearch)
+      const response = await apiFetch(`/api/notifications/list?${query.toString()}`)
+      setNotifications(asArray(response?.notifications))
+      setNotificationUnreadCount(Number(response?.unread_count || 0))
+      setNotificationPage(Number(response?.page || targetPage || 1))
+      setNotificationTotalPages(Number(response?.total_pages || 1))
+    } finally {
+      setNotificationCenterLoading(false)
+    }
+  }, [notificationSearch])
+
   const loadMyPageCharacters = useCallback(async () => {
     setMyPageCharactersLoading(true)
     try {
@@ -966,6 +1033,25 @@ function App() {
   }, [loadBoards, loadContents, loadHome, loadUser])
 
   useEffect(() => {
+    if (!user) return undefined
+    loadNotifications().catch(() => {
+      setDropdownNotifications([])
+      setNotificationUnreadCount(0)
+    })
+    const timer = window.setInterval(() => {
+      loadNotifications(true).catch(() => {})
+    }, 30000)
+    return () => window.clearInterval(timer)
+  }, [loadNotifications, user])
+
+  useEffect(() => {
+    if (!user || screen !== 'notifications') return
+    loadNotificationCenter(notificationPage, notificationSearch).catch(async (error) => {
+      await showAlert(error?.message || '알림 목록을 불러오지 못했습니다.')
+    })
+  }, [loadNotificationCenter, notificationPage, notificationSearch, screen, showAlert, user])
+
+  useEffect(() => {
     if (!userLoaded) return
     if (user) return
     window.location.replace('/login/')
@@ -981,6 +1067,7 @@ function App() {
     if (!nextBoardId) {
       setBoardId('')
       if (nextView === 'mypage' && user) setScreen('mypage')
+      else if (nextView === 'notifications' && user) setScreen('notifications')
       else if (nextView === 'connect') setScreen('connect')
       else if (nextView === 'rules') setScreen('rules')
       else if (nextView === 'contents') {
@@ -1027,15 +1114,16 @@ function App() {
   }, [currentBoard, navigate, user])
 
   useEffect(() => {
-    if (!userMenuOpen) return undefined
+    if (!userMenuOpen && !notificationOpen) return undefined
     const handlePointerDown = (event) => {
-      if (!userMenuRef.current?.contains(event.target)) {
-        setUserMenuOpen(false)
-      }
+      const clickedUserMenu = userMenuRef.current?.contains(event.target)
+      const clickedNotificationMenu = notificationMenuRef.current?.contains(event.target)
+      if (!clickedUserMenu) setUserMenuOpen(false)
+      if (!clickedNotificationMenu) setNotificationOpen(false)
     }
     document.addEventListener('mousedown', handlePointerDown)
     return () => document.removeEventListener('mousedown', handlePointerDown)
-  }, [userMenuOpen])
+  }, [notificationOpen, userMenuOpen])
 
   useEffect(() => {
     setMobileNavOpen(false)
@@ -1271,6 +1359,22 @@ function App() {
     navigate('/?view=mypage')
   }, [navigate, resetWriteState, user])
 
+  const openNotifications = useCallback(() => {
+    if (!user) return
+    setUserMenuOpen(false)
+    setNotificationOpen(false)
+    setMobileNavOpen(false)
+    setBoardId('')
+    setDetail(null)
+    setCommentInput('')
+    setReplyTarget(null)
+    setNotificationPage(1)
+    setNotificationSearch('')
+    setNotificationSearchInput('')
+    setScreen('notifications')
+    navigate('/?view=notifications')
+  }, [navigate, user])
+
   const beginEdit = useCallback(() => {
     if (!detail?.post || !currentBoard || !canEditOwner(detail.post, user)) return
     setUserMenuOpen(false)
@@ -1428,10 +1532,64 @@ function App() {
 
   const handleLogout = useCallback(async () => {
     setUserMenuOpen(false)
+    setNotificationOpen(false)
     setMobileNavOpen(false)
     await apiFetch('/api/logout', { method: 'POST', headers: { Accept: 'application/json' } })
     window.location.href = '/'
   }, [])
+
+  const markNotificationRead = useCallback(async (notificationId) => {
+    await apiFetch('/api/notifications/read', {
+      method: 'POST',
+      body: JSON.stringify({ id: Number(notificationId || 0), all: false }),
+    })
+  }, [])
+
+  const markAllNotificationsRead = useCallback(async () => {
+    if (!dropdownNotifications.length && !notifications.length) return
+    await apiFetch('/api/notifications/read', {
+      method: 'POST',
+      body: JSON.stringify({ all: true }),
+    })
+    await loadNotifications(true)
+  }, [dropdownNotifications.length, loadNotifications, notifications.length])
+
+  const openNotificationTarget = useCallback(async (notification) => {
+    if (!notification?.id) return
+    setNotificationOpen(false)
+    if (!notification.is_read) {
+      try {
+        await markNotificationRead(notification.id)
+      } catch {
+        // Ignore and continue navigation.
+      }
+    }
+    setDropdownNotifications((prev) => prev.map((item) => (
+      Number(item.id) === Number(notification.id) ? { ...item, is_read: true } : item
+    )))
+    setNotifications((prev) => prev.map((item) => (
+      Number(item.id) === Number(notification.id) ? { ...item, is_read: true } : item
+    )))
+    setNotificationUnreadCount((prev) => Math.max(0, prev - (notification.is_read ? 0 : 1)))
+    const link = String(notification.link || '').trim()
+    if (!link) {
+      loadNotifications(true).catch(() => {})
+      return
+    }
+    if (link.startsWith('/admin')) {
+      window.location.href = link
+      return
+    }
+    if (link.startsWith('/board/view')) {
+      window.location.href = link
+      return
+    }
+    if (link.startsWith('/?') || link.startsWith('/')) {
+      navigate(link)
+      return
+    }
+    window.location.href = link
+  }, [loadNotifications, markNotificationRead, navigate])
 
   const handleHeaderNav = useCallback(
     (item) => {
@@ -1566,18 +1724,82 @@ function App() {
             {headerNavItems.map((item) => renderHeaderNavAction(item))}
           </div>
           {user ? (
-            <div className="nav-user-wrap" ref={userMenuRef}>
-              <button type="button" className="nav-user button-reset" onClick={() => setUserMenuOpen((prev) => !prev)}>
-                <img className="nav-user-avatar" src={raceIcon} alt={hasMainCharacter ? `${welcomeName} 종족 아이콘` : '대표 캐릭터 미설정'} />
-                <span className="nav-user-text">{headerWelcomeText}</span>
-              </button>
-              {userMenuOpen ? (
-                <div className="nav-user-menu">
-                  {isAdmin(user) ? <a href="/admin" onClick={() => setUserMenuOpen(false)}>관리자</a> : null}
-                  <button type="button" className="button-reset" onClick={openMyPage}>마이페이지</button>
-                  <button type="button" className="button-reset" onClick={handleLogout}>로그아웃</button>
-                </div>
-              ) : null}
+            <div className="nav-user-zone">
+              <div className="nav-notification-wrap" ref={notificationMenuRef}>
+                <button
+                  type="button"
+                  className="nav-notification-btn button-reset"
+                  aria-label="알림 열기"
+                  aria-expanded={notificationOpen}
+                  onClick={() => {
+                    setUserMenuOpen(false)
+                    setNotificationOpen((prev) => !prev)
+                  }}
+                >
+                  <span className="nav-notification-icon" aria-hidden="true">🔔</span>
+                  {notificationUnreadCount > 0 ? <span className="nav-notification-badge">{Math.min(notificationUnreadCount, 99)}</span> : null}
+                </button>
+                {notificationOpen ? (
+                  <div className="nav-notification-menu">
+                    <div className="nav-notification-head">
+                      <div>
+                        <strong>알림</strong>
+                        <span>새 알림 {notificationUnreadCount}개</span>
+                      </div>
+                      <div className="nav-notification-head-actions">
+                        <button type="button" className="button-reset nav-notification-readall" onClick={openNotifications}>
+                          전체보기
+                        </button>
+                        <button type="button" className="button-reset nav-notification-readall" onClick={() => { void markAllNotificationsRead() }}>
+                          모두 읽음
+                        </button>
+                      </div>
+                    </div>
+                    <div className="nav-notification-list">
+                      {notificationLoading ? <div className="nav-notification-empty">알림을 불러오는 중입니다.</div> : null}
+                      {!notificationLoading && !dropdownNotifications.length ? <div className="nav-notification-empty">새로운 알림이 없습니다.</div> : null}
+                      {!notificationLoading ? dropdownNotifications.map((notification) => {
+                        const meta = notificationTypeMeta(notification.type)
+                        return (
+                          <button
+                            key={`notification-${notification.id}`}
+                            type="button"
+                            className={`button-reset nav-notification-item${notification.is_read ? '' : ' unread'}`}
+                            onClick={() => { void openNotificationTarget(notification) }}
+                          >
+                            <span className={`nav-notification-type ${meta.className}`} aria-hidden="true">{meta.icon}</span>
+                            <span className="nav-notification-copy">
+                              <strong>{notification.title || '알림'}</strong>
+                              <span>{notification.message || ''}</span>
+                              <time>{formatNotificationTime(notification.created_at)}</time>
+                            </span>
+                          </button>
+                        )
+                      }) : null}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+              <div className="nav-user-wrap" ref={userMenuRef}>
+                <button
+                  type="button"
+                  className="nav-user button-reset"
+                  onClick={() => {
+                    setNotificationOpen(false)
+                    setUserMenuOpen((prev) => !prev)
+                  }}
+                >
+                  <img className="nav-user-avatar" src={raceIcon} alt={hasMainCharacter ? `${welcomeName} 종족 아이콘` : '대표 캐릭터 미설정'} />
+                  <span className="nav-user-text">{headerWelcomeText}</span>
+                </button>
+                {userMenuOpen ? (
+                  <div className="nav-user-menu">
+                    {isAdmin(user) ? <a href="/admin" onClick={() => setUserMenuOpen(false)}>관리자</a> : null}
+                    <button type="button" className="button-reset" onClick={openMyPage}>마이페이지</button>
+                    <button type="button" className="button-reset" onClick={handleLogout}>로그아웃</button>
+                  </div>
+                ) : null}
+              </div>
             </div>
           ) : null}
         </nav>
@@ -2337,6 +2559,107 @@ function App() {
                     </div>
                   ) : null}
                 </section>
+              </div>
+            </div>
+          </section>
+        ) : null}
+
+        {!boardId && screen === 'notifications' && user ? (
+          <section className="section">
+            <div className="notification-shell">
+              <div className="notification-head">
+                <div>
+                  <div className="mypage-overline">메시지</div>
+                  <h2>알림함</h2>
+                </div>
+                <div className="public-board-toolbar">
+                  <button className="btn" type="button" onClick={goHome}>{TEXT.home}</button>
+                </div>
+              </div>
+
+              <div className="notification-summary-grid">
+                <div className="notification-summary-card">
+                  <span>읽지 않은 알림</span>
+                  <strong>{notificationUnreadCount.toLocaleString()}개</strong>
+                </div>
+                <div className="notification-summary-card">
+                  <span>전체 페이지</span>
+                  <strong>{notificationTotalPages.toLocaleString()} 페이지</strong>
+                </div>
+                <div className="notification-summary-card actions">
+                  <button className="btn" type="button" onClick={() => { void markAllNotificationsRead(); void loadNotificationCenter(notificationPage, notificationSearch) }}>모두 읽음</button>
+                </div>
+              </div>
+
+              <div className="notification-panel">
+                <div className="auction-toolbar">
+                  <div className="auction-search-wrap">
+                    <input
+                      className="public-board-text-input"
+                      value={notificationSearchInput}
+                      onChange={(e) => setNotificationSearchInput(e.target.value)}
+                      placeholder="제목, 내용, 보낸이 검색"
+                    />
+                    <button
+                      className="btn"
+                      type="button"
+                      onClick={() => {
+                        setNotificationPage(1)
+                        setNotificationSearch(notificationSearchInput.trim())
+                      }}
+                    >
+                      검색
+                    </button>
+                  </div>
+                </div>
+
+                <div className="notification-table-wrap">
+                  <table className="public-post-table notification-table">
+                    <thead>
+                      <tr>
+                        <th>상태</th>
+                        <th>분류</th>
+                        <th>제목</th>
+                        <th>내용</th>
+                        <th>보낸이</th>
+                        <th>수신일</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {notificationCenterLoading ? (
+                        <tr><td colSpan={6} className="empty-cell">알림 목록을 불러오는 중입니다.</td></tr>
+                      ) : notifications.length ? notifications.map((notification) => {
+                        const meta = notificationTypeMeta(notification.type)
+                        return (
+                          <tr
+                            key={`notification-center-${notification.id}`}
+                            className={`notification-table-row${notification.is_read ? '' : ' unread'}`}
+                            onClick={() => { void openNotificationTarget(notification) }}
+                          >
+                            <td data-label="상태">
+                              <span className={`notification-status-pill${notification.is_read ? '' : ' unread'}`}>{notification.is_read ? '읽음' : '새 알림'}</span>
+                            </td>
+                            <td data-label="분류">
+                              <span className={`notification-kind-pill ${meta.className}`}>{notificationTypeLabel(notification.type)}</span>
+                            </td>
+                            <td data-label="제목" className="notification-title-cell">{notification.title || '알림'}</td>
+                            <td data-label="내용" className="notification-message-cell">{notification.message || '-'}</td>
+                            <td data-label="보낸이">{notification.sender_name || '시스템'}</td>
+                            <td data-label="수신일">{formatDate(notification.created_at)}</td>
+                          </tr>
+                        )
+                      }) : (
+                        <tr><td colSpan={6} className="empty-cell">표시할 알림이 없습니다.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="public-board-pager">
+                  <button type="button" onClick={() => setNotificationPage((prev) => Math.max(1, prev - 1))} disabled={notificationPage <= 1}>이전</button>
+                  <span>{notificationPage} / {notificationTotalPages}</span>
+                  <button type="button" onClick={() => setNotificationPage((prev) => Math.min(notificationTotalPages, prev + 1))} disabled={notificationPage >= notificationTotalPages}>다음</button>
+                </div>
               </div>
             </div>
           </section>
