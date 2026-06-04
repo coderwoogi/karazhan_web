@@ -1,8 +1,21 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
+const assetVersion = process.env.KARAZHAN_ASSET_VERSION || new Date().toISOString().replace(/\D/g, '').slice(0, 14)
+
+function assetVersionPlugin() {
+  return {
+    name: 'karazhan-asset-version',
+    apply: 'build',
+    enforce: 'post',
+    transformIndexHtml(html) {
+      return html.replace(/(\/assets\/index\.(?:js|css))(?=["'])/g, `$1?v=${assetVersion}`)
+    },
+  }
+}
+
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), assetVersionPlugin()],
   server: {
     host: '0.0.0.0',
     port: 5173,

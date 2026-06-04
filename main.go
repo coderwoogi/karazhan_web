@@ -49,7 +49,7 @@ func main() {
 	shopweb.RegisterRoutes(mux)
 
 	// Static Assets
-	mux.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir("./frontend/dist/assets"))))
+	mux.Handle("/assets/", noCacheStatic(http.StripPrefix("/assets/", http.FileServer(http.Dir("./frontend/dist/assets")))))
 	mux.Handle("/img/", http.StripPrefix("/img/", http.FileServer(http.Dir("./img"))))
 	mux.Handle("/sounds/", http.StripPrefix("/sounds/", http.FileServer(http.Dir("./sounds"))))
 	mux.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
@@ -76,6 +76,15 @@ func main() {
 	if err := http.ListenAndServe(":"+port, handler); err != nil {
 		log.Fatalf("Server failed: %v", err)
 	}
+}
+
+func noCacheStatic(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+		w.Header().Set("Pragma", "no-cache")
+		w.Header().Set("Expires", "0")
+		next.ServeHTTP(w, r)
+	})
 }
 
 func withSecurityHeaders(next http.Handler) http.Handler {
