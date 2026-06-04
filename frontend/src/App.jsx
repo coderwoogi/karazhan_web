@@ -1120,6 +1120,21 @@ function App() {
   }, [location.pathname, location.search])
 
   useEffect(() => {
+    if (screen !== 'detail') return
+    const params = new URLSearchParams(location.search)
+    const commentId = Number(params.get('comment_id') || 0)
+    if (!commentId) return
+    const timer = window.setTimeout(() => {
+      const target = document.getElementById(`comment-${commentId}`)
+      if (!target) return
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      target.classList.add('comment-focus-highlight')
+      window.setTimeout(() => target.classList.remove('comment-focus-highlight'), 2200)
+    }, 180)
+    return () => window.clearTimeout(timer)
+  }, [detail, location.search, screen])
+
+  useEffect(() => {
     if (!boardId || screen !== 'list') return
     loadPosts(boardId, page, search).catch((error) => { void showAlert(error?.message || '게시글을 불러오지 못했습니다.') })
   }, [boardId, loadPosts, page, screen, search, showAlert])
@@ -1599,6 +1614,22 @@ function App() {
       return
     }
     if (link.startsWith('/board/view')) {
+      try {
+        const legacyUrl = new URL(link, window.location.origin)
+        const postId = Number(legacyUrl.searchParams.get('id') || 0)
+        const commentId = Number(legacyUrl.searchParams.get('comment_id') || 0)
+        if (postId > 0) {
+          const postDetail = await apiFetch(`/api/board/post?id=${postId}`)
+          const nextBoardId = String(postDetail?.post?.board_id || '')
+          if (nextBoardId) {
+            const nextUrl = `/?board=${encodeURIComponent(nextBoardId)}&post=${postId}${commentId > 0 ? `&comment_id=${commentId}` : ''}`
+            navigate(nextUrl)
+            return
+          }
+        }
+      } catch {
+        // Fall back to the original link below.
+      }
       window.location.href = link
       return
     }
@@ -2841,7 +2872,7 @@ function App() {
                         <div className="public-comment-head"><h3>{isInquiryBoard ? '문의 진행 내용' : '댓글'}</h3><span className="public-board-status">{comments.length}개</span></div>
                         {!comments.length ? <div className="public-comment">{TEXT.commentsEmpty}</div> : null}
                         {comments.map((comment) => (
-                          <div key={comment.id} className={`public-comment public-comment-depth-${Math.min(Number(comment.depth || 0), 3)}`}>
+                          <div id={`comment-${comment.id}`} key={comment.id} className={`public-comment public-comment-depth-${Math.min(Number(comment.depth || 0), 3)}`}>
                             <div className="public-comment-head">
                               <strong>{renderAuthor(comment.author_name, comment.is_staff_author, comment.has_enhanced_stone)}</strong>
                               <div className="public-comment-actions">

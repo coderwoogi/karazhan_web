@@ -3032,12 +3032,13 @@ func CreateCommentHandler(w http.ResponseWriter, r *http.Request) {
 		// 1. Notify Post Author
 		var postAuthorID int
 		var postTitle string
-		uDB.QueryRow("SELECT account_id, title FROM web_posts WHERE id = ?", c.PostID).Scan(&postAuthorID, &postTitle)
+		var postBoardID string
+		uDB.QueryRow("SELECT account_id, title, board_id FROM web_posts WHERE id = ?", c.PostID).Scan(&postAuthorID, &postTitle, &postBoardID)
 		if postAuthorID != 0 && postAuthorID != user.AccountID {
 			msg := fmt.Sprintf("%s님이 회원님의 게시글에 댓글을 작성했습니다.", user.AuthorName)
-			link := fmt.Sprintf("/board/view?id=%d", c.PostID)
+			link := fmt.Sprintf("/?board=%s&post=%d", url.QueryEscape(postBoardID), c.PostID)
 			if commentID > 0 {
-				link = fmt.Sprintf("/board/view?id=%d&comment_id=%d", c.PostID, commentID)
+				link = fmt.Sprintf("%s&comment_id=%d", link, commentID)
 			}
 			ns.CreateNotification(postAuthorID, "comment", "댓글 알림", msg, link, user.AuthorName)
 		}
@@ -3049,9 +3050,9 @@ func CreateCommentHandler(w http.ResponseWriter, r *http.Request) {
 			// Notify if not self, and not same as post author (to avoid double notif if post author is also parent comment author)
 			if parentAuthorID != 0 && parentAuthorID != user.AccountID && parentAuthorID != postAuthorID {
 				msg := fmt.Sprintf("%s님이 회원님의 댓글에 답글을 작성했습니다.", user.AuthorName)
-				link := fmt.Sprintf("/board/view?id=%d", c.PostID)
+				link := fmt.Sprintf("/?board=%s&post=%d", url.QueryEscape(postBoardID), c.PostID)
 				if commentID > 0 {
-					link = fmt.Sprintf("/board/view?id=%d&comment_id=%d", c.PostID, commentID)
+					link = fmt.Sprintf("%s&comment_id=%d", link, commentID)
 				}
 				ns.CreateNotification(parentAuthorID, "comment", "답글 알림", msg, link, user.AuthorName)
 			}
