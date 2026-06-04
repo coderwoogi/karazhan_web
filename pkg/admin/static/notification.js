@@ -121,6 +121,19 @@ async function handleNotificationClick(id, link, type) {
 async function navigateCommentNotification(link) {
     try {
         const u = new URL(link, window.location.origin);
+        if (u.pathname.startsWith('/admin')) {
+            const bugReportPostId = parseInt(u.searchParams.get('bugreport_post_id') || '0', 10);
+            if (!bugReportPostId) return false;
+
+            closeNotificationDropdown();
+            openTab('bug-report-admin');
+            setTimeout(() => {
+                if (typeof openBugReportAdminDetail === 'function') {
+                    openBugReportAdminDetail(bugReportPostId);
+                }
+            }, 120);
+            return true;
+        }
         if (!u.pathname.startsWith('/board/view')) return false;
         const postId = parseInt(u.searchParams.get('id') || '0', 10);
         const commentId = parseInt(u.searchParams.get('comment_id') || '0', 10);

@@ -532,6 +532,80 @@ func getUserInfo(r *http.Request) (userInfo, error) {
 	return info, nil
 }
 
+func loadBugReportNotificationTargets(updateDB *sql.DB) []int {
+	targets := make([]int, 0)
+	seen := make(map[int]struct{})
+
+	if updateDB != nil {
+		rows, err := updateDB.Query("SELECT user_id FROM user_profiles WHERE web_rank >= 1")
+		if err == nil {
+			defer rows.Close()
+			for rows.Next() {
+				var userID int
+				if scanErr := rows.Scan(&userID); scanErr == nil && userID > 0 {
+					if _, ok := seen[userID]; !ok {
+						seen[userID] = struct{}{}
+						targets = append(targets, userID)
+					}
+				}
+			}
+		}
+	}
+
+	authDB, err := openAuthDB()
+	if err != nil {
+		return targets
+	}
+	defer authDB.Close()
+
+	rows, err := authDB.Query("SELECT id FROM account_access WHERE gmlevel > 0")
+	if err != nil {
+		return targets
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var userID int
+		if scanErr := rows.Scan(&userID); scanErr == nil && userID > 0 {
+			if _, ok := seen[userID]; !ok {
+				seen[userID] = struct{}{}
+				targets = append(targets, userID)
+			}
+		}
+	}
+
+	return targets
+}
+
+func notifyBugReportCreated(updateDB *sql.DB, postID int, title string, author userInfo) {
+	if updateDB == nil || postID <= 0 {
+		return
+	}
+	notifier := services.NewNotificationService(updateDB)
+	link := fmt.Sprintf("/admin?bugreport_post_id=%d", postID)
+	message := fmt.Sprintf("%s님이 새 버그 리포트를 등록했습니다: %s", author.AuthorName, strings.TrimSpace(title))
+	for _, targetUserID := range loadBugReportNotificationTargets(updateDB) {
+		if targetUserID == author.AccountID {
+			continue
+		}
+		if err := notifier.CreateNotification(targetUserID, "comment", "버그리포트 접수", message, link, author.AuthorName); err != nil {
+			log.Printf("Failed to create bug report notification for user %d: %v", targetUserID, err)
+		}
+	}
+}
+
+func notifyBugReportReplyToAuthor(updateDB *sql.DB, postID int, postTitle string, postAuthorID int, sender userInfo) {
+	if updateDB == nil || postID <= 0 || postAuthorID <= 0 || postAuthorID == sender.AccountID {
+		return
+	}
+	notifier := services.NewNotificationService(updateDB)
+	link := fmt.Sprintf("/?board=bugreport&post=%d", postID)
+	message := fmt.Sprintf("%s님이 버그 리포트에 답글을 남겼습니다: %s", sender.AuthorName, strings.TrimSpace(postTitle))
+	if err := notifier.CreateNotification(postAuthorID, "comment", "버그리포트 답변 도착", message, link, sender.AuthorName); err != nil {
+		log.Printf("Failed to create bug report reply notification for user %d: %v", postAuthorID, err)
+	}
+}
+
 func GetPostsHandler(w http.ResponseWriter, r *http.Request) {
 	boardID := r.URL.Query().Get("board_id")
 	log.Printf("[Board] GetPostsHandler: BoardID=%s, Request from %s", boardID, r.RemoteAddr)
@@ -1175,6 +1249,12 @@ func CreatePostHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	if isBugReportBoard(p.BoardID) && res != nil {
+		if postID, idErr := res.LastInsertId(); idErr == nil && postID > 0 {
+			notifyBugReportCreated(db, int(postID), p.Title, user)
+		}
+	}
+
 	w.WriteHeader(http.StatusCreated)
 	fmt.Fprint(w, `{"status":"success"}`)
 }
@@ -1569,6 +1649,11 @@ func CreateInquiryMessageHandler(w http.ResponseWriter, r *http.Request) {
 	// Staff answer implies progress unless already done.
 	if role == "staff" {
 		_, _ = db.Exec("UPDATE web_posts SET inquiry_status = CASE WHEN inquiry_status IN ('done', 'point_paid') THEN inquiry_status ELSE 'in_progress' END WHERE id = ?", req.PostID)
+	}
+	if isBugReportBoard(boardID) && role == "staff" {
+		var postTitle string
+		_ = db.QueryRow("SELECT IFNULL(title,'') FROM web_posts WHERE id = ?", req.PostID).Scan(&postTitle)
+		notifyBugReportReplyToAuthor(db, req.PostID, postTitle, authorAccountID, user)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
