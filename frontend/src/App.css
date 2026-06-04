@@ -3327,6 +3327,18 @@
   padding-left: 18px;
 }
 
+.board-sponsor-notice {
+  padding: 13px 14px;
+  color: #ffe9b4;
+  border: 1px solid rgba(245, 202, 101, 0.34);
+  background:
+    linear-gradient(90deg, rgba(245, 202, 101, 0.16), rgba(245, 202, 101, 0.04)),
+    rgba(0, 0, 0, 0.2);
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.7;
+}
+
 .board-sponsor-qr {
   display: grid;
   place-items: center;

@@ -401,6 +401,9 @@ function InquiryFields({ category, onCategoryChange, sponsorAgree, onSponsorAgre
               <span className="board-sponsor-kicker">후원 안내</span>
               <strong>입금 후 문의글을 남겨주시면 확인 후 포인트가 지급됩니다.</strong>
               <p>카카오페이 QR 또는 등록된 입금 수단으로 후원하신 뒤, 후원자명과 후원 금액을 정확히 입력해 주세요. 입력 정보가 실제 입금 내역과 다르면 처리가 지연될 수 있습니다.</p>
+              <div className="board-sponsor-notice">
+                쾌적한 서버 환경을 위해 전달해주시는 후원금은 자발적인 지원으로 간주됩니다. 이는 아이템 판매 수익이 아니므로 환불 도움을 드리기 어렵습니다. 서버의 지속적인 운영을 위해 신중하게 후원을 결정해 주시면 감사하겠습니다.
+              </div>
               <ul>
                 <li>후원 포인트는 1,000원당 1pt 기준으로 계산됩니다.</li>
                 <li>관리자 확인 후 문의 진행 내용에 처리 결과가 남습니다.</li>
