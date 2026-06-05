@@ -91,6 +91,8 @@ func resolveChatLogPath() string {
 		strings.TrimSpace(os.Getenv("KARAZHAN_CHAT_LOG_PATH")),
 		`E:/server/operate/logs/Chat.log`,
 		`E:/server/operate/logs/chat.log`,
+		`/Users/choitaeuk/Desktop/karazhan/operate/logs/Chat.log`,
+		`/Users/choitaeuk/Desktop/karazhan/operate/logs/chat.log`,
 		`/opt/homebrew/var/www/karazhan/logs/Chat.log`,
 		`/opt/homebrew/var/www/karazhan/logs/chat.log`,
 		`/opt/homebrew/var/log/karazhan/Chat.log`,
