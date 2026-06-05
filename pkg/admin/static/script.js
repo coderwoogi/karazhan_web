@@ -1008,7 +1008,10 @@ async function loadChatLogs(page = 1) {
         const res = await fetch('/api/logs/chat?' + params.toString(), { cache: 'no-store' });
         const data = await res.json().catch(() => ({}));
         if (!res.ok || data.status !== 'success') {
-            throw new Error(data.message || '채팅 로그를 불러오지 못했습니다.');
+            const checked = Array.isArray(data.checkedPaths) && data.checkedPaths.length
+                ? `\n\n확인한 경로:\n${data.checkedPaths.join('\n')}`
+                : '';
+            throw new Error((data.message || '채팅 로그를 불러오지 못했습니다.') + checked);
         }
 
         const items = Array.isArray(data.items) ? data.items : [];

@@ -169,6 +169,7 @@ func AuthDSN() string       { return get("KARAZHAN_AUTH_DSN") }
 func CharactersDSN() string { return get("KARAZHAN_CHARACTERS_DSN") }
 func WorldDSN() string      { return get("KARAZHAN_WORLD_DSN") }
 func UpdateDSN() string     { return get("KARAZHAN_UPDATE_DSN") }
+func ChatLogPath() string   { return get("KARAZHAN_CHAT_LOG_PATH") }
 func SMTPHost() string      { return get("KARAZHAN_SMTP_HOST") }
 func SMTPPort() string      { return get("KARAZHAN_SMTP_PORT") }
 func SMTPUsername() string  { return get("KARAZHAN_SMTP_USERNAME") }

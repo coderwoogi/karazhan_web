@@ -3,6 +3,8 @@ package stats
 import (
 	"bufio"
 	"encoding/json"
+	"fmt"
+	"karazhan/pkg/config"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -39,9 +41,13 @@ func handleChatLogs(w http.ResponseWriter, r *http.Request) {
 	query := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("q")))
 	channel := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("channel")))
 
-	path := resolveChatLogPath()
+	path, checkedPaths := resolveChatLogPath()
 	if path == "" {
-		writeJSON(w, http.StatusNotFound, map[string]string{"status": "error", "message": "chat.log 파일을 찾을 수 없습니다."})
+		writeJSON(w, http.StatusNotFound, map[string]interface{}{
+			"status":       "error",
+			"message":      "chat.log 파일을 찾을 수 없습니다. 경로 또는 웹 프로세스의 파일 접근 권한을 확인해주세요.",
+			"checkedPaths": checkedPaths,
+		})
 		return
 	}
 
@@ -86,8 +92,9 @@ func isChatLogOwner(r *http.Request) bool {
 	return strings.EqualFold(strings.TrimSpace(cookie.Value), "cpo5704")
 }
 
-func resolveChatLogPath() string {
+func resolveChatLogPath() (string, []string) {
 	candidates := []string{
+		strings.TrimSpace(config.ChatLogPath()),
 		strings.TrimSpace(os.Getenv("KARAZHAN_CHAT_LOG_PATH")),
 		`E:/server/operate/logs/Chat.log`,
 		`E:/server/operate/logs/chat.log`,
@@ -105,16 +112,27 @@ func resolveChatLogPath() string {
 		}, candidates...)
 	}
 
+	checked := make([]string, 0, len(candidates))
+	seen := make(map[string]bool)
 	for _, path := range candidates {
 		path = strings.TrimSpace(path)
 		if path == "" {
 			continue
 		}
+		if seen[path] {
+			continue
+		}
+		seen[path] = true
 		if info, err := os.Stat(path); err == nil && !info.IsDir() {
-			return path
+			checked = append(checked, path+" => OK")
+			return path, checked
+		} else if err != nil {
+			checked = append(checked, fmt.Sprintf("%s => %v", path, err))
+		} else if info != nil && info.IsDir() {
+			checked = append(checked, path+" => directory")
 		}
 	}
-	return ""
+	return "", checked
 }
 
 func readChatLogEntries(path, query, channel string) ([]chatLogEntry, error) {
