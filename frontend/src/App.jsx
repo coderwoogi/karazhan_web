@@ -2020,12 +2020,6 @@ function App() {
                 </video>
               </div>
               <div className="hero-inner">
-                <div className="hero-copy">
-                  <div className="eyebrow">{home.hero.eyebrow}</div>
-                  <h1>{home.hero.title}</h1>
-                  <div className="hero-subtitle">{home.hero.subtitle}</div>
-                  <p className="hero-desc">{home.hero.description}</p>
-                </div>
                 <article className={`server-card hero-server-status ${worldServerOnline === false ? 'offline' : worldServerOnline === null ? 'checking' : 'online'}`}>
                   <div className="hero-server-badge">
                     <span className={`hero-server-dot ${worldServerOnline === false ? 'off' : ''}`} />
