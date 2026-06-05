@@ -59,13 +59,13 @@ func handleChatLogs(w http.ResponseWriter, r *http.Request) {
 
 	total := len(entries)
 	offset := (page - 1) * limit
-	end := total - offset
-	if end < 0 {
-		end = 0
+	start := offset
+	if start > total {
+		start = total
 	}
-	start := end - limit
-	if start < 0 {
-		start = 0
+	end := start + limit
+	if end > total {
+		end = total
 	}
 
 	pageItems := make([]chatLogEntry, 0)
@@ -81,6 +81,7 @@ func handleChatLogs(w http.ResponseWriter, r *http.Request) {
 		"page":       page,
 		"totalPages": (total + limit - 1) / limit,
 		"path":       path,
+		"order":      "newest_first",
 	})
 }
 
