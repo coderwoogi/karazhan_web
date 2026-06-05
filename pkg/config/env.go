@@ -121,7 +121,7 @@ func LauncherBaseURL(r *http.Request) string {
 	if r != nil {
 		host := HostOnly(r.Host)
 		if host == "" || host == "127.0.0.1" || host == "localhost" {
-			return "http://127.0.0.1:8080"
+			return launcherLoopbackBaseURL()
 		}
 	}
 
@@ -130,7 +130,7 @@ func LauncherBaseURL(r *http.Request) string {
 		if v := get("KARAZHAN_PROD_LAUNCHER_BASE_URL"); v != "" {
 			return strings.TrimRight(v, "/")
 		}
-		return RequestScheme(r) + "://" + ProdDomain()
+		return launcherLoopbackBaseURL()
 	}
 	if env == "development" || env == "dev" {
 		if v := get("KARAZHAN_DEV_LAUNCHER_BASE_URL"); v != "" {
@@ -139,15 +139,23 @@ func LauncherBaseURL(r *http.Request) string {
 		if r != nil {
 			host := HostOnly(r.Host)
 			if host == "" || host == "127.0.0.1" || host == "localhost" {
-				return "http://127.0.0.1:8080"
+				return launcherLoopbackBaseURL()
 			}
 		}
-		return RequestScheme(r) + "://" + DevDomain()
+		return launcherLoopbackBaseURL()
 	}
 	if v := get("KARAZHAN_LAUNCHER_BASE_URL"); v != "" {
 		return strings.TrimRight(v, "/")
 	}
-	return "http://127.0.0.1:8080"
+	return launcherLoopbackBaseURL()
+}
+
+func launcherLoopbackBaseURL() string {
+	port := strings.TrimSpace(Port())
+	if port == "" {
+		port = "80"
+	}
+	return "http://127.0.0.1:" + port
 }
 
 func Port() string {
