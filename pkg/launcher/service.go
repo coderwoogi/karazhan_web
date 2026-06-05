@@ -672,7 +672,7 @@ func handleAnnounceHistory(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleWorldShutdownHistory(w http.ResponseWriter, r *http.Request) {
-	if !stats.CheckMenuPermission(w, r, "remote-control", "submenu") {
+	if !stats.CheckMenuPermission(w, r, "logs") {
 		return
 	}
 

@@ -1551,7 +1551,6 @@
                     <div class="log-sub-tabs">
                         <button class="log-sub-tab-btn active" onclick="openServerSubTab('control')">서버 제어</button>
                         <button class="log-sub-tab-btn" onclick="openServerSubTab('schedule')">서버 점검 예약</button>
-                        <button class="log-sub-tab-btn" onclick="openServerSubTab('shutdown-history')">월드 종료 이력</button>
                         <button class="log-sub-tab-btn" onclick="openServerSubTab('web')">웹 관리</button>
                     </div>
 
@@ -1682,47 +1681,6 @@
                                 </table>
                             </div>
                             <div id="schedule-pagination" style="margin-top: 1rem;"></div>
-                        </div>
-                    </div>
-
-                    <!-- World Shutdown History Sub-Tab -->
-                    <div id="mn-shutdown-history" class="log-sub-content">
-                        <div style="padding: 1.5rem;">
-                            <div class="card">
-                                <div class="card-header">
-                                    <h2>월드서버 종료 이력</h2>
-                                    <button onclick="loadWorldShutdownHistory(1)" class="refresh-btn">
-                                        <i class="fas fa-sync-alt"></i> 새로고침
-                                    </button>
-                                </div>
-                                <div class="card-body">
-                                    <p style="margin:0 0 1rem; color: var(--text-secondary);">
-                                        월드서버가 수동 종료, 예약 종료, 외부 종료 감지로 내려간 시간을 기록합니다. 수동 종료는 입력한 사유와 처리자를 함께 남깁니다.
-                                    </p>
-                                    <div class="scroll-table premium-table" style="max-height: 520px;">
-                                        <table>
-                                            <thead>
-                                                <tr>
-                                                    <th style="width: 170px;">종료 시각</th>
-                                                    <th style="width: 120px;">유형</th>
-                                                    <th style="width: 150px;">처리자</th>
-                                                    <th>종료 사유</th>
-                                                    <th style="width: 150px;">계정</th>
-                                                    <th style="width: 140px;">IP</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody id="world-shutdown-history-list">
-                                                <tr>
-                                                    <td colspan="6" style="text-align:center; color: var(--text-secondary); padding: 18px;">
-                                                        종료 이력을 불러오려면 새로고침을 눌러주세요.
-                                                    </td>
-                                                </tr>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                    <div id="world-shutdown-history-pagination" style="margin-top: 1rem;"></div>
-                                </div>
-                            </div>
                         </div>
                     </div>
 
@@ -2750,6 +2708,7 @@
                         <button class="log-sub-tab-btn" onclick="openLogSubTab('karazhan')">카라잔 강화 로그</button>
                         <button class="log-sub-tab-btn" onclick="openLogSubTab('playtime')">접속 보상 지급</button>
                         <button class="log-sub-tab-btn" onclick="openLogSubTab('mail')">우편 발송 기록</button>
+                        <button class="log-sub-tab-btn" onclick="openLogSubTab('shutdown-history')">월드 종료 이력</button>
                     </div>
 
                     <!-- Action Logs Sub-Tab -->
@@ -2950,6 +2909,43 @@
                                 </table>
                             </div>
                             <div id="mail-logs-pagination" style="margin-top: 1rem;"></div>
+                        </div>
+                    </div>
+
+                    <!-- World Shutdown History Logs Sub-Tab -->
+                    <div id="log-shutdown-history" class="log-sub-content">
+                        <div style="padding: 1.5rem;">
+                            <div class="filter-bar">
+                                <div class="filter-group" style="flex:1;">
+                                    <label><i class="fas fa-power-off"></i> 월드서버 종료 이력</label>
+                                    <input type="text" value="월드서버가 내려간 시간, 유형, 사유, 처리자를 기록합니다." readonly>
+                                </div>
+                                <button onclick="loadWorldShutdownHistory(1)" class="search-btn">
+                                    <i class="fas fa-sync-alt"></i> 새로고침
+                                </button>
+                            </div>
+                            <div class="scroll-table premium-table" style="max-height: 2000px;">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 170px;">종료 시각</th>
+                                            <th style="width: 120px;">유형</th>
+                                            <th style="width: 150px;">처리자</th>
+                                            <th>종료 사유</th>
+                                            <th style="width: 150px;">계정</th>
+                                            <th style="width: 140px;">IP</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="world-shutdown-history-list">
+                                        <tr>
+                                            <td colspan="6" style="text-align:center; color: var(--text-secondary); padding: 18px;">
+                                                종료 이력을 불러오는 중...
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div id="world-shutdown-history-pagination" style="margin-top: 1rem;"></div>
                         </div>
                     </div>
                 </div>

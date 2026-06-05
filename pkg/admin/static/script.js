@@ -954,6 +954,8 @@ function openLogSubTab(tabName) {
         loadPlaytimeLogs(1, true);
     } else if (tabName === 'mail') {
         loadMailLogs(1, true);
+    } else if (tabName === 'shutdown-history') {
+        loadWorldShutdownHistory(1);
     }
 }
 
@@ -1378,8 +1380,6 @@ function openServerSubTab(tabName) {
         // but we can force check if needed. Existing startServer/stopServer handlers usually trigger updates.
     } else if (tabName === 'schedule') {
         loadSchedule(1);
-    } else if (tabName === 'shutdown-history') {
-        loadWorldShutdownHistory(1);
     } else if (tabName === 'web') {
         loadWebGuardSettings();
     }
