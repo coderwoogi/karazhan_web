@@ -7,6 +7,15 @@ var currentUserMainChar = window.currentUserMainChar || null;
 let g_sessionUser = null;
 window.g_sessionUser = null;
 
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 const LoadingUX = (() => {
     let pendingRequests = 0;
     let isFetchPatched = false;
@@ -1369,6 +1378,8 @@ function openServerSubTab(tabName) {
         // but we can force check if needed. Existing startServer/stopServer handlers usually trigger updates.
     } else if (tabName === 'schedule') {
         loadSchedule(1);
+    } else if (tabName === 'shutdown-history') {
+        loadWorldShutdownHistory(1);
     } else if (tabName === 'web') {
         loadWebGuardSettings();
     }
@@ -2330,6 +2341,46 @@ async function addSchedule() {
     }
 }
 
+function shutdownTypeLabel(type) {
+    const normalized = String(type || '').toLowerCase();
+    if (normalized === 'manual') return '수동 종료';
+    if (normalized === 'scheduled') return '예약 종료';
+    if (normalized === 'detected') return '외부 종료 감지';
+    return normalized || '-';
+}
+
+async function loadWorldShutdownHistory(page = 1) {
+    const tbody = document.getElementById('world-shutdown-history-list');
+    const pgContainer = document.getElementById('world-shutdown-history-pagination');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:14px;">종료 이력을 불러오는 중...</td></tr>';
+
+    try {
+        const res = await fetch(`/api/launcher/shutdown-history?page=${page}&limit=20`);
+        const data = await res.json();
+        const list = data.list || [];
+        if (!res.ok) throw new Error(data.message || `HTTP ${res.status}`);
+        if (!list.length) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:18px;">기록된 월드서버 종료 이력이 없습니다.</td></tr>';
+            renderPagination(pgContainer, data, (p) => loadWorldShutdownHistory(p));
+            return;
+        }
+        tbody.innerHTML = list.map((item) => `
+            <tr>
+                <td style="white-space:nowrap;">${item.detectedAt || '-'}</td>
+                <td><span class="status-badge stopped" style="font-size:0.75rem;">${shutdownTypeLabel(item.shutdownType)}</span></td>
+                <td style="font-weight:700;">${escapeHtml(item.actorName || item.actorAccount || 'system')}</td>
+                <td>${escapeHtml(item.reason || '-')}</td>
+                <td style="white-space:nowrap;">${escapeHtml(item.actorAccount || '-')}</td>
+                <td style="white-space:nowrap;">${escapeHtml(item.ipAddress || '-')}</td>
+            </tr>
+        `).join('');
+        renderPagination(pgContainer, data, (p) => loadWorldShutdownHistory(p));
+    } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:14px; color:red;">종료 이력을 불러오지 못했습니다. ${escapeHtml(e.message || '')}</td></tr>`;
+    }
+}
+
 // Server Control
 async function startServer(target) {
     appendLog(target, '시스템', '서버 가동 명령을 보냅니다...');
@@ -2351,11 +2402,58 @@ async function startServer(target) {
     }
 }
 
+async function requestWorldStopReason() {
+    const title = '월드서버 종료 사유';
+    const message = '월드서버가 종료되는 이유를 입력해주세요.\n이 내용은 종료 이력에 기록됩니다.';
+    if (ModalUtils.hasSwal()) {
+        const result = await Swal.fire({
+            title,
+            text: message,
+            input: 'textarea',
+            inputPlaceholder: '예: 정기 점검, 긴급 패치, 서버 재시작 등',
+            inputAttributes: { maxlength: 500 },
+            showCancelButton: true,
+            confirmButtonText: '종료 진행',
+            cancelButtonText: '취소',
+            confirmButtonColor: '#d33',
+            preConfirm: (value) => {
+                const reason = String(value || '').trim();
+                if (!reason) {
+                    Swal.showValidationMessage('종료 사유를 입력해주세요.');
+                    return false;
+                }
+                return reason;
+            }
+        });
+        return result.isConfirmed ? String(result.value || '').trim() : '';
+    }
+    return String(window.prompt(`${message}\n\n종료 사유:`, '') || '').trim();
+}
+
 async function stopServer(target) {
+    let reason = '';
+    if (target === 'world') {
+        reason = await requestWorldStopReason();
+        if (!reason) {
+            appendLog(target, '시스템', '서버 중지 명령이 취소되었습니다.');
+            return;
+        }
+    }
     appendLog(target, '시스템', '서버 중지 명령을 보냅니다...');
     try {
-        const res = await fetch(`/api/launcher/stop?target=${target}`, { method: 'POST' });
-        const data = await res.json();
+        const body = new URLSearchParams();
+        if (reason) body.set('reason', reason);
+        const res = await fetch(`/api/launcher/stop?target=${encodeURIComponent(target)}`, {
+            method: 'POST',
+            body
+        });
+        const raw = await res.text();
+        let data = {};
+        try {
+            data = raw ? JSON.parse(raw) : {};
+        } catch (e) {
+            data = { status: 'error', message: raw || `HTTP ${res.status}` };
+        }
         if (data.status === 'success') {
             appendLog(target, '시스템', '성공적으로 중지되었습니다.');
             updateStatusUI(target, false);

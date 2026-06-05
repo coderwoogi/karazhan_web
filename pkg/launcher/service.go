@@ -49,6 +49,10 @@ var processes = map[string]*ServerProcess{
 	},
 }
 
+var worldShutdownMonitorOnce sync.Once
+var worldShutdownSuppressMu sync.Mutex
+var worldShutdownSuppressUntil time.Time
+
 func init() {
 	// Start log tailers for all processes
 	for _, proc := range processes {
@@ -65,10 +69,13 @@ func RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/launcher/announce", handleAnnounce)
 	mux.HandleFunc("/api/launcher/command", handleWorldCommand)
 	mux.HandleFunc("/api/launcher/announce/history", handleAnnounceHistory)
+	mux.HandleFunc("/api/launcher/shutdown-history", handleWorldShutdownHistory)
 	mux.HandleFunc("/api/scheduler/list", handleScheduleList)
 	mux.HandleFunc("/api/scheduler/add", handleScheduleAdd)
 
 	ensureAnnounceHistoryTable()
+	ensureWorldShutdownLogTable()
+	worldShutdownMonitorOnce.Do(startWorldShutdownMonitor)
 	StartScheduler()
 }
 
@@ -97,6 +104,110 @@ CREATE TABLE IF NOT EXISTS launcher_announce_history (
 	if _, err := db.Exec(query); err != nil {
 		log.Printf("announce history table create error: %v", err)
 	}
+}
+
+func ensureWorldShutdownLogTable() {
+	dsn := config.UpdateDSNWithParams("parseTime=true&charset=utf8mb4")
+	db, err := sql.Open("mysql", dsn)
+	if err != nil {
+		log.Printf("world shutdown log table init db open error: %v", err)
+		return
+	}
+	defer db.Close()
+
+	query := `
+CREATE TABLE IF NOT EXISTS world_server_shutdown_log (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  target VARCHAR(32) NOT NULL DEFAULT 'world',
+  shutdown_type VARCHAR(32) NOT NULL DEFAULT 'detected',
+  reason TEXT NOT NULL,
+  actor_account VARCHAR(64) NOT NULL DEFAULT 'system',
+  actor_name VARCHAR(64) NOT NULL DEFAULT 'system',
+  ip_address VARCHAR(45) NOT NULL DEFAULT '',
+  detected_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_detected_at (detected_at),
+  KEY idx_shutdown_type (shutdown_type),
+  KEY idx_actor_account (actor_account)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci`
+	if _, err := db.Exec(query); err != nil {
+		log.Printf("world shutdown log table create error: %v", err)
+	}
+}
+
+func recordWorldShutdownLog(shutdownType, reason, actorAccount, actorName, ip string) {
+	dsn := config.UpdateDSNWithParams("parseTime=true&charset=utf8mb4")
+	db, err := sql.Open("mysql", dsn)
+	if err != nil {
+		log.Printf("world shutdown log db open error: %v", err)
+		return
+	}
+	defer db.Close()
+
+	shutdownType = strings.TrimSpace(shutdownType)
+	if shutdownType == "" {
+		shutdownType = "detected"
+	}
+	reason = strings.TrimSpace(reason)
+	if reason == "" {
+		reason = "월드서버 종료 감지"
+	}
+	actorAccount = strings.TrimSpace(actorAccount)
+	if actorAccount == "" {
+		actorAccount = "system"
+	}
+	actorName = strings.TrimSpace(actorName)
+	if actorName == "" {
+		actorName = actorAccount
+	}
+
+	_, err = db.Exec(`
+		INSERT INTO world_server_shutdown_log
+			(target, shutdown_type, reason, actor_account, actor_name, ip_address, detected_at)
+		VALUES ('world', ?, ?, ?, ?, ?, NOW())
+	`, shutdownType, reason, actorAccount, actorName, ip)
+	if err != nil {
+		log.Printf("world shutdown log insert error: %v", err)
+	}
+}
+
+func suppressWorldShutdownDetection(duration time.Duration) {
+	worldShutdownSuppressMu.Lock()
+	worldShutdownSuppressUntil = time.Now().Add(duration)
+	worldShutdownSuppressMu.Unlock()
+}
+
+func shouldSuppressWorldShutdownDetection() bool {
+	worldShutdownSuppressMu.Lock()
+	defer worldShutdownSuppressMu.Unlock()
+	return time.Now().Before(worldShutdownSuppressUntil)
+}
+
+func startWorldShutdownMonitor() {
+	go func() {
+		worldProc, ok := processes["world"]
+		if !ok {
+			return
+		}
+		wasRunning := isRunning(worldProc.Name)
+		worldProc.Running = wasRunning
+		ticker := time.NewTicker(15 * time.Second)
+		defer ticker.Stop()
+
+		for range ticker.C {
+			running := isRunning(worldProc.Name)
+			if wasRunning && !running {
+				if shouldSuppressWorldShutdownDetection() {
+					log.Printf("[WorldShutdown] skipped detected shutdown log due to recent manual/scheduled stop")
+				} else {
+					recordWorldShutdownLog("detected", "월드서버 프로세스가 외부 요인으로 종료되었습니다.", "system", "system", "")
+				}
+			}
+			wasRunning = running
+			worldProc.Running = running
+		}
+	}()
 }
 
 // ... (skip handlers)
@@ -286,6 +397,15 @@ func handleStop(w http.ResponseWriter, r *http.Request) {
 	}
 
 	target := r.URL.Query().Get("target")
+	reason := strings.TrimSpace(r.URL.Query().Get("reason"))
+	if reason == "" {
+		_ = r.ParseForm()
+		reason = strings.TrimSpace(r.FormValue("reason"))
+	}
+	if reason == "" && strings.EqualFold(target, "world") {
+		http.Error(w, "월드서버 종료 사유를 입력해주세요.", http.StatusBadRequest)
+		return
+	}
 	if err := StopProcess(target); err != nil {
 		if err.Error() == "not running" {
 			json.NewEncoder(w).Encode(map[string]string{"status": "not_running", "message": target + " is not running"})
@@ -297,6 +417,18 @@ func handleStop(w http.ResponseWriter, r *http.Request) {
 
 	// Log Action
 	utils.LogAction(r, "", "Stop Server: "+target)
+	if strings.EqualFold(target, "world") {
+		dsn := config.UpdateDSNWithParams("parseTime=true&charset=utf8mb4")
+		if db, err := sql.Open("mysql", dsn); err == nil {
+			actorAccount, actorName := resolveAnnounceSender(r, db)
+			db.Close()
+			recordWorldShutdownLog("manual", reason, actorAccount, actorName, resolveClientIP(r))
+			suppressWorldShutdownDetection(90 * time.Second)
+		} else {
+			recordWorldShutdownLog("manual", reason, "unknown", "unknown", resolveClientIP(r))
+			suppressWorldShutdownDetection(90 * time.Second)
+		}
+	}
 
 	json.NewEncoder(w).Encode(map[string]string{"status": "success", "message": target + " stopped"})
 }
@@ -537,6 +669,78 @@ func handleAnnounceHistory(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{"list": list})
+}
+
+func handleWorldShutdownHistory(w http.ResponseWriter, r *http.Request) {
+	if !stats.CheckMenuPermission(w, r, "remote-control", "submenu") {
+		return
+	}
+
+	page := 1
+	limit := 20
+	if v := strings.TrimSpace(r.URL.Query().Get("page")); v != "" {
+		_, _ = fmt.Sscanf(v, "%d", &page)
+	}
+	if v := strings.TrimSpace(r.URL.Query().Get("limit")); v != "" {
+		_, _ = fmt.Sscanf(v, "%d", &limit)
+	}
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 || limit > 100 {
+		limit = 20
+	}
+	offset := (page - 1) * limit
+
+	dsn := config.UpdateDSNWithParams("parseTime=true&charset=utf8mb4")
+	db, err := sql.Open("mysql", dsn)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer db.Close()
+
+	total := 0
+	_ = db.QueryRow("SELECT COUNT(*) FROM world_server_shutdown_log WHERE target='world'").Scan(&total)
+
+	rows, err := db.Query(`
+		SELECT id, shutdown_type, reason, actor_account, actor_name, ip_address,
+		       DATE_FORMAT(detected_at, '%Y-%m-%d %H:%i:%s') AS detected_at
+		FROM world_server_shutdown_log
+		WHERE target='world'
+		ORDER BY detected_at DESC, id DESC
+		LIMIT ? OFFSET ?`, limit, offset)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	list := make([]map[string]interface{}, 0)
+	for rows.Next() {
+		var id int64
+		var shutdownType, reason, actorAccount, actorName, ipAddress, detectedAt string
+		if err := rows.Scan(&id, &shutdownType, &reason, &actorAccount, &actorName, &ipAddress, &detectedAt); err != nil {
+			continue
+		}
+		list = append(list, map[string]interface{}{
+			"id":           id,
+			"shutdownType": shutdownType,
+			"reason":       reason,
+			"actorAccount": actorAccount,
+			"actorName":    actorName,
+			"ipAddress":    ipAddress,
+			"detectedAt":   detectedAt,
+		})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"list":       list,
+		"total":      total,
+		"page":       page,
+		"totalPages": (total + limit - 1) / limit,
+	})
 }
 
 func saveAnnounceHistory(r *http.Request, text string, sendType string) {

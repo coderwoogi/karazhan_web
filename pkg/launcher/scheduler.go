@@ -68,9 +68,17 @@ func executeJob(action, target string) {
 		err = StartProcess(target)
 	case "stop":
 		err = StopProcess(target)
+		if err == nil && target == "world" {
+			recordWorldShutdownLog("scheduled", "예약된 서버 점검 작업으로 월드서버가 종료되었습니다.", "system", "system", "")
+			suppressWorldShutdownDetection(90 * time.Second)
+		}
 	case "restart":
 		// Stop then Start
-		StopProcess(target)
+		stopErr := StopProcess(target)
+		if stopErr == nil && target == "world" {
+			recordWorldShutdownLog("scheduled", "예약된 서버 재시작 작업으로 월드서버가 종료되었습니다.", "system", "system", "")
+			suppressWorldShutdownDetection(90 * time.Second)
+		}
 		// Give it a second to shutdown
 		time.Sleep(2 * time.Second)
 		err = StartProcess(target)
