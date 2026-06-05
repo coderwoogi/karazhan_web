@@ -3512,7 +3512,7 @@ async function saveContentItemPriceSettings() {
         const res = await fetch('/api/content/item-template/save', { method: 'POST', body: form });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.message || '저장에 실패했습니다.');
-        ModalUtils.showAlert(data.message || '저장되었습니다.');
+        showDropReloadResult(data, data.message || '저장되었습니다.');
         await loadContentItemDetail(itemEntry);
     } catch (err) {
         ModalUtils.showAlert(err.message || '저장 중 오류가 발생했습니다.');

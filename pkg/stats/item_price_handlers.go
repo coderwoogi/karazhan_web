@@ -219,11 +219,19 @@ func handleContentItemPriceSave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]interface{}{
+	reloadErr := triggerCreatureDropReload(r, ".breload item "+strconv.Itoa(payload.ItemEntry))
+	response := map[string]interface{}{
 		"status":     "success",
 		"message":    "아이템 정보가 저장되었습니다.",
 		"item_entry": payload.ItemEntry,
 		"buy_price":  payload.BuyPrice,
 		"sell_price": payload.SellPrice,
-	})
+		"reload":     "success",
+	}
+	if reloadErr != nil {
+		response["reload"] = "failed"
+		response["reload_message"] = reloadErr.Error()
+	}
+
+	writeJSON(w, http.StatusOK, response)
 }
