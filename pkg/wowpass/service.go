@@ -102,6 +102,7 @@ func RegisterRoutes(mux *http.ServeMux) {
 
 	mux.HandleFunc("/api/carddraw/state", handleCardDrawState)
 	mux.HandleFunc("/api/carddraw/world-status", handleCardDrawWorldStatus)
+	mux.HandleFunc("/api/server/world-status", handlePublicWorldStatus)
 	mux.HandleFunc("/api/carddraw/characters", handleCardDrawCharacters)
 	mux.HandleFunc("/api/carddraw/character/select", handleCardDrawSelectCharacter)
 	mux.HandleFunc("/api/carddraw/history", handleCardDrawHistory)
@@ -1600,6 +1601,17 @@ func handleCardDrawWorldStatus(w http.ResponseWriter, r *http.Request) {
 	}
 	if _, _, err := getSessionUserID(r); err != nil {
 		writeJSON(w, http.StatusUnauthorized, map[string]string{"status": "error", "message": "login required"})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"status":        "success",
+		"world_running": isCardDrawWorldServerRunning(),
+	})
+}
+
+func handlePublicWorldStatus(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"status": "error", "message": "method not allowed"})
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]interface{}{

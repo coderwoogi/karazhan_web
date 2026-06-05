@@ -875,6 +875,121 @@
       font-size: 13px;
     }
 
+.hero-server-status {
+  display: grid;
+  align-content: end;
+  min-height: 260px;
+  padding: 26px;
+  border-color: rgba(52, 211, 153, 0.32);
+  background:
+    linear-gradient(180deg, transparent 0%, rgba(5, 5, 10, 0.72) 70%),
+    radial-gradient(circle at 82% 14%, rgba(122, 56, 230, 0.22), transparent 36%),
+    linear-gradient(135deg, rgba(21, 16, 31, 0.88), rgba(7, 6, 12, 0.9));
+}
+
+.hero-server-status.offline {
+  border-color: rgba(251, 113, 133, 0.34);
+  background:
+    linear-gradient(180deg, transparent 0%, rgba(5, 5, 10, 0.78) 70%),
+    radial-gradient(circle at 82% 14%, rgba(251, 113, 133, 0.18), transparent 36%),
+    linear-gradient(135deg, rgba(28, 11, 16, 0.9), rgba(7, 6, 12, 0.92));
+}
+
+.hero-server-status.checking {
+  border-color: rgba(218, 183, 109, 0.34);
+}
+
+.hero-server-badge {
+  width: fit-content;
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+  margin-bottom: 16px;
+  padding: 10px 14px;
+  border: 1px solid rgba(52, 211, 153, 0.36);
+  background: rgba(6, 32, 24, 0.8);
+  color: #d9ffe9;
+  font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+}
+
+.hero-server-status.offline .hero-server-badge {
+  color: #ffd6dc;
+  border-color: rgba(251, 113, 133, 0.36);
+  background: rgba(58, 14, 23, 0.78);
+}
+
+.hero-server-status.checking .hero-server-badge {
+  color: #fff1c9;
+  border-color: rgba(218, 183, 109, 0.36);
+  background: rgba(50, 36, 11, 0.72);
+}
+
+.hero-server-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: #34d399;
+  box-shadow: 0 0 0 5px rgba(52, 211, 153, 0.12), 0 0 18px rgba(52, 211, 153, 0.52);
+  animation: onlinePulse 1.65s ease-in-out infinite;
+  flex: none;
+}
+
+.hero-server-dot.off {
+  background: #fb7185;
+  box-shadow: 0 0 0 5px rgba(251, 113, 133, 0.12), 0 0 18px rgba(251, 113, 133, 0.48);
+  animation: none;
+}
+
+@keyframes onlinePulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  50% {
+    transform: scale(1.25);
+    opacity: 0.72;
+  }
+}
+
+.hero-server-status h2 {
+  margin: 0;
+  color: #fff1c9;
+  font-size: 29px;
+  line-height: 1.18;
+  text-align: left;
+}
+
+.hero-server-status p {
+  margin: 10px 0 0;
+  color: #bfb4c9;
+  font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.hero-server-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(218, 183, 109, 0.16);
+  color: #9f96ad;
+  font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+  font-size: 12px;
+}
+
+.hero-server-meta strong {
+  color: #f3dfab;
+  font-size: 13px;
+}
+
     @keyframes rise {
       from {
         opacity: 0;

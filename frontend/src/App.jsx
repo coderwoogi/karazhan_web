@@ -666,6 +666,8 @@ function App() {
   const [noticePreviewPosts, setNoticePreviewPosts] = useState([])
   const [communityPreviewPosts, setCommunityPreviewPosts] = useState([])
   const [mediaPreviewPosts, setMediaPreviewPosts] = useState([])
+  const [worldServerOnline, setWorldServerOnline] = useState(null)
+  const [worldStatusUpdatedAt, setWorldStatusUpdatedAt] = useState('')
   const [auctionTab, setAuctionTab] = useState('list')
   const [auctionRows, setAuctionRows] = useState([])
   const [auctionPage, setAuctionPage] = useState(1)
@@ -985,6 +987,17 @@ function App() {
     }
   }, [])
 
+  const loadWorldServerStatus = useCallback(async () => {
+    try {
+      const response = await apiFetch('/api/server/world-status')
+      setWorldServerOnline(response?.world_running === true)
+      setWorldStatusUpdatedAt(new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }))
+    } catch {
+      setWorldServerOnline(false)
+      setWorldStatusUpdatedAt('확인 실패')
+    }
+  }, [])
+
   const loadAuctionList = useCallback(async (targetPage = 1, targetSearch = auctionSearch, targetStatus = auctionStatus) => {
     setAuctionLoading(true)
     try {
@@ -1069,7 +1082,15 @@ function App() {
     loadContents()
     loadUser()
     loadBoards()
-  }, [loadBoards, loadContents, loadHome, loadUser])
+    loadWorldServerStatus()
+  }, [loadBoards, loadContents, loadHome, loadUser, loadWorldServerStatus])
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      loadWorldServerStatus().catch(() => {})
+    }, 30000)
+    return () => window.clearInterval(timer)
+  }, [loadWorldServerStatus])
 
   useEffect(() => {
     if (!user) return undefined
@@ -2005,6 +2026,18 @@ function App() {
                   <div className="hero-subtitle">{home.hero.subtitle}</div>
                   <p className="hero-desc">{home.hero.description}</p>
                 </div>
+                <article className={`server-card hero-server-status ${worldServerOnline === false ? 'offline' : worldServerOnline === null ? 'checking' : 'online'}`}>
+                  <div className="hero-server-badge">
+                    <span className={`hero-server-dot ${worldServerOnline === false ? 'off' : ''}`} />
+                    {worldServerOnline === null ? 'WORLD SERVER CHECKING' : worldServerOnline ? 'WORLD SERVER ONLINE' : 'WORLD SERVER OFFLINE'}
+                  </div>
+                  <h2>{worldServerOnline === null ? '서버 상태를 확인 중입니다' : worldServerOnline ? '카라잔 서버가 열려 있습니다' : '현재 서버가 닫혀 있습니다'}</h2>
+                  <p>{worldServerOnline === false ? '점검 또는 재시작 중일 수 있습니다. 잠시 후 다시 확인해 주세요.' : '현재 접속 가능 상태입니다. 접속 방법을 확인하고 바로 모험을 시작하세요.'}</p>
+                  <div className="hero-server-meta">
+                    <span>최근 갱신</span>
+                    <strong>{worldStatusUpdatedAt || '대기 중'}</strong>
+                  </div>
+                </article>
               </div>
             </section>
 
