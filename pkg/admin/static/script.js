@@ -1022,7 +1022,7 @@ async function loadChatLogs(page = 1) {
         }
 
         listEl.innerHTML = `
-            <div class="chat-log-date">chat.log 최신 ${items.length.toLocaleString()}건</div>
+            <div class="chat-log-date">chat.log 최신 ${items.length.toLocaleString()}건 · 최신 채팅은 맨 아래에 표시됩니다</div>
             ${items.map((item) => {
                 const channel = String(item.channel || 'raw').toLowerCase();
                 const character = item.character ? escapeHtml(item.character) : '알 수 없음';
@@ -1042,6 +1042,7 @@ async function loadChatLogs(page = 1) {
                 `;
             }).join('')}
         `;
+        listEl.scrollTop = listEl.scrollHeight;
         renderPagination(pgEl, data, (p) => loadChatLogs(p));
     } catch (err) {
         listEl.innerHTML = `<div class="chat-log-empty" style="color:#dc2626;">${escapeHtml(err.message || '채팅 로그를 불러오지 못했습니다.')}</div>`;
