@@ -56,6 +56,9 @@ func handleChatLogs(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": err.Error()})
 		return
 	}
+	for left, right := 0, len(entries)-1; left < right; left, right = left+1, right-1 {
+		entries[left], entries[right] = entries[right], entries[left]
+	}
 
 	total := len(entries)
 	offset := (page - 1) * limit
@@ -81,7 +84,7 @@ func handleChatLogs(w http.ResponseWriter, r *http.Request) {
 		"page":       page,
 		"totalPages": (total + limit - 1) / limit,
 		"path":       path,
-		"order":      "newest_first",
+		"order":      "file_tail_first",
 	})
 }
 
