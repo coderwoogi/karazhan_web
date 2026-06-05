@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>카라잔 서버 상태 UI 시안</title>
+  <style>
+    :root {
+      --bg: #05050a;
+      --panel: rgba(10, 8, 18, 0.94);
+      --panel-soft: rgba(255, 255, 255, 0.06);
+      --line: rgba(218, 183, 109, 0.22);
+      --gold: #d9b766;
+      --gold-bright: #ffd777;
+      --text: #f4ecdc;
+      --muted: #a79caf;
+      --green: #34d399;
+      --red: #fb7185;
+      --blue: #38bdf8;
+      --violet: #7a38e6;
+      --shadow: 0 28px 70px rgba(0, 0, 0, 0.42);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      padding: 42px 22px 72px;
+      color: var(--text);
+      font-family: "Noto Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+      background:
+        radial-gradient(circle at 18% 0%, rgba(122, 56, 230, 0.24), transparent 32%),
+        radial-gradient(circle at 85% 12%, rgba(218, 183, 109, 0.15), transparent 28%),
+        linear-gradient(180deg, #0b0813 0%, #05050a 72%);
+    }
+
+    .wrap {
+      width: min(1440px, 100%);
+      margin: 0 auto;
+    }
+
+    .head {
+      display: flex;
+      justify-content: space-between;
+      gap: 24px;
+      align-items: flex-end;
+      margin-bottom: 30px;
+      padding-bottom: 22px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .kicker {
+      color: var(--gold);
+      font-size: 13px;
+      font-weight: 900;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 8px 0 0;
+      color: #fff1c9;
+      font-size: clamp(32px, 4vw, 54px);
+      letter-spacing: -0.04em;
+    }
+
+    .desc {
+      max-width: 760px;
+      margin: 10px 0 0;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 22px;
+    }
+
+    .concept {
+      min-height: 350px;
+      padding: 22px;
+      border: 1px solid rgba(218, 183, 109, 0.22);
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.02)),
+        var(--panel);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .concept::before {
+      content: "";
+      position: absolute;
+      inset: -80px auto auto -80px;
+      width: 190px;
+      height: 190px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(218, 183, 109, 0.16), transparent 68%);
+      pointer-events: none;
+    }
+
+    .concept h2 {
+      margin: 0;
+      color: #f7df9a;
+      font-size: 22px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .concept-note {
+      margin: 6px 0 18px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+      position: relative;
+      z-index: 1;
+    }
+
+    .status-dot {
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 0 5px rgba(52, 211, 153, 0.12), 0 0 18px rgba(52, 211, 153, 0.52);
+      animation: onlinePulse 1.65s ease-in-out infinite;
+      flex: none;
+    }
+
+    .status-dot.off {
+      background: var(--red);
+      box-shadow: 0 0 0 5px rgba(251, 113, 133, 0.12), 0 0 18px rgba(251, 113, 133, 0.48);
+      animation: none;
+    }
+
+    @keyframes onlinePulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.25); opacity: 0.72; }
+    }
+
+    .hero-preview {
+      min-height: 230px;
+      padding: 28px;
+      display: grid;
+      align-content: end;
+      border: 1px solid rgba(218, 183, 109, 0.22);
+      background:
+        linear-gradient(180deg, transparent 0%, rgba(5, 5, 10, 0.78) 72%),
+        radial-gradient(circle at 80% 18%, rgba(122, 56, 230, 0.26), transparent 34%),
+        linear-gradient(135deg, #15101f, #07060c);
+      position: relative;
+      z-index: 1;
+    }
+
+    .hero-status {
+      width: fit-content;
+      display: inline-flex;
+      align-items: center;
+      gap: 11px;
+      margin-bottom: 16px;
+      padding: 10px 14px;
+      border: 1px solid rgba(52, 211, 153, 0.36);
+      background: rgba(6, 32, 24, 0.8);
+      color: #d9ffe9;
+      font-weight: 900;
+      letter-spacing: 0.05em;
+    }
+
+    .hero-preview strong {
+      color: #fff1c9;
+      font-size: 34px;
+      letter-spacing: -0.04em;
+    }
+
+    .hero-preview p {
+      margin: 9px 0 0;
+      color: #bfb4c9;
+      line-height: 1.6;
+    }
+
+    .status-card {
+      display: grid;
+      gap: 16px;
+      padding: 22px;
+      border: 1px solid rgba(218, 183, 109, 0.22);
+      background:
+        radial-gradient(circle at 100% 0%, rgba(52, 211, 153, 0.14), transparent 34%),
+        rgba(255, 255, 255, 0.045);
+      position: relative;
+      z-index: 1;
+    }
+
+    .status-card-head,
+    .server-row,
+    .mini-status,
+    .pill-status {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .status-card-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: #fff1c9;
+      font-size: 20px;
+      font-weight: 900;
+    }
+
+    .status-chip {
+      min-height: 30px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 11px;
+      color: #d9ffe9;
+      border: 1px solid rgba(52, 211, 153, 0.34);
+      background: rgba(52, 211, 153, 0.12);
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .status-chip.off {
+      color: #ffd6dc;
+      border-color: rgba(251, 113, 133, 0.34);
+      background: rgba(251, 113, 133, 0.12);
+    }
+
+    .status-metrics {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .metric {
+      padding: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(0, 0, 0, 0.2);
+    }
+
+    .metric span {
+      color: #9f96ad;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .metric strong {
+      display: block;
+      margin-top: 6px;
+      color: #f3dfab;
+      font-size: 19px;
+    }
+
+    .topbar-preview {
+      display: grid;
+      gap: 18px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .fake-nav {
+      min-height: 70px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      padding: 0 18px;
+      border: 1px solid rgba(218, 183, 109, 0.22);
+      background: rgba(5, 5, 10, 0.82);
+    }
+
+    .fake-logo {
+      color: #f3dfab;
+      font-size: 22px;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+    }
+
+    .nav-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      min-height: 36px;
+      padding: 0 13px;
+      border: 1px solid rgba(52, 211, 153, 0.34);
+      background: rgba(52, 211, 153, 0.12);
+      color: #d9ffe9;
+      font-size: 13px;
+      font-weight: 900;
+    }
+
+    .fake-body {
+      min-height: 140px;
+      display: grid;
+      place-items: center;
+      color: #8f849e;
+      border: 1px dashed rgba(218, 183, 109, 0.18);
+      background: rgba(255, 255, 255, 0.025);
+    }
+
+    .realm-card {
+      display: grid;
+      gap: 12px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .server-row {
+      min-height: 74px;
+      padding: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.045);
+    }
+
+    .server-row.offline {
+      background: linear-gradient(90deg, rgba(251, 113, 133, 0.12), rgba(255, 255, 255, 0.035));
+    }
+
+    .server-name {
+      display: grid;
+      gap: 4px;
+    }
+
+    .server-name strong {
+      color: #fff1c9;
+      font-size: 17px;
+    }
+
+    .server-name span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .maintenance-banner {
+      min-height: 220px;
+      display: grid;
+      align-content: center;
+      gap: 16px;
+      padding: 26px;
+      border: 1px solid rgba(251, 113, 133, 0.28);
+      background:
+        radial-gradient(circle at 82% 12%, rgba(251, 113, 133, 0.18), transparent 34%),
+        rgba(255, 255, 255, 0.04);
+      position: relative;
+      z-index: 1;
+    }
+
+    .maintenance-banner .status-chip {
+      width: fit-content;
+    }
+
+    .maintenance-banner strong {
+      color: #ffd6dc;
+      font-size: 28px;
+    }
+
+    .maintenance-banner p {
+      max-width: 620px;
+      margin: 0;
+      color: #cbbfcf;
+      line-height: 1.7;
+    }
+
+    .compact-strip {
+      display: grid;
+      gap: 12px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .strip-item {
+      min-height: 58px;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 12px;
+      padding: 0 16px;
+      border: 1px solid rgba(218, 183, 109, 0.2);
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .strip-item strong {
+      color: #f3dfab;
+    }
+
+    .strip-item span {
+      color: #9f96ad;
+      font-size: 13px;
+    }
+
+    .status-text-on {
+      color: #7cf2b5;
+      font-weight: 900;
+    }
+
+    .status-text-off {
+      color: #ffa0ad;
+      font-weight: 900;
+    }
+
+    @media (max-width: 960px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
+      .head {
+        display: block;
+      }
+
+      .status-metrics,
+      .board-sponsor-guide {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 620px) {
+      body {
+        padding: 28px 14px 54px;
+      }
+
+      .concept {
+        padding: 18px;
+      }
+
+      .hero-preview strong {
+        font-size: 28px;
+      }
+
+      .status-metrics {
+        grid-template-columns: 1fr;
+      }
+
+      .fake-nav,
+      .server-row,
+      .status-card-head {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .strip-item {
+        grid-template-columns: auto minmax(0, 1fr);
+      }
+
+      .strip-item .status-chip {
+        grid-column: 1 / -1;
+        width: fit-content;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <header class="head">
+      <div>
+        <div class="kicker">Karazhan Main Status Concepts</div>
+        <h1>메인 서버 ON/OFF 표시 UI 시안</h1>
+        <p class="desc">카라잔 메인 화면에서 서버 상태를 즉시 확인할 수 있는 UI 후보입니다. 실제 적용 시 API 상태값에 따라 ON/OFF, 접속자 수, 점검 문구를 자동으로 바꾸는 구조로 연결할 수 있습니다.</p>
+      </div>
+    </header>
+
+    <section class="grid">
+      <article class="concept">
+        <h2>1. 히어로 배지형</h2>
+        <p class="concept-note">메인 첫 화면의 핵심 CTA 위에 서버 상태를 강하게 노출하는 방식입니다.</p>
+        <div class="hero-preview">
+          <div class="hero-status"><span class="status-dot"></span> WORLD SERVER ONLINE</div>
+          <strong>카라잔 서버가 열려 있습니다</strong>
+          <p>현재 접속 가능 상태입니다. 접속 방법을 확인하고 바로 모험을 시작하세요.</p>
+        </div>
+      </article>
+
+      <article class="concept">
+        <h2>2. 운영 현황 카드형</h2>
+        <p class="concept-note">메인 정보 카드 영역에 넣기 좋고, 접속자/지연시간/업데이트 시간을 함께 보여줍니다.</p>
+        <div class="status-card">
+          <div class="status-card-head">
+            <div class="status-card-title"><span class="status-dot"></span> 서버 운영 현황</div>
+            <div class="status-chip">ON</div>
+          </div>
+          <div class="status-metrics">
+            <div class="metric"><span>월드 서버</span><strong>정상</strong></div>
+            <div class="metric"><span>현재 접속자</span><strong>128명</strong></div>
+            <div class="metric"><span>갱신</span><strong>방금 전</strong></div>
+          </div>
+        </div>
+      </article>
+
+      <article class="concept">
+        <h2>3. 상단 헤더 미니 배지형</h2>
+        <p class="concept-note">항상 보이는 헤더에 작은 상태 배지를 추가하는 방식입니다. 노출은 작지만 접근성이 좋습니다.</p>
+        <div class="topbar-preview">
+          <div class="fake-nav">
+            <div class="fake-logo">THE KARAZHAN</div>
+            <div class="nav-status"><span class="status-dot"></span> 서버 ON</div>
+          </div>
+          <div class="fake-body">메인 콘텐츠 영역</div>
+        </div>
+      </article>
+
+      <article class="concept">
+        <h2>4. 월드/어스 분리형</h2>
+        <p class="concept-note">월드 서버와 어스 서버를 각각 보여줘야 할 때 적합합니다.</p>
+        <div class="realm-card">
+          <div class="server-row">
+            <div class="server-name"><strong>월드 서버</strong><span>게임 접속 및 플레이</span></div>
+            <div class="status-chip"><span class="status-dot"></span> ONLINE</div>
+          </div>
+          <div class="server-row offline">
+            <div class="server-name"><strong>어스 서버</strong><span>보조 서비스 / 테스트 영역</span></div>
+            <div class="status-chip off"><span class="status-dot off"></span> OFFLINE</div>
+          </div>
+        </div>
+      </article>
+
+      <article class="concept">
+        <h2>5. 점검 안내 배너형</h2>
+        <p class="concept-note">OFF 상태일 때 메인에서 점검 사유와 예상 종료 시간을 크게 안내하는 방식입니다.</p>
+        <div class="maintenance-banner">
+          <div class="status-chip off"><span class="status-dot off"></span> SERVER OFF</div>
+          <strong>현재 서버 점검 중입니다</strong>
+          <p>더 쾌적한 환경을 위해 서버 점검을 진행하고 있습니다. 예상 종료 시간은 23:30이며, 상황에 따라 변동될 수 있습니다.</p>
+        </div>
+      </article>
+
+      <article class="concept">
+        <h2>6. 컴팩트 리스트형</h2>
+        <p class="concept-note">공지사항 또는 미디어 영역 옆에 작게 붙이기 좋은 상태 목록입니다.</p>
+        <div class="compact-strip">
+          <div class="strip-item">
+            <span class="status-dot"></span>
+            <div><strong>월드 서버</strong><br><span>접속 가능</span></div>
+            <div class="status-text-on">ON</div>
+          </div>
+          <div class="strip-item">
+            <span class="status-dot off"></span>
+            <div><strong>인증 서버</strong><br><span>점검 중</span></div>
+            <div class="status-text-off">OFF</div>
+          </div>
+          <div class="strip-item">
+            <span class="status-dot"></span>
+            <div><strong>웹 서비스</strong><br><span>정상 운영</span></div>
+            <div class="status-text-on">ON</div>
+          </div>
+        </div>
+      </article>
+    </section>
+  </main>
+</body>
+</html>
