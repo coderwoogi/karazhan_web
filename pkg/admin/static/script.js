@@ -919,6 +919,10 @@ async function loadLogs(page = 1, clearFilters = false) {
 let currentLogTab = 'action';
 
 function openLogSubTab(tabName) {
+    if (tabName === 'chat' && !canViewChatLogs()) {
+        ModalUtils.showAlert('채팅 로그는 지정된 관리자만 접근할 수 있습니다.');
+        return;
+    }
     // Update current tab tracker
     currentLogTab = tabName;
 
@@ -956,11 +960,97 @@ function openLogSubTab(tabName) {
         loadMailLogs(1, true);
     } else if (tabName === 'shutdown-history') {
         loadWorldShutdownHistory(1);
+    } else if (tabName === 'chat') {
+        loadChatLogs(1);
     }
 }
 
 function refreshCurrentLogTab() {
     openLogSubTab(currentLogTab);
+}
+
+function canViewChatLogs() {
+    const username = String((window.g_sessionUser && window.g_sessionUser.username) || (g_sessionUser && g_sessionUser.username) || '').trim().toLowerCase();
+    return username === 'cpo5704';
+}
+
+function updateChatLogAccessUI() {
+    const btn = document.getElementById('log-chat-tab-btn');
+    if (btn) btn.style.display = canViewChatLogs() ? 'inline-block' : 'none';
+}
+
+function chatLogChannelLabel(channel) {
+    const normalized = String(channel || '').toLowerCase();
+    if (normalized === 'say') return '일반';
+    if (normalized === 'yell') return '외침';
+    if (normalized === 'whisper') return '귓속말';
+    if (normalized === 'guild') return '길드';
+    if (normalized === 'party') return '파티';
+    if (normalized === 'raw') return '원문';
+    return normalized || '-';
+}
+
+async function loadChatLogs(page = 1) {
+    if (!canViewChatLogs()) return;
+
+    const listEl = document.getElementById('chat-log-list');
+    const pgEl = document.getElementById('chat-log-pagination');
+    if (!listEl) return;
+
+    listEl.innerHTML = '<div class="chat-log-empty">채팅 로그를 불러오는 중...</div>';
+    const params = new URLSearchParams();
+    params.set('page', String(page));
+    params.set('limit', '20');
+    params.set('q', String(document.getElementById('chat-log-query')?.value || '').trim());
+    params.set('channel', String(document.getElementById('chat-log-channel')?.value || 'all'));
+
+    try {
+        const res = await fetch('/api/logs/chat?' + params.toString(), { cache: 'no-store' });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || data.status !== 'success') {
+            throw new Error(data.message || '채팅 로그를 불러오지 못했습니다.');
+        }
+
+        const items = Array.isArray(data.items) ? data.items : [];
+        if (!items.length) {
+            listEl.innerHTML = '<div class="chat-log-empty">표시할 채팅 로그가 없습니다.</div>';
+            renderPagination(pgEl, data, (p) => loadChatLogs(p));
+            return;
+        }
+
+        listEl.innerHTML = `
+            <div class="chat-log-date">chat.log 최신 ${items.length.toLocaleString()}건</div>
+            ${items.map((item) => {
+                const channel = String(item.channel || 'raw').toLowerCase();
+                const character = item.character ? escapeHtml(item.character) : '알 수 없음';
+                const language = item.language ? `language ${escapeHtml(item.language)}` : '원문';
+                return `
+                    <div class="chat-log-row">
+                        <div class="chat-log-time">#${Number(item.line || 0).toLocaleString()}</div>
+                        <div class="chat-log-bubble">
+                            <div class="chat-log-bubble-head">
+                                <span class="chat-log-name">${character}</span>
+                                <span class="chat-log-channel ${escapeHtml(channel)}">${chatLogChannelLabel(channel)}</span>
+                            </div>
+                            <div class="chat-log-message">${escapeHtml(item.message || item.raw || '')}</div>
+                            <div class="chat-log-meta">${language} · ${escapeHtml(item.raw || '')}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('')}
+        `;
+        renderPagination(pgEl, data, (p) => loadChatLogs(p));
+    } catch (err) {
+        listEl.innerHTML = `<div class="chat-log-empty" style="color:#dc2626;">${escapeHtml(err.message || '채팅 로그를 불러오지 못했습니다.')}</div>`;
+    }
+}
+
+function resetChatLogSearch() {
+    const q = document.getElementById('chat-log-query');
+    const channel = document.getElementById('chat-log-channel');
+    if (q) q.value = '';
+    if (channel) channel.value = 'all';
+    loadChatLogs(1);
 }
 
 // Stats Sub-Tab Management
@@ -5877,6 +5967,7 @@ async function loadMyPage() {
             const data = await response.json();
             g_sessionUser = data;
             window.g_sessionUser = data;
+            updateChatLogAccessUI();
              
             // Update Text Fields
             if (data.points !== undefined) {
@@ -6279,6 +6370,7 @@ async function checkAdminAccess() {
         const data = await response.json();
         g_sessionUser = data; // Restore global user state
         window.g_sessionUser = data;
+        updateChatLogAccessUI();
         loadEnvironmentBadge();
         showEnhancedStoneExpiryWarning(data);
         applySubscriptionMenuState(data);

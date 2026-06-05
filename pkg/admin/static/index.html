@@ -2709,6 +2709,7 @@
                         <button class="log-sub-tab-btn" onclick="openLogSubTab('playtime')">접속 보상 지급</button>
                         <button class="log-sub-tab-btn" onclick="openLogSubTab('mail')">우편 발송 기록</button>
                         <button class="log-sub-tab-btn" onclick="openLogSubTab('shutdown-history')">월드 종료 이력</button>
+                        <button id="log-chat-tab-btn" class="log-sub-tab-btn" onclick="openLogSubTab('chat')" style="display:none;">채팅 로그</button>
                     </div>
 
                     <!-- Action Logs Sub-Tab -->
@@ -2909,6 +2910,47 @@
                                 </table>
                             </div>
                             <div id="mail-logs-pagination" style="margin-top: 1rem;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Chat Logs Sub-Tab -->
+                    <div id="log-chat" class="log-sub-content">
+                        <div class="chat-log-admin-wrap">
+                            <div class="chat-log-access-note">
+                                <div>
+                                    <strong>chat.log 전용 조회</strong>
+                                    <span>이 메뉴는 cpo5704 계정에서만 표시되며, API도 동일 계정 외 접근을 차단합니다.</span>
+                                </div>
+                                <button onclick="loadChatLogs(1)" class="refresh-btn"><i class="fas fa-sync-alt"></i> 새로고침</button>
+                            </div>
+
+                            <div class="filter-bar">
+                                <div class="filter-group" style="flex:1; min-width:240px;">
+                                    <label><i class="fas fa-search"></i> 캐릭터명 또는 메시지</label>
+                                    <input type="text" id="chat-log-query" placeholder="캐릭터명, 메시지 내용 검색" onkeypress="if(event.key==='Enter'){loadChatLogs(1);}">
+                                </div>
+                                <div class="filter-group" style="width:180px;">
+                                    <label><i class="fas fa-comments"></i> 채널</label>
+                                    <select id="chat-log-channel">
+                                        <option value="all">전체 채널</option>
+                                        <option value="say">일반</option>
+                                        <option value="yell">외침</option>
+                                        <option value="whisper">귓속말</option>
+                                        <option value="guild">길드</option>
+                                        <option value="party">파티</option>
+                                        <option value="raw">원문</option>
+                                    </select>
+                                </div>
+                                <button onclick="loadChatLogs(1)" class="search-btn"><i class="fas fa-search"></i> 검색</button>
+                                <button onclick="resetChatLogSearch()" class="refresh-btn" style="background:#f1f5f9; color:#64748b; border:1px solid #e2e8f0;"><i class="fas fa-undo"></i> 초기화</button>
+                            </div>
+
+                            <div class="chat-log-panel">
+                                <div id="chat-log-list" class="chat-log-list">
+                                    <div class="chat-log-empty">채팅 로그를 불러오는 중...</div>
+                                </div>
+                            </div>
+                            <div id="chat-log-pagination" style="margin-top: 1rem;"></div>
                         </div>
                     </div>
 

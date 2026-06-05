@@ -42,6 +42,7 @@ func RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/logs/karazhan", handleKarazhanLogs)
 	mux.HandleFunc("/api/logs/playtime", handlePlaytimeLogs)
 	mux.HandleFunc("/api/logs/mail", handleMailLogs)
+	mux.HandleFunc("/api/logs/chat", handleChatLogs)
 	mux.HandleFunc("/api/characters/list", handleCharacterList)
 	mux.HandleFunc("/api/characters/sendmail", handleSendMail)
 	mux.HandleFunc("/api/characters/items", handleCharacterItems)
