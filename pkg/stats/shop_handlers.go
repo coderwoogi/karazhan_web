@@ -1267,11 +1267,13 @@ func handleShopCreateOrder(w http.ResponseWriter, r *http.Request) {
 		Character string `json:"character"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "\uc694\uccad \ucc98\ub9ac \uc911 \uc624\ub958\uac00 \ubc1c\uc0dd\ud588\uc2b5\ub2c8\ub2e4."})
+		log.Printf("[shop/order] invalid request body user_id=%d err=%v", userID, err)
+		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "구매 요청 데이터가 올바르지 않습니다."})
 		return
 	}
 	if req.ItemID <= 0 {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "\uc694\uccad \ucc98\ub9ac \uc911 \uc624\ub958\uac00 \ubc1c\uc0dd\ud588\uc2b5\ub2c8\ub2e4."})
+		log.Printf("[shop/order] invalid item id user_id=%d item_id=%d", userID, req.ItemID)
+		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "구매할 상품 정보가 올바르지 않습니다."})
 		return
 	}
 	if req.Qty <= 0 {
@@ -1300,19 +1302,23 @@ func handleShopCreateOrder(w http.ResponseWriter, r *http.Request) {
 		FROM point_shop_items WHERE id = ? FOR UPDATE
 	`, req.ItemID).Scan(&itemName, &itemDesc, &itemType, &itemEntry, &functionCode, &unitPrice, &stock, &isVisible, &isDeleted)
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "\uc694\uccad \ucc98\ub9ac \uc911 \uc624\ub958\uac00 \ubc1c\uc0dd\ud588\uc2b5\ub2c8\ub2e4."})
+		log.Printf("[shop/order] item not found user_id=%d item_id=%d err=%v", userID, req.ItemID, err)
+		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "구매할 상품을 찾을 수 없습니다."})
 		return
 	}
 	if isDeleted == 1 || isVisible == 0 {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "\uc694\uccad \ucc98\ub9ac \uc911 \uc624\ub958\uac00 \ubc1c\uc0dd\ud588\uc2b5\ub2c8\ub2e4."})
+		log.Printf("[shop/order] inactive item user_id=%d item_id=%d visible=%d deleted=%d", userID, req.ItemID, isVisible, isDeleted)
+		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "현재 구매할 수 없는 상품입니다."})
 		return
 	}
 	if stock >= 0 && stock < req.Qty {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "\uc694\uccad \ucc98\ub9ac \uc911 \uc624\ub958\uac00 \ubc1c\uc0dd\ud588\uc2b5\ub2c8\ub2e4."})
+		log.Printf("[shop/order] insufficient stock user_id=%d item_id=%d stock=%d qty=%d", userID, req.ItemID, stock, req.Qty)
+		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "상품 재고가 부족합니다."})
 		return
 	}
 	if itemType == "game" && strings.TrimSpace(req.Character) == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "\uc694\uccad \ucc98\ub9ac \uc911 \uc624\ub958\uac00 \ubc1c\uc0dd\ud588\uc2b5\ub2c8\ub2e4."})
+		log.Printf("[shop/order] empty character for game item user_id=%d item_id=%d", userID, req.ItemID)
+		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "아이템을 받을 캐릭터를 선택해주세요."})
 		return
 	}
 	funcCode := strings.ToLower(strings.TrimSpace(functionCode))
@@ -1326,16 +1332,19 @@ func handleShopCreateOrder(w http.ResponseWriter, r *http.Request) {
 		funcCode = "enhanced_enchant_stone"
 	}
 	if itemType == "function" && funcCode != "dual_account" && funcCode != "enhanced_enchant_stone" && funcCode != "carddraw_count" && strings.TrimSpace(req.Character) == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "\uc694\uccad \ucc98\ub9ac \uc911 \uc624\ub958\uac00 \ubc1c\uc0dd\ud588\uc2b5\ub2c8\ub2e4."})
+		log.Printf("[shop/order] empty character for function item user_id=%d item_id=%d func=%s", userID, req.ItemID, funcCode)
+		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "기능을 적용할 캐릭터를 선택해주세요."})
 		return
 	}
 	if itemType == "game" && itemEntry <= 0 {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "\uc694\uccad \ucc98\ub9ac \uc911 \uc624\ub958\uac00 \ubc1c\uc0dd\ud588\uc2b5\ub2c8\ub2e4."})
+		log.Printf("[shop/order] invalid game item entry user_id=%d item_id=%d entry=%d", userID, req.ItemID, itemEntry)
+		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "상품의 인게임 아이템 entry 설정이 올바르지 않습니다."})
 		return
 	}
 	if itemType == "function" {
 		if funcCode == "" {
-			writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "\uc694\uccad \ucc98\ub9ac \uc911 \uc624\ub958\uac00 \ubc1c\uc0dd\ud588\uc2b5\ub2c8\ub2e4."})
+			log.Printf("[shop/order] empty function code user_id=%d item_id=%d", userID, req.ItemID)
+			writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "상품의 기능 코드 설정이 비어 있습니다."})
 			return
 		}
 		allowed := map[string]bool{
@@ -1352,7 +1361,8 @@ func handleShopCreateOrder(w http.ResponseWriter, r *http.Request) {
 			"enhanced_enchant_stone": true,
 		}
 		if !allowed[funcCode] {
-			writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "\uc694\uccad \ucc98\ub9ac \uc911 \uc624\ub958\uac00 \ubc1c\uc0dd\ud588\uc2b5\ub2c8\ub2e4."})
+			log.Printf("[shop/order] unsupported function code user_id=%d item_id=%d func=%s", userID, req.ItemID, funcCode)
+			writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "지원하지 않는 기능 상품입니다."})
 			return
 		}
 		if funcCode == "level_up" || funcCode == "level80" || funcCode == "level_80" {
@@ -1384,7 +1394,8 @@ func handleShopCreateOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if currentPoints < total {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "\uc694\uccad \ucc98\ub9ac \uc911 \uc624\ub958\uac00 \ubc1c\uc0dd\ud588\uc2b5\ub2c8\ub2e4."})
+		log.Printf("[shop/order] insufficient points user_id=%d item_id=%d points=%d required=%d", userID, req.ItemID, currentPoints, total)
+		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "보유 포인트가 부족합니다."})
 		return
 	}
 
