@@ -629,9 +629,9 @@ func sendShopItemMail(receiverName, subject, body string, itemEntry, itemCount i
 	}
 	command := strings.Join([]string{
 		".send items",
-		strings.TrimSpace(receiverName),
-		quoteShopWorldCommandArg(subject),
-		quoteShopWorldCommandArg(body),
+		strconv.Itoa(charGUID),
+		quoteShopWorldCommandArg("The Karazhan"),
+		quoteShopWorldCommandArg("Point shop purchase item has arrived."),
 		itemToken,
 	}, " ")
 	if err := runShopWorldCommand(command, r); err != nil {
