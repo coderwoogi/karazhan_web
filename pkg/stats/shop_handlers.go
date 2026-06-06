@@ -635,7 +635,10 @@ func sendShopItemMail(receiverName, subject, body string, itemEntry, itemCount i
 		itemToken,
 	}, " ")
 	if err := runShopWorldCommand(command, r); err != nil {
-		return err
+		log.Printf("[shop/mail] world command failed, falling back to direct db mail receiver=%s entry=%d count=%d err=%v", receiverName, itemEntry, itemCount, err)
+		if fallbackErr := sendShopItemMailDirect(charDB, charGUID, receiverName, subject, body, itemEntry, itemCount); fallbackErr != nil {
+			return fmt.Errorf("%v; fallback failed: %w", err, fallbackErr)
+		}
 	}
 
 	ip := ""
@@ -653,6 +656,57 @@ func sendShopItemMail(receiverName, subject, body string, itemEntry, itemCount i
 		VALUES (?, ?, ?, ?, ?, ?, 0, ?)
 	`, senderUsername, receiverName, subject, body, itemEntry, itemCount, ip)
 	return nil
+}
+
+func sendShopItemMailDirect(charDB *sql.DB, charGUID int, receiverName, subject, body string, itemEntry, itemCount int) error {
+	if charDB == nil || charGUID <= 0 || itemEntry <= 0 || itemCount <= 0 {
+		return fmt.Errorf("invalid direct mail arguments")
+	}
+
+	var lockOK int
+	if err := charDB.QueryRow("SELECT GET_LOCK('karazhan_shop_mail_alloc', 10)").Scan(&lockOK); err != nil {
+		return err
+	}
+	if lockOK != 1 {
+		return fmt.Errorf("mail allocation lock timeout")
+	}
+	defer func() {
+		_, _ = charDB.Exec("SELECT RELEASE_LOCK('karazhan_shop_mail_alloc')")
+	}()
+
+	tx, err := charDB.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	var nextMailID int64
+	if err := tx.QueryRow("SELECT GREATEST(IFNULL(MAX(id), 0) + 1, 2000000000) FROM mail").Scan(&nextMailID); err != nil {
+		return err
+	}
+	var nextItemGUID int64
+	if err := tx.QueryRow("SELECT GREATEST(IFNULL(MAX(guid), 0) + 1, 2000000000) FROM item_instance").Scan(&nextItemGUID); err != nil {
+		return err
+	}
+
+	if _, err := tx.Exec(`
+		INSERT INTO mail (id, messageType, stationery, mailTemplateId, sender, receiver, subject, body, has_items, expire_time, deliver_time, money, cod, checked)
+		VALUES (?, 0, 41, 0, 0, ?, ?, ?, 1, UNIX_TIMESTAMP() + 2592000, UNIX_TIMESTAMP(), 0, 0, 0)
+	`, nextMailID, charGUID, subject, body); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`
+		INSERT INTO item_instance (guid, itemEntry, owner_guid, creatorGuid, count, enchantments)
+		VALUES (?, ?, ?, 0, ?, '')
+	`, nextItemGUID, itemEntry, charGUID, itemCount); err != nil {
+		return err
+	}
+	if _, err := tx.Exec("INSERT INTO mail_items (mail_id, item_guid, receiver) VALUES (?, ?, ?)", nextMailID, nextItemGUID, charGUID); err != nil {
+		return err
+	}
+
+	log.Printf("[shop/mail] direct fallback mail inserted receiver=%s char_guid=%d mail_id=%d item_guid=%d entry=%d count=%d", receiverName, charGUID, nextMailID, nextItemGUID, itemEntry, itemCount)
+	return tx.Commit()
 }
 
 func getUserCharactersWithGold(userID int) ([]map[string]interface{}, error) {
