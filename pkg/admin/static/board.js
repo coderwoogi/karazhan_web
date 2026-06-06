@@ -205,6 +205,29 @@ function renderPostTitleWithCommentCount(title, commentCount) {
     return `${safeTitle} <span style="color:#3b82f6; font-weight:700;">[${count}]</span>`;
 }
 
+function extractBoardThumbnail(post) {
+    const html = String((post && post.content) || '');
+    const match = html.match(/<img[^>]+src=["']([^"']+)["']/i);
+    return match && match[1] ? match[1] : '';
+}
+
+function renderBoardThumbnail(post, className = 'mobile-board-thumb') {
+    const src = extractBoardThumbnail(post);
+    if (!src) {
+        return `<div class="${className} no-image" aria-label="이미지 없음"><i class="far fa-file-alt"></i><span>NO IMAGE</span></div>`;
+    }
+    return `<div class="${className}" style="background-image:url('${escapeHtml(src)}');" aria-label="게시글 이미지"></div>`;
+}
+
+function stripBoardHtml(html) {
+    return String(html || '')
+        .replace(/<script[\s\S]*?<\/script>/gi, '')
+        .replace(/<style[\s\S]*?<\/style>/gi, '')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
 function getPostContentHtml(content) {
     const value = (content == null) ? '' : String(content).trim();
     if (!value || value === 'undefined' || value === 'null' || value === '<p><br></p>') {
@@ -901,48 +924,32 @@ function renderNormalBoard(container, posts, total) {
 
     if (isMobile) {
         if (!posts.length) {
-            container.innerHTML = `
-                <table style="width: 100%; border-collapse: collapse;">
-                    <thead style="position: sticky; top: 0; background: #f8fafc; z-index: 10;">
-                        <tr>
-                            <th style="padding: 12px; text-align: center; color: #64748b; font-weight: 600; width: 60px;">번호</th>
-                            ${isInquiry ? '<th style="padding: 12px; text-align: center; color: #64748b; font-weight: 600; width: 120px;">카테고리</th>' : ''}
-                            ${isInquiry ? '<th style="padding: 12px; text-align: center; color: #64748b; font-weight: 600; width: 120px;">상태</th>' : ''}
-                            <th style="padding: 12px; text-align: left; color: #64748b; font-weight: 600;">제목</th>
-                            <th style="padding: 12px; text-align: center; color: #64748b; font-weight: 600; width: 120px;">작성자</th>
-                            ${isPromotion ? '<th style="padding: 12px; text-align: center; color: #64748b; font-weight: 600; width: 110px;">심사 결과</th>' : ''}
-                            ${isPromotion ? '<th style="padding: 12px; text-align: center; color: #64748b; font-weight: 600; width: 120px;">보상 지급</th>' : ''}
-                            <th style="padding: 12px; text-align: center; color: #64748b; font-weight: 600; width: 150px;">작성일</th>
-                            <th style="padding: 12px; text-align: center; color: #64748b; font-weight: 600; width: 80px;">조회</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td colspan="${isInquiry ? 7 : (isPromotion ? 7 : 5)}" style="padding: 24px; text-align:center; color:#94a3b8;">게시글이 없습니다.</td>
-                        </tr>
-                    </tbody>
-                </table>
-            `;
+            container.innerHTML = '<div style="text-align:center; padding: 3rem; color: #94a3b8;">게시글이 없습니다.</div>';
             return;
         }
         container.innerHTML = `
-            <ul style="list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:12px;">
+            <ul class="mobile-board-list">
                 ${posts.map((post, idx) => {
                     const virtualNum = total - ((g_currentBoardPage - 1) * pageSize) - idx;
+                    const summary = stripBoardHtml(post.content || '');
                     return `
-                    <li onclick="viewPost(${post.id})" style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:16px; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
-                        <div style="font-weight:700; font-size:1rem; color:#1e293b; margin-bottom:8px;">
-                            <span style="color:#94a3b8; font-size:0.85rem; margin-right:8px;">#${virtualNum}</span>
-                            ${renderPostTitleWithCommentCount(post.title, post.comment_count)}
-                        </div>
-                        <div style="font-size:0.8rem; color:#94a3b8; display:flex; gap:12px; flex-wrap:wrap;">
-                            ${isInquiry ? `<span><b>카테고리:</b> ${renderInquiryCategoryBadge(post.category)}</span>` : ''}
-                            ${isInquiry ? `<span><b>상태:</b> ${renderInquiryStatusBadge(post.inquiry_status)}</span>` : ''}
-                            ${isPromotion ? `<span><b>심사:</b> ${renderPromotionReviewBadge(post.review_status)}</span>` : ''}
-                            ${isPromotion ? `<span><b>보상:</b> ${renderPromotionRewardBadge(post.reward_paid)}</span>` : ''}
-                            <span>${renderBoardAuthor(post.author_name, post.is_staff_author === true, post.has_enhanced_stone === true)}</span>
-                            <span>|</span>
-                            <span>${post.created_at}</span>
+                    <li class="mobile-board-item" onclick="viewPost(${post.id})">
+                        ${renderBoardThumbnail(post)}
+                        <div class="mobile-board-main">
+                            <div class="mobile-board-title">
+                                <span class="mobile-board-number">#${virtualNum}</span>
+                                ${renderPostTitleWithCommentCount(post.title, post.comment_count)}
+                            </div>
+                            ${summary ? `<div class="mobile-board-summary">${escapeHtml(summary)}</div>` : ''}
+                            <div class="mobile-board-meta">
+                                ${isInquiry ? `<span>${renderInquiryCategoryBadge(post.category)}</span>` : ''}
+                                ${isInquiry ? `<span>${renderInquiryStatusBadge(post.inquiry_status)}</span>` : ''}
+                                ${isPromotion ? `<span>${renderPromotionReviewBadge(post.review_status)}</span>` : ''}
+                                ${isPromotion ? `<span>${renderPromotionRewardBadge(post.reward_paid)}</span>` : ''}
+                                <span>${renderBoardAuthor(post.author_name, post.is_staff_author === true, post.has_enhanced_stone === true)}</span>
+                                <span>${post.created_at}</span>
+                                <span>조회 ${Number(post.views || 0)}</span>
+                            </div>
                         </div>
                     </li>
                 `;
@@ -1012,16 +1019,11 @@ function renderGalleryBoard(container, posts) {
             ${posts.map(post => {
                 // Determine thumbnail (placeholder for now, or extract from content if possible)
                 // In a real app, we'd check 'attachments' or parse HTML for first image
-                let thumbnail = '/img/no-image.png'; // Default
-                const hasImage = post.content && post.content.includes('<img');
-                if(hasImage) {
-                    const match = post.content.match(/<img[^>]+src="([^">]+)"/);
-                    if(match) thumbnail = match[1];
-                }
+                let thumbnail = extractBoardThumbnail(post);
 
                 return `
                 <div class="board-gallery-card" onclick="viewPost(${post.id})">
-                    <div class="gallery-thumb" style="background-image: url('${thumbnail}');"></div>
+                    ${thumbnail ? `<div class="gallery-thumb" style="background-image: url('${escapeHtml(thumbnail)}');"></div>` : renderBoardThumbnail(post, 'gallery-thumb')}
                     <div class="gallery-info">
                         <div class="gallery-title">${renderPostTitleWithCommentCount(post.title, post.comment_count)}</div>
                         <div class="gallery-meta">
@@ -1042,16 +1044,11 @@ function renderUpdateBoard(container, posts) {
         <div class="board-update-feed">
             ${posts.map(post => {
                 // Determine thumbnail for mini-thumb
-                let thumbnail = '';
-                const hasImage = post.content && post.content.includes('<img');
-                if(hasImage) {
-                    const match = post.content.match(/<img[^>]+src="([^">]+)"/);
-                    if(match) thumbnail = match[1];
-                }
+                let thumbnail = extractBoardThumbnail(post);
 
                 const thumbHtml = thumbnail
-                    ? `<div class="update-thumb-mini" style="background-image: url('${thumbnail}');"></div>`
-                    : `<div class="update-thumb-mini"><i class="fas fa-sync-alt"></i></div>`;
+                    ? `<div class="update-thumb-mini" style="background-image: url('${escapeHtml(thumbnail)}');"></div>`
+                    : `<div class="update-thumb-mini no-image"><i class="far fa-file-alt"></i></div>`;
 
                 // Version badge
                 const versionHtml = post.version

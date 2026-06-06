@@ -191,19 +191,25 @@ function renderPostList(posts, total) {
 
     if (isMobile) {
         container.innerHTML = `
-            <ul style="list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:12px;">
+            <ul class="mobile-board-list">
                 ${posts.map((post, idx) => {
                     const virtualNum = total - ((g_currentBoardPage - 1) * pageSize) - idx;
+                    const summary = stripBoardHtml(post.content || '');
                     return `
-                    <li onclick="viewPost(${post.id})" style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:16px; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
-                        <div style="font-weight:700; font-size:1rem; color:#1e293b; margin-bottom:8px;">
-                            <span style="color:#94a3b8; font-size:0.85rem; margin-right:8px;">#${virtualNum}</span>
-                            ${escapeHtml(post.title)}
-                        </div>
-                        <div style="font-size:0.8rem; color:#94a3b8; display:flex; gap:12px; flex-wrap:wrap;">
-                            <span>${escapeHtml(post.author_name)}</span>
-                            <span>|</span>
-                            <span>${post.created_at}</span>
+                    <li class="mobile-board-item" onclick="viewPost(${post.id})">
+                        ${renderBoardThumbnail(post)}
+                        <div class="mobile-board-main">
+                            <div class="mobile-board-title">
+                                <span class="mobile-board-number">#${virtualNum}</span>
+                                ${escapeHtml(post.title)}
+                                ${Number(post.comment_count || 0) > 0 ? `<span class="comment-count">[${Number(post.comment_count)}]</span>` : ''}
+                            </div>
+                            ${summary ? `<div class="mobile-board-summary">${escapeHtml(summary)}</div>` : ''}
+                            <div class="mobile-board-meta">
+                                <span>${escapeHtml(post.author_name)}</span>
+                                <span>${post.created_at}</span>
+                                <span>조회 ${Number(post.views || 0)}</span>
+                            </div>
                         </div>
                     </li>
                 `;
@@ -352,6 +358,29 @@ async function viewPost(id, pushHistory) {
         console.error('Failed to load post:', e);
         await boardAlert('게시글을 불러오는 중 오류가 발생했습니다');
     }
+}
+
+function extractBoardThumbnail(post) {
+    const html = String((post && post.content) || '');
+    const match = html.match(/<img[^>]+src=["']([^"']+)["']/i);
+    return match && match[1] ? match[1] : '';
+}
+
+function renderBoardThumbnail(post, className = 'mobile-board-thumb') {
+    const src = extractBoardThumbnail(post);
+    if (!src) {
+        return `<div class="${className} no-image" aria-label="이미지 없음"><i class="far fa-file-alt"></i><span>NO IMAGE</span></div>`;
+    }
+    return `<div class="${className}" style="background-image:url('${escapeHtml(src)}');" aria-label="게시글 이미지"></div>`;
+}
+
+function stripBoardHtml(html) {
+    return String(html || '')
+        .replace(/<script[\s\S]*?<\/script>/gi, '')
+        .replace(/<style[\s\S]*?<\/style>/gi, '')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
 }
 
 function renderComments(comments) {

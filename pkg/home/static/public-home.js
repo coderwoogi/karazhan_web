@@ -86,6 +86,29 @@
   const getBoard = (id) => boards.find((board) => String(board.id) === String(id)) || null;
   const getDefaultBoardId = () => boards[0] ? String(boards[0].id) : '';
 
+  function extractPostThumbnail(post) {
+    const html = String((post && post.content) || '');
+    const match = html.match(/<img[^>]+src=["']([^"']+)["']/i);
+    return match && match[1] ? match[1] : '';
+  }
+
+  function stripPostHtml(html) {
+    return String(html || '')
+      .replace(/<script[\s\S]*?<\/script>/gi, '')
+      .replace(/<style[\s\S]*?<\/style>/gi, '')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function renderPostThumb(post, className = 'public-mobile-thumb') {
+    const src = extractPostThumbnail(post);
+    if (!src) {
+      return '<div class="' + className + ' no-image" aria-label="이미지 없음"><span>NO IMAGE</span></div>';
+    }
+    return '<div class="' + className + '" style="background-image:url(\'' + esc(src) + '\');" aria-label="게시글 이미지"></div>';
+  }
+
   function renderPublicVersionBadge(version) {
     const cleanVersion = String(version || '').trim();
     if (!cleanVersion) return '';
@@ -396,9 +419,39 @@
       return;
     }
 
-    wrap.innerHTML = '<div class="public-post-table-wrap"><table class="public-post-table"><thead><tr><th>' + K.number + '</th><th>' + K.titleCol + '</th><th>' + K.author + '</th><th>' + K.time + '</th></tr></thead><tbody>' +
-      posts.map((post) => '<tr data-post-id="' + esc(post.id) + '"><td data-label="' + K.number + '">' + esc(post.display_number || post.id || '') + '</td><td data-label="' + K.titleCol + '" class="public-post-title-cell"><span class="public-post-title-wrap">' + renderPublicVersionBadge(post.version) + '<span class="public-post-title">' + esc(post.title || K.titleCol) + (Number(post.comment_count || 0) > 0 ? ' <span style="color:#d9b766;">[' + Number(post.comment_count) + ']</span>' : '') + '</span></span></td><td data-label="' + K.author + '">' + esc(post.author_name || '-') + '</td><td data-label="' + K.time + '">' + esc(fmt(post.created_at)) + '</td></tr>').join('') +
-      '</tbody></table></div>';
+    const board = getBoard(activeBoard);
+    if (String(board?.type || '').toLowerCase() === 'update') {
+      wrap.innerHTML = '<div class="public-update-accordion">' + posts.map((post) => {
+        const summary = stripPostHtml(post.content || '');
+        return '<article class="public-update-card" data-public-update="' + esc(post.id) + '">' +
+          '<button class="public-update-head" type="button" data-public-update-toggle="' + esc(post.id) + '">' +
+          renderPostThumb(post, 'public-update-thumb') +
+          '<span class="public-update-main"><span class="public-update-title">' + renderPublicVersionBadge(post.version) + esc(post.title || K.titleCol) + (Number(post.comment_count || 0) > 0 ? ' <b>[' + Number(post.comment_count) + ']</b>' : '') + '</span><span class="public-update-meta">' + esc(post.author_name || '-') + ' · ' + esc(fmt(post.created_at)) + '</span></span>' +
+          '<span class="public-update-arrow">⌄</span>' +
+          '</button>' +
+          '<div class="public-update-body"><p>' + esc(summary || '등록된 미리보기 내용이 없습니다.') + '</p><button class="btn btn-small" type="button" data-post-id="' + esc(post.id) + '">' + K.detail + '</button></div>' +
+          '</article>';
+      }).join('') + '</div>';
+      return;
+    }
+
+    if (window.innerWidth > 768) {
+      wrap.innerHTML = '<div class="public-post-table-wrap"><table class="public-post-table"><thead><tr><th>' + K.number + '</th><th>' + K.titleCol + '</th><th>' + K.author + '</th><th>' + K.time + '</th></tr></thead><tbody>' +
+        posts.map((post) => '<tr data-post-id="' + esc(post.id) + '"><td data-label="' + K.number + '">' + esc(post.display_number || post.id || '') + '</td><td data-label="' + K.titleCol + '" class="public-post-title-cell"><span class="public-post-title-wrap">' + renderPublicVersionBadge(post.version) + '<span class="public-post-title">' + esc(post.title || K.titleCol) + (Number(post.comment_count || 0) > 0 ? ' <span style="color:#d9b766;">[' + Number(post.comment_count) + ']</span>' : '') + '</span></span></td><td data-label="' + K.author + '">' + esc(post.author_name || '-') + '</td><td data-label="' + K.time + '">' + esc(fmt(post.created_at)) + '</td></tr>').join('') +
+        '</tbody></table></div>';
+      return;
+    }
+
+    wrap.innerHTML = '<ul class="public-mobile-post-list">' +
+      posts.map((post) => {
+        const summary = stripPostHtml(post.content || '');
+        return '<li class="public-mobile-post" data-post-id="' + esc(post.id) + '">' +
+          renderPostThumb(post) +
+          '<div class="public-mobile-post-main"><div class="public-mobile-post-title">' + renderPublicVersionBadge(post.version) + esc(post.title || K.titleCol) + (Number(post.comment_count || 0) > 0 ? ' <span>[' + Number(post.comment_count) + ']</span>' : '') + '</div>' +
+          (summary ? '<div class="public-mobile-post-summary">' + esc(summary) + '</div>' : '') +
+          '<div class="public-mobile-post-meta">' + esc(post.author_name || '-') + ' · ' + esc(fmt(post.created_at)) + '</div></div>' +
+          '</li>';
+      }).join('') + '</ul>';
   }
 
   function renderPager(page, totalPages) {
@@ -612,6 +665,14 @@
         showHome(true);
         setTimeout(() => document.querySelector(href)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 20);
       }
+      return;
+    }
+
+    const updateToggle = event.target.closest('[data-public-update-toggle]');
+    if (updateToggle) {
+      event.preventDefault();
+      const card = updateToggle.closest('.public-update-card');
+      if (card) card.classList.toggle('expanded');
       return;
     }
 
