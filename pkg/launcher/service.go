@@ -16,7 +16,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -91,17 +90,17 @@ func ensureAnnounceHistoryTable() {
 
 	query := `
 CREATE TABLE IF NOT EXISTS launcher_announce_history (
-  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '?대젰 怨좎쑀 踰덊샇',
-  sender_account VARCHAR(64) NOT NULL COMMENT '諛쒖떊 怨꾩젙紐?session_user)',
-  sender_name VARCHAR(64) NOT NULL COMMENT '諛쒖떊???쒖떆紐????罹먮┃?곕챸 ?먮뒗 怨꾩젙紐?',
-  message_text TEXT NOT NULL COMMENT '?꾩넚??怨듭? 硫붿떆吏 蹂몃Ц',
-  sent_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '?꾩넚 ?쒓컖',
-  send_type VARCHAR(16) NOT NULL DEFAULT 'soap' COMMENT '?꾩넚 諛⑹떇(soap/stdin)',
-  ip_address VARCHAR(45) NOT NULL DEFAULT '' COMMENT '諛쒖떊 IP 二쇱냼',
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '이력 고유 번호',
+  sender_account VARCHAR(64) NOT NULL COMMENT '발신 계정명(session_user)',
+  sender_name VARCHAR(64) NOT NULL COMMENT '발신자 표시명, 대표 캐릭터명 또는 계정명',
+  message_text TEXT NOT NULL COMMENT '전송한 공지 메시지 본문',
+  sent_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '전송 시각',
+  send_type VARCHAR(16) NOT NULL DEFAULT 'soap' COMMENT '전송 방식(soap/stdin)',
+  ip_address VARCHAR(45) NOT NULL DEFAULT '' COMMENT '발신 IP 주소',
   PRIMARY KEY (id),
   KEY idx_sent_at (sent_at),
   KEY idx_sender_account (sender_account)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='?멸쾶??怨듭? ?꾩넚 ?대젰';`
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='인게임 공지 전송 이력';`
 	if _, err := db.Exec(query); err != nil {
 		log.Printf("announce history table create error: %v", err)
 	}
@@ -466,7 +465,7 @@ func handleAnnounce(w http.ResponseWriter, r *http.Request) {
 	}
 	if text == "" {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "怨듭? ?댁슜???낅젰?댁＜?몄슂."})
+		json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "공지 내용을 입력해주세요."})
 		return
 	}
 
@@ -487,31 +486,31 @@ func handleAnnounce(w http.ResponseWriter, r *http.Request) {
 			if err := sendSOAPCommand(soapCfg, soapUser, soapPass, ".an "+text); err == nil {
 				saveAnnounceHistory(r, text, "soap")
 				utils.LogAction(r, "", "World Announcement(SOAP): "+text)
-				json.NewEncoder(w).Encode(map[string]string{"status": "success", "message": "怨듭? ?꾩넚 ?꾨즺"})
+				json.NewEncoder(w).Encode(map[string]string{"status": "success", "message": "공지 전송 완료"})
 				return
 			} else {
 				log.Printf("SOAP announce failed: %v", err)
 				w.WriteHeader(http.StatusBadRequest)
-				json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "SOAP 怨듭? ?꾩넚 ?ㅽ뙣: " + err.Error()})
+				json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "SOAP 공지 전송 실패: " + err.Error()})
 				return
 			}
 		}
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "SOAP ?ъ슜???꾪빐 SOAP 怨꾩젙/鍮꾨?踰덊샇瑜??낅젰?섍굅??KARAZHAN_SOAP_USER/KARAZHAN_SOAP_PASS ?섍꼍蹂?섎? ?ㅼ젙?댁＜?몄슂."})
+		json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "SOAP 사용을 위해 SOAP 계정/비밀번호를 입력하거나 KARAZHAN_SOAP_USER/KARAZHAN_SOAP_PASS 환경변수를 설정해주세요."})
 		return
 	}
 
 	// Fallback: stdin (ASCII-safe only).
 	if hasNonASCII(text) {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "?쒓? 怨듭???SOAP 紐⑤뱶媛 ?꾩슂?⑸땲?? worldserver.conf?먯꽌 SOAP.Enabled=1 ?ㅼ젙 ??SOAP 怨꾩젙 ?뺣낫瑜??낅젰?댁＜?몄슂."})
+		json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "한글 공지는 SOAP 모드가 필요합니다. worldserver.conf에서 SOAP.Enabled=1을 설정하고 SOAP 계정 정보를 입력해주세요."})
 		return
 	}
 
 	worldProc, ok := processes["world"]
 	if !ok || !isRunning(worldProc.Name) || worldProc.Stdin == nil {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "?붾뱶 ?쒕쾭 肄섏넄 ?곌껐???놁뒿?덈떎. ?⑤꼸?먯꽌 ?붾뱶 ?쒕쾭瑜??ㅽ뻾?댁＜?몄슂."})
+		json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "월드 서버 콘솔이 연결되어 있지 않습니다. 패널에서 월드 서버를 실행해주세요."})
 		return
 	}
 
@@ -519,13 +518,13 @@ func handleAnnounce(w http.ResponseWriter, r *http.Request) {
 	if _, err := worldProc.Stdin.Write([]byte(command)); err != nil {
 		log.Printf("Failed to send world announce command: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "怨듭? ?꾩넚???ㅽ뙣?덉뒿?덈떎."})
+		json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "공지 전송에 실패했습니다."})
 		return
 	}
 
 	saveAnnounceHistory(r, text, "stdin")
 	utils.LogAction(r, "", "World Announcement: "+text)
-	json.NewEncoder(w).Encode(map[string]string{"status": "success", "message": "怨듭? ?꾩넚 ?꾨즺"})
+	json.NewEncoder(w).Encode(map[string]string{"status": "success", "message": "공지 전송 완료"})
 }
 
 func handleWorldCommand(w http.ResponseWriter, r *http.Request) {
@@ -821,7 +820,7 @@ type worldSOAPConfig struct {
 func worldSOAPConfigCandidatePaths() []string {
 	wd, _ := os.Getwd()
 	candidates := []string{}
-	if v := strings.TrimSpace(os.Getenv("KARAZHAN_WORLDSERVER_CONF")); v != "" && !isMacProtectedDesktopPath(v) {
+	if v := strings.TrimSpace(os.Getenv("KARAZHAN_WORLDSERVER_CONF")); v != "" {
 		candidates = append(candidates, v)
 	}
 	candidates = append(candidates,
@@ -829,6 +828,10 @@ func worldSOAPConfigCandidatePaths() []string {
 		`E:/server/operate/configs/worldserver.conf`,
 		`/opt/homebrew/var/www/karazhan/configs/worldserver.conf`,
 		`/opt/homebrew/etc/karazhan/worldserver.conf`,
+		`/Users/choitaeuk/Desktop/karazhan/azerothcore-wotlk/env/dist/etc/worldserver.conf`,
+		`/Users/choitaeuk/Desktop/karazhan/azerothcore-wotlk/build/bin/etc/worldserver.conf`,
+		`/Users/choitaeuk/Desktop/karazhan/azerothcore-wotlk/etc/worldserver.conf`,
+		`/Users/choitaeuk/Desktop/karazhan/azerothcore-wotlk/worldserver.conf`,
 	)
 	if wd != "" {
 		candidates = append([]string{filepath.Join(wd, "configs", "worldserver.conf")}, candidates...)
@@ -836,15 +839,10 @@ func worldSOAPConfigCandidatePaths() []string {
 	return candidates
 }
 
-func isMacProtectedDesktopPath(path string) bool {
-	if runtime.GOOS != "darwin" {
-		return false
-	}
-	cleaned := filepath.Clean(path)
-	return strings.HasPrefix(cleaned, "/Users/choitaeuk/Desktop/") || cleaned == "/Users/choitaeuk/Desktop"
-}
-
 func loadWorldSOAPConfig() worldSOAPConfig {
+	if cfg, ok := loadWorldSOAPConfigFromEnv(); ok {
+		return cfg
+	}
 	for _, path := range worldSOAPConfigCandidatePaths() {
 		cfg := readWorldSOAPConfig(path)
 		if cfg.Enabled {
@@ -856,6 +854,36 @@ func loadWorldSOAPConfig() worldSOAPConfig {
 		IP:      "127.0.0.1",
 		Port:    "7878",
 	}
+}
+
+func loadWorldSOAPConfigFromEnv() (worldSOAPConfig, bool) {
+	enabledRaw := strings.TrimSpace(os.Getenv("KARAZHAN_SOAP_ENABLED"))
+	if enabledRaw == "" {
+		enabledRaw = strings.TrimSpace(os.Getenv("SOAP_ENABLED"))
+	}
+	if enabledRaw == "" {
+		return worldSOAPConfig{}, false
+	}
+
+	enabled := enabledRaw == "1" || strings.EqualFold(enabledRaw, "true") || strings.EqualFold(enabledRaw, "yes")
+	cfg := worldSOAPConfig{
+		Enabled: enabled,
+		IP:      "127.0.0.1",
+		Port:    "7878",
+	}
+	if v := strings.TrimSpace(os.Getenv("KARAZHAN_SOAP_IP")); v != "" {
+		cfg.IP = v
+	} else if v := strings.TrimSpace(os.Getenv("KARAZHAN_SOAP_HOST")); v != "" {
+		cfg.IP = v
+	} else if v := strings.TrimSpace(os.Getenv("SOAP_IP")); v != "" {
+		cfg.IP = v
+	}
+	if v := strings.TrimSpace(os.Getenv("KARAZHAN_SOAP_PORT")); v != "" {
+		cfg.Port = v
+	} else if v := strings.TrimSpace(os.Getenv("SOAP_PORT")); v != "" {
+		cfg.Port = v
+	}
+	return cfg, true
 }
 
 func readWorldSOAPConfig(path string) worldSOAPConfig {

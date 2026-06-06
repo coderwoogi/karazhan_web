@@ -33,6 +33,8 @@ func soapCredentialCandidatePaths() []string {
 		`E:/server/operate/configs/soap_credentials.env`,
 		`/opt/homebrew/var/www/karazhan/configs/soap_credentials.env`,
 		`/opt/homebrew/etc/karazhan/soap_credentials.env`,
+		`/Users/choitaeuk/Desktop/karazhan/configs/soap_credentials.env`,
+		`/Users/choitaeuk/Desktop/karazhan/karazhan/configs/soap_credentials.env`,
 	}
 	if wd != "" {
 		candidates = append([]string{filepath.Join(wd, "configs", "soap_credentials.env")}, candidates...)
