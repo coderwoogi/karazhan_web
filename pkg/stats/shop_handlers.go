@@ -623,22 +623,8 @@ func sendShopItemMail(receiverName, subject, body string, itemEntry, itemCount i
 		return err
 	}
 
-	itemToken := strconv.Itoa(itemEntry)
-	if itemCount > 1 {
-		itemToken += ":" + strconv.Itoa(itemCount)
-	}
-	command := strings.Join([]string{
-		".send items",
-		strings.TrimSpace(receiverName),
-		quoteShopWorldCommandArg("The Karazhan"),
-		quoteShopWorldCommandArg("Point shop purchase item has arrived."),
-		itemToken,
-	}, " ")
-	if err := runShopWorldCommand(command, r); err != nil {
-		log.Printf("[shop/mail] world command failed, falling back to direct db mail receiver=%s entry=%d count=%d err=%v", receiverName, itemEntry, itemCount, err)
-		if fallbackErr := sendShopItemMailDirect(charDB, charGUID, receiverName, subject, body, itemEntry, itemCount); fallbackErr != nil {
-			return fmt.Errorf("%v; fallback failed: %w", err, fallbackErr)
-		}
+	if err := sendShopItemMailDirect(charDB, charGUID, receiverName, subject, body, itemEntry, itemCount); err != nil {
+		return err
 	}
 
 	ip := ""
