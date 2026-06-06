@@ -439,6 +439,29 @@ func sendShopPurchaseWhisper(characterName, itemName string, r *http.Request) er
 	return runShopWorldCommand(command, r)
 }
 
+func formatShopPointAmount(value int) string {
+	sign := ""
+	if value < 0 {
+		sign = "-"
+		value = -value
+	}
+	raw := strconv.Itoa(value)
+	if len(raw) <= 3 {
+		return sign + raw
+	}
+	var b strings.Builder
+	prefix := len(raw) % 3
+	if prefix == 0 {
+		prefix = 3
+	}
+	b.WriteString(raw[:prefix])
+	for i := prefix; i < len(raw); i += 3 {
+		b.WriteString(",")
+		b.WriteString(raw[i : i+3])
+	}
+	return sign + b.String()
+}
+
 func runShopWorldCommand(cmd string, r *http.Request) error {
 	cmd = strings.TrimSpace(cmd)
 	if cmd == "" {
@@ -696,7 +719,7 @@ func sendShopItemMailDirect(charDB *sql.DB, charGUID int, receiverName, subject,
 
 	if _, err := tx.Exec(`
 		INSERT INTO mail (id, messageType, stationery, mailTemplateId, sender, receiver, subject, body, has_items, expire_time, deliver_time, money, cod, checked)
-		VALUES (?, 0, 41, 0, 0, ?, ?, ?, 1, UNIX_TIMESTAMP() + 2592000, UNIX_TIMESTAMP(), 0, 0, 0)
+		VALUES (?, 0, 61, 0, 0, ?, ?, ?, 1, UNIX_TIMESTAMP() + 2592000, UNIX_TIMESTAMP(), 0, 0, 0)
 	`, nextMailID, charGUID, subject, body); err != nil {
 		return err
 	}
@@ -1447,9 +1470,20 @@ func handleShopCreateOrder(w http.ResponseWriter, r *http.Request) {
 
 	if itemType == "game" {
 		mailSubject := fmt.Sprintf("[\uc120\uc220\uc9d1] %s", itemName)
-		mailBody := "\uc120\uc220\uc9d1 \uad6c\ub9e4 \uc544\uc774\ud15c\uc774 \ub3c4\ucc29\ud588\uc2b5\ub2c8\ub2e4."
+		mailBody := strings.Join([]string{
+			"\uc120\uc220\uc9d1 \uad6c\ub9e4 \uc544\uc774\ud15c\uc774 \ub3c4\ucc29\ud588\uc2b5\ub2c8\ub2e4.",
+			"",
+			"[구매 정보]",
+			fmt.Sprintf("구매 일시: %s", time.Now().Format("2006-01-02 15:04:05")),
+			fmt.Sprintf("구매 아이템: %s x%d", itemName, req.Qty),
+			fmt.Sprintf("사용 포인트: %s 포인트", formatShopPointAmount(total)),
+			fmt.Sprintf("잔여 포인트: %s 포인트", formatShopPointAmount(pointsAfter)),
+			fmt.Sprintf("수령 캐릭터: %s", strings.TrimSpace(req.Character)),
+			"",
+			"재접속 후 우편함을 확인해주세요.",
+		}, "\n")
 		if strings.TrimSpace(req.Note) != "" {
-			mailBody += "\n" + strings.TrimSpace(req.Note)
+			mailBody += "\n\n[요청 메모]\n" + strings.TrimSpace(req.Note)
 		}
 		if err := sendShopItemMail(strings.TrimSpace(req.Character), mailSubject, mailBody, itemEntry, req.Qty, userID, username, r); err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "\uc694\uccad \ucc98\ub9ac \uc911 \uc624\ub958\uac00 \ubc1c\uc0dd\ud588\uc2b5\ub2c8\ub2e4." + err.Error()})
