@@ -164,6 +164,27 @@ function escapeHtml(text) {
 
 window.escapeHtml = escapeHtml;
 
+function formatBoardDateTime(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+
+    const match = raw.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?:[ T](\d{1,2}):(\d{2})(?::\d{2})?)?/);
+    if (match) {
+        const pad = (v) => String(v || '0').padStart(2, '0');
+        const date = `${match[1]}.${pad(match[2])}.${pad(match[3])}`;
+        if (match[4] != null && match[5] != null) {
+            return `${date} ${pad(match[4])}:${pad(match[5])}`;
+        }
+        return date;
+    }
+
+    const parsed = new Date(raw);
+    if (Number.isNaN(parsed.getTime())) return raw;
+
+    const pad = (v) => String(v).padStart(2, '0');
+    return `${parsed.getFullYear()}.${pad(parsed.getMonth() + 1)}.${pad(parsed.getDate())} ${pad(parsed.getHours())}:${pad(parsed.getMinutes())}`;
+}
+
 function renderBoardAuthor(authorName, isStaff, hasEnhancedStone) {
     const safeName = escapeHtml(authorName || '');
     let prefix = '';
@@ -1882,7 +1903,7 @@ async function loadBugReportAdminPage(page = 1, keepDetail = false) {
         const pageSize = BOARD_PAGE_SIZE;
         const totalPages = Math.max(1, Math.ceil(posts.length / pageSize));
         const pagePosts = posts.slice((g_bugReportAdminPage - 1) * pageSize, g_bugReportAdminPage * pageSize);
-        renderBugReportAdminList(pagePosts, totalPages);
+        renderBugReportAdminList(pagePosts, totalPages, (g_bugReportAdminPage - 1) * pageSize);
     } catch (e) {
         console.error('Failed to load bug reports:', e);
         const message = e && e.status === 401
@@ -1893,7 +1914,7 @@ async function loadBugReportAdminPage(page = 1, keepDetail = false) {
 }
 window.loadBugReportAdminPage = loadBugReportAdminPage;
 
-function renderBugReportAdminList(posts, totalPages) {
+function renderBugReportAdminList(posts, totalPages, startIndex = 0) {
     const list = document.getElementById('bug-admin-list');
     const pg = document.getElementById('bug-admin-pagination');
     if (!list) return;
@@ -1902,15 +1923,16 @@ function renderBugReportAdminList(posts, totalPages) {
         if (pg) pg.innerHTML = '';
         return;
     }
-    const rows = posts.map((post) => {
+    const rows = posts.map((post, idx) => {
         const status = String(post.inquiry_status || 'received').toLowerCase();
+        const displayNumber = Number(startIndex || 0) + idx + 1;
         return `
             <tr class="bug-admin-row status-${escapeHtml(status)} ${Number(post.id) === Number(g_bugReportAdminSelectedId) ? 'active' : ''}" onclick="openBugReportAdminDetail(${Number(post.id)})">
-                <td>${Number(post.id || 0)}</td>
+                <td>${displayNumber}</td>
                 <td>${renderInquiryCategoryBadge(post.category)}</td>
                 <td class="bug-admin-title-cell">${escapeHtml(post.title || '')}</td>
                 <td>${renderBoardAuthor(post.author_name, post.is_staff_author === true, post.has_enhanced_stone === true)}</td>
-                <td>${escapeHtml(post.created_at || '')}</td>
+                <td>${escapeHtml(formatBoardDateTime(post.created_at) || '-')}</td>
                 <td>${Number(post.comment_count || 0)}</td>
                 <td>${renderInquiryStatusBadge(post.inquiry_status)}</td>
                 <td><button type="button" class="btn btn-primary btn-sm" onclick="event.stopPropagation(); openBugReportAdminDetail(${Number(post.id)})">상세</button></td>
@@ -1985,7 +2007,7 @@ async function openBugReportAdminDetail(postId) {
                         </div>
                         <div class="kb-report-summary-item">
                             <strong>작성일</strong>
-                            <span>${escapeHtml(post.created_at || '-')}</span>
+                            <span>${escapeHtml(formatBoardDateTime(post.created_at) || '-')}</span>
                         </div>
                         <div class="kb-report-summary-item">
                             <strong>답글</strong>
@@ -2147,7 +2169,7 @@ function renderBugReportAdminMessage(message, index) {
                 <span class="kb-report-comment-author">${renderBoardAuthor(message.author_name, message.is_staff_author === true, message.has_enhanced_stone === true)}</span>
                 <div>
                     ${roleBadge}
-                    <span class="kb-report-comment-date">${escapeHtml(message.created_at || '')}</span>
+                    <span class="kb-report-comment-date">${escapeHtml(formatBoardDateTime(message.created_at))}</span>
                 </div>
             </div>
             <div class="kb-report-comment-body">${contentHtml}</div>
