@@ -629,7 +629,7 @@ func sendShopItemMail(receiverName, subject, body string, itemEntry, itemCount i
 	}
 	command := strings.Join([]string{
 		".send items",
-		strconv.Itoa(charGUID),
+		strings.TrimSpace(receiverName),
 		quoteShopWorldCommandArg("The Karazhan"),
 		quoteShopWorldCommandArg("Point shop purchase item has arrived."),
 		itemToken,
