@@ -420,6 +420,15 @@ func runShopFunctionCommand(functionCode, characterName string, r *http.Request)
 		return fmt.Errorf("\uc9c0\uc6d0\ud558\uc9c0 \uc54a\ub294 \uae30\ub2a5 \ucf54\ub4dc\uc785\ub2c8\ub2e4: %s", functionCode)
 	}
 
+	return runShopWorldCommand(cmd, r)
+}
+
+func runShopWorldCommand(cmd string, r *http.Request) error {
+	cmd = strings.TrimSpace(cmd)
+	if cmd == "" {
+		return fmt.Errorf("world command is empty")
+	}
+
 	baseURL := config.LauncherBaseURL(r)
 
 	payload := map[string]string{"command": cmd}
@@ -455,6 +464,14 @@ func runShopFunctionCommand(functionCode, characterName string, r *http.Request)
 	}
 
 	return nil
+}
+
+func quoteShopWorldCommandArg(value string) string {
+	value = strings.TrimSpace(value)
+	value = strings.ReplaceAll(value, "\r", " ")
+	value = strings.ReplaceAll(value, "\n", " ")
+	value = strings.ReplaceAll(value, `"`, `'`)
+	return `"` + value + `"`
 }
 
 func extendFeatureSubscription(tx *sql.Tx, userID int, featureCode string, months int, orderID int64) (time.Time, error) {
@@ -606,31 +623,18 @@ func sendShopItemMail(receiverName, subject, body string, itemEntry, itemCount i
 		return err
 	}
 
-	var nextMailID int
-	if err := charDB.QueryRow("SELECT IFNULL(MAX(id), 0) + 1 FROM mail").Scan(&nextMailID); err != nil {
-		return err
+	itemToken := strconv.Itoa(itemEntry)
+	if itemCount > 1 {
+		itemToken += ":" + strconv.Itoa(itemCount)
 	}
-
-	mailQuery := `
-		INSERT INTO mail (id, messageType, stationery, mailTemplateId, sender, receiver, subject, body, has_items, expire_time, deliver_time, money, cod, checked)
-		VALUES (?, 0, 41, 0, 0, ?, ?, ?, 1, UNIX_TIMESTAMP() + 2592000, UNIX_TIMESTAMP(), 0, 0, 0)
-	`
-	if _, err := charDB.Exec(mailQuery, nextMailID, charGUID, subject, body); err != nil {
-		return err
-	}
-
-	var nextItemGUID int
-	if err := charDB.QueryRow("SELECT IFNULL(MAX(guid), 0) + 1 FROM item_instance").Scan(&nextItemGUID); err != nil {
-		return err
-	}
-	itemQuery := `
-		INSERT INTO item_instance (guid, itemEntry, owner_guid, creatorGuid, count, enchantments)
-		VALUES (?, ?, ?, 0, ?, '')
-	`
-	if _, err := charDB.Exec(itemQuery, nextItemGUID, itemEntry, charGUID, itemCount); err != nil {
-		return err
-	}
-	if _, err := charDB.Exec("INSERT INTO mail_items (mail_id, item_guid, receiver) VALUES (?, ?, ?)", nextMailID, nextItemGUID, charGUID); err != nil {
+	command := strings.Join([]string{
+		".send items",
+		strings.TrimSpace(receiverName),
+		quoteShopWorldCommandArg(subject),
+		quoteShopWorldCommandArg(body),
+		itemToken,
+	}, " ")
+	if err := runShopWorldCommand(command, r); err != nil {
 		return err
 	}
 
