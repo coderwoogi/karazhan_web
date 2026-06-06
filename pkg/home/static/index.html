@@ -1205,16 +1205,87 @@
     }
 
     @media (max-width: 980px) {
+      .topbar {
+        height: auto;
+        min-height: 68px;
+      }
+
       .nav {
         grid-template-columns: 1fr auto;
+        grid-template-areas:
+          "brand action"
+          "links links";
+        width: min(100% - 28px, 1180px);
+        height: auto;
+        padding: 12px 0 10px;
+        row-gap: 10px;
+        column-gap: 12px;
       }
 
       .nav-brand {
-        display: none;
+        display: block;
+        grid-area: brand;
+        max-width: 100%;
+        overflow: hidden;
+        font-size: 18px;
+        letter-spacing: 0.08em;
+        text-overflow: ellipsis;
       }
 
       .nav-links {
+        display: flex;
+        grid-area: links;
+        justify-self: stretch;
+        gap: 8px;
+        overflow-x: auto;
+        padding: 2px 2px 6px;
+        scrollbar-width: none;
+        scroll-snap-type: x proximity;
+      }
+
+      .nav-links::-webkit-scrollbar {
         display: none;
+      }
+
+      .nav-links a,
+      .nav-dropdown > a {
+        flex: 0 0 auto;
+        min-height: 36px;
+        padding: 8px 12px;
+        border: 1px solid rgba(218, 183, 109, 0.18);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.04);
+        scroll-snap-align: start;
+      }
+
+      .nav-dropdown {
+        flex: 0 0 auto;
+      }
+
+      .nav-dropdown > a::before,
+      .nav-links a::after {
+        display: none;
+      }
+
+      .board-dropdown-menu {
+        position: fixed;
+        top: 116px;
+        left: 14px;
+        right: 14px;
+        width: auto;
+        min-width: 0;
+        transform: translateY(8px);
+      }
+
+      .nav-dropdown:hover .board-dropdown-menu,
+      .nav-dropdown:focus-within .board-dropdown-menu {
+        transform: translateY(0);
+      }
+
+      .nav-action {
+        grid-area: action;
+        min-height: 38px;
+        padding: 0 16px;
       }
 
       .public-board-layout {
@@ -1235,8 +1306,8 @@
 
       .hero-inner {
         gap: 34px;
-        min-height: 780px;
-        padding: 360px 0 56px;
+        min-height: 680px;
+        padding: 300px 0 56px;
       }
 
       .server-card {
@@ -1255,16 +1326,24 @@
       }
 
       .nav-action {
-        padding: 0 14px;
+        padding: 0 13px;
+        font-size: 13px;
       }
 
       .hero {
-        min-height: 720px;
+        min-height: auto;
+        background-position: center top;
         background-size: cover;
       }
 
+      .hero-inner {
+        min-height: 610px;
+        padding: 230px 0 44px;
+      }
+
       h1 {
-        font-size: 64px;
+        font-size: clamp(48px, 17vw, 64px);
+        line-height: 0.92;
       }
 
       .hero-subtitle {
@@ -1275,6 +1354,12 @@
       .hero-inner,
       .footer-inner {
         width: min(100% - 28px, 1180px);
+      }
+
+      .server-card {
+        max-width: none;
+        width: 100%;
+        padding: 22px;
       }
 
       .notice-list li,

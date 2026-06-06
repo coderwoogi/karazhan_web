@@ -3464,7 +3464,8 @@ img.img-loaded {
         position: sticky;
         top: 0;
         z-index: 1000;
-        gap: 0 !important;
+        gap: 8px !important;
+        min-width: 0;
     }
 
     /* Hide Desktop-only elements */
@@ -3478,11 +3479,13 @@ img.img-loaded {
         order: 1;
         width: 40px !important;
         height: 40px !important;
+        min-width: 40px !important;
+        flex: 0 0 40px !important;
         background: transparent !important;
         border: none !important;
         font-size: 1.25rem !important;
         padding: 0 !important;
-        justify-content: flex-start !important;
+        justify-content: center !important;
     }
 
     .header-nickname {
@@ -3497,7 +3500,7 @@ img.img-loaded {
         overflow: hidden;
         text-overflow: ellipsis;
         min-width: 0;
-        padding: 0 10px;
+        padding: 0 6px;
     }
 
     .header-points {
@@ -3509,7 +3512,41 @@ img.img-loaded {
         font-size: 0.9rem;
         color: #f59e0b;
         justify-content: flex-end;
-        min-width: 60px;
+        min-width: 0;
+        max-width: 38vw;
+        flex: 0 1 auto;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+    }
+
+    .header-actions {
+        flex: 0 0 auto !important;
+        gap: 6px !important;
+        min-width: 0;
+    }
+
+    .header-btn,
+    .header-icon-btn,
+    .notification-container .header-icon-btn {
+        width: 40px !important;
+        min-width: 40px !important;
+        height: 40px !important;
+        padding: 0 !important;
+        border-radius: 50% !important;
+        flex: 0 0 40px !important;
+    }
+
+    .header-btn span,
+    .header-btn .label-text {
+        display: none !important;
+    }
+
+    .header-icon-btn i,
+    .header-btn i,
+    .mobile-toggle i {
+        line-height: 1 !important;
+        font-size: 1rem !important;
     }
 
     /* Search/Filter Bar - STRICTLY VERTICAL */
@@ -3614,8 +3651,8 @@ img.img-loaded {
         grid-template-columns: 1fr !important;
     }
 
-    div[style*="display: flex"][style*="gap"],
-    div[style*="display:flex"][style*="gap"] {
+    .tab-content div[style*="display: flex"][style*="gap"],
+    .tab-content div[style*="display:flex"][style*="gap"] {
         flex-direction: column !important;
         gap: 1rem !important;
         width: 100% !important;

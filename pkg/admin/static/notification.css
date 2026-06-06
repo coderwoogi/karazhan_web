@@ -154,3 +154,41 @@
     color: #64748b;
     font-size: 0.95rem;
 }
+
+@media (max-width: 768px) {
+    .notification-container {
+        margin-right: 0;
+        flex: 0 0 auto;
+    }
+
+    .notification-dropdown {
+        position: fixed;
+        top: 64px;
+        right: 12px;
+        left: 12px;
+        width: auto;
+        max-height: min(70dvh, 460px);
+        border-radius: 1rem;
+        z-index: 2100;
+    }
+
+    .notification-list {
+        max-height: calc(min(70dvh, 460px) - 58px);
+    }
+
+    .notification-item {
+        padding: 0.875rem;
+        gap: 10px;
+    }
+
+    .notification-badge {
+        top: 2px;
+        right: 2px;
+        min-width: 18px;
+        height: 18px;
+        line-height: 16px;
+        padding: 0 5px;
+        font-size: 10px;
+        transform: translate(28%, -28%);
+    }
+}
