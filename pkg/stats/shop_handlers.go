@@ -423,18 +423,18 @@ func runShopFunctionCommand(functionCode, characterName string, r *http.Request)
 	return runShopWorldCommand(cmd, r)
 }
 
-func sendShopPurchaseWhisper(characterName, itemName string, r *http.Request) error {
+func sendShopPurchaseWhisper(charGUID int, characterName, itemName string, r *http.Request) error {
 	character := strings.TrimSpace(characterName)
 	item := strings.TrimSpace(itemName)
-	if character == "" || item == "" {
+	if charGUID <= 0 || character == "" || item == "" {
 		return fmt.Errorf("whisper target or item name is empty")
 	}
 
 	message := fmt.Sprintf("[선술집]에서 구매한 %s이 우편으로 발송됐습니다. 재접속 후 확인 바랍니다.", item)
 	command := strings.Join([]string{
-		".send message",
-		character,
-		quoteShopWorldCommandArg(message),
+		".npc whisper",
+		strconv.Itoa(charGUID),
+		message,
 	}, " ")
 	return runShopWorldCommand(command, r)
 }
@@ -642,7 +642,7 @@ func sendShopItemMail(receiverName, subject, body string, itemEntry, itemCount i
 	if err := sendShopItemMailDirect(charDB, charGUID, receiverName, subject, body, itemEntry, itemCount); err != nil {
 		return err
 	}
-	if err := sendShopPurchaseWhisper(receiverName, strings.TrimPrefix(strings.TrimPrefix(subject, "[선술집]"), " "), r); err != nil {
+	if err := sendShopPurchaseWhisper(charGUID, receiverName, strings.TrimPrefix(strings.TrimPrefix(subject, "[선술집]"), " "), r); err != nil {
 		log.Printf("[shop/mail] purchase whisper skipped receiver=%s entry=%d count=%d err=%v", receiverName, itemEntry, itemCount, err)
 	}
 
