@@ -361,6 +361,8 @@ async function viewPost(id, pushHistory) {
 }
 
 function extractBoardThumbnail(post) {
+    const direct = String((post && post.thumbnail) || '').trim();
+    if (direct) return direct;
     const html = String((post && post.content) || '');
     const match = html.match(/<img[^>]+src=["']([^"']+)["']/i);
     return match && match[1] ? match[1] : '';
