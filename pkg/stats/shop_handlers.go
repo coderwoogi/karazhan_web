@@ -1277,13 +1277,6 @@ func handleShopCreateOrder(w http.ResponseWriter, r *http.Request) {
 	if req.Qty <= 0 {
 		req.Qty = 1
 	}
-	if !isShopWorldServerRunning() {
-		writeJSON(w, http.StatusBadRequest, map[string]string{
-			"status":  "error",
-			"message": "월드서버가 가동 중이 아닙니다. 서버 가동 후 다시 시도해주세요.",
-		})
-		return
-	}
 
 	db, err := sql.Open("mysql", updateDSN)
 	if err != nil {
@@ -1477,6 +1470,13 @@ func handleShopCreateOrder(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		} else {
+			if !isShopWorldServerRunning() {
+				writeJSON(w, http.StatusBadRequest, map[string]string{
+					"status":  "error",
+					"message": "월드서버가 가동 중이 아닙니다. 서버 가동 후 다시 시도해주세요.",
+				})
+				return
+			}
 			if err := runShopFunctionCommand(funcCode, strings.TrimSpace(req.Character), r); err != nil {
 				writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "\uc694\uccad \ucc98\ub9ac \uc911 \uc624\ub958\uac00 \ubc1c\uc0dd\ud588\uc2b5\ub2c8\ub2e4." + err.Error()})
 				return
