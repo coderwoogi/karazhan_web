@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 )
 
@@ -98,12 +99,10 @@ func isChatLogOwner(r *http.Request) bool {
 
 func resolveChatLogPath() (string, []string) {
 	candidates := []string{
-		strings.TrimSpace(config.ChatLogPath()),
-		strings.TrimSpace(os.Getenv("KARAZHAN_CHAT_LOG_PATH")),
+		safeMacPath(strings.TrimSpace(config.ChatLogPath())),
+		safeMacPath(strings.TrimSpace(os.Getenv("KARAZHAN_CHAT_LOG_PATH"))),
 		`E:/server/operate/logs/Chat.log`,
 		`E:/server/operate/logs/chat.log`,
-		`/Users/choitaeuk/Desktop/karazhan/operate/logs/Chat.log`,
-		`/Users/choitaeuk/Desktop/karazhan/operate/logs/chat.log`,
 		`/opt/homebrew/var/www/karazhan/logs/Chat.log`,
 		`/opt/homebrew/var/www/karazhan/logs/chat.log`,
 		`/opt/homebrew/var/log/karazhan/Chat.log`,
@@ -137,6 +136,17 @@ func resolveChatLogPath() (string, []string) {
 		}
 	}
 	return "", checked
+}
+
+func safeMacPath(path string) string {
+	if runtime.GOOS != "darwin" {
+		return path
+	}
+	cleaned := filepath.Clean(path)
+	if strings.HasPrefix(cleaned, "/Users/choitaeuk/Desktop/") || cleaned == "/Users/choitaeuk/Desktop" {
+		return ""
+	}
+	return path
 }
 
 func readChatLogEntries(path, query, channel string) ([]chatLogEntry, error) {

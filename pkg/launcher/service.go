@@ -16,6 +16,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -365,7 +366,7 @@ func handleScheduleAdd(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Log Action
-	utils.LogAction(r, "", fmt.Sprintf("Add Schedule: %s %s at %s", target, action, date))
+	utils.LogAction(r, "", "Add Schedule: "+target+" "+action+" at "+date)
 
 	json.NewEncoder(w).Encode(map[string]string{"status": "success"})
 }
@@ -818,7 +819,7 @@ type worldSOAPConfig struct {
 func worldSOAPConfigCandidatePaths() []string {
 	wd, _ := os.Getwd()
 	candidates := []string{}
-	if v := strings.TrimSpace(os.Getenv("KARAZHAN_WORLDSERVER_CONF")); v != "" {
+	if v := strings.TrimSpace(os.Getenv("KARAZHAN_WORLDSERVER_CONF")); v != "" && !isMacProtectedDesktopPath(v) {
 		candidates = append(candidates, v)
 	}
 	candidates = append(candidates,
@@ -831,6 +832,14 @@ func worldSOAPConfigCandidatePaths() []string {
 		candidates = append([]string{filepath.Join(wd, "configs", "worldserver.conf")}, candidates...)
 	}
 	return candidates
+}
+
+func isMacProtectedDesktopPath(path string) bool {
+	if runtime.GOOS != "darwin" {
+		return false
+	}
+	cleaned := filepath.Clean(path)
+	return strings.HasPrefix(cleaned, "/Users/choitaeuk/Desktop/") || cleaned == "/Users/choitaeuk/Desktop"
 }
 
 func loadWorldSOAPConfig() worldSOAPConfig {
