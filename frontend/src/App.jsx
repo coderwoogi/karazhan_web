@@ -170,6 +170,12 @@ function formatShortDate(value) {
   return normalized.slice(5, 10).replace('-', '.')
 }
 
+function renderVersionBadge(version) {
+  const cleanVersion = String(version || '').trim()
+  if (!cleanVersion) return null
+  return <span className="public-version-badge">v{cleanVersion}</span>
+}
+
 function formatNotificationTime(value) {
   if (!value) return '-'
   const createdAt = new Date(value)
@@ -2101,7 +2107,7 @@ function App() {
                   <ul className="notice-list media-notice-list">
                     {mediaPreviewPosts.slice(0, 5).map((item) => (
                       <li key={`media-${item.id}`} onClick={() => navigate(`/?board=${encodeURIComponent(item.board_id)}&post=${item.id}`)}>
-                        <span className="tag update">업데이트</span>
+                        {renderVersionBadge(item.version) || <span className="tag update">업데이트</span>}
                         <span>{item.title}</span>
                         <span className="date">{formatShortDate(item.created_at)}</span>
                       </li>
@@ -2885,7 +2891,10 @@ function App() {
                               <tr key={post.id} onClick={() => navigate(`/?board=${encodeURIComponent(currentBoard.id)}&post=${post.id}`)}>
                                 <td data-label={TEXT.number}>{post.display_number || post.id}</td>
                                 <td data-label={TEXT.titleCol}>
-                                  <span className="public-post-title">{post.title}</span>
+                                  <span className="public-post-title-wrap">
+                                    {renderVersionBadge(post.version)}
+                                    <span className="public-post-title">{post.title}</span>
+                                  </span>
                                   {isBugReportBoard ? (
                                     <span className="support-list-meta">
                                       {post.category ? <span className="support-category-pill">{post.category}</span> : null}
@@ -2915,7 +2924,7 @@ function App() {
                 )}
                 {screen === 'detail' && detail?.post ? (
                   <>
-                    <div className="public-board-head"><h2>{detail.post.title}</h2><div className="public-board-toolbar"><button className="btn" type="button" onClick={() => navigate(`/?board=${encodeURIComponent(currentBoard.id)}`)}>{TEXT.back}</button></div></div>
+                    <div className="public-board-head"><h2><span className="public-detail-title">{renderVersionBadge(detail.post.version)}<span>{detail.post.title}</span></span></h2><div className="public-board-toolbar"><button className="btn" type="button" onClick={() => navigate(`/?board=${encodeURIComponent(currentBoard.id)}`)}>{TEXT.back}</button></div></div>
                     <div className="public-comment-meta public-detail-meta"><span>{renderAuthor(detail.post.author_name, detail.post.is_staff_author, detail.post.has_enhanced_stone)}</span><span>조회 {Number(detail.post.views || 0).toLocaleString()}</span><span>{formatDate(detail.post.created_at)}</span></div>
                     {detail.post.category ? <div className="public-detail-chip">분류: {detail.post.category}</div> : null}
                     <article className="public-post-content" dangerouslySetInnerHTML={{ __html: sanitizeHtml(detail.post.content || '') }} />

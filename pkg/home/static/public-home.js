@@ -86,6 +86,12 @@
   const getBoard = (id) => boards.find((board) => String(board.id) === String(id)) || null;
   const getDefaultBoardId = () => boards[0] ? String(boards[0].id) : '';
 
+  function renderPublicVersionBadge(version) {
+    const cleanVersion = String(version || '').trim();
+    if (!cleanVersion) return '';
+    return '<span class="public-version-badge">v' + esc(cleanVersion) + '</span>';
+  }
+
   function ensureDialogUi() {
     if (document.getElementById('public-home-dialog-style')) return;
     const style = document.createElement('style');
@@ -391,7 +397,7 @@
     }
 
     wrap.innerHTML = '<div class="public-post-table-wrap"><table class="public-post-table"><thead><tr><th>' + K.number + '</th><th>' + K.titleCol + '</th><th>' + K.author + '</th><th>' + K.time + '</th></tr></thead><tbody>' +
-      posts.map((post) => '<tr data-post-id="' + esc(post.id) + '"><td data-label="' + K.number + '">' + esc(post.display_number || post.id || '') + '</td><td data-label="' + K.titleCol + '" class="public-post-title-cell"><span class="public-post-title">' + esc(post.title || K.titleCol) + (Number(post.comment_count || 0) > 0 ? ' <span style="color:#d9b766;">[' + Number(post.comment_count) + ']</span>' : '') + '</span></td><td data-label="' + K.author + '">' + esc(post.author_name || '-') + '</td><td data-label="' + K.time + '">' + esc(fmt(post.created_at)) + '</td></tr>').join('') +
+      posts.map((post) => '<tr data-post-id="' + esc(post.id) + '"><td data-label="' + K.number + '">' + esc(post.display_number || post.id || '') + '</td><td data-label="' + K.titleCol + '" class="public-post-title-cell"><span class="public-post-title-wrap">' + renderPublicVersionBadge(post.version) + '<span class="public-post-title">' + esc(post.title || K.titleCol) + (Number(post.comment_count || 0) > 0 ? ' <span style="color:#d9b766;">[' + Number(post.comment_count) + ']</span>' : '') + '</span></span></td><td data-label="' + K.author + '">' + esc(post.author_name || '-') + '</td><td data-label="' + K.time + '">' + esc(fmt(post.created_at)) + '</td></tr>').join('') +
       '</tbody></table></div>';
   }
 
@@ -476,7 +482,7 @@
     const data = await res.json();
     const post = data.post || {};
     const comments = Array.isArray(data.comments) ? data.comments : [];
-    detail.innerHTML = '<h3>' + esc(post.title || K.titleCol) + '</h3>' +
+    detail.innerHTML = '<h3><span class="public-detail-title">' + renderPublicVersionBadge(post.version) + '<span>' + esc(post.title || K.titleCol) + '</span></span></h3>' +
       '<div class="public-post-meta">' + esc(post.author_name || '-') + ' · ' + esc(fmt(post.created_at)) + ' · 조회 ' + Number(post.views || 0) + '</div>' +
       (canEditPost(post)
         ? '<div class="public-post-write-actions" style="margin-top:16px;justify-content:flex-start;"><button class="btn btn-small" type="button" id="public-post-edit-btn">' + K.edit + '</button><button class="btn btn-small" type="button" id="public-post-delete-btn">' + K.remove + '</button></div>'
