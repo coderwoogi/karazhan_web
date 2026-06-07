@@ -160,6 +160,19 @@ function extractFirstImageUrl(content) {
   return image?.getAttribute('src') || ''
 }
 
+function extractPostThumbnail(post) {
+  const direct = String(post?.thumbnail || post?.preview_image || '').trim()
+  if (direct) return direct
+  return extractFirstImageUrl(post?.content || '')
+}
+
+function stripHtmlText(content) {
+  const template = document.createElement('template')
+  template.innerHTML = String(content || '')
+  template.content.querySelectorAll('script, style').forEach((node) => node.remove())
+  return (template.content.textContent || '').replace(/\s+/g, ' ').trim()
+}
+
 function formatDate(value) {
   return value ? String(value).replace('T', ' ').slice(0, 16) : ''
 }
@@ -202,6 +215,14 @@ function notificationTypeLabel(type) {
   if (normalized === 'point') return '포인트'
   if (normalized === 'admin_msg') return '운영 알림'
   return '알림'
+}
+
+function BellIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M12 22a2.4 2.4 0 0 0 2.35-2h-4.7A2.4 2.4 0 0 0 12 22Zm7-6.2-1.7-1.95V9.7A5.9 5.9 0 0 0 13 4.05V3a1 1 0 0 0-2 0v1.05A5.9 5.9 0 0 0 6.7 9.7v4.15L5 15.8V18h14v-2.2Z" />
+    </svg>
+  )
 }
 
 function formatAuctionCoins(value) {
@@ -1900,7 +1921,7 @@ function App() {
                     setNotificationOpen((prev) => !prev)
                   }}
                 >
-                  <span className="nav-notification-icon" aria-hidden="true">🔔</span>
+                  <span className="nav-notification-icon" aria-hidden="true"><BellIcon /></span>
                   {notificationUnreadCount > 0 ? <span className="nav-notification-badge">{Math.min(notificationUnreadCount, 99)}</span> : null}
                 </button>
                 {notificationOpen ? (
@@ -1967,54 +1988,54 @@ function App() {
             </div>
           ) : null}
         </nav>
-        {mobileNavOpen ? <button type="button" className="nav-mobile-overlay button-reset" aria-label="모바일 메뉴 닫기" onClick={() => setMobileNavOpen(false)} /> : null}
-        <div id="mobile-nav-panel" className={`nav-mobile-panel${mobileNavOpen ? ' active' : ''}`}>
-          <div className="nav-mobile-section">
-            <div className="nav-mobile-title">{TEXT.board}</div>
-            <div className="nav-mobile-board-list">
-              {visibleBoards.length ? visibleBoards.map((board) => (
-                <button key={`mobile-board-${board.id}`} type="button" className="nav-mobile-link" onClick={() => openBoard(board.id)}>
-                  {board.name}
-                </button>
-              )) : <span className="board-dropdown-empty">{TEXT.loadingBoards}</span>}
-            </div>
-          </div>
-          <div className="nav-mobile-section">
-            {headerNavItems.map((item) => {
-              const children = Array.isArray(item.children) ? item.children.filter(Boolean) : []
-              if (children.length) {
-                return (
-                  <div key={`mobile-group-${item.label}-${item.url}`} className="nav-mobile-submenu">
-                    <button type="button" className="nav-mobile-link nav-mobile-parent" onClick={() => handleHeaderNav(item)}>
-                      {item.label}
-                    </button>
-                    <div className="nav-mobile-submenu-list">
-                      {children.map((child) => (
-                        <button
-                          key={`mobile-child-${child.label}-${child.url}`}
-                          type="button"
-                          className="nav-mobile-link nav-mobile-child"
-                          onClick={() => handleHeaderNav(child)}
-                        >
-                          {child.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )
-              }
-              if (String(item.url || '').startsWith('/')) {
-                return <a key={`mobile-${item.label}-${item.url}`} className="nav-mobile-link" href={item.url} onClick={() => setMobileNavOpen(false)}>{item.label}</a>
-              }
-              return (
-                <button key={`mobile-${item.label}-${item.url}`} type="button" className="nav-mobile-link" onClick={() => handleHeaderNav(item)}>
-                  {item.label}
-                </button>
-              )
-            })}
+      </header>
+      {mobileNavOpen ? <button type="button" className="nav-mobile-overlay button-reset" aria-label="모바일 메뉴 닫기" onClick={() => setMobileNavOpen(false)} /> : null}
+      <div id="mobile-nav-panel" className={`nav-mobile-panel${mobileNavOpen ? ' active' : ''}`}>
+        <div className="nav-mobile-section">
+          <div className="nav-mobile-title">{TEXT.board}</div>
+          <div className="nav-mobile-board-list">
+            {visibleBoards.length ? visibleBoards.map((board) => (
+              <button key={`mobile-board-${board.id}`} type="button" className="nav-mobile-link" onClick={() => openBoard(board.id)}>
+                {board.name}
+              </button>
+            )) : <span className="board-dropdown-empty">{TEXT.loadingBoards}</span>}
           </div>
         </div>
-      </header>
+        <div className="nav-mobile-section">
+          {headerNavItems.map((item) => {
+            const children = Array.isArray(item.children) ? item.children.filter(Boolean) : []
+            if (children.length) {
+              return (
+                <div key={`mobile-group-${item.label}-${item.url}`} className="nav-mobile-submenu">
+                  <button type="button" className="nav-mobile-link nav-mobile-parent" onClick={() => handleHeaderNav(item)}>
+                    {item.label}
+                  </button>
+                  <div className="nav-mobile-submenu-list">
+                    {children.map((child) => (
+                      <button
+                        key={`mobile-child-${child.label}-${child.url}`}
+                        type="button"
+                        className="nav-mobile-link nav-mobile-child"
+                        onClick={() => handleHeaderNav(child)}
+                      >
+                        {child.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )
+            }
+            if (String(item.url || '').startsWith('/')) {
+              return <a key={`mobile-${item.label}-${item.url}`} className="nav-mobile-link" href={item.url} onClick={() => setMobileNavOpen(false)}>{item.label}</a>
+            }
+            return (
+              <button key={`mobile-${item.label}-${item.url}`} type="button" className="nav-mobile-link" onClick={() => handleHeaderNav(item)}>
+                {item.label}
+              </button>
+            )
+          })}
+        </div>
+      </div>
 
       <main>
         {!boardId && screen === 'home' && (
@@ -2866,7 +2887,9 @@ function App() {
                 {screen === 'list' && (
                   <>
                     <div className="public-board-head">
-                      <h2>{currentBoard.name}</h2>
+                      <div className="public-board-title-wrap">
+                        <h2>{currentBoard.name}</h2>
+                      </div>
                       <div className="public-board-toolbar">
                         <button className="btn" type="button" onClick={goHome}>{TEXT.home}</button>
                         {canWrite(currentBoard, user) ? <button className="btn" type="button" onClick={openWrite}>{TEXT.write}</button> : null}
@@ -2878,39 +2901,47 @@ function App() {
                       <button className="btn" type="button" onClick={() => { setPage(1); setSearch(searchInput.trim()) }}>{TEXT.search}</button>
                     </div>
 
-                    <div className="public-post-table-wrap">
-                      <table className="public-post-table">
-                        <thead>
-                          <tr><th>{TEXT.number}</th><th>{TEXT.titleCol}</th><th>{TEXT.author}</th><th>{TEXT.time}</th></tr>
-                        </thead>
-                        <tbody>
-                          {loadingPosts ? (
-                            <tr><td className="empty-cell" colSpan={4}>{TEXT.loadingPosts}</td></tr>
-                          ) : posts.length ? (
-                            posts.map((post) => (
-                              <tr key={post.id} onClick={() => navigate(`/?board=${encodeURIComponent(currentBoard.id)}&post=${post.id}`)}>
-                                <td data-label={TEXT.number}>{post.display_number || post.id}</td>
-                                <td data-label={TEXT.titleCol}>
-                                  <span className="public-post-title-wrap">
+                    <div className="public-mobile-post-list-wrap">
+                      {loadingPosts ? (
+                        <div className="empty-cell public-mobile-post-empty">{TEXT.loadingPosts}</div>
+                      ) : posts.length ? (
+                        <ul className="public-mobile-post-list">
+                          {posts.map((post) => {
+                            const thumbnail = extractPostThumbnail(post)
+                            const summary = stripHtmlText(post.content || '')
+                            return (
+                              <li
+                                key={post.id}
+                                className="public-mobile-post"
+                                onClick={() => navigate(`/?board=${encodeURIComponent(currentBoard.id)}&post=${post.id}`)}
+                              >
+                                {thumbnail ? (
+                                  <span className="public-mobile-thumb" style={{ backgroundImage: `url("${thumbnail}")` }} aria-label="게시글 이미지" />
+                                ) : (
+                                  <span className="public-mobile-thumb no-image" aria-label="이미지 없음"><span>NO IMAGE</span></span>
+                                )}
+                                <span className="public-mobile-post-main">
+                                  <span className="public-mobile-post-title">
                                     {renderVersionBadge(post.version)}
-                                    <span className="public-post-title">{post.title}</span>
+                                    <span>{post.title}</span>
+                                    {Number(post.comment_count || 0) > 0 ? <b>[{post.comment_count}]</b> : null}
                                   </span>
+                                  {summary ? <span className="public-mobile-post-summary">{summary}</span> : null}
                                   {isBugReportBoard ? (
-                                    <span className="support-list-meta">
+                                    <span className="support-list-meta support-list-meta-mobile">
                                       {post.category ? <span className="support-category-pill">{post.category}</span> : null}
                                       {renderSupportStatus(post.inquiry_status)}
                                     </span>
-                                  ) : Number(post.comment_count || 0) > 0 ? <span className="public-comment-count">[{post.comment_count}]</span> : null}
-                                </td>
-                                <td data-label={TEXT.author}>{renderAuthor(post.author_name, post.is_staff_author, post.has_enhanced_stone)}</td>
-                                <td data-label={TEXT.time}>{formatDate(post.created_at)}</td>
-                              </tr>
-                            ))
-                          ) : (
-                            <tr><td className="empty-cell" colSpan={4}>{TEXT.noPosts}</td></tr>
-                          )}
-                        </tbody>
-                      </table>
+                                  ) : null}
+                                  <span className="public-mobile-post-meta">{currentBoard.name} · {renderAuthor(post.author_name, post.is_staff_author, post.has_enhanced_stone)} · {formatDate(post.created_at)}</span>
+                                </span>
+                              </li>
+                            )
+                          })}
+                        </ul>
+                      ) : (
+                        <div className="empty-cell public-mobile-post-empty">{TEXT.noPosts}</div>
+                      )}
                     </div>
 
                     {totalPages > 1 ? (

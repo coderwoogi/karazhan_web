@@ -248,9 +248,11 @@ body {
     -webkit-backdrop-filter: blur(12px);
     color: var(--text-primary);
     padding: 1rem 2.5rem;
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr) auto;
+    justify-content: stretch;
     align-items: center;
+    gap: 12px;
     border-bottom: 1px solid var(--glass-border);
     z-index: 100;
 }
@@ -463,6 +465,7 @@ body {
 /* Sidebar Navigation */
 .sidebar {
     width: var(--sidebar-width);
+    flex: 0 0 var(--sidebar-width);
     background: #ffffff;
     border-right: 1px solid var(--border-color);
     display: flex;
@@ -472,6 +475,7 @@ body {
     top: 0;
     padding: 2rem 1.25rem;
     z-index: 200;
+    transition: width 0.25s ease, flex-basis 0.25s ease, padding 0.25s ease, transform 0.25s ease;
 }
 
 .sidebar-logo {
@@ -942,10 +946,47 @@ body {
 }
 
 .desktop-only-header {
+    display: contents;
+}
+
+.admin-header-center {
+    grid-column: 2;
+    justify-self: center;
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    width: 100%;
+    justify-content: center;
+    gap: 12px;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+}
+
+.admin-header-home-btn {
+    height: 40px;
+    min-width: 82px;
+    padding: 0 18px;
+    border: 1px solid var(--glass-border);
+    border-radius: 999px;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    color: var(--text-primary);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-weight: 900;
+    cursor: pointer;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+    transition: transform 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.admin-header-home-btn:hover {
+    border-color: #a5b4fc;
+    color: var(--primary-color);
+    transform: translateY(-1px);
+}
+
+.admin-header-hidden-user {
+    display: none !important;
 }
 
 .desktop-welcome {
@@ -963,6 +1004,8 @@ body {
 }
 
 .header-actions {
+    grid-column: 3;
+    justify-self: end;
     display: flex;
     align-items: center;
     gap: 1rem;
@@ -994,6 +1037,24 @@ body {
     justify-content: center;
     transition: all 0.3s;
     cursor: pointer;
+}
+
+.header-actions .header-btn {
+    width: 40px;
+    min-width: 40px;
+    padding: 0;
+    border-radius: 50%;
+    justify-content: center;
+    font-size: 0;
+}
+
+.header-actions .header-btn i {
+    margin: 0;
+    font-size: 1rem;
+}
+
+#admin-header-refresh {
+    display: none !important;
 }
 
 #home.active {
@@ -3297,18 +3358,33 @@ img.img-loaded {
 
 /* Mobile Toggle Buttons */
 .mobile-toggle {
-    display: none;
+    display: flex;
+    grid-column: 1;
+    justify-self: start;
     background: transparent;
     border: 1px solid var(--glass-border);
     color: var(--text-primary);
     width: 40px;
     height: 40px;
+    flex: 0 0 40px;
     border-radius: 8px;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     font-size: 1.25rem;
     transition: all 0.3s;
+}
+
+@media (min-width: 769px) {
+    .dashboard-wrapper.sidebar-collapsed .sidebar {
+        width: 0;
+        flex-basis: 0;
+        padding-left: 0;
+        padding-right: 0;
+        border-right: 0;
+        transform: translateX(-100%);
+        overflow: hidden;
+    }
 }
 
 .mobile-close-btn {
@@ -3455,10 +3531,10 @@ img.img-loaded {
     .header {
         height: 60px;
         padding: 0 1rem;
-        display: flex !important;
-        flex-direction: row !important;
+        display: grid !important;
+        grid-template-columns: 40px minmax(0, 1fr) auto !important;
         align-items: center;
-        justify-content: space-between !important;
+        justify-content: stretch !important;
         background: var(--bg-deep);
         border-bottom: 1px solid var(--glass-border);
         position: sticky;
@@ -3468,9 +3544,16 @@ img.img-loaded {
         min-width: 0;
     }
 
-    /* Hide Desktop-only elements */
+    /* Keep the unified header available on mobile: menu | info | notifications | mypage */
     .desktop-only-header {
-        display: none !important;
+        display: contents !important;
+    }
+
+    .admin-header-center {
+        grid-column: 2;
+        justify-self: center;
+        min-width: 0;
+        max-width: 100%;
     }
 
     /* Mobile Header Parts */
@@ -3489,7 +3572,7 @@ img.img-loaded {
     }
 
     .header-nickname {
-        display: block !important;
+        display: none !important;
         order: 2;
         font-weight: 700;
         font-size: 1rem;
@@ -3504,7 +3587,7 @@ img.img-loaded {
     }
 
     .header-points {
-        display: flex !important;
+        display: none !important;
         order: 3;
         align-items: center;
         gap: 6px;
@@ -3521,9 +3604,42 @@ img.img-loaded {
     }
 
     .header-actions {
+        grid-column: 3;
+        justify-self: end;
         flex: 0 0 auto !important;
         gap: 6px !important;
         min-width: 0;
+    }
+
+    .desktop-welcome {
+        grid-column: 1;
+        min-width: 0;
+        font-size: 0.9rem;
+    }
+
+    .desktop-welcome #welcome-user-icon {
+        display: none;
+    }
+
+    .desktop-welcome #welcome-text {
+        display: inline-block;
+        max-width: 32vw;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        vertical-align: middle;
+    }
+
+    .home-header-shortcuts {
+        display: none !important;
+    }
+
+    .header-actions .header-btn {
+        font-size: 0;
+    }
+
+    .header-actions .header-btn i {
+        font-size: 1rem;
+        margin: 0;
     }
 
     .header-btn,
@@ -7583,4 +7699,123 @@ img.img-loaded {
 #bug-report-admin #bug-admin-list-view:not([hidden]),
 #bug-report-admin #bug-admin-detail-view:not([hidden]) {
     display: block !important;
+}
+
+/* Admin header final layout: left menu | center information | right icons */
+.header {
+    display: grid !important;
+    grid-template-columns: 40px minmax(0, 1fr) auto !important;
+    align-items: center !important;
+    justify-content: stretch !important;
+    gap: 12px !important;
+}
+
+#mobile-toggle {
+    grid-column: 1 !important;
+    justify-self: start !important;
+    align-self: center !important;
+    order: initial !important;
+    margin: 0 !important;
+}
+
+.desktop-only-header {
+    display: contents !important;
+}
+
+.admin-header-center {
+    grid-column: 2 !important;
+    justify-self: center !important;
+    align-self: center !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 12px !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+}
+
+.header-actions {
+    grid-column: 3 !important;
+    justify-self: end !important;
+    align-self: center !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    order: initial !important;
+    margin: 0 !important;
+}
+
+#admin-header-refresh {
+    display: none !important;
+}
+
+.header-actions .header-btn {
+    width: 40px !important;
+    min-width: 40px !important;
+    height: 40px !important;
+    padding: 0 !important;
+    border-radius: 50% !important;
+    justify-content: center !important;
+    font-size: 0 !important;
+}
+
+.header-actions .header-btn i {
+    margin: 0 !important;
+    font-size: 1rem !important;
+}
+
+@media (max-width: 768px) {
+    .header {
+        height: 60px !important;
+        padding: 0 12px !important;
+        grid-template-columns: 40px minmax(0, 1fr) auto !important;
+        gap: 8px !important;
+    }
+
+    #welcome-msg {
+        display: flex !important;
+    }
+
+    #welcome-msg.admin-header-hidden-user {
+        display: none !important;
+    }
+
+    .desktop-welcome {
+        display: flex !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+        height: 40px !important;
+        padding: 0 10px !important;
+        font-size: 0.86rem !important;
+    }
+
+    .admin-header-home-btn {
+        min-width: 64px !important;
+        height: 40px !important;
+        padding: 0 14px !important;
+        font-size: 0.9rem !important;
+    }
+
+    .admin-header-hidden-user {
+        display: none !important;
+    }
+
+    .desktop-welcome #welcome-user-icon {
+        display: none !important;
+    }
+
+    .desktop-welcome #welcome-text {
+        display: inline-block !important;
+        max-width: 30vw !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+    }
+
+    .home-header-shortcuts,
+    .header-nickname,
+    .header-points {
+        display: none !important;
+    }
 }

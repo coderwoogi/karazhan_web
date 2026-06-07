@@ -1811,7 +1811,47 @@ var g_bugReportAdminPage = 1;
 var g_bugReportAdminSelectedId = 0;
 var g_bugReportAdminStatus = '';
 
-function showBugReportAdminListView() {
+function buildBugReportAdminHistoryState(view, extra = {}) {
+    const base = typeof buildAppState === 'function'
+        ? buildAppState('bug-report-admin')
+        : { app: true, tab: 'bug-report-admin' };
+    return Object.assign(base, {
+        bugReportView: view,
+        bugReportPage: g_bugReportAdminPage,
+        bugReportStatus: g_bugReportAdminStatus
+    }, extra || {});
+}
+
+function pushBugReportAdminHistory(view, extra = {}) {
+    if (!window.history || typeof window.history.pushState !== 'function') return;
+    const state = buildBugReportAdminHistoryState(view, extra);
+    const curr = window.history.state || {};
+    if (
+        curr.app === true &&
+        curr.tab === 'bug-report-admin' &&
+        curr.bugReportView === state.bugReportView &&
+        Number(curr.bugReportPostId || 0) === Number(state.bugReportPostId || 0)
+    ) {
+        return;
+    }
+    window.history.pushState(state, '', window.location.pathname + window.location.search);
+}
+
+function replaceBugReportAdminHistory(view, extra = {}) {
+    if (!window.history || typeof window.history.replaceState !== 'function') return;
+    window.history.replaceState(buildBugReportAdminHistoryState(view, extra), '', window.location.pathname + window.location.search);
+}
+
+function ensureBugReportAdminListHistory() {
+    const curr = window.history ? (window.history.state || {}) : {};
+    if (curr.app === true && curr.tab === 'bug-report-admin' && curr.bugReportView === 'list') return;
+    if (curr.app === true && curr.tab === 'bug-report-admin' && !curr.bugReportView) {
+        replaceBugReportAdminHistory('list');
+    }
+}
+
+function showBugReportAdminListView(options = {}) {
+    const trackHistory = options.trackHistory === true;
     const listView = document.getElementById('bug-admin-list-view');
     const detailView = document.getElementById('bug-admin-detail-view');
     if (listView) {
@@ -1822,8 +1862,39 @@ function showBugReportAdminListView() {
         detailView.hidden = true;
         detailView.style.display = 'none';
     }
+    g_bugReportAdminSelectedId = 0;
+    if (trackHistory) pushBugReportAdminHistory('list');
 }
 window.showBugReportAdminListView = showBugReportAdminListView;
+
+function backToBugReportAdminList() {
+    const curr = window.history ? (window.history.state || {}) : {};
+    if (curr.app === true && curr.tab === 'bug-report-admin' && curr.bugReportView === 'detail') {
+        window.history.back();
+        return;
+    }
+    showBugReportAdminListView({ trackHistory: false });
+}
+window.backToBugReportAdminList = backToBugReportAdminList;
+
+async function restoreBugReportAdminState(state = {}) {
+    const view = String(state.bugReportView || 'list');
+    const page = Math.max(1, Number(state.bugReportPage || g_bugReportAdminPage || 1));
+    g_bugReportAdminStatus = String(state.bugReportStatus || '').trim();
+    document.querySelectorAll('#bug-admin-status-tabs .kb-report-tab').forEach((tab) => {
+        tab.classList.toggle('active', String(tab.dataset.status || '') === g_bugReportAdminStatus);
+    });
+
+    if (view === 'detail' && Number(state.bugReportPostId || 0) > 0) {
+        await loadBugReportAdminPage(page, true);
+        await openBugReportAdminDetail(Number(state.bugReportPostId), { trackHistory: false });
+        return;
+    }
+
+    await loadBugReportAdminPage(page, false);
+    showBugReportAdminListView({ trackHistory: false });
+}
+window.restoreBugReportAdminState = restoreBugReportAdminState;
 
 function showBugReportAdminDetailView() {
     const listView = document.getElementById('bug-admin-list-view');
@@ -1871,7 +1942,10 @@ async function loadBugReportAdminPage(page = 1, keepDetail = false) {
     const list = document.getElementById('bug-admin-list');
     const pg = document.getElementById('bug-admin-pagination');
     if (!list) return;
-    if (!keepDetail) showBugReportAdminListView();
+    if (!keepDetail) {
+        ensureBugReportAdminListHistory();
+        showBugReportAdminListView({ trackHistory: false });
+    }
     list.innerHTML = '<div class="bug-admin-empty">버그 리포트를 불러오는 중입니다.</div>';
     if (pg) pg.innerHTML = '';
 
@@ -1965,10 +2039,15 @@ function renderBugReportAdminList(posts, totalPages, startIndex = 0) {
     }
 }
 
-async function openBugReportAdminDetail(postId) {
+async function openBugReportAdminDetail(postId, options = {}) {
+    const trackHistory = options.trackHistory !== false;
     g_bugReportAdminSelectedId = Number(postId || 0);
     const detail = document.getElementById('bug-admin-detail');
     if (!detail || !g_bugReportAdminSelectedId) return;
+    if (trackHistory) {
+        ensureBugReportAdminListHistory();
+        pushBugReportAdminHistory('detail', { bugReportPostId: g_bugReportAdminSelectedId });
+    }
     showBugReportAdminDetailView();
     detail.innerHTML = '<div class="bug-admin-detail-empty kb-report-empty">버그 리포트를 불러오는 중입니다.</div>';
 
@@ -1982,7 +2061,7 @@ async function openBugReportAdminDetail(postId) {
         detail.innerHTML = `
             <div class="kb-report-detail">
                 <div class="kb-report-detail-toolbar">
-                    <button type="button" onclick="showBugReportAdminListView()" class="btn kb-report-back-btn">
+                    <button type="button" onclick="backToBugReportAdminList()" class="btn kb-report-back-btn">
                         <i class="fas fa-arrow-left"></i> 목록으로
                     </button>
                     <button type="button" class="refresh-btn" onclick="openBugReportAdminDetail(${Number(post.id || postId)})"><i class="fas fa-sync"></i> 새로고침</button>

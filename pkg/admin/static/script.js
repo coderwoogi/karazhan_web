@@ -219,6 +219,14 @@ function logout() {
 function toggleSidebar() {
     const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('sidebar-overlay');
+    const wrapper = document.querySelector('.dashboard-wrapper');
+    const isMobile = window.matchMedia('(max-width: 768px)').matches;
+
+    if (!isMobile) {
+        if (wrapper) wrapper.classList.toggle('sidebar-collapsed');
+        return;
+    }
+
     if (sidebar && overlay) {
         sidebar.classList.toggle('active');
         overlay.classList.toggle('active');
@@ -634,6 +642,23 @@ function restoreFromHistoryState(state) {
     const tab = state.tab || 'home';
     if (tab === 'board' && typeof window.restoreBoardState === 'function') {
         window.restoreBoardState(state);
+        return true;
+    }
+    if (tab === 'bug-report-admin' && state.bugReportView) {
+        openTab('bug-report-admin', { trackHistory: false });
+        setTimeout(() => {
+            if (typeof window.restoreBugReportAdminState === 'function') {
+                window.restoreBugReportAdminState(state);
+                return;
+            }
+            if (state.bugReportView === 'detail' && Number(state.bugReportPostId || 0) > 0 && typeof window.openBugReportAdminDetail === 'function') {
+                window.openBugReportAdminDetail(Number(state.bugReportPostId), { trackHistory: false });
+                return;
+            }
+            if (typeof window.showBugReportAdminListView === 'function') {
+                window.showBugReportAdminListView({ trackHistory: false });
+            }
+        }, 80);
         return true;
     }
     openTab(tab, { trackHistory: false });

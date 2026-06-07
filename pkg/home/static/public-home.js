@@ -281,10 +281,90 @@
     const name = user.mainCharacter && user.mainCharacter.name ? String(user.mainCharacter.name).trim() : String(user.username || '').trim();
     const action = qs('.nav-action');
     if (!action || !name) return;
-    action.removeAttribute('href');
-    action.classList.add('nav-user');
-    action.innerHTML = '<span class="nav-user-avatar" aria-hidden="true"></span><span class="nav-user-text"></span>';
-    action.querySelector('.nav-user-text').textContent = name + K.welcome;
+    const wrap = document.createElement('div');
+    wrap.className = 'nav-user-wrap';
+    wrap.innerHTML =
+      '<button id="public-notification-btn" class="nav-notification" type="button" aria-label="알림 목록 열기" aria-expanded="false">' +
+        '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a2.4 2.4 0 0 0 2.35-2h-4.7A2.4 2.4 0 0 0 12 22Zm7-6.2-1.7-1.95V9.7A5.9 5.9 0 0 0 13 4.05V3a1 1 0 0 0-2 0v1.05A5.9 5.9 0 0 0 6.7 9.7v4.15L5 15.8V18h14v-2.2Z"/></svg>' +
+        '<span id="public-notification-badge" class="nav-notification-badge"></span>' +
+      '</button>' +
+      '<button class="nav-user" type="button" aria-label="' + esc(name) + '">' +
+        '<span class="nav-user-avatar" aria-hidden="true"></span><span class="nav-user-text"></span>' +
+      '</button>' +
+      '<div id="public-notification-dropdown" class="nav-notification-dropdown" aria-live="polite">' +
+        '<div class="nav-notification-head"><span>알림</span><a href="/admin/?tab=mailbox">전체보기</a></div>' +
+        '<div id="public-notification-list" class="nav-notification-list"><div class="nav-notification-empty">알림을 불러오는 중입니다.</div></div>' +
+      '</div>';
+    wrap.querySelector('.nav-user-text').textContent = name + K.welcome;
+    action.replaceWith(wrap);
+    loadPublicNotifications();
+  }
+
+  function formatNotificationTime(value) {
+    const date = value ? new Date(value) : null;
+    if (!date || Number.isNaN(date.getTime())) return '';
+    const seconds = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
+    if (seconds < 60) return '방금 전';
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return minutes + '분 전';
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return hours + '시간 전';
+    const days = Math.floor(hours / 24);
+    if (days < 7) return days + '일 전';
+    return fmt(date.toISOString());
+  }
+
+  function renderPublicNotifications(notifications, unreadCount) {
+    const badge = qs('#public-notification-badge');
+    if (badge) {
+      if (unreadCount > 0) {
+        badge.textContent = unreadCount > 99 ? '99+' : String(unreadCount);
+        badge.style.display = 'block';
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+
+    const list = qs('#public-notification-list');
+    if (!list) return;
+    if (!notifications.length) {
+      list.innerHTML = '<div class="nav-notification-empty">수신된 알림이 없습니다.</div>';
+      return;
+    }
+    list.innerHTML = notifications.map((item) => {
+      const link = String(item.link || '/admin/?tab=mailbox');
+      return '<a class="nav-notification-item ' + (item.is_read ? '' : 'unread') + '" href="' + esc(link) + '" data-public-notification-id="' + esc(item.id) + '">' +
+        '<span class="nav-notification-title">' + esc(item.title || '알림') + '</span>' +
+        '<span class="nav-notification-message">' + esc(item.message || '') + '</span>' +
+        '<span class="nav-notification-time">' + esc(formatNotificationTime(item.created_at)) + '</span>' +
+      '</a>';
+    }).join('');
+  }
+
+  async function loadPublicNotifications() {
+    try {
+      const res = await fetch('/api/notifications/list?limit=5&dropdown=true', { headers: { 'X-Background-Request': '1' } });
+      if (res.status === 401 || !res.ok) return;
+      const data = await res.json();
+      renderPublicNotifications(Array.isArray(data.notifications) ? data.notifications : [], Number(data.unread_count || 0));
+    } catch {
+      renderPublicNotifications([], 0);
+    }
+  }
+
+  async function markPublicNotificationRead(id) {
+    if (!id) return;
+    try {
+      await fetch('/api/notifications/read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Background-Request': '1' },
+        body: JSON.stringify({ id: Number(id), all: false })
+      });
+    } catch {}
+  }
+
+  function closePublicBoardDrawer() {
+    document.body.classList.remove('public-board-drawer-open');
   }
 
   function renderNav(nav) {
@@ -437,13 +517,6 @@
       return;
     }
 
-    if (window.innerWidth > 768) {
-      wrap.innerHTML = '<div class="public-post-table-wrap"><table class="public-post-table"><thead><tr><th>' + K.number + '</th><th>' + K.titleCol + '</th><th>' + K.author + '</th><th>' + K.time + '</th></tr></thead><tbody>' +
-        posts.map((post) => '<tr data-post-id="' + esc(post.id) + '"><td data-label="' + K.number + '">' + esc(post.display_number || post.id || '') + '</td><td data-label="' + K.titleCol + '" class="public-post-title-cell"><span class="public-post-title-wrap">' + renderPublicVersionBadge(post.version) + '<span class="public-post-title">' + esc(post.title || K.titleCol) + (Number(post.comment_count || 0) > 0 ? ' <span style="color:#d9b766;">[' + Number(post.comment_count) + ']</span>' : '') + '</span></span></td><td data-label="' + K.author + '">' + esc(post.author_name || '-') + '</td><td data-label="' + K.time + '">' + esc(fmt(post.created_at)) + '</td></tr>').join('') +
-        '</tbody></table></div>';
-      return;
-    }
-
     wrap.innerHTML = '<ul class="public-mobile-post-list">' +
       posts.map((post) => {
         const summary = stripPostHtml(post.content || '');
@@ -451,7 +524,7 @@
           renderPostThumb(post) +
           '<div class="public-mobile-post-main"><div class="public-mobile-post-title">' + renderPublicVersionBadge(post.version) + esc(post.title || K.titleCol) + (Number(post.comment_count || 0) > 0 ? ' <span>[' + Number(post.comment_count) + ']</span>' : '') + '</div>' +
           (summary ? '<div class="public-mobile-post-summary">' + esc(summary) + '</div>' : '') +
-          '<div class="public-mobile-post-meta">' + esc(post.author_name || '-') + ' · ' + esc(fmt(post.created_at)) + '</div></div>' +
+          '<div class="public-mobile-post-meta">' + esc(getBoard(activeBoard)?.name || K.board) + ' · ' + esc(post.author_name || '-') + ' · ' + esc(fmt(post.created_at)) + '</div></div>' +
           '</li>';
       }).join('') + '</ul>';
   }
@@ -645,9 +718,48 @@
   });
 
   document.addEventListener('click', async function (event) {
+    const notificationBtn = event.target.closest('#public-notification-btn');
+    if (notificationBtn) {
+      event.preventDefault();
+      const wrap = notificationBtn.closest('.nav-user-wrap');
+      if (wrap) {
+        const isOpen = !wrap.classList.contains('open');
+        wrap.classList.toggle('open', isOpen);
+        notificationBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        if (isOpen) loadPublicNotifications();
+      }
+      return;
+    }
+
+    const notificationItem = event.target.closest('[data-public-notification-id]');
+    if (notificationItem) {
+      await markPublicNotificationRead(notificationItem.getAttribute('data-public-notification-id'));
+      return;
+    }
+
+    if (!event.target.closest('.nav-user-wrap')) {
+      const wrap = qs('.nav-user-wrap.open');
+      if (wrap) {
+        wrap.classList.remove('open');
+        qs('#public-notification-btn')?.setAttribute('aria-expanded', 'false');
+      }
+    }
+
+    if (event.target?.id === 'public-board-menu-toggle') {
+      event.preventDefault();
+      document.body.classList.add('public-board-drawer-open');
+      return;
+    }
+
+    if (event.target?.id === 'public-board-drawer-overlay') {
+      closePublicBoardDrawer();
+      return;
+    }
+
     const defaultBoard = event.target.closest('[data-public-board-default]');
     if (defaultBoard) {
       event.preventDefault();
+      closePublicBoardDrawer();
       await openBoard(getBoard('notice') ? 'notice' : getDefaultBoardId(), 1, '', true);
       return;
     }
@@ -655,6 +767,7 @@
     const board = event.target.closest('[data-public-board]');
     if (board) {
       event.preventDefault();
+      closePublicBoardDrawer();
       await openBoard(board.getAttribute('data-public-board'), 1, '', true);
       return;
     }
@@ -691,6 +804,7 @@
     }
 
     if (event.target?.id === 'public-board-home-btn') {
+      closePublicBoardDrawer();
       showHome(true);
       return;
     }

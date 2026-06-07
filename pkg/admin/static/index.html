@@ -12,7 +12,7 @@
         href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="style.css?v=1027">
+    <link rel="stylesheet" href="style.css?v=1031">
     <link rel="stylesheet" href="notification.css?v=4">
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
     <script>
@@ -181,19 +181,21 @@
             flex: 0 0 auto;
         }
         .desktop-only-header {
-            display: grid !important;
-            grid-template-columns: minmax(120px, 1fr) auto minmax(0, auto);
-            align-items: center !important;
-            justify-content: initial !important;
+            display: contents !important;
+        }
+        .admin-header-center {
+            grid-column: 2;
+            justify-self: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             gap: 12px;
-            width: 100%;
             min-width: 0;
-            overflow: visible;
+            max-width: 100%;
+            overflow: hidden;
         }
         .desktop-welcome {
-            grid-column: 1;
             min-width: 0;
-            justify-self: start;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -217,6 +219,21 @@
         .header-actions .header-btn,
         .header-actions .header-icon-btn {
             flex: 0 0 auto;
+        }
+        .header-actions .header-btn {
+            width: 40px;
+            min-width: 40px;
+            padding: 0;
+            border-radius: 50%;
+            justify-content: center;
+            font-size: 0;
+        }
+        .header-actions .header-btn i {
+            margin: 0;
+            font-size: 1rem;
+        }
+        #admin-header-refresh {
+            display: none !important;
         }
         .env-badge {
             display: none;
@@ -266,8 +283,7 @@
             margin-top: 10px;
         }
         .home-header-shortcuts {
-            grid-column: 2;
-            justify-self: center;
+            justify-self: initial;
         }
         .home-header-shortcuts::-webkit-scrollbar {
             height: 6px;
@@ -308,11 +324,52 @@
             border-color: #a5b4fc;
         }
         @media (max-width: 768px) {
-            .home-header-shortcuts {
-                display: none;
+            .header {
+                display: grid !important;
+                grid-template-columns: 40px minmax(0, 1fr) auto !important;
+                justify-content: flex-start !important;
+            }
+            .header-nickname,
+            .header-points {
+                display: none !important;
             }
             .desktop-only-header {
+                display: contents !important;
+            }
+            .admin-header-center {
+                grid-column: 2;
+                justify-self: center;
+                min-width: 0;
+                max-width: 100%;
+            }
+            .desktop-welcome {
+                min-width: 0;
+                font-size: 0.9rem;
+            }
+            .desktop-welcome #welcome-user-icon {
                 display: none;
+            }
+            .desktop-welcome #welcome-text {
+                display: inline-block;
+                max-width: 32vw;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                vertical-align: middle;
+            }
+            .home-header-shortcuts {
+                display: none !important;
+            }
+            .header-actions {
+                grid-column: 3;
+                justify-self: end;
+                gap: 6px;
+            }
+            .header-actions .header-btn {
+                font-size: 0;
+            }
+            .header-actions .header-btn i {
+                font-size: 1rem;
+                margin: 0;
             }
         }
 
@@ -585,7 +642,7 @@
 
     <div class="main-layout">
         <div class="header">
-            <!-- Mobile Header Structure: Hamburger (Left) | Nickname (Center) | Points (Right) -->
+            <!-- Header order: hamburger | status information | notifications | mypage -->
             <button class="mobile-toggle" id="mobile-toggle" onclick="toggleSidebar()">
                 <i class="fas fa-bars"></i>
             </button>
@@ -599,34 +656,40 @@
                 <span id="user-points-display" style="color: #f59e0b;">0</span>
             </div>
 
-            <!-- Desktop View Elements (Hidden on Mobile) -->
+            <!-- Header zones: left menu | center information | right actions -->
             <div class="desktop-only-header">
-                <div id="welcome-msg" class="desktop-welcome">
-                    <span id="welcome-user-icon"><i class="far fa-user-circle"></i></span>
-                    <span id="welcome-text">불러오는 중...</span>
-                    <span style="display:inline-flex; align-items:center; gap:6px; margin-left:8px; padding:3px 10px; border-radius:999px; background:#fff7e6; border:1px solid #fde68a; color:#b45309; font-weight:700; font-size:0.85rem;">
-                        <img src="/img/web_point.png" alt="point" style="width:15px; height:15px; object-fit:contain;">
-                        <span id="user-points-display-desktop">0</span>
-                    </span>
-                </div>
-                <div class="home-header-shortcuts">
-                    <div class="home-header-chip">
-                        <i class="fas fa-check-circle" style="color:#16a34a;"></i>
-                        서버 상태
-                        <strong id="header-server-status-text">정상</strong>
+                <div class="admin-header-center">
+                    <button type="button" class="admin-header-home-btn" onclick="openTab('home')" aria-label="관리자 홈으로 이동">
+                        <i class="fas fa-home"></i>
+                        <span>홈</span>
+                    </button>
+                    <div id="welcome-msg" class="desktop-welcome admin-header-hidden-user">
+                        <span id="welcome-user-icon"><i class="far fa-user-circle"></i></span>
+                        <span id="welcome-text">불러오는 중...</span>
+                        <span style="display:inline-flex; align-items:center; gap:6px; margin-left:8px; padding:3px 10px; border-radius:999px; background:#fff7e6; border:1px solid #fde68a; color:#b45309; font-weight:700; font-size:0.85rem;">
+                            <img src="/img/web_point.png" alt="point" style="width:15px; height:15px; object-fit:contain;">
+                            <span id="user-points-display-desktop">0</span>
+                        </span>
                     </div>
-                    <div class="home-header-chip">
-                        <i class="fas fa-users" style="color:#4f46e5;"></i>
-                        동접
-                        <strong><span id="online-players-count">0</span>명</strong>
-                    </div>
-                    <div class="home-header-chip time-chip">
-                        <span id="live-date"></span>
-                        <span id="live-time" class="mini-time"></span>
+                    <div class="home-header-shortcuts">
+                        <span id="header-env-badge" class="env-badge">개발</span>
+                        <div class="home-header-chip">
+                            <i class="fas fa-check-circle" style="color:#16a34a;"></i>
+                            서버 상태
+                            <strong id="header-server-status-text">정상</strong>
+                        </div>
+                        <div class="home-header-chip">
+                            <i class="fas fa-users" style="color:#4f46e5;"></i>
+                            동접
+                            <strong><span id="online-players-count">0</span>명</strong>
+                        </div>
+                        <div class="home-header-chip time-chip">
+                            <span id="live-date"></span>
+                            <span id="live-time" class="mini-time"></span>
+                        </div>
                     </div>
                 </div>
                 <div class="header-actions">
-                    <span id="header-env-badge" class="env-badge">개발</span>
                     <div class="notification-container">
                         <button id="notification-btn" class="header-icon-btn" onclick="toggleNotificationDropdown(event)">
                             <i class="far fa-bell"></i>
@@ -654,7 +717,7 @@
                     <button id="tab-btn-mypage" class="header-btn" onclick="openTab('mypage')">
                         <i class="fas fa-user-cog"></i> 마이페이지
                     </button>
-                    <button class="header-icon-btn" onclick="location.reload()">
+                    <button id="admin-header-refresh" class="header-icon-btn" onclick="location.reload()">
                         <i class="fas fa-redo-alt"></i>
                     </button>
                 </div>
@@ -4887,12 +4950,12 @@
         </div>
 
         <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-        <script src="script.js?v=admin_fix_v37"></script>
+        <script src="script.js?v=admin_fix_v40"></script>
         <script src="notification.js?v=4"></script>
         <script src="shop.js?v=4"></script>
         <script src="auction.js?v=6"></script>
         <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.3/Sortable.min.js"></script>
-        <script src="board.js?v=mobile_board_v1"></script>
+        <script src="board.js?v=bug_admin_history_v2"></script>
         <script src="account.js?v=30"></script>
         <script src="char_items_modal.js?v=29"></script>
         <script src="item_picker.js?v=29"></script>
