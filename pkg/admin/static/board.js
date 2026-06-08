@@ -1937,6 +1937,30 @@ function updateBugReportAdminStatusCounts(posts) {
     setText('bug-admin-count-done', counts.done);
 }
 
+function getBugReportPostSortTime(post) {
+    const time = Date.parse(post?.created_at || post?.createdAt || '');
+    return Number.isFinite(time) ? time : 0;
+}
+
+function attachBugReportSequence(posts) {
+    const source = Array.isArray(posts) ? posts : [];
+    const sequenceMap = new Map();
+    source
+        .slice()
+        .sort((a, b) => {
+            const timeDiff = getBugReportPostSortTime(a) - getBugReportPostSortTime(b);
+            if (timeDiff !== 0) return timeDiff;
+            return Number(a?.id || 0) - Number(b?.id || 0);
+        })
+        .forEach((post, index) => {
+            sequenceMap.set(Number(post?.id || 0), index + 1);
+        });
+
+    return source.map((post) => Object.assign({}, post, {
+        _bugReportSequence: sequenceMap.get(Number(post?.id || 0)) || 0
+    }));
+}
+
 async function loadBugReportAdminPage(page = 1, keepDetail = false) {
     g_bugReportAdminPage = Math.max(1, Number(page || 1));
     const list = document.getElementById('bug-admin-list');
@@ -1967,7 +1991,7 @@ async function loadBugReportAdminPage(page = 1, keepDetail = false) {
             throw error;
         }
         const data = await res.json();
-        const allPosts = Array.isArray(data.posts) ? data.posts : [];
+        const allPosts = attachBugReportSequence(Array.isArray(data.posts) ? data.posts : []);
         updateBugReportAdminStatusCounts(allPosts);
         let posts = allPosts;
         if (status) {
@@ -1998,7 +2022,7 @@ function renderBugReportAdminList(posts, totalPages, startIndex = 0) {
     }
     const rows = posts.map((post, idx) => {
         const status = String(post.inquiry_status || 'received').toLowerCase();
-        const displayNumber = Number(startIndex || 0) + idx + 1;
+        const displayNumber = Number(post._bugReportSequence || 0) || (Number(startIndex || 0) + idx + 1);
         return `
             <tr class="bug-admin-row status-${escapeHtml(status)} ${Number(post.id) === Number(g_bugReportAdminSelectedId) ? 'active' : ''}" onclick="openBugReportAdminDetail(${Number(post.id)})">
                 <td>${displayNumber}</td>
