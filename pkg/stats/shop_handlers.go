@@ -9,6 +9,7 @@ import (
 	"io"
 	"karazhan/pkg/config"
 	"karazhan/pkg/services"
+	"karazhan/pkg/utils"
 	"log"
 	"net/http"
 	"os"
@@ -313,6 +314,74 @@ type shopWorldSOAPConfig struct {
 	Port    string
 }
 
+func shopWorldSOAPConfigCandidatePaths() []string {
+	wd, _ := os.Getwd()
+	candidates := []string{}
+	if v := strings.TrimSpace(os.Getenv("KARAZHAN_WORLDSERVER_CONF")); v != "" {
+		candidates = append(candidates, v)
+	}
+	candidates = append(candidates,
+		`configs/worldserver.conf`,
+		`E:/server/operate/configs/worldserver.conf`,
+		`/opt/homebrew/var/www/karazhan/configs/worldserver.conf`,
+		`/opt/homebrew/etc/karazhan/worldserver.conf`,
+		`/Users/choitaeuk/Desktop/karazhan/azerothcore-wotlk/env/dist/etc/worldserver.conf`,
+		`/Users/choitaeuk/Desktop/karazhan/azerothcore-wotlk/build/bin/etc/worldserver.conf`,
+		`/Users/choitaeuk/Desktop/karazhan/azerothcore-wotlk/etc/worldserver.conf`,
+		`/Users/choitaeuk/Desktop/karazhan/azerothcore-wotlk/worldserver.conf`,
+	)
+	if wd != "" {
+		candidates = append([]string{filepath.Join(wd, "configs", "worldserver.conf")}, candidates...)
+	}
+	return candidates
+}
+
+func loadShopWorldSOAPConfigFromEnv() (shopWorldSOAPConfig, bool) {
+	enabledRaw := strings.TrimSpace(os.Getenv("KARAZHAN_SOAP_ENABLED"))
+	if enabledRaw == "" {
+		enabledRaw = strings.TrimSpace(os.Getenv("SOAP_ENABLED"))
+	}
+	if enabledRaw == "" {
+		return shopWorldSOAPConfig{}, false
+	}
+
+	cfg := shopWorldSOAPConfig{
+		Enabled: enabledRaw == "1" || strings.EqualFold(enabledRaw, "true") || strings.EqualFold(enabledRaw, "yes"),
+		IP:      "127.0.0.1",
+		Port:    "7878",
+	}
+	if v := strings.TrimSpace(os.Getenv("KARAZHAN_SOAP_IP")); v != "" {
+		cfg.IP = v
+	} else if v := strings.TrimSpace(os.Getenv("KARAZHAN_SOAP_HOST")); v != "" {
+		cfg.IP = v
+	} else if v := strings.TrimSpace(os.Getenv("SOAP_IP")); v != "" {
+		cfg.IP = v
+	}
+	if v := strings.TrimSpace(os.Getenv("KARAZHAN_SOAP_PORT")); v != "" {
+		cfg.Port = v
+	} else if v := strings.TrimSpace(os.Getenv("SOAP_PORT")); v != "" {
+		cfg.Port = v
+	}
+	return cfg, true
+}
+
+func loadShopWorldSOAPConfig() shopWorldSOAPConfig {
+	if cfg, ok := loadShopWorldSOAPConfigFromEnv(); ok {
+		return cfg
+	}
+	for _, path := range shopWorldSOAPConfigCandidatePaths() {
+		cfg := readShopWorldSOAPConfig(path)
+		if cfg.Enabled {
+			return cfg
+		}
+	}
+	return shopWorldSOAPConfig{
+		Enabled: false,
+		IP:      "127.0.0.1",
+		Port:    "7878",
+	}
+}
+
 func readShopWorldSOAPConfig(path string) shopWorldSOAPConfig {
 	cfg := shopWorldSOAPConfig{
 		Enabled: false,
@@ -472,6 +541,10 @@ func runShopWorldCommand(cmd string, r *http.Request) error {
 		return fmt.Errorf("world command is empty")
 	}
 
+	if hasShopNonASCII(cmd) {
+		return runShopWorldCommandSOAP(cmd)
+	}
+
 	baseURL := config.LauncherBaseURL(r)
 
 	payload := map[string]string{"command": cmd}
@@ -507,6 +580,32 @@ func runShopWorldCommand(cmd string, r *http.Request) error {
 	}
 
 	return nil
+}
+
+func runShopWorldCommandSOAP(cmd string) error {
+	soapCfg := loadShopWorldSOAPConfig()
+	if !soapCfg.Enabled {
+		return fmt.Errorf("non-ascii command requires SOAP. worldserver.conf에서 SOAP.Enabled=1 설정이 필요합니다")
+	}
+
+	soapUser, soapPass := utils.LoadSOAPCredentials()
+	if strings.TrimSpace(soapUser) == "" || soapPass == "" {
+		return fmt.Errorf("SOAP 계정 정보가 없습니다. configs/soap_credentials.env 또는 KARAZHAN_SOAP_USER/KARAZHAN_SOAP_PASS를 설정해주세요")
+	}
+
+	if err := sendShopSOAPCommand(soapCfg, strings.TrimSpace(soapUser), soapPass, cmd); err != nil {
+		return fmt.Errorf("SOAP command failed: %w", err)
+	}
+	return nil
+}
+
+func hasShopNonASCII(value string) bool {
+	for _, r := range value {
+		if r > 127 {
+			return true
+		}
+	}
+	return false
 }
 
 func quoteShopWorldCommandArg(value string) string {
