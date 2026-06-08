@@ -42,15 +42,26 @@ func soapCredentialCandidatePaths() []string {
 	wd, _ := os.Getwd()
 	candidates := []string{
 		`configs/soap_credentials.env`,
+		`configs/database.env`,
+		`configs/database.local.env`,
 		`E:/server/operate/configs/soap_credentials.env`,
+		`E:/server/operate/configs/database.env`,
 		`/opt/homebrew/var/www/karazhan/configs/soap_credentials.env`,
+		`/opt/homebrew/var/www/karazhan/configs/database.env`,
 		`/opt/homebrew/etc/karazhan/soap_credentials.env`,
 		`/Users/choitaeuk/Desktop/karazhan/configs/soap_credentials.env`,
+		`/Users/choitaeuk/Desktop/karazhan/configs/database.env`,
 		`/Users/choitaeuk/Desktop/karazhan/operate/configs/soap_credentials.env`,
+		`/Users/choitaeuk/Desktop/karazhan/operate/configs/database.env`,
 		`/Users/choitaeuk/Desktop/karazhan/karazhan/configs/soap_credentials.env`,
+		`/Users/choitaeuk/Desktop/karazhan/karazhan/configs/database.env`,
 	}
 	if wd != "" {
-		candidates = append([]string{filepath.Join(wd, "configs", "soap_credentials.env")}, candidates...)
+		candidates = append([]string{
+			filepath.Join(wd, "configs", "soap_credentials.env"),
+			filepath.Join(wd, "configs", "database.env"),
+			filepath.Join(wd, "configs", "database.local.env"),
+		}, candidates...)
 	}
 	return candidates
 }
