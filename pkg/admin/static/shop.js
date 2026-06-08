@@ -697,7 +697,10 @@ async function purchaseShopItem(itemID, qty, character = '') {
         if (!res.ok || data.status !== 'success') throw new Error(data.message || `HTTP ${res.status}`);
 
         if (window.Swal) {
-            await Swal.fire({ icon: 'success', title: '구매 요청이 접수되었습니다. 캐릭터 재접속 후 우편을 확인하세요.', confirmButtonText: '확인' });
+            const successTitle = data.message && data.message !== 'Order completed.'
+                ? data.message
+                : '구매 요청이 접수되었습니다. 캐릭터 재접속 후 우편을 확인하세요.';
+            await Swal.fire({ icon: 'success', title: successTitle, confirmButtonText: '확인' });
         }
         if (data && data.points_after !== undefined && data.points_after !== null) {
             const formatted = Number(data.points_after).toLocaleString();

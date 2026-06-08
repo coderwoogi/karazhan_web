@@ -274,30 +274,32 @@ func handleAdminShopIconPackList(w http.ResponseWriter, r *http.Request) {
 	if !CheckMenuPermission(w, r, "shop-admin") {
 		return
 	}
-	root := `E:\xampp\htdocs\karazhan\img\iconpack`
 	var icons []map[string]string
 
-	_ = filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
-		if err != nil || d == nil || d.IsDir() {
-			return nil
-		}
-		ext := strings.ToLower(filepath.Ext(d.Name()))
-		if ext != ".png" && ext != ".jpg" && ext != ".jpeg" && ext != ".webp" && ext != ".gif" {
-			return nil
-		}
+	collectShopIcons := func(root, publicPrefix string) {
+		_ = filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
+			if err != nil || d == nil || d.IsDir() {
+				return nil
+			}
+			ext := strings.ToLower(filepath.Ext(d.Name()))
+			if ext != ".png" && ext != ".jpg" && ext != ".jpeg" && ext != ".webp" && ext != ".gif" {
+				return nil
+			}
 
-		rel, err := filepath.Rel(root, path)
-		if err != nil {
+			rel, err := filepath.Rel(root, path)
+			if err != nil {
+				return nil
+			}
+			rel = filepath.ToSlash(rel)
+			icons = append(icons, map[string]string{
+				"name": d.Name(),
+				"path": strings.TrimRight(publicPrefix, "/") + "/" + rel,
+			})
 			return nil
-		}
-		rel = filepath.ToSlash(rel)
-		urlPath := "/img/iconpack/" + rel
-		icons = append(icons, map[string]string{
-			"name": d.Name(),
-			"path": urlPath,
 		})
-		return nil
-	})
+	}
+	collectShopIcons(filepath.Join(".", "img", "iconpack"), "/img/iconpack")
+	collectShopIcons(filepath.Join(".", "img", "shop"), "/img/shop")
 
 	sort.Slice(icons, func(i, j int) bool {
 		return icons[i]["path"] < icons[j]["path"]
@@ -412,6 +414,8 @@ func runShopFunctionCommand(functionCode, characterName string, r *http.Request)
 	switch code {
 	case "level_up", "level80", "level_80":
 		cmd = ".character level " + character + " 80"
+	case "faction_change", "change_faction":
+		cmd = ".character changefaction " + character
 	case "race_change", "change_race":
 		cmd = ".character changerace " + character
 	case "rename", "rename_character", "name_change":
@@ -1379,6 +1383,8 @@ func handleShopCreateOrder(w http.ResponseWriter, r *http.Request) {
 			"level_up":               true,
 			"level80":                true,
 			"level_80":               true,
+			"faction_change":         true,
+			"change_faction":         true,
 			"race_change":            true,
 			"change_race":            true,
 			"rename":                 true,
@@ -1559,12 +1565,23 @@ func handleShopCreateOrder(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{
 		"status":       "success",
-		"message":      "Order completed.",
+		"message":      shopOrderSuccessMessage(itemType, funcCode),
 		"order_id":     orderID,
 		"used_points":  total,
 		"points_after": pointsAfter,
 	})
 }
+
+func shopOrderSuccessMessage(itemType, funcCode string) string {
+	if strings.EqualFold(strings.TrimSpace(itemType), "function") {
+		switch strings.ToLower(strings.TrimSpace(funcCode)) {
+		case "faction_change", "change_faction", "race_change", "change_race", "rename", "rename_character", "name_change":
+			return "캐릭터를 재접속 하시길 바랍니다."
+		}
+	}
+	return "Order completed."
+}
+
 func handleShopMyOrders(w http.ResponseWriter, r *http.Request) {
 	if !CheckMenuPermission(w, r, "shop") {
 		return
