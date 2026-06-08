@@ -593,7 +593,12 @@ func handleWorldCommand(w http.ResponseWriter, r *http.Request) {
 
 	allowInternalKarazhanWhisper := strings.EqualFold(strings.TrimSpace(r.Header.Get("X-Internal-Caller")), "shop") &&
 		strings.HasPrefix(strings.ToLower(command), ".karazhan whisper ")
-	if hasNonASCII(command) && !allowInternalKarazhanWhisper {
+	commandLower := strings.ToLower(strings.TrimSpace(command))
+	allowInternalShopCharacterCommand := strings.EqualFold(strings.TrimSpace(r.Header.Get("X-Internal-Caller")), "shop") &&
+		(strings.HasPrefix(commandLower, ".character rename ") ||
+			strings.HasPrefix(commandLower, ".character changerace ") ||
+			strings.HasPrefix(commandLower, ".character changefaction "))
+	if hasNonASCII(command) && !allowInternalKarazhanWhisper && !allowInternalShopCharacterCommand {
 		w.WriteHeader(http.StatusBadRequest)
 		_ = json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "non-ascii command requires SOAP"})
 		return

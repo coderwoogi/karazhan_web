@@ -542,10 +542,6 @@ func runShopWorldCommand(cmd string, r *http.Request) error {
 		return fmt.Errorf("world command is empty")
 	}
 
-	if hasShopNonASCII(cmd) {
-		return runShopWorldCommandSOAP(cmd)
-	}
-
 	baseURL := config.LauncherBaseURL(r)
 
 	payload := map[string]string{"command": cmd}
