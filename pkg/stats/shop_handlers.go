@@ -325,6 +325,7 @@ func shopWorldSOAPConfigCandidatePaths() []string {
 		`E:/server/operate/configs/worldserver.conf`,
 		`/opt/homebrew/var/www/karazhan/configs/worldserver.conf`,
 		`/opt/homebrew/etc/karazhan/worldserver.conf`,
+		`/Users/choitaeuk/Desktop/karazhan/operate/configs/worldserver.conf`,
 		`/Users/choitaeuk/Desktop/karazhan/azerothcore-wotlk/env/dist/etc/worldserver.conf`,
 		`/Users/choitaeuk/Desktop/karazhan/azerothcore-wotlk/build/bin/etc/worldserver.conf`,
 		`/Users/choitaeuk/Desktop/karazhan/azerothcore-wotlk/etc/worldserver.conf`,
