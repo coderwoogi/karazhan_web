@@ -12,7 +12,7 @@
         href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="style.css?v=1031">
+    <link rel="stylesheet" href="style.css?v=1033">
     <link rel="stylesheet" href="notification.css?v=4">
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
     <script>
@@ -4956,7 +4956,7 @@
         <script src="auction.js?v=6"></script>
         <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.3/Sortable.min.js"></script>
         <script src="board.js?v=bug_admin_history_v3"></script>
-        <script src="account.js?v=30"></script>
+        <script src="account.js?v=31"></script>
         <script src="char_items_modal.js?v=29"></script>
         <script src="item_picker.js?v=29"></script>
         <script src="gm.js?v=29"></script>
@@ -4988,16 +4988,17 @@
         </div>
 
         <!-- Account Details Modal -->
-        <div id="account-detail-modal" class="modal-overlay">
-            <div class="modal-container" style="max-width: 1100px; width: 95%;">
+        <div id="account-detail-modal" class="modal-overlay account-detail-page-overlay">
+            <div class="modal-container account-detail-page-container" style="max-width: 1100px; width: 95%;">
                 <div class="modal-header">
                     <h3 id="acc-modal-title">계정 상세 정보</h3>
                     <button class="modal-close" onclick="closeAccountDetailModal()"><i
                             class="fas fa-times"></i></button>
                 </div>
-                <div class="modal-body" style="padding: 1.5rem;">
-                    <div style="display: flex; gap: 2rem; height: 620px;">
+                <div class="modal-body account-detail-page-body" style="padding: 1.5rem;">
+                    <div class="account-detail-page-grid" style="display: flex; gap: 2rem; height: 620px;">
                         <div
+                            class="account-detail-profile-panel"
                             style="flex: 1; min-width: 320px; padding: 1.5rem; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; overflow-y: auto;">
                             <div style="text-align: center; margin-bottom: 1.5rem;">
                                 <div
@@ -5054,6 +5055,7 @@
                         </div>
 
                         <div
+                            class="account-detail-data-panel"
                             style="flex: 2; display: flex; flex-direction: column; padding: 1.5rem; background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; min-height: 0;">
                             <div id="acc-detail-view-list" style="display: flex; flex-direction: column; height: 100%; min-height: 0;">
                                 <h4 style="margin-top: 0; margin-bottom: 1rem;"><i class="fas fa-users"></i> 보유 캐릭터 목록</h4>
@@ -5084,11 +5086,35 @@
                                     </div>
                                     <div id="acc-detail-char-quick-info" style="font-size: 0.85rem; color: #64748b;"></div>
                                 </div>
-                                <div id="acc-detail-char-items-loading" style="padding: 20px; text-align: center; color: #64748b;">
-                                    <i class="fas fa-spinner fa-spin"></i> 아이템 정보를 불러오고 있습니다...
+                                <div id="acc-detail-char-hub" class="account-char-hub">
+                                    <div class="account-char-summary-card">
+                                        <div>
+                                            <span class="account-char-summary-label">캐릭터 기본 정보</span>
+                                            <strong id="acc-detail-char-summary-name">-</strong>
+                                        </div>
+                                        <div id="acc-detail-char-summary-meta">-</div>
+                                    </div>
+                                    <div class="account-char-section-title">캐릭터 DB 정보</div>
+                                    <div id="acc-detail-char-core-grid" class="account-char-card-grid"></div>
+                                    <div class="account-char-section-title">커스텀/웹 연동 정보</div>
+                                    <div id="acc-detail-char-custom-grid" class="account-char-card-grid"></div>
                                 </div>
-                                <div class="scroll-table premium-table" style="flex: 1; min-height: 0;">
-                                    <table id="acc-detail-char-items-table" class="premium-table" style="display: none;">
+                                <div id="acc-detail-char-detail" class="account-char-detail-panel" style="display: none;">
+                                    <div class="account-char-detail-head">
+                                        <button onclick="showAccountCharHub()" class="refresh-btn">
+                                            <i class="fas fa-arrow-left"></i> 정보 허브
+                                        </button>
+                                        <div>
+                                            <h4 id="acc-detail-char-detail-title">상세 정보</h4>
+                                            <p id="acc-detail-char-detail-desc">선택한 항목의 상세 정보를 표시합니다.</p>
+                                        </div>
+                                    </div>
+                                    <div id="acc-detail-char-items-loading" style="display:none; padding: 20px; text-align: center; color: #64748b;">
+                                        <i class="fas fa-spinner fa-spin"></i> 정보를 불러오고 있습니다...
+                                    </div>
+                                    <div id="acc-detail-char-empty" class="account-char-empty" style="display:none;"></div>
+                                    <div class="scroll-table premium-table" style="flex: 1; min-height: 0;">
+                                        <table id="acc-detail-char-items-table" class="premium-table" style="display: none;">
                                         <thead>
                                             <tr>
                                                 <th style="width: 80px;">부위</th>
@@ -5101,7 +5127,8 @@
                                         <tbody id="acc-detail-char-items-list">
                                             <!-- JS Load -->
                                         </tbody>
-                                    </table>
+                                        </table>
+                                    </div>
                                 </div>
                             </div>
                         </div>

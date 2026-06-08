@@ -1,5 +1,18 @@
 ﻿let currentAccountSubTab = 'list';
 let g_accountList = []; // Global list to store fetched accounts
+let g_accountSelectedCharacter = null;
+let g_accountSelectedCharacterItems = null;
+
+function escapeAccountDetailHtml(value) {
+    if (typeof escapeHtml === 'function') return escapeHtml(value);
+    return String(value ?? '').replace(/[&<>"']/g, (ch) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+    }[ch]));
+}
 
 function openAccountSubTab(tabName) {
     currentAccountSubTab = tabName;
@@ -280,14 +293,20 @@ async function openAccountDetail(id) {
 
             charList.innerHTML = dataChars.characters
                 .map(
-                    (c) => `
-                <tr onclick="showAccountCharDetail(${c.guid}, '${c.name}', '${raceMap[c.race] || c.race}', '${classMap[c.class] || c.class}', ${c.level})" style="cursor:pointer;" class="hover-row">
-                    <td style="font-weight:700;">${c.name}</td>
+                    (c) => {
+                        const raceName = raceMap[c.race] || c.race;
+                        const className = classMap[c.class] || c.class;
+                        const zoneName = getZoneName(c.zone) || `Zone ${c.zone}`;
+                        const openDetailCall = `showAccountCharDetail(${Number(c.guid)}, ${JSON.stringify(String(c.name || ''))}, ${JSON.stringify(String(raceName))}, ${JSON.stringify(String(className))}, ${Number(c.level || 0)}, ${JSON.stringify(String(zoneName))})`.replace(/'/g, '&#39;');
+                        return `
+                <tr onclick='${openDetailCall}' style="cursor:pointer;" class="hover-row">
+                    <td style="font-weight:700;">${escapeAccountDetailHtml(c.name)}</td>
                     <td style="text-align:center;"><span class="lvl-badge">Lv.${c.level}</span></td>
-                    <td style="text-align:center;">${raceMap[c.race] || c.race} / ${classMap[c.class] || c.class}</td>
-                    <td>${getZoneName(c.zone) || `Zone ${c.zone}`}</td>
+                    <td style="text-align:center;">${escapeAccountDetailHtml(raceName)} / ${escapeAccountDetailHtml(className)}</td>
+                    <td>${escapeAccountDetailHtml(zoneName)}</td>
                 </tr>
-            `
+            `;
+                    }
                 )
                 .join('');
         } else {
@@ -302,85 +321,215 @@ async function openAccountDetail(id) {
 function showAccountCharList() {
     document.getElementById('acc-detail-view-list').style.display = 'flex';
     document.getElementById('acc-detail-view-char').style.display = 'none';
+    g_accountSelectedCharacter = null;
+    g_accountSelectedCharacterItems = null;
 }
 
-async function showAccountCharDetail(guid, name, race, cls, level) {
+const accountCharCoreCards = [
+    { key: 'basic', icon: 'fa-id-card', title: '기본 정보', desc: '이름, 레벨, 종족, 직업, 성별, 계정 귀속 정보', status: '표시 가능', action: 'summary' },
+    { key: 'location', icon: 'fa-map-location-dot', title: '위치/접속 정보', desc: '맵, 지역, 캐릭터 접속 위치, 마지막 접속 관련 정보', status: '일부 표시 가능', action: 'summary' },
+    { key: 'stats', icon: 'fa-chart-simple', title: '스탯/전투 정보', desc: '체력, 마나, 골드, 플레이타임, 명예/아레나 포인트', status: 'API 연동 필요', action: 'disabled' },
+    { key: 'equipment', icon: 'fa-shield-halved', title: '착용중인 장비', desc: '캐릭터가 현재 착용한 장비와 마법부여/보석 정보', status: '조회 가능', action: 'equipment' },
+    { key: 'inventory', icon: 'fa-box-open', title: '인벤토리', desc: '가방 슬롯에 보유 중인 아이템, 수량, 아이템 ID', status: '조회 가능', action: 'inventory' },
+    { key: 'bank', icon: 'fa-vault', title: '은행/가방', desc: '은행 보관 아이템과 은행 가방 슬롯 정보', status: 'API 연동 필요', action: 'disabled' },
+    { key: 'mail', icon: 'fa-envelope-open-text', title: '우편', desc: '받은 우편, 첨부 아이템, 발송자/만료 정보', status: 'API 연동 필요', action: 'disabled' },
+    { key: 'quest', icon: 'fa-scroll', title: '퀘스트', desc: '진행 중인 퀘스트, 완료 퀘스트, 일일 퀘스트 상태', status: 'API 연동 필요', action: 'disabled' },
+    { key: 'reputation', icon: 'fa-handshake', title: '평판', desc: '진영별 평판 수치와 등급', status: 'API 연동 필요', action: 'disabled' },
+    { key: 'skills', icon: 'fa-hammer', title: '스킬/전문기술', desc: '무기 숙련, 전문기술, 보조기술, 배운 주문', status: 'API 연동 필요', action: 'disabled' },
+    { key: 'talents', icon: 'fa-sitemap', title: '특성/문양', desc: '특성 포인트, 이중 특성, 장착 문양 정보', status: 'API 연동 필요', action: 'disabled' }
+];
+
+const accountCharCustomCards = [
+    { key: 'hero-stone', icon: 'fa-gem', title: '영웅석/구독', desc: '영웅석 구독 상태, 시작일, 만료일, 남은 기간', status: '웹 구독 API 연동 필요', action: 'disabled' },
+    { key: 'transmog', icon: 'fa-wand-magic-sparkles', title: '형상변환', desc: '현재 형상변환, 저장 세트, 해금 외형', status: '커스텀 DB 연동 필요', action: 'disabled' },
+    { key: 'shop', icon: 'fa-martini-glass-citrus', title: '선술집/웹포인트', desc: '선술집 구매 이력, 사용 포인트, 우편 발송 로그', status: '계정 로그 연동 필요', action: 'disabled' },
+    { key: 'carddraw', icon: 'fa-layer-group', title: '카드뽑기', desc: '뽑기 횟수, 획득 아이템, 우편 발송 내역', status: '계정 로그 연동 필요', action: 'disabled' },
+    { key: 'instance', icon: 'fa-dungeon', title: '인스턴스 보너스', desc: '커스텀 인스턴스 보상/보너스 적용 이력', status: '커스텀 DB 연동 필요', action: 'disabled' },
+    { key: 'calendar', icon: 'fa-calendar-check', title: '캘린더/레이드', desc: '이벤트 초대, 레이드 참여, 일정 응답 정보', status: 'API 연동 필요', action: 'disabled' },
+    { key: 'community', icon: 'fa-comments', title: '커뮤니티 기록', desc: '대표 캐릭터 기준 게시글, 댓글, 버그리포트 연계', status: '웹 게시판 연동 필요', action: 'disabled' }
+];
+
+function renderAccountCharHubCards(containerId, cards) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    container.innerHTML = cards.map((card) => {
+        const disabled = card.action === 'disabled';
+        const onClick = disabled ? '' : `onclick="openAccountCharInfo('${card.action}')"`;
+        return `
+            <button type="button" class="account-char-info-card ${disabled ? 'disabled' : ''}" ${onClick}>
+                <span class="account-char-info-icon"><i class="fas ${card.icon}"></i></span>
+                <span class="account-char-info-body">
+                    <strong>${escapeAccountDetailHtml(card.title)}</strong>
+                    <em>${escapeAccountDetailHtml(card.desc)}</em>
+                    <small>${escapeAccountDetailHtml(card.status)}</small>
+                </span>
+                <span class="account-char-info-arrow"><i class="fas ${disabled ? 'fa-lock' : 'fa-chevron-right'}"></i></span>
+            </button>
+        `;
+    }).join('');
+}
+
+function showAccountCharDetail(guid, name, race, cls, level, zone = '') {
     const listView = document.getElementById('acc-detail-view-list');
     const charView = document.getElementById('acc-detail-view-char');
-    const loading = document.getElementById('acc-detail-char-items-loading');
-    const table = document.getElementById('acc-detail-char-items-table');
-    const list = document.getElementById('acc-detail-char-items-list');
     const title = document.getElementById('acc-detail-char-title');
     const quickInfo = document.getElementById('acc-detail-char-quick-info');
+    const summaryName = document.getElementById('acc-detail-char-summary-name');
+    const summaryMeta = document.getElementById('acc-detail-char-summary-meta');
 
     listView.style.display = 'none';
     charView.style.display = 'flex';
 
-    title.textContent = `${name} - 아이템 정보`;
-    quickInfo.textContent = `Lv.${level} ${race} ${cls}`;
+    g_accountSelectedCharacter = { guid, name, race, cls, level, zone };
+    g_accountSelectedCharacterItems = null;
 
-    loading.style.display = 'block';
-    table.style.display = 'none';
-    list.innerHTML = '';
+    title.textContent = `${name} - 캐릭터 정보`;
+    quickInfo.textContent = `GUID ${guid}`;
+    if (summaryName) summaryName.textContent = name;
+    if (summaryMeta) summaryMeta.textContent = `Lv.${level} ${race} ${cls}${zone ? ` · ${zone}` : ''}`;
 
+    renderAccountCharHubCards('acc-detail-char-core-grid', accountCharCoreCards);
+    renderAccountCharHubCards('acc-detail-char-custom-grid', accountCharCustomCards);
+    showAccountCharHub();
+}
+
+function showAccountCharHub() {
+    const hub = document.getElementById('acc-detail-char-hub');
+    const detail = document.getElementById('acc-detail-char-detail');
+    const table = document.getElementById('acc-detail-char-items-table');
+    const empty = document.getElementById('acc-detail-char-empty');
+    const loading = document.getElementById('acc-detail-char-items-loading');
+    if (hub) hub.style.display = 'block';
+    if (detail) detail.style.display = 'none';
+    if (table) table.style.display = 'none';
+    if (empty) empty.style.display = 'none';
+    if (loading) loading.style.display = 'none';
+}
+
+async function loadAccountCharItems(guid) {
+    if (g_accountSelectedCharacterItems) return g_accountSelectedCharacterItems;
+    const response = await fetch(`/api/characters/items?guid=${guid}`);
+    if (!response.ok) throw new Error('Failed to load items');
+    const data = await response.json();
+    g_accountSelectedCharacterItems = data.items || [];
+    return g_accountSelectedCharacterItems;
+}
+
+function renderAccountCharItemRows(items, emptyMessage) {
+    const list = document.getElementById('acc-detail-char-items-list');
+    if (!list) return;
+    if (!items.length) {
+        list.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:20px; color:#999;">${escapeAccountDetailHtml(emptyMessage)}</td></tr>`;
+        return;
+    }
+
+    const slotNames = {
+        0: '머리',
+        1: '목',
+        2: '어깨',
+        3: '셔츠',
+        4: '가슴',
+        5: '허리',
+        6: '다리',
+        7: '발',
+        8: '손목',
+        9: '손',
+        10: '반지 1',
+        11: '반지 2',
+        12: '장신구 1',
+        13: '장신구 2',
+        14: '등',
+        15: '주무기',
+        16: '보조무기',
+        17: '원거리',
+        18: '탄약/성물',
+        19: '가방 1',
+        20: '가방 2',
+        21: '가방 3',
+        22: '가방 4'
+    };
+
+    list.innerHTML = items
+        .map((item) => {
+            const slotName = item.slot < 23 ? slotNames[item.slot] || `Slot ${item.slot}` : `가방 ${Math.floor((item.slot - 23) / 16) + 1}칸 ${((item.slot - 23) % 16) + 1}`;
+            const enchants = item.enchantments && item.enchantments.length > 0 ? item.enchantments.join(', ') : '-';
+            return `
+                <tr>
+                    <td style="font-size:0.85rem; color:#64748b;">${escapeAccountDetailHtml(slotName)}</td>
+                    <td style="font-weight:600;">${escapeAccountDetailHtml(item.name || '알 수 없는 아이템')}</td>
+                    <td style="text-align:center; color:#94a3b8; font-size:0.8rem;">${escapeAccountDetailHtml(item.entry)}</td>
+                    <td style="text-align:center; font-weight:700; color:var(--primary-color);">${escapeAccountDetailHtml(item.count)}</td>
+                    <td style="font-size:0.8rem; color:#64748b;">${escapeAccountDetailHtml(enchants)}</td>
+                </tr>
+            `;
+        })
+        .join('');
+}
+
+async function openAccountCharInfo(type) {
+    if (!g_accountSelectedCharacter) return;
+
+    const hub = document.getElementById('acc-detail-char-hub');
+    const detail = document.getElementById('acc-detail-char-detail');
+    const loading = document.getElementById('acc-detail-char-items-loading');
+    const table = document.getElementById('acc-detail-char-items-table');
+    const empty = document.getElementById('acc-detail-char-empty');
+    const title = document.getElementById('acc-detail-char-detail-title');
+    const desc = document.getElementById('acc-detail-char-detail-desc');
+
+    if (hub) hub.style.display = 'none';
+    if (detail) detail.style.display = 'flex';
+    if (loading) {
+        loading.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 정보를 불러오고 있습니다...';
+        loading.style.display = 'block';
+    }
+    if (table) table.style.display = 'none';
+    if (empty) empty.style.display = 'none';
+
+    const character = g_accountSelectedCharacter;
     try {
-        const response = await fetch(`/api/characters/items?guid=${guid}`);
-        if (!response.ok) throw new Error('Failed to load items');
-        const data = await response.json();
-        const items = data.items || [];
-
-        if (items.length === 0) {
-            list.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color:#999;">보유 아이템이 없습니다.</td></tr>';
-        } else {
-            const slotNames = {
-                0: '머리',
-                1: '목',
-                2: '어깨',
-                3: '셔츠',
-                4: '가슴',
-                5: '허리',
-                6: '다리',
-                7: '발',
-                8: '손목',
-                9: '손',
-                10: '반지 1',
-                11: '반지 2',
-                12: '장신구 1',
-                13: '장신구 2',
-                14: '등',
-                15: '주무기',
-                16: '보조무기',
-                17: '원거리',
-                18: '셔틀',
-                19: '가방 1',
-                20: '가방 2',
-                21: '가방 3',
-                22: '가방 4'
-            };
-
-            list.innerHTML = items
-                .map((item) => {
-                    const slotName = item.slot < 23 ? slotNames[item.slot] || `Slot ${item.slot}` : `Bag ${Math.floor((item.slot - 23) / 16)} Slot ${(item.slot - 23) % 16}`;
-                    const enchants = item.enchantments && item.enchantments.length > 0 ? item.enchantments.join(', ') : '-';
-                    return `
-                    <tr>
-                        <td style="font-size:0.85rem; color:#64748b;">${slotName}</td>
-                        <td style="font-weight:600;">${item.name || '알 수 없는 아이템'}</td>
-                        <td style="text-align:center; color:#94a3b8; font-size:0.8rem;">${item.entry}</td>
-                        <td style="text-align:center; font-weight:700; color:var(--primary-color);">${item.count}</td>
-                        <td style="font-size:0.8rem; color:#64748b;">${enchants}</td>
-                    </tr>
+        if (type === 'summary') {
+            if (title) title.textContent = '기본/위치 정보';
+            if (desc) desc.textContent = '현재 캐릭터 목록 API에서 제공하는 기본 정보를 표시합니다.';
+            if (loading) loading.style.display = 'none';
+            if (empty) {
+                empty.style.display = 'block';
+                empty.innerHTML = `
+                    <div class="account-char-facts">
+                        <div><span>캐릭터명</span><strong>${escapeAccountDetailHtml(character.name)}</strong></div>
+                        <div><span>GUID</span><strong>${escapeAccountDetailHtml(character.guid)}</strong></div>
+                        <div><span>레벨</span><strong>Lv.${escapeAccountDetailHtml(character.level)}</strong></div>
+                        <div><span>종족/직업</span><strong>${escapeAccountDetailHtml(character.race)} / ${escapeAccountDetailHtml(character.cls)}</strong></div>
+                        <div><span>위치</span><strong>${escapeAccountDetailHtml(character.zone || '-')}</strong></div>
+                    </div>
+                    <p class="account-char-api-note">추가 스탯, 골드, 플레이타임, 마지막 접속 시간은 별도 상세 API를 연결하면 이 화면에 확장할 수 있습니다.</p>
                 `;
-                })
-                .join('');
+            }
+            return;
         }
 
-        loading.style.display = 'none';
-        table.style.display = 'table';
+        if (type === 'equipment' || type === 'inventory') {
+            const isEquipment = type === 'equipment';
+            if (title) title.textContent = isEquipment ? '착용중인 장비' : '인벤토리';
+            if (desc) desc.textContent = isEquipment ? '슬롯 0~22에 장착된 장비와 가방 정보를 표시합니다.' : '가방 슬롯에 보관 중인 아이템을 표시합니다.';
+            const items = await loadAccountCharItems(character.guid);
+            const filtered = isEquipment ? items.filter((item) => Number(item.slot) < 23) : items.filter((item) => Number(item.slot) >= 23);
+            renderAccountCharItemRows(filtered, isEquipment ? '착용 장비 정보가 없습니다.' : '인벤토리 아이템이 없습니다.');
+            if (loading) loading.style.display = 'none';
+            if (table) table.style.display = 'table';
+        }
     } catch (e) {
         console.error(e);
-        loading.innerHTML = '<div style="color:red; padding:10px;">아이템 정보를 불러오지 못했습니다.</div>';
+        if (loading) {
+            loading.innerHTML = '<div style="color:red; padding:10px;">정보를 불러오지 못했습니다.</div>';
+        }
     }
+}
+
+async function showAccountCharItems(guid) {
+    if (!g_accountSelectedCharacter) return;
+    g_accountSelectedCharacter.guid = guid;
+    await openAccountCharInfo('inventory');
 }
 
 function closeAccountDetailModal() {

@@ -214,6 +214,331 @@
     }
 }
 
+/* Account detail: large inspection panel for account, characters, and inventory */
+#account-detail-modal.account-detail-page-overlay {
+    align-items: stretch !important;
+    justify-content: stretch !important;
+    padding: 18px !important;
+    background: rgba(15, 23, 42, 0.72) !important;
+}
+
+#account-detail-modal .account-detail-page-container {
+    width: min(1760px, calc(100vw - 36px)) !important;
+    max-width: none !important;
+    height: calc(100vh - 36px) !important;
+    max-height: none !important;
+    margin: auto !important;
+    border-radius: 20px !important;
+    overflow: hidden !important;
+}
+
+#account-detail-modal .modal-header {
+    flex: 0 0 auto !important;
+    padding: 18px 24px !important;
+}
+
+#account-detail-modal .account-detail-page-body {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    padding: 20px !important;
+    overflow: hidden !important;
+    background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%) !important;
+}
+
+#account-detail-modal .account-detail-page-grid {
+    display: grid !important;
+    grid-template-columns: minmax(320px, 380px) minmax(0, 1fr) !important;
+    gap: 20px !important;
+    height: 100% !important;
+    min-height: 0 !important;
+}
+
+#account-detail-modal .account-detail-profile-panel,
+#account-detail-modal .account-detail-data-panel {
+    min-height: 0 !important;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06) !important;
+}
+
+#account-detail-modal .account-detail-profile-panel {
+    overflow-y: auto !important;
+}
+
+#account-detail-modal .account-detail-data-panel {
+    overflow: hidden !important;
+}
+
+#account-detail-modal #acc-detail-view-list,
+#account-detail-modal #acc-detail-view-char {
+    height: 100% !important;
+    min-height: 0 !important;
+}
+
+#account-detail-modal .scroll-table {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: auto !important;
+}
+
+#account-detail-modal #acc-detail-char-items-table {
+    min-width: 980px !important;
+}
+
+#account-detail-modal #acc-detail-char-items-table th,
+#account-detail-modal #acc-detail-char-items-table td {
+    white-space: nowrap;
+}
+
+#account-detail-modal #acc-detail-char-items-table td:nth-child(2),
+#account-detail-modal #acc-detail-char-items-table td:nth-child(5) {
+    white-space: normal;
+    min-width: 260px;
+}
+
+#account-detail-modal .account-char-hub {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 4px 4px 16px;
+}
+
+#account-detail-modal .account-char-summary-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 18px;
+    padding: 18px 20px;
+    border: 1px solid #dbeafe;
+    border-radius: 18px;
+    background: linear-gradient(135deg, #eff6ff 0%, #ffffff 62%, #fefce8 100%);
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+}
+
+#account-detail-modal .account-char-summary-card strong {
+    display: block;
+    margin-top: 4px;
+    color: #0f172a;
+    font-size: 1.28rem;
+    font-weight: 900;
+}
+
+#account-detail-modal .account-char-summary-label {
+    color: #2563eb;
+    font-size: 0.76rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+}
+
+#account-detail-modal #acc-detail-char-summary-meta {
+    color: #475569;
+    font-weight: 800;
+    text-align: right;
+}
+
+#account-detail-modal .account-char-section-title {
+    margin: 18px 0 10px;
+    color: #0f172a;
+    font-size: 0.92rem;
+    font-weight: 900;
+}
+
+#account-detail-modal .account-char-card-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+#account-detail-modal .account-char-info-card {
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr) 20px;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    min-height: 106px;
+    padding: 14px;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    background: #ffffff;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+#account-detail-modal .account-char-info-card:not(.disabled):hover {
+    transform: translateY(-2px);
+    border-color: #93c5fd;
+    box-shadow: 0 14px 30px rgba(37, 99, 235, 0.13);
+}
+
+#account-detail-modal .account-char-info-card.disabled {
+    cursor: default;
+    background: #f8fafc;
+    opacity: 0.78;
+}
+
+#account-detail-modal .account-char-info-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+    background: #eff6ff;
+    color: #2563eb;
+    font-size: 1rem;
+}
+
+#account-detail-modal .account-char-info-card.disabled .account-char-info-icon {
+    background: #f1f5f9;
+    color: #94a3b8;
+}
+
+#account-detail-modal .account-char-info-body strong,
+#account-detail-modal .account-char-info-body em,
+#account-detail-modal .account-char-info-body small {
+    display: block;
+}
+
+#account-detail-modal .account-char-info-body strong {
+    color: #0f172a;
+    font-size: 0.96rem;
+    font-weight: 900;
+}
+
+#account-detail-modal .account-char-info-body em {
+    margin-top: 5px;
+    color: #64748b;
+    font-style: normal;
+    font-size: 0.8rem;
+    line-height: 1.35;
+}
+
+#account-detail-modal .account-char-info-body small {
+    margin-top: 8px;
+    color: #2563eb;
+    font-size: 0.72rem;
+    font-weight: 900;
+}
+
+#account-detail-modal .account-char-info-card.disabled .account-char-info-body small {
+    color: #94a3b8;
+}
+
+#account-detail-modal .account-char-info-arrow {
+    color: #94a3b8;
+}
+
+#account-detail-modal .account-char-detail-panel {
+    flex: 1;
+    min-height: 0;
+    flex-direction: column;
+}
+
+#account-detail-modal .account-char-detail-head {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 12px;
+    padding: 14px;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    background: #f8fafc;
+}
+
+#account-detail-modal .account-char-detail-head h4 {
+    margin: 0;
+    color: #0f172a;
+    font-size: 1rem;
+    font-weight: 900;
+}
+
+#account-detail-modal .account-char-detail-head p {
+    margin: 3px 0 0;
+    color: #64748b;
+    font-size: 0.82rem;
+}
+
+#account-detail-modal .account-char-empty {
+    padding: 16px;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    background: #fff;
+}
+
+#account-detail-modal .account-char-facts {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+#account-detail-modal .account-char-facts div {
+    padding: 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    background: #f8fafc;
+}
+
+#account-detail-modal .account-char-facts span {
+    display: block;
+    color: #64748b;
+    font-size: 0.75rem;
+    font-weight: 800;
+}
+
+#account-detail-modal .account-char-facts strong {
+    display: block;
+    margin-top: 5px;
+    color: #0f172a;
+    font-size: 1rem;
+}
+
+#account-detail-modal .account-char-api-note {
+    margin: 14px 0 0;
+    color: #64748b;
+    font-size: 0.86rem;
+    line-height: 1.55;
+}
+
+@media (max-width: 1024px) {
+    #account-detail-modal.account-detail-page-overlay {
+        padding: 10px !important;
+    }
+
+    #account-detail-modal .account-detail-page-container {
+        width: calc(100vw - 20px) !important;
+        height: calc(100vh - 20px) !important;
+    }
+
+    #account-detail-modal .account-detail-page-grid {
+        grid-template-columns: 1fr !important;
+        overflow-y: auto !important;
+    }
+
+    #account-detail-modal .account-detail-profile-panel {
+        max-height: none !important;
+    }
+
+    #account-detail-modal .account-detail-data-panel {
+        min-height: 620px !important;
+    }
+
+    #account-detail-modal .account-char-card-grid,
+    #account-detail-modal .account-char-facts {
+        grid-template-columns: 1fr;
+    }
+
+    #account-detail-modal .account-char-summary-card {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    #account-detail-modal #acc-detail-char-summary-meta {
+        text-align: left;
+    }
+}
+
 * {
     box-sizing: border-box;
     margin: 0;
