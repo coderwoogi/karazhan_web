@@ -18,6 +18,18 @@ var quillEditorSelector = null;
 var bugReportReplyEditor = null;
 var bugReportReplyEditorPostId = 0;
 var g_boardAdminAll = [];
+
+// 업데이트 게시판 작성 양식(템플릿). 새 업데이트 글 작성 시 에디터에 미리 채워진다.
+var UPDATE_TEMPLATE = '<p>이번 업데이트 요약을 한 줄로 적어주세요.</p><h3>신규</h3><ul><li>추가된 콘텐츠를 입력하세요</li></ul><h3>개선</h3><ul><li>개선 사항을 입력하세요</li></ul><h3>수정</h3><ul><li>수정·버그 픽스 내용을 입력하세요</li></ul>';
+function loadUpdateTemplateToEditor(force) {
+    if (!quillEditor) return;
+    var cur = String(quillEditor.root.innerHTML || '').replace(/<[^>]*>/g, '').trim();
+    if (!force && cur) {
+        if (!window.confirm('현재 작성 중인 내용을 업데이트 양식으로 덮어쓸까요?')) return;
+    }
+    quillEditor.root.innerHTML = UPDATE_TEMPLATE;
+}
+window.loadUpdateTemplateToEditor = loadUpdateTemplateToEditor;
 var g_boardAdminFiltered = [];
 var g_boardAdminPage = 1;
 var g_promotionWriteUrls = [''];
@@ -1467,6 +1479,13 @@ function openPostWriteModal() {
         } else {
             versionRow.style.display = 'none';
         }
+    }
+
+    // 업데이트 게시판: 작성 양식(신규/개선/수정) 자동 주입 + 양식 버튼 노출
+    var tplBtn = document.getElementById('board-update-template-btn');
+    if (tplBtn) tplBtn.style.display = isUpdateBoard ? 'inline-block' : 'none';
+    if (isUpdateBoard) {
+        loadUpdateTemplateToEditor(true);
     }
 }
 

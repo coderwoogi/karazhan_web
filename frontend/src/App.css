@@ -4948,3 +4948,25 @@ select.public-board-select {
   background: var(--kz-blue);
   cursor: col-resize;
 }
+
+/* === 업데이트 게시판 전용 (작성 양식 바 + 상세 히어로/분류 섹션) ===
+   분류 색(신규=초록/개선=파랑/수정=호박)은 인식성을 위한 의미색으로 테마와 무관하게 고정. */
+.public-update-template-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;margin-bottom:10px;background:var(--kz-blue-soft);border:1px solid var(--kz-line);border-radius:10px;}
+.public-update-template-label{font-size:13px;font-weight:700;color:var(--kz-blue-dark);}
+
+.public-update-hero{background:linear-gradient(180deg,var(--kz-blue-soft),#fff);border:1px solid var(--kz-line);border-radius:16px;padding:22px 24px;box-shadow:var(--kz-shadow);}
+.public-update-hero .public-detail-title{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.public-update-hero h2{margin:0;font-size:22px;color:var(--kz-ink);}
+.public-update-hero .public-version-badge{font-size:14px;padding:5px 13px;}
+
+.public-update-content > p:first-child{font-size:16px;color:var(--kz-muted);font-weight:600;margin:0 0 18px;padding-bottom:16px;border-bottom:1px dashed var(--kz-line);}
+.public-update-content h1,.public-update-content h2,.public-update-content h3,.public-update-content h4{margin:24px 0 10px;font-weight:800;color:var(--kz-ink);}
+.public-update-content .update-cat{display:inline-flex;align-items:center;gap:7px;font-size:14px;font-weight:800;padding:6px 14px;border-radius:999px;margin:26px 0 10px;}
+.public-update-content .update-cat::before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor;}
+.public-update-content .update-cat-new{background:#e4f6ec;color:#1e9e62;}
+.public-update-content .update-cat-improve{background:#eaf3ff;color:#075fd0;}
+.public-update-content .update-cat-fix{background:#fdf2dd;color:#c9821f;}
+.public-update-content ul,.public-update-content ol{margin:0 0 10px;padding-left:4px;list-style:none;}
+.public-update-content li{display:flex;gap:9px;align-items:flex-start;padding:5px 0;font-size:15px;color:var(--kz-text);line-height:1.6;}
+.public-update-content li::before{content:"";flex:none;width:6px;height:6px;border-radius:50%;background:var(--kz-line);margin-top:9px;}
+.public-update-content img{max-width:100%;height:auto;border-radius:10px;border:1px solid var(--kz-line);margin:12px 0;display:block;}

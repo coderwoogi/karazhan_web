@@ -168,6 +168,28 @@ function sanitizeHtml(content) {
   return template.innerHTML
 }
 
+// 업데이트 게시판 작성 양식(템플릿). 새 업데이트 글 작성 시 에디터에 미리 채워진다.
+const UPDATE_TEMPLATE = '<p>이번 업데이트 요약을 한 줄로 적어주세요.</p><h3>신규</h3><ul><li>추가된 콘텐츠를 입력하세요</li></ul><h3>개선</h3><ul><li>개선 사항을 입력하세요</li></ul><h3>수정</h3><ul><li>수정·버그 픽스 내용을 입력하세요</li></ul>'
+
+const UPDATE_CATEGORY_RULES = [
+  { type: 'new', kw: ['신규', '추가', 'new'] },
+  { type: 'improve', kw: ['개선', '향상', 'improve'] },
+  { type: 'fix', kw: ['수정', '버그', '픽스', 'fix', 'hotfix'] },
+]
+
+// 업데이트 상세: 신규/개선/수정 제목을 분류 색상 칩으로 자동 꾸밈 (class 부여)
+function decorateUpdateContent(content) {
+  const template = document.createElement('template')
+  template.innerHTML = String(content || '')
+  template.content.querySelectorAll('h1, h2, h3, h4').forEach((node) => {
+    const text = (node.textContent || '').replace(/\s/g, '').toLowerCase()
+    if (!text) return
+    const rule = UPDATE_CATEGORY_RULES.find((r) => r.kw.some((k) => text.includes(k.toLowerCase())))
+    if (rule) node.classList.add('update-cat', `update-cat-${rule.type}`)
+  })
+  return template.innerHTML
+}
+
 function extractFirstImageUrl(content) {
   const template = document.createElement('template')
   template.innerHTML = String(content || '')
@@ -1756,10 +1778,19 @@ function App() {
     setUserMenuOpen(false)
     setMobileNavOpen(false)
     resetWriteState()
+    if (currentBoard?.name?.includes('업데이트')) setContent(UPDATE_TEMPLATE)
     setDetail(null)
     setScreen('write')
     navigate(`/?board=${encodeURIComponent(currentBoard.id)}&write=1`)
   }, [currentBoard, navigate, resetWriteState, showAlert, user])
+
+  const loadUpdateTemplate = useCallback(async () => {
+    if (String(content || '').replace(/<[^>]*>/g, '').trim()) {
+      const ok = await showConfirm('현재 작성 중인 내용을 업데이트 양식으로 덮어쓸까요?')
+      if (!ok) return
+    }
+    setContent(UPDATE_TEMPLATE)
+  }, [content, showConfirm])
 
   const openMyPage = useCallback(() => {
     if (!user) {
@@ -3289,7 +3320,7 @@ function App() {
                 )}
                 {screen === 'detail' && detail?.post ? (
                   <>
-                    <div className="public-board-head public-detail-head"><div><h2><span className="public-detail-title">{renderVersionBadge(detail.post.version)}<span>{detail.post.title}</span></span></h2></div><div className="public-board-toolbar"><button className="btn" type="button" onClick={() => navigate(`/?board=${encodeURIComponent(currentBoard.id)}`)}>{TEXT.back}</button></div></div>
+                    <div className={`public-board-head public-detail-head${isUpdateBoard ? ' public-update-hero' : ''}`}><div><h2><span className="public-detail-title">{renderVersionBadge(detail.post.version)}<span>{detail.post.title}</span></span></h2></div><div className="public-board-toolbar"><button className="btn" type="button" onClick={() => navigate(`/?board=${encodeURIComponent(currentBoard.id)}`)}>{TEXT.back}</button></div></div>
                     <div className="public-comment-meta public-detail-meta">
                       {detail.post.category ? <span className="public-detail-cat">{detail.post.category}</span> : null}
                       <span className="public-detail-author">{renderAuthor(detail.post.author_name, detail.post.is_staff_author, detail.post.has_enhanced_stone)}</span>
@@ -3297,7 +3328,7 @@ function App() {
                       <span>조회 {Number(detail.post.views || 0).toLocaleString()}</span>
                       <span>댓글 {comments.length}</span>
                     </div>
-                    <article className="public-post-content" dangerouslySetInnerHTML={{ __html: sanitizeHtml(detail.post.content || '') }} />
+                    <article className={`public-post-content${isUpdateBoard ? ' public-update-content' : ''}`} dangerouslySetInnerHTML={{ __html: isUpdateBoard ? sanitizeHtml(decorateUpdateContent(detail.post.content || '')) : sanitizeHtml(detail.post.content || '') }} />
                     {isPromotionBoard && asArray(detail.post.promotion_urls).length ? (
                       <div className="public-promotion-links"><h3>등록된 홍보 URL</h3><ul>{detail.post.promotion_urls.map((url) => <li key={url}><a href={url} target="_blank" rel="noreferrer">{url}</a></li>)}</ul></div>
                     ) : null}
@@ -3413,7 +3444,17 @@ function App() {
                       </div>
                       {isSupportBoard ? <><InquiryFields mode={isBugReportBoard ? 'bugreport' : 'inquiry'} category={inquiryCategory} onCategoryChange={setInquiryCategory} sponsorAgree={sponsorAgree} onSponsorAgreeChange={setSponsorAgree} sponsorName={sponsorName} onSponsorNameChange={setSponsorName} sponsorAmount={sponsorAmount} onSponsorAmountChange={setSponsorAmount} /><RichEditor value={content} onChange={setContent} onAlert={showAlert} /></> : null}
                       {isPromotionBoard ? <><PromotionFields urls={promotionUrls} onChange={updatePromotionUrl} onAdd={addPromotionUrl} onRemove={removePromotionUrl} /><RichEditor value={content} onChange={setContent} onAlert={showAlert} /></> : null}
-                      {!isSupportBoard && !isPromotionBoard ? <RichEditor value={content} onChange={setContent} onAlert={showAlert} /> : null}
+                      {!isSupportBoard && !isPromotionBoard ? (
+                        <>
+                          {isUpdateBoard ? (
+                            <div className="public-update-template-bar">
+                              <span className="public-update-template-label">📋 업데이트 양식 (신규 · 개선 · 수정)</span>
+                              <button type="button" className="btn btn-small" onClick={loadUpdateTemplate}>양식 불러오기</button>
+                            </div>
+                          ) : null}
+                          <RichEditor value={content} onChange={setContent} onAlert={showAlert} />
+                        </>
+                      ) : null}
                       <div className="public-post-write-actions"><button className="btn" type="button" onClick={savePost}>{TEXT.save}</button></div>
                     </div>
                   </>
