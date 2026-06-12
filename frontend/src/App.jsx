@@ -1,8 +1,22 @@
 ﻿
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import Quill from 'quill'
-import 'quill/dist/quill.snow.css'
+import { useEditor, EditorContent } from '@tiptap/react'
+import StarterKit from '@tiptap/starter-kit'
+import Underline from '@tiptap/extension-underline'
+import Link from '@tiptap/extension-link'
+import Image from '@tiptap/extension-image'
+import TextAlign from '@tiptap/extension-text-align'
+import TextStyle from '@tiptap/extension-text-style'
+import Color from '@tiptap/extension-color'
+import Highlight from '@tiptap/extension-highlight'
+import Table from '@tiptap/extension-table'
+import TableRow from '@tiptap/extension-table-row'
+import TableHeader from '@tiptap/extension-table-header'
+import TableCell from '@tiptap/extension-table-cell'
+import TaskList from '@tiptap/extension-task-list'
+import TaskItem from '@tiptap/extension-task-item'
+import Placeholder from '@tiptap/extension-placeholder'
 import './App.css'
 
 const TEXT = {
@@ -386,72 +400,189 @@ function normalizeHomePayload(payload) {
   }
 }
 
-function QuillEditor({ value, onChange, onAlert }) {
-  const hostRef = useRef(null)
-  const quillRef = useRef(null)
+async function uploadEditorImage(file) {
+  const formData = new FormData()
+  formData.append('file', file)
+  const result = await apiFetch('/api/board/upload', {
+    method: 'POST',
+    body: formData,
+    headers: { Accept: 'application/json' },
+  })
+  return result?.url || result?.path || ''
+}
 
-  useEffect(() => {
-    if (!hostRef.current || quillRef.current) return undefined
+function RteButton({ onClick, active, disabled, title, children }) {
+  return (
+    <button
+      type="button"
+      className={`rte-btn${active ? ' is-active' : ''}`}
+      title={title}
+      aria-label={title}
+      aria-pressed={!!active}
+      disabled={disabled}
+      onMouseDown={(e) => e.preventDefault()}
+      onClick={onClick}
+    >
+      {children}
+    </button>
+  )
+}
 
-    const quill = new Quill(hostRef.current, {
-      theme: 'snow',
-      placeholder: TEXT.bodyPlaceholder,
-      modules: {
-        toolbar: [
-          [{ header: [1, 2, 3, false] }],
-          ['bold', 'italic', 'underline', 'strike'],
-          [{ color: [] }, { background: [] }],
-          [{ list: 'ordered' }, { list: 'bullet' }],
-          ['link', 'image'],
-          ['clean'],
-        ],
-      },
-    })
+function RteDivider() {
+  return <span className="rte-divider" aria-hidden="true" />
+}
 
-    quill.getModule('toolbar').addHandler('image', () => {
-      const input = document.createElement('input')
-      input.type = 'file'
-      input.accept = 'image/*'
-      input.onchange = async () => {
-        const file = input.files?.[0]
-        if (!file) return
-        const formData = new FormData()
-        formData.append('file', file)
-        try {
-          const result = await apiFetch('/api/board/upload', {
-            method: 'POST',
-            body: formData,
-            headers: { Accept: 'application/json' },
-          })
-          const url = result?.url || result?.path
-          if (!url) return
-          const range = quill.getSelection(true)
-          quill.insertEmbed(range?.index ?? quill.getLength(), 'image', url)
-        } catch (error) {
-          if (onAlert) onAlert(error?.message || '이미지 업로드에 실패했습니다.')
-        }
+function RichEditor({ value, onChange, onAlert }) {
+  const editorRef = useRef(null)
+  const onAlertRef = useRef(onAlert)
+  useEffect(() => { onAlertRef.current = onAlert }, [onAlert])
+
+  const insertImageFiles = useCallback((files) => {
+    files.filter((f) => f && f.type && f.type.startsWith('image/')).forEach(async (file) => {
+      try {
+        const url = await uploadEditorImage(file)
+        if (url && editorRef.current) editorRef.current.chain().focus().setImage({ src: url }).run()
+      } catch (error) {
+        if (onAlertRef.current) onAlertRef.current(error?.message || '이미지 업로드에 실패했습니다.')
       }
-      input.click()
     })
+  }, [])
 
-    quill.on('text-change', () => onChange(quill.root.innerHTML))
-    quill.root.innerHTML = value || ''
-    quillRef.current = quill
+  const editor = useEditor({
+    extensions: [
+      StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
+      Underline,
+      Link.configure({ openOnClick: false, autolink: true, HTMLAttributes: { rel: 'noopener noreferrer nofollow', target: '_blank' } }),
+      Image.configure({ inline: false, allowBase64: false }),
+      TextAlign.configure({ types: ['heading', 'paragraph'] }),
+      TextStyle,
+      Color,
+      Highlight.configure({ multicolor: true }),
+      Table.configure({ resizable: true }),
+      TableRow,
+      TableHeader,
+      TableCell,
+      TaskList,
+      TaskItem.configure({ nested: true }),
+      Placeholder.configure({ placeholder: TEXT.bodyPlaceholder }),
+    ],
+    content: value || '',
+    onUpdate: ({ editor }) => onChange(editor.getHTML()),
+    editorProps: {
+      attributes: { class: 'rte-content' },
+      handlePaste: (view, event) => {
+        const files = Array.from(event.clipboardData?.files || [])
+        const images = files.filter((f) => f.type && f.type.startsWith('image/'))
+        if (!images.length) return false
+        event.preventDefault()
+        insertImageFiles(images)
+        return true
+      },
+      handleDrop: (view, event, slice, moved) => {
+        if (moved) return false
+        const files = Array.from(event.dataTransfer?.files || [])
+        const images = files.filter((f) => f.type && f.type.startsWith('image/'))
+        if (!images.length) return false
+        event.preventDefault()
+        insertImageFiles(images)
+        return true
+      },
+    },
+  })
 
-    return () => {
-      quillRef.current = null
-    }
-  }, [onAlert, onChange])
+  useEffect(() => { editorRef.current = editor }, [editor])
 
+  // 외부 value 동기화 (수정 모드 로딩 등). 입력 중에는 건드리지 않음.
   useEffect(() => {
-    if (quillRef.current && quillRef.current.root.innerHTML !== (value || '')) {
-      quillRef.current.root.innerHTML = value || ''
+    if (!editor) return
+    const current = editor.getHTML()
+    if ((value || '') !== current && !editor.isFocused) {
+      editor.commands.setContent(value || '', false)
     }
-  }, [value])
+  }, [value, editor])
+
+  const pickImage = useCallback(() => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = 'image/*'
+    input.onchange = () => { const file = input.files?.[0]; if (file) insertImageFiles([file]) }
+    input.click()
+  }, [insertImageFiles])
+
+  const setLink = useCallback(() => {
+    if (!editor) return
+    const prev = editor.getAttributes('link').href || ''
+    const url = window.prompt('링크 URL (비우면 제거)', prev)
+    if (url === null) return
+    if (url.trim() === '') { editor.chain().focus().extendMarkRange('link').unsetLink().run(); return }
+    editor.chain().focus().extendMarkRange('link').setLink({ href: url.trim() }).run()
+  }, [editor])
+
+  if (!editor) return <div className="public-editor-shell rte-editor" />
+
+  const inTable = editor.isActive('table')
 
   return (
-    <div className="public-editor-shell">
-      <div id="public-write-editor" ref={hostRef} />
+    <div className="public-editor-shell rte-editor">
+      <div className="rte-toolbar">
+        <RteButton title="본문" active={editor.isActive('paragraph') && !editor.isActive('heading')} onClick={() => editor.chain().focus().setParagraph().run()}>본문</RteButton>
+        <RteButton title="제목 1" active={editor.isActive('heading', { level: 1 })} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}>H1</RteButton>
+        <RteButton title="제목 2" active={editor.isActive('heading', { level: 2 })} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>H2</RteButton>
+        <RteButton title="제목 3" active={editor.isActive('heading', { level: 3 })} onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}>H3</RteButton>
+        <RteDivider />
+        <RteButton title="굵게" active={editor.isActive('bold')} onClick={() => editor.chain().focus().toggleBold().run()}><strong>B</strong></RteButton>
+        <RteButton title="기울임" active={editor.isActive('italic')} onClick={() => editor.chain().focus().toggleItalic().run()}><em>I</em></RteButton>
+        <RteButton title="밑줄" active={editor.isActive('underline')} onClick={() => editor.chain().focus().toggleUnderline().run()}><span style={{ textDecoration: 'underline' }}>U</span></RteButton>
+        <RteButton title="취소선" active={editor.isActive('strike')} onClick={() => editor.chain().focus().toggleStrike().run()}><span style={{ textDecoration: 'line-through' }}>S</span></RteButton>
+        <RteButton title="인라인 코드" active={editor.isActive('code')} onClick={() => editor.chain().focus().toggleCode().run()}>{'</>'}</RteButton>
+        <RteDivider />
+        <label className="rte-color" title="글자색">
+          <span className="rte-color-ico">A</span>
+          <input type="color" value={editor.getAttributes('textStyle').color || '#1a2a42'} onChange={(e) => editor.chain().focus().setColor(e.target.value).run()} />
+        </label>
+        <label className="rte-color" title="형광펜">
+          <span className="rte-color-ico rte-color-ico-hl">A</span>
+          <input type="color" value={editor.getAttributes('highlight').color || '#fff3a3'} onChange={(e) => editor.chain().focus().setHighlight({ color: e.target.value }).run()} />
+        </label>
+        <RteDivider />
+        <RteButton title="왼쪽 정렬" active={editor.isActive({ textAlign: 'left' })} onClick={() => editor.chain().focus().setTextAlign('left').run()}>좌</RteButton>
+        <RteButton title="가운데 정렬" active={editor.isActive({ textAlign: 'center' })} onClick={() => editor.chain().focus().setTextAlign('center').run()}>중</RteButton>
+        <RteButton title="오른쪽 정렬" active={editor.isActive({ textAlign: 'right' })} onClick={() => editor.chain().focus().setTextAlign('right').run()}>우</RteButton>
+        <RteButton title="양쪽 정렬" active={editor.isActive({ textAlign: 'justify' })} onClick={() => editor.chain().focus().setTextAlign('justify').run()}>양</RteButton>
+        <RteDivider />
+        <RteButton title="글머리 목록" active={editor.isActive('bulletList')} onClick={() => editor.chain().focus().toggleBulletList().run()}>•</RteButton>
+        <RteButton title="번호 목록" active={editor.isActive('orderedList')} onClick={() => editor.chain().focus().toggleOrderedList().run()}>1.</RteButton>
+        <RteButton title="체크리스트" active={editor.isActive('taskList')} onClick={() => editor.chain().focus().toggleTaskList().run()}>☑</RteButton>
+        <RteDivider />
+        <RteButton title="인용구" active={editor.isActive('blockquote')} onClick={() => editor.chain().focus().toggleBlockquote().run()}>❝</RteButton>
+        <RteButton title="코드 블록" active={editor.isActive('codeBlock')} onClick={() => editor.chain().focus().toggleCodeBlock().run()}>{'{ }'}</RteButton>
+        <RteButton title="구분선" onClick={() => editor.chain().focus().setHorizontalRule().run()}>―</RteButton>
+        <RteDivider />
+        <RteButton title="링크" active={editor.isActive('link')} onClick={setLink}>🔗</RteButton>
+        <RteButton title="이미지" onClick={pickImage}>🖼</RteButton>
+        <RteButton title="표 삽입(3×3)" active={inTable} onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}>▦</RteButton>
+        <RteDivider />
+        <RteButton title="서식 지우기" onClick={() => editor.chain().focus().unsetAllMarks().clearNodes().run()}>✕</RteButton>
+        <RteButton title="실행취소" disabled={!editor.can().undo()} onClick={() => editor.chain().focus().undo().run()}>↶</RteButton>
+        <RteButton title="다시실행" disabled={!editor.can().redo()} onClick={() => editor.chain().focus().redo().run()}>↷</RteButton>
+      </div>
+      {inTable ? (
+        <div className="rte-toolbar rte-toolbar-sub">
+          <span className="rte-sub-label">표</span>
+          <RteButton title="왼쪽에 열 추가" onClick={() => editor.chain().focus().addColumnBefore().run()}>열+◀</RteButton>
+          <RteButton title="오른쪽에 열 추가" onClick={() => editor.chain().focus().addColumnAfter().run()}>▶열+</RteButton>
+          <RteButton title="열 삭제" onClick={() => editor.chain().focus().deleteColumn().run()}>열−</RteButton>
+          <RteDivider />
+          <RteButton title="위에 행 추가" onClick={() => editor.chain().focus().addRowBefore().run()}>행+▲</RteButton>
+          <RteButton title="아래에 행 추가" onClick={() => editor.chain().focus().addRowAfter().run()}>▼행+</RteButton>
+          <RteButton title="행 삭제" onClick={() => editor.chain().focus().deleteRow().run()}>행−</RteButton>
+          <RteDivider />
+          <RteButton title="셀 병합/분할" onClick={() => editor.chain().focus().mergeOrSplit().run()}>병합/분할</RteButton>
+          <RteButton title="머리행 토글" onClick={() => editor.chain().focus().toggleHeaderRow().run()}>머리행</RteButton>
+          <RteButton title="표 삭제" onClick={() => editor.chain().focus().deleteTable().run()}>표 삭제</RteButton>
+        </div>
+      ) : null}
+      <EditorContent editor={editor} />
     </div>
   )
 }
@@ -1717,9 +1848,8 @@ function App() {
         await showAlert('홍보 URL을 1개 이상 입력해 주세요.')
         return
       }
-      payload.content = ''
       payload.promotion_urls = urls
-    } else if (!String(payload.content || '').trim() || payload.content === '<p><br></p>') {
+    } else if (!stripHtmlText(payload.content) && !/<(img|table|hr)/i.test(payload.content || '')) {
       await showAlert(TEXT.contentRequired)
       return
     }
@@ -3281,9 +3411,9 @@ function App() {
                         <label className="public-write-label">제목</label>
                         <input className="public-board-text-input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={TEXT.titlePlaceholder} />
                       </div>
-                      {isSupportBoard ? <><InquiryFields mode={isBugReportBoard ? 'bugreport' : 'inquiry'} category={inquiryCategory} onCategoryChange={setInquiryCategory} sponsorAgree={sponsorAgree} onSponsorAgreeChange={setSponsorAgree} sponsorName={sponsorName} onSponsorNameChange={setSponsorName} sponsorAmount={sponsorAmount} onSponsorAmountChange={setSponsorAmount} /><QuillEditor value={content} onChange={setContent} onAlert={showAlert} /></> : null}
-                      {isPromotionBoard ? <PromotionFields urls={promotionUrls} onChange={updatePromotionUrl} onAdd={addPromotionUrl} onRemove={removePromotionUrl} /> : null}
-                      {!isSupportBoard && !isPromotionBoard ? <QuillEditor value={content} onChange={setContent} onAlert={showAlert} /> : null}
+                      {isSupportBoard ? <><InquiryFields mode={isBugReportBoard ? 'bugreport' : 'inquiry'} category={inquiryCategory} onCategoryChange={setInquiryCategory} sponsorAgree={sponsorAgree} onSponsorAgreeChange={setSponsorAgree} sponsorName={sponsorName} onSponsorNameChange={setSponsorName} sponsorAmount={sponsorAmount} onSponsorAmountChange={setSponsorAmount} /><RichEditor value={content} onChange={setContent} onAlert={showAlert} /></> : null}
+                      {isPromotionBoard ? <><PromotionFields urls={promotionUrls} onChange={updatePromotionUrl} onAdd={addPromotionUrl} onRemove={removePromotionUrl} /><RichEditor value={content} onChange={setContent} onAlert={showAlert} /></> : null}
+                      {!isSupportBoard && !isPromotionBoard ? <RichEditor value={content} onChange={setContent} onAlert={showAlert} /> : null}
                       <div className="public-post-write-actions"><button className="btn" type="button" onClick={savePost}>{TEXT.save}</button></div>
                     </div>
                   </>
