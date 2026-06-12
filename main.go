@@ -50,6 +50,12 @@ func main() {
 
 	// Static Assets
 	mux.Handle("/assets/", noCacheStatic(http.StripPrefix("/assets/", http.FileServer(http.Dir("./frontend/dist/assets")))))
+	// Active design theme: resolved per-account from the session (falls back to default).
+	// Same fixed /theme/ path serves themes/<resolved>/ so swapping reskins the whole site.
+	mux.Handle("/theme/", noCacheStatic(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		themeDir := auth.ThemeForRequest(r)
+		http.StripPrefix("/theme/", http.FileServer(http.Dir("./themes/"+themeDir))).ServeHTTP(w, r)
+	})))
 	mux.Handle("/img/", http.StripPrefix("/img/", http.FileServer(http.Dir("./img"))))
 	mux.Handle("/sounds/", http.StripPrefix("/sounds/", http.FileServer(http.Dir("./sounds"))))
 	mux.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {

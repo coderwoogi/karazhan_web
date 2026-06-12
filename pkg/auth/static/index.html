@@ -8,17 +8,25 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=2">
+    <link rel="stylesheet" href="style.css?v=4">
 </head>
 <body>
-    <video class="login-video-bg" autoplay muted loop playsinline aria-hidden="true">
-        <source src="/img/login_bg.mp4?v=20260417_1" type="video/mp4">
+    <video class="login-video-bg" autoplay muted loop playsinline aria-hidden="true" poster="/img/stormwind_bg.png">
+        <source src="/img/test.mp4" type="video/mp4">
     </video>
     <div class="login-video-overlay" aria-hidden="true"></div>
-    <div class="login-container">
+    <div class="login-stage">
+        <aside class="login-hero" aria-hidden="true">
+            <div class="login-hero-crest">♜</div>
+            <h2 class="login-hero-title">Karazhan</h2>
+            <div class="login-hero-sub">Wrath of the Lich King</div>
+            <p class="login-hero-desc">클래식 감성 · 성장형 PvE 서버<br>영웅이 되어 카라잔의 문을 여세요.</p>
+        </aside>
+        <div class="login-container">
         <div class="login-box">
             <div class="login-header">
-                <h1>Karazhan</h1>
+                <h1>로그인</h1>
+                <p class="login-lead">계정 정보를 입력해 주세요.</p>
             </div>
             <form id="loginForm">
                 <div class="form-group">
@@ -47,6 +55,7 @@
                     사이트 회원가입 시 인게임 계정과 연동됩니다.
                 </div>
             </form>
+        </div>
         </div>
     </div>
     <div id="recoveryModal" class="recovery-modal" aria-hidden="true">

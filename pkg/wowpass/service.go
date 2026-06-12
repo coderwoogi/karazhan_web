@@ -103,6 +103,7 @@ func RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/carddraw/state", handleCardDrawState)
 	mux.HandleFunc("/api/carddraw/world-status", handleCardDrawWorldStatus)
 	mux.HandleFunc("/api/server/world-status", handlePublicWorldStatus)
+	mux.HandleFunc("/api/server/home-stats", handlePublicHomeStats)
 	mux.HandleFunc("/api/carddraw/characters", handleCardDrawCharacters)
 	mux.HandleFunc("/api/carddraw/character/select", handleCardDrawSelectCharacter)
 	mux.HandleFunc("/api/carddraw/history", handleCardDrawHistory)
@@ -1618,6 +1619,55 @@ func handlePublicWorldStatus(w http.ResponseWriter, r *http.Request) {
 		"status":        "success",
 		"world_running": isCardDrawWorldServerRunning(),
 	})
+}
+
+// handlePublicHomeStats : 홈 "실시간 서버 현황" 카드용 실데이터 집계
+// world_running(월드서버 구동) / uptime_seconds(런닝 타임) / enhance(최근 강화 성공) / trial(최근 시련 성공)
+func handlePublicHomeStats(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"status": "error", "message": "method not allowed"})
+		return
+	}
+
+	running := isCardDrawWorldServerRunning()
+	resp := map[string]interface{}{
+		"status":         "success",
+		"world_running":  running,
+		"uptime_seconds": 0,
+		"enhance":        nil,
+		"trial":          nil,
+	}
+
+	if db, err := sql.Open("mysql", config.CharactersDSN()); err == nil {
+		defer db.Close()
+		db.SetConnMaxLifetime(3 * time.Second)
+
+		if running {
+			var startUnix int64
+			if e := db.QueryRow("SELECT starttime FROM uptime ORDER BY starttime DESC LIMIT 1").Scan(&startUnix); e == nil && startUnix > 0 {
+				if up := time.Now().Unix() - startUnix; up > 0 {
+					resp["uptime_seconds"] = up
+				}
+			}
+		}
+
+		{
+			var player, item string
+			var level int
+			if e := db.QueryRow("SELECT COALESCE(player_name,''), COALESCE(item_name,''), COALESCE(enhance_level_after,0) FROM karazhan_enhance_log WHERE result='SUCCESS' ORDER BY log_id DESC LIMIT 1").Scan(&player, &item, &level); e == nil && item != "" {
+				resp["enhance"] = map[string]interface{}{"player": player, "item": item, "level": level}
+			}
+		}
+
+		{
+			var player, stage string
+			if e := db.QueryRow("SELECT COALESCE(NULLIF(player_name,''),''), COALESCE(NULLIF(stage_name,''),'') FROM solo_arena_run_log WHERE result=1 ORDER BY id DESC LIMIT 1").Scan(&player, &stage); e == nil && (player != "" || stage != "") {
+				resp["trial"] = map[string]interface{}{"player": player, "stage": stage}
+			}
+		}
+	}
+
+	writeJSON(w, http.StatusOK, resp)
 }
 
 func isCardDrawWorldServerRunning() bool {

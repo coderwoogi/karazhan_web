@@ -21,6 +21,7 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': 'http://127.0.0.1:8080',
+      '/theme': 'http://127.0.0.1:8080',
       '/img': 'http://127.0.0.1:8080',
       '/uploads': 'http://127.0.0.1:8080',
       '/sounds': 'http://127.0.0.1:8080',

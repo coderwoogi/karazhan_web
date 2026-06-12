@@ -72,6 +72,7 @@ const DEFAULT_HOME = {
 const CONNECT_CLIENT_DOWNLOAD_URL = 'https://drive.google.com/file/d/14tO_E-R0EIbzz_aiJ0tsBO5T4hvmocGe/view?usp=sharing'
 const CONNECT_LAUNCHER_DOWNLOAD_URL = 'https://drive.google.com/file/d/119sSxI8NsWLlhp4aKkNNMQL8sabMc52A/view?usp=sharing'
 const SERVER_RULES_IMAGE_URL = '/img/규칙.png?v=20260603_1'
+const GRAND_OPEN_AT = new Date('2026-06-19T00:00:00+09:00').getTime()
 const NOTIFICATION_CATEGORIES = [
   { value: '', label: '전체' },
   { value: 'comment', label: '댓글' },
@@ -201,6 +202,50 @@ function formatNotificationTime(value) {
   return formatDate(value)
 }
 
+function padCountdown(value) {
+  return String(Math.max(0, Number(value) || 0)).padStart(2, '0')
+}
+
+function formatUptime(sec) {
+  const s = Math.max(0, Number(sec) || 0)
+  if (s <= 0) return '-'
+  const d = Math.floor(s / 86400)
+  const h = Math.floor((s % 86400) / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  if (d > 0) return `${d}일 ${h}시간`
+  if (h > 0) return `${h}시간 ${m}분`
+  return `${m}분`
+}
+
+const GRAND_OPEN_WINDOW = 30 * 86400000
+
+function getGrandOpenCountdown(now = Date.now()) {
+  const diff = GRAND_OPEN_AT - now
+  const absolute = Math.abs(diff)
+  const days = Math.floor(absolute / 86400000)
+  const hours = Math.floor((absolute % 86400000) / 3600000)
+  const minutes = Math.floor((absolute % 3600000) / 60000)
+  const seconds = Math.floor((absolute % 60000) / 1000)
+  const timeLabel = `${padCountdown(hours)}:${padCountdown(minutes)}:${padCountdown(seconds)}`
+  const progress = Math.min(1, Math.max(0, (now - (GRAND_OPEN_AT - GRAND_OPEN_WINDOW)) / GRAND_OPEN_WINDOW))
+
+  if (diff <= 0) {
+    return {
+      dayLabel: days > 0 ? `D+${days}` : 'D-DAY',
+      timeLabel,
+      caption: '카라잔 정식 오픈이 시작되었습니다.',
+      progress: 1,
+    }
+  }
+
+  return {
+    dayLabel: days > 0 ? `D-${days}` : 'D-DAY',
+    timeLabel,
+    caption: '카라잔 정식 오픈까지 남은 시간',
+    progress,
+  }
+}
+
 function notificationTypeMeta(type) {
   const normalized = String(type || '').toLowerCase()
   if (normalized === 'comment') return { icon: '✉', className: 'comment' }
@@ -219,8 +264,9 @@ function notificationTypeLabel(type) {
 
 function BellIcon() {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <path d="M12 22a2.4 2.4 0 0 0 2.35-2h-4.7A2.4 2.4 0 0 0 12 22Zm7-6.2-1.7-1.95V9.7A5.9 5.9 0 0 0 13 4.05V3a1 1 0 0 0-2 0v1.05A5.9 5.9 0 0 0 6.7 9.7v4.15L5 15.8V18h14v-2.2Z" />
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
+      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
     </svg>
   )
 }
@@ -595,7 +641,33 @@ function getBoardPreviewTag(boardName = '') {
   if (boardName.includes('업데이트')) return { label: '업데이트', className: 'update' }
   if (boardName.includes('문의')) return { label: '문의', className: 'event' }
   if (boardName.includes('홍보')) return { label: '홍보', className: 'guide' }
+  if (boardName.includes('버그')) return { label: '버그', className: 'bug' }
+  if (boardName.includes('자유')) return { label: '자유', className: 'free' }
   return { label: boardName || '게시판', className: 'notice' }
+}
+
+// 홈 하단 게시판 카드: 항상 5행(부족분은 빈 슬롯)으로 높이 고정
+function renderBoardPreviewRows(posts, navigate, fallbackBoardId, badgeColorFor, badgeLabelFor) {
+  const list = Array.isArray(posts) ? posts : []
+  return Array.from({ length: 5 }).map((_, i) => {
+    const item = list[i]
+    if (!item) {
+      return (
+        <div key={`empty-${i}`} className="notice-row notice-row-empty" aria-hidden="true">
+          <span className="home-badge ghost" />
+          <b />
+          <span className="ndate" />
+        </div>
+      )
+    }
+    return (
+      <div key={item.id} className="notice-row" onClick={() => navigate(`/?board=${encodeURIComponent(item.board_id || fallbackBoardId || '')}&post=${item.id}`)}>
+        <span className={`home-badge ${badgeColorFor(item)}`}>{badgeLabelFor(item)}</span>
+        <b>{item.title}</b>
+        <span className="ndate">{formatShortDate(item.created_at)}</span>
+      </div>
+    )
+  })
 }
 
 function scrollToPageTop() {
@@ -646,6 +718,7 @@ function App() {
 
   const [home, setHome] = useState(DEFAULT_HOME)
   const [user, setUser] = useState(null)
+  const [themePref, setThemePref] = useState(null)
   const [boards, setBoards] = useState([])
   const [contentItems, setContentItems] = useState([])
   const [posts, setPosts] = useState([])
@@ -682,6 +755,7 @@ function App() {
   const [notificationCenterLoading, setNotificationCenterLoading] = useState(false)
   const [commentHighlightRequest, setCommentHighlightRequest] = useState({ tick: 0, fallbackLatest: false })
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
+  const [expandedUpdatePostId, setExpandedUpdatePostId] = useState(0)
   const [userLoaded, setUserLoaded] = useState(false)
   const [dialogState, setDialogState] = useState({ open: false, mode: 'alert', title: '안내', message: '' })
   const [myPageCharacters, setMyPageCharacters] = useState([])
@@ -695,6 +769,7 @@ function App() {
   const [mediaPreviewPosts, setMediaPreviewPosts] = useState([])
   const [worldServerOnline, setWorldServerOnline] = useState(null)
   const [worldStatusUpdatedAt, setWorldStatusUpdatedAt] = useState('')
+  const [serverStats, setServerStats] = useState({ uptimeSeconds: 0, enhance: null, trial: null })
   const [auctionTab, setAuctionTab] = useState('list')
   const [auctionRows, setAuctionRows] = useState([])
   const [auctionPage, setAuctionPage] = useState(1)
@@ -731,6 +806,7 @@ function App() {
   const [auctionBusyMessage, setAuctionBusyMessage] = useState('')
   const [globalLoadingVisible, setGlobalLoadingVisible] = useState(false)
   const [globalLoadingMessage, setGlobalLoadingMessage] = useState('데이터를 불러오는 중입니다.')
+  const [grandOpenCountdown, setGrandOpenCountdown] = useState(() => getGrandOpenCountdown())
 
   const currentBoard = useMemo(() => boards.find((board) => board.id === boardId) || null, [boards, boardId])
   const headerNavItems = useMemo(
@@ -748,6 +824,7 @@ function App() {
   const isBugReportBoard = currentBoard?.id === 'bugreport'
   const isSupportBoard = isInquiryBoard || isBugReportBoard
   const isPromotionBoard = currentBoard?.id === 'promotion'
+  const isUpdateBoard = currentBoard?.name?.includes('업데이트')
   const myPageMainCharacter = user?.mainCharacter && Number(user.mainCharacter.guid || 0) > 0 ? user.mainCharacter : null
   const auctionSelectedCharacter = auctionCharacters.find((character) => Number(character.guid) === Number(auctionCreateCharGuid)) || null
   const filteredAuctionCreateItems = useMemo(() => {
@@ -804,6 +881,15 @@ function App() {
     setSponsorAgree(false)
     setSponsorName('')
     setSponsorAmount('')
+  }, [])
+
+  useEffect(() => {
+    const updateCountdown = () => {
+      setGrandOpenCountdown(getGrandOpenCountdown())
+    }
+    updateCountdown()
+    const timerId = window.setInterval(updateCountdown, 1000)
+    return () => window.clearInterval(timerId)
   }, [])
 
   useEffect(() => {
@@ -895,12 +981,42 @@ function App() {
     try {
       const response = await apiFetch('/api/user/status')
       setUser(response && typeof response === 'object' ? response : null)
+      if (response && typeof response === 'object' && response.theme) {
+        setThemePref(response.theme)
+      }
     } catch {
       setUser(null)
     } finally {
       setUserLoaded(true)
     }
   }, [])
+
+  // 활성 테마 적용: /theme/ 스타일시트와 히어로 영상을 캐시버스트로 재요청(서버가 계정별 테마 반환)
+  const applyActiveTheme = useCallback(() => {
+    const ts = Date.now()
+    const link = document.querySelector('link[rel="stylesheet"][href*="/theme/theme.css"]')
+    if (link) link.href = `/theme/theme.css?t=${ts}`
+    document.querySelectorAll('video.hero-video').forEach((v) => {
+      const src = v.querySelector('source')
+      if (src) {
+        src.src = `/theme/hero.mp4?t=${ts}`
+        try { v.load(); const p = v.play(); if (p && p.catch) p.catch(() => {}) } catch (e) { /* noop */ }
+      }
+    })
+  }, [])
+
+  // 스위치 토글: 낙관적 UI → 계정에 저장 → 즉시 reskin
+  const handleToggleTheme = useCallback(async () => {
+    const current = themePref || (user && user.theme) || 'stormwind'
+    const next = current === 'orgrimmar' ? 'stormwind' : 'orgrimmar'
+    setThemePref(next)
+    try {
+      await apiFetch('/api/user/theme', { method: 'POST', body: JSON.stringify({ theme: next }) })
+      applyActiveTheme()
+    } catch (e) {
+      setThemePref(current)
+    }
+  }, [themePref, user, applyActiveTheme])
 
   const loadBoards = useCallback(async () => {
     const response = await apiFetch('/api/board/list')
@@ -1016,12 +1132,25 @@ function App() {
 
   const loadWorldServerStatus = useCallback(async () => {
     try {
-      const response = await apiFetch('/api/server/world-status')
+      const response = await apiFetch('/api/server/home-stats')
       setWorldServerOnline(response?.world_running === true)
       setWorldStatusUpdatedAt(new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }))
+      setServerStats({
+        uptimeSeconds: Number(response?.uptime_seconds || 0),
+        enhance: response?.enhance || null,
+        trial: response?.trial || null,
+      })
     } catch {
-      setWorldServerOnline(false)
-      setWorldStatusUpdatedAt('확인 실패')
+      // home-stats 엔드포인트가 아직 없으면 기존 world-status로 폴백
+      try {
+        const fallback = await apiFetch('/api/server/world-status')
+        setWorldServerOnline(fallback?.world_running === true)
+        setWorldStatusUpdatedAt(new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }))
+      } catch {
+        setWorldServerOnline(false)
+        setWorldStatusUpdatedAt('확인 실패')
+      }
+      setServerStats({ uptimeSeconds: 0, enhance: null, trial: null })
     }
   }, [])
 
@@ -1086,7 +1215,7 @@ function App() {
     if (!targetBoardId) return
     setLoadingPosts(true)
     try {
-      const query = new URLSearchParams({ board_id: targetBoardId, page: String(targetPage), limit: '20' })
+      const query = new URLSearchParams({ board_id: targetBoardId, page: String(targetPage), limit: '10' })
       if (targetSearch) query.set('search', targetSearch)
       const response = await apiFetch(`/api/board/posts?${query.toString()}`)
       setPosts(asArray(response?.posts))
@@ -1383,6 +1512,7 @@ function App() {
       setDetail(null)
       setCommentInput('')
       setReplyTarget(null)
+      setExpandedUpdatePostId(0)
       setPage(1)
       setSearch('')
       setSearchInput('')
@@ -1684,7 +1814,8 @@ function App() {
 
   const hasMainCharacter = Boolean(user?.mainCharacter?.guid && user?.mainCharacter?.name)
   const welcomeName = hasMainCharacter ? (user?.mainCharacter?.name || user?.username || '방문자') : (user?.username || '방문자')
-  const headerWelcomeText = hasMainCharacter ? `${welcomeName}${TEXT.welcome}` : '대표 캐릭터를 설정해주세요'
+  const headerWelcomeText = hasMainCharacter ? welcomeName : '대표 캐릭터 미설정'
+  const headerPointText = `${Number(user?.points || 0).toLocaleString()} point`
   const raceIcon = getRaceIcon(user?.mainCharacter?.race, user?.mainCharacter?.gender)
   const myPagePointFillCount = Math.max(0, 20 - myPagePointLogs.length)
 
@@ -1881,7 +2012,9 @@ function App() {
       <GlobalLoadingOverlay visible={globalLoadingVisible} message={globalLoadingMessage} />
       <header className="topbar">
         <nav className="nav" aria-label="주요 메뉴">
-          <button className="nav-brand nav-link-button" type="button" onClick={goHome}>The Karazhan</button>
+          <button className="nav-brand nav-link-button" type="button" onClick={goHome}>
+            <span className="brand-name">Karazhan<small>Wrath of the Lich King</small></span>
+          </button>
           <button
             type="button"
             className={`nav-mobile-toggle button-reset${mobileNavOpen ? ' active' : ''}`}
@@ -1910,6 +2043,26 @@ function App() {
           </div>
           {user ? (
             <div className="nav-user-zone">
+              {/* 테마 전환 스위치 — 계정별 저장(다음 접속에도 유지) */}
+              <button
+                type="button"
+                className={`theme-switch ${((themePref || user.theme) === 'orgrimmar') ? 'is-orgrimmar' : 'is-stormwind'}`}
+                role="switch"
+                aria-checked={(themePref || user.theme) === 'orgrimmar'}
+                aria-label="테마 전환: 스톰윈드 / 오그리마"
+                title="테마 전환 (스톰윈드 / 오그리마)"
+                onClick={handleToggleTheme}
+              >
+                <span className="theme-switch-side theme-switch-side--stormwind" aria-hidden="true">
+                  <span className="theme-switch-crest" />
+                  <span className="theme-switch-name">스톰윈드</span>
+                </span>
+                <span className="theme-switch-side theme-switch-side--orgrimmar" aria-hidden="true">
+                  <span className="theme-switch-name">오그리마</span>
+                  <span className="theme-switch-crest" />
+                </span>
+                <span className="theme-switch-knob" aria-hidden="true" />
+              </button>
               <div className="nav-notification-wrap" ref={notificationMenuRef}>
                 <button
                   type="button"
@@ -1975,7 +2128,7 @@ function App() {
                   }}
                 >
                   <img className="nav-user-avatar" src={raceIcon} alt={hasMainCharacter ? `${welcomeName} 종족 아이콘` : '대표 캐릭터 미설정'} />
-                  <span className="nav-user-text">{headerWelcomeText}</span>
+                  <span className="nav-user-text"><strong>{headerWelcomeText}</strong><small>{headerPointText}</small></span>
                 </button>
                 {userMenuOpen ? (
                   <div className="nav-user-menu">
@@ -2043,10 +2196,37 @@ function App() {
             <section className="hero" aria-label="카라잔 소개" style={{ '--public-hero-bg': `url(${home.hero.background})` }}>
               <div className="hero-video-wrap" aria-hidden="true">
                 <video className="hero-video" autoPlay muted loop playsInline preload="auto">
-                  <source src="/img/bg.mp4" type="video/mp4" />
+                  <source src="/theme/hero.mp4" type="video/mp4" />
                 </video>
               </div>
               <div className="hero-inner">
+                <div className="hero-headline">
+                  <h1 className="hero-title-main">Karazhan</h1>
+                  <span className="hero-subtitle-main">Wrath of the Lich King</span>
+                  <p className="hero-desc-main">클래식 감성 · 성장형 PvE 서버</p>
+                </div>
+                <div className="hero-cards">
+                <div className="hero-copy hero-countdown-card hero-countdown-ring-card" aria-live="polite">
+                  <span className="hero-countdown-kicker">KARAZHAN GRAND OPEN</span>
+                  <div className="hero-ring">
+                    <svg viewBox="0 0 300 300" aria-hidden="true">
+                      <defs>
+                        <linearGradient id="heroRingGrad" x1="0" y1="0" x2="1" y2="1">
+                          <stop offset="0" stopColor="var(--kz-hero-from)" />
+                          <stop offset="1" stopColor="var(--kz-hero-to)" />
+                        </linearGradient>
+                      </defs>
+                      <circle className="hero-ring-track" cx="150" cy="150" r="132" />
+                      <circle className="hero-ring-arc" cx="150" cy="150" r="132" style={{ strokeDasharray: 2 * Math.PI * 132, strokeDashoffset: 2 * Math.PI * 132 * (1 - (grandOpenCountdown.progress ?? 0)) }} />
+                    </svg>
+                    <div className="hero-ring-center">
+                      <span className="hero-countdown-dday">{grandOpenCountdown.dayLabel}</span>
+                      <span className="hero-countdown-time">{grandOpenCountdown.timeLabel}</span>
+                    </div>
+                  </div>
+                  <strong className="hero-countdown-date">2026년 6월 19일 00시 OPEN</strong>
+                  <p className="hero-countdown-caption">{grandOpenCountdown.caption}</p>
+                </div>
                 <article className={`server-card hero-server-status ${worldServerOnline === false ? 'offline' : worldServerOnline === null ? 'checking' : 'online'}`}>
                   <div className="hero-server-badge">
                     <span className={`hero-server-dot ${worldServerOnline === false ? 'off' : ''}`} />
@@ -2059,88 +2239,93 @@ function App() {
                     <strong>{worldStatusUpdatedAt || '대기 중'}</strong>
                   </div>
                 </article>
+                </div>
               </div>
+            </section>
+
+            <section className="server-info" aria-label="서버 정보">
+              <div className="server-title">Server Info</div>
+              <div className="server-item"><span className="server-icon">🛡</span><span><small>클라이언트</small><b>3.3.5a</b></span></div>
+              <div className="server-item"><span className="server-icon">🛡</span><span><small>시작레벨</small><b>70</b></span></div>
+              <div className="server-item"><span className="server-icon">⚔</span><span><small>퀘배율</small><b>x5</b></span></div>
+              <div className="server-item"><span className="server-icon">!</span><span><small>퀘스트</small><b>x5</b></span></div>
+              <div className="server-item"><span className="server-icon">💰</span><span><small>드랍배율</small><b>x3</b></span></div>
+              <div className="server-item"><span className="server-icon">⚖</span><span><small>전문기술</small><b>x10</b></span></div>
             </section>
 
             <section className="section">
-              <div className="section-title">새로운 도전</div>
-              <div className="challenge-grid">
-                <article className="challenge-card" style={{ '--bg-img': "url('/img/shop_bg.jpg')" }}><span className="card-number">01</span><div className="challenge-content"><h3>그림자 시련</h3><p>내 캐릭터의 한계를 시험하고 단계별 기록을 갱신해 보세요.</p><a className="btn btn-small" href="#">자세히 보기</a></div></article>
-                <article className="challenge-card" style={{ '--bg-img': "url('/img/carddraw.png')" }}><span className="card-number">02</span><div className="challenge-content"><h3>장비 강화 시스템</h3><p>에테르 강화 정보와 재료 흐름을 확인하고 준비해 보세요.</p><a className="btn btn-small" href="#">자세히 보기</a></div></article>
-                <article className="challenge-card" style={{ '--bg-img': "url('/img/hearthstone-heroes-warcraft-2015-04-27.webp')" }}><span className="card-number">03</span><div className="challenge-content"><h3>인스턴스 보너스 미션</h3><p>던전 플레이에 새로운 보상과 목표를 더해 보세요.</p><a className="btn btn-small" href="#">자세히 보기</a></div></article>
+              <h2 className="section-title"><span>핵심 콘텐츠</span></h2>
+              <div className="content-grid">
+                <article className="feature-card"><img src="/img/contents/시련.png" alt="시련" /><h3>시련</h3><p>강력한 보스와의 시련!<br />보상을 쟁취하라!</p></article>
+                <article className="feature-card"><img src="/img/contents/강화.png" alt="아이템 강화" /><h3>아이템 강화</h3><p>1부터 10까지!<br />한계를 뛰어넘는 강화 시스템!</p></article>
+                <article className="feature-card"><img src="/img/contents/영웅석_룬문자.png" alt="영웅석" /><h3>영웅석</h3><p>룬문자를 통한<br />순간이동 시스템!</p></article>
+                <article className="feature-card"><img src="/img/shop/종족변경.png" alt="형상변환" /><h3>형상변환</h3><p>다양한 외형을 수집하고<br />나만의 스타일을 완성하라!</p></article>
               </div>
             </section>
-            <section id="notice-section" className="section content-grid">
-              <article className="panel">
-                <div className="panel-head"><h2>공지사항</h2><button type="button" className="more button-reset" onClick={() => openBoard(noticeBoard?.id || visibleBoards[0]?.id)}>더보기 &gt;</button></div>
-                <ul className="notice-list">
-                  {noticePreviewPosts.length ? noticePreviewPosts.map((item) => {
-                    const tag = getBoardPreviewTag(item.board_name)
-                    return (
-                      <li key={`notice-${item.id}`} onClick={() => navigate(`/?board=${encodeURIComponent(item.board_id || noticeBoard?.id || '')}&post=${item.id}`)}>
-                        <span className={`tag ${tag.className}`}>{tag.label}</span>
-                        <span>{item.title}</span>
-                        <span className="date">{formatShortDate(item.created_at)}</span>
-                      </li>
-                    )
-                  }) : (
-                    <li><span className="tag notice">공지</span><span>공지 게시판의 최신글이 없습니다.</span><span className="date">-</span></li>
-                  )}
-                </ul>
-              </article>
-              <article id="contents-section" className="panel">
-                <div className="panel-head"><h2>컨텐츠</h2><button type="button" className="more button-reset" onClick={openContents}>더보기 &gt;</button></div>
-                <div className="guide-grid">
-                  {contentItems.map((item) => (
-                    <button key={item.id} type="button" className="guide-card guide-card-button" onClick={() => openContentDetail(item.id)}>
-                      <div className="guide-thumb" style={{ '--bg-img': `url('${item.image}')` }}></div>
-                      <h3>{item.title}</h3>
-                      <p>{item.description}</p>
-                    </button>
-                  ))}
-                  {!contentItems.length ? <p className="board-empty">등록된 컨텐츠가 없습니다.</p> : null}
+
+            <section className="section main-info-grid">
+              <article className="why-card">
+                <div className="why-image"></div>
+                <div className="why-copy">
+                  <h2>Why Karazhan?</h2>
+                  <div className="check-list">
+                    <span>성장형 PvE 콘텐츠</span>
+                    <span>다양한 편의 기능</span>
+                    <span>솔로 플레이 지원</span>
+                    <span>커스텀 보상 시스템</span>
+                    <span>장비 강화 시스템</span>
+                    <span>지속적인 업데이트</span>
+                  </div>
                 </div>
               </article>
+              <aside className={`status-card ${worldServerOnline === false ? 'offline' : worldServerOnline === null ? 'checking' : 'online'}`}>
+                <h3>실시간 서버 현황</h3>
+                <div className="status-row"><i>●</i><span>월드 서버</span><b className={worldServerOnline ? 'green' : ''}>{worldServerOnline === null ? '확인중' : worldServerOnline ? 'ON' : 'OFF'}</b></div>
+                <div className="status-row"><i>⏱</i><span>런닝 타임</span><b>{worldServerOnline ? formatUptime(serverStats.uptimeSeconds) : '-'}</b></div>
+                <div className="status-row"><i>⚔</i><span>최근 강화 성공</span><b>{serverStats.enhance ? `+${serverStats.enhance.level} ${serverStats.enhance.item}` : '-'}</b></div>
+                <div className="status-row"><i>🏆</i><span>최근 시련 성공</span><b>{serverStats.trial ? (serverStats.trial.stage || serverStats.trial.player || '-') : '-'}</b></div>
+              </aside>
             </section>
 
-            <section id="community-section" className="section lower-grid">
-              <article className="panel">
-                <div className="panel-head"><h2>커뮤니티</h2><button type="button" className="more button-reset" onClick={() => openBoard(freeBoard?.id || visibleBoards[0]?.id)}>더보기 &gt;</button></div>
-                <div className="tabs"><span className="tab active">자유게시판</span></div>
-                <ul className="community-list">
-                  {communityPreviewPosts.length ? communityPreviewPosts.map((item) => (
-                    <li key={`community-${item.board_id}-${item.id}`} onClick={() => navigate(`/?board=${encodeURIComponent(item.board_id)}&post=${item.id}`)}>
-                      <span>{item.title}</span>
-                      <span className="community-board-name">자유게시판</span>
-                      <span className="like">{formatShortDate(item.created_at)}</span>
-                    </li>
-                  )) : (
-                    <li><span>자유게시판의 최신글이 없습니다.</span><span className="community-board-name">자유게시판</span><span className="like">-</span></li>
-                  )}
-                </ul>
-              </article>
-              <article className="panel">
-                <div className="panel-head"><h2>업데이트</h2><button type="button" className="more button-reset" onClick={() => {
-                  const updateBoard = visibleBoards.find((board) => board.name.includes('업데이트'))
-                  openBoard(updateBoard?.id || visibleBoards[0]?.id)
-                }}>더보기 &gt;</button></div>
-                {mediaPreviewPosts.length ? (
-                  <ul className="notice-list media-notice-list">
-                    {mediaPreviewPosts.slice(0, 5).map((item) => (
-                      <li key={`media-${item.id}`} onClick={() => navigate(`/?board=${encodeURIComponent(item.board_id)}&post=${item.id}`)}>
-                        {renderVersionBadge(item.version) || <span className="tag update">업데이트</span>}
-                        <span>{item.title}</span>
-                        <span className="date">{formatShortDate(item.created_at)}</span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <ul className="notice-list media-notice-list">
-                    <li><span className="tag update">업데이트</span><span>업데이트 게시판의 최신글이 없습니다.</span><span className="date">-</span></li>
-                  </ul>
+            <section className="section downloads">
+              <h2 className="section-title"><span>게임 다운로드</span></h2>
+              <div className="download-grid">
+                <article className="download-card"><div className="download-icon">🛡</div><div><h3>풀 클라이언트</h3><p>전체 파일 다운로드</p><a className="blue-btn" href={CONNECT_CLIENT_DOWNLOAD_URL} target="_blank" rel="noreferrer noopener">다운로드 ↓</a></div></article>
+                <article className="download-card"><div className="download-icon">📜</div><div><h3>패치 파일</h3><p>최신 패치 파일 다운로드</p><button className="blue-btn button-reset" type="button" onClick={openConnectGuide}>다운로드 ↓</button></div></article>
+                <article className="download-card"><div className="download-icon">🔭</div><div><h3>접속기 다운로드</h3><p>게임 접속 프로그램</p><a className="blue-btn" href={CONNECT_LAUNCHER_DOWNLOAD_URL} target="_blank" rel="noreferrer noopener">다운로드 ↓</a></div></article>
+              </div>
+            </section>
+            <section id="notice-section" className="section bottom-grid bottom-grid-3">
+              <article className="notice-card">
+                <div className="card-head"><h2>공지사항</h2><button type="button" className="more button-reset" onClick={() => openBoard(noticeBoard?.id || visibleBoards[0]?.id)}>더보기 +</button></div>
+                {renderBoardPreviewRows(
+                  noticePreviewPosts,
+                  navigate,
+                  noticeBoard?.id,
+                  (item) => ({ notice: 'red', bug: 'red', update: 'blue', free: 'green', event: 'green', guide: 'blue' }[getBoardPreviewTag(item.board_name).className] || 'blue'),
+                  (item) => getBoardPreviewTag(item.board_name).label,
                 )}
               </article>
-              <aside id="connect-section" className="panel start-panel"><h2>지금, 모험을 시작하세요</h2><p>접속기 설치, 계정 안내, 초기 설정까지 필요한 순서를 확인하고 바로 입장해 보세요.</p><button type="button" className="btn" onClick={openConnectGuide}>접속 가이드 보기</button></aside>
+              <article className="notice-card">
+                <div className="card-head"><h2>업데이트</h2><button type="button" className="more button-reset" onClick={() => openBoard(visibleBoards.find((board) => board.name.includes('업데이트'))?.id || visibleBoards[0]?.id)}>더보기 +</button></div>
+                {renderBoardPreviewRows(
+                  mediaPreviewPosts,
+                  navigate,
+                  null,
+                  () => 'blue',
+                  (item) => (item.version && String(item.version)) || '업데이트',
+                )}
+              </article>
+              <article className="notice-card">
+                <div className="card-head"><h2>자유게시판</h2><button type="button" className="more button-reset" onClick={() => openBoard(freeBoard?.id || visibleBoards[0]?.id)}>더보기 +</button></div>
+                {renderBoardPreviewRows(
+                  communityPreviewPosts,
+                  navigate,
+                  freeBoard?.id,
+                  () => 'green',
+                  () => '자유',
+                )}
+              </article>
             </section>
           </>
         )}
@@ -2862,9 +3047,9 @@ function App() {
                 </div>
 
                 <div className="public-board-pager">
-                  <button type="button" onClick={() => setNotificationPage((prev) => Math.max(1, prev - 1))} disabled={notificationPage <= 1}>이전</button>
-                  <span>{notificationPage} / {notificationTotalPages}</span>
-                  <button type="button" onClick={() => setNotificationPage((prev) => Math.min(notificationTotalPages, prev + 1))} disabled={notificationPage >= notificationTotalPages}>다음</button>
+                  <button type="button" disabled={notificationPage <= 1} onClick={() => setNotificationPage((prev) => Math.max(1, prev - 1))}>‹</button>
+                  <button type="button" className="is-active" disabled>{notificationPage}</button>
+                  <button type="button" disabled={notificationPage >= notificationTotalPages} onClick={() => setNotificationPage((prev) => Math.min(notificationTotalPages, prev + 1))}>›</button>
                 </div>
               </div>
             </div>
@@ -2889,6 +3074,7 @@ function App() {
                     <div className="public-board-head">
                       <div className="public-board-title-wrap">
                         <h2>{currentBoard.name}</h2>
+                        <p className="public-board-sub">{currentBoard.description || `${currentBoard.name} 게시글을 확인할 수 있습니다.`}</p>
                       </div>
                       <div className="public-board-toolbar">
                         <button className="btn" type="button" onClick={goHome}>{TEXT.home}</button>
@@ -2902,72 +3088,98 @@ function App() {
                     </div>
 
                     <div className="public-mobile-post-list-wrap">
+                      {!isUpdateBoard ? (
+                        <div className="public-post-list-head">
+                          <span>번호</span><span>제목</span><span>작성자</span><span>작성일</span><span>{isBugReportBoard ? '상태' : '조회'}</span>
+                        </div>
+                      ) : null}
                       {loadingPosts ? (
                         <div className="empty-cell public-mobile-post-empty">{TEXT.loadingPosts}</div>
-                      ) : posts.length ? (
-                        <ul className="public-mobile-post-list">
-                          {posts.map((post) => {
-                            const thumbnail = extractPostThumbnail(post)
+                      ) : (
+                        <ul className={`public-mobile-post-list${isUpdateBoard ? '' : ' public-mobile-post-list-fixed'}`}>
+                          {Array.from({ length: 10 }).map((_, index) => {
+                            const post = posts[index]
+                            if (!post) {
+                              return (
+                                <li key={`empty-${index}`} className="public-mobile-post public-mobile-post-empty-slot" aria-hidden="true">
+                                  <span className="public-post-no" />
+                                  <span className="public-mobile-post-main" />
+                                  <span className="public-mobile-post-meta" />
+                                  <span className="public-mobile-post-date" />
+                                  <span className="public-mobile-post-count" />
+                                </li>
+                              )
+                            }
                             const summary = stripHtmlText(post.content || '')
+                            const tag = getBoardPreviewTag(currentBoard.name)
                             return (
                               <li
                                 key={post.id}
-                                className="public-mobile-post"
-                                onClick={() => navigate(`/?board=${encodeURIComponent(currentBoard.id)}&post=${post.id}`)}
+                                className={`public-mobile-post${isUpdateBoard ? ' public-update-post' : ''}${Number(expandedUpdatePostId) === Number(post.id) ? ' expanded' : ''}`}
+                                onClick={() => {
+                                  if (isUpdateBoard) {
+                                    setExpandedUpdatePostId((prev) => (Number(prev) === Number(post.id) ? 0 : Number(post.id)))
+                                    return
+                                  }
+                                  navigate(`/?board=${encodeURIComponent(currentBoard.id)}&post=${post.id}`)
+                                }}
                               >
-                                {thumbnail ? (
-                                  <span className="public-mobile-thumb" style={{ backgroundImage: `url("${thumbnail}")` }} aria-label="게시글 이미지" />
-                                ) : (
-                                  <span className="public-mobile-thumb no-image" aria-label="이미지 없음"><span>NO IMAGE</span></span>
-                                )}
+                                <span className="public-post-no">{post.display_number ?? (index + 1)}</span>
                                 <span className="public-mobile-post-main">
                                   <span className="public-mobile-post-title">
                                     {renderVersionBadge(post.version)}
+                                    {!post.version ? (isBugReportBoard && post.category ? <span className="tag bug">{post.category}</span> : <span className={`tag ${tag.className}`}>{tag.label}</span>) : null}
                                     <span>{post.title}</span>
                                     {Number(post.comment_count || 0) > 0 ? <b>[{post.comment_count}]</b> : null}
                                   </span>
                                   {summary ? <span className="public-mobile-post-summary">{summary}</span> : null}
-                                  {isBugReportBoard ? (
-                                    <span className="support-list-meta support-list-meta-mobile">
-                                      {post.category ? <span className="support-category-pill">{post.category}</span> : null}
-                                      {renderSupportStatus(post.inquiry_status)}
-                                    </span>
-                                  ) : null}
-                                  <span className="public-mobile-post-meta">{currentBoard.name} · {renderAuthor(post.author_name, post.is_staff_author, post.has_enhanced_stone)} · {formatDate(post.created_at)}</span>
                                 </span>
+                                <span className="public-mobile-post-meta public-mobile-post-author">{renderAuthor(post.author_name, post.is_staff_author, post.has_enhanced_stone)}</span>
+                                <span className="public-mobile-post-date">{formatDate(post.created_at)}</span>
+                                <span className="public-mobile-post-count">{isBugReportBoard ? renderSupportStatus(post.inquiry_status) : Number(post.views || 0).toLocaleString()}</span>
+                                {isUpdateBoard && Number(expandedUpdatePostId) === Number(post.id) ? (
+                                  <span className="public-update-body" onClick={(event) => event.stopPropagation()}>
+                                    <span>{summary || '상세 내용을 확인하려면 게시글 상세로 이동해 주세요.'}</span>
+                                    <button className="btn btn-small" type="button" onClick={() => navigate(`/?board=${encodeURIComponent(currentBoard.id)}&post=${post.id}`)}>상세보기</button>
+                                  </span>
+                                ) : null}
                               </li>
                             )
                           })}
                         </ul>
-                      ) : (
-                        <div className="empty-cell public-mobile-post-empty">{TEXT.noPosts}</div>
                       )}
                     </div>
 
-                    {totalPages > 1 ? (
-                      <div className="public-board-pager">
-                        <button type="button" disabled={page <= 1} onClick={() => setPage((prev) => Math.max(1, prev - 1))}>{TEXT.previous}</button>
-                        <button type="button" disabled>{page} / {totalPages}</button>
-                        <button type="button" disabled={page >= totalPages} onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}>{TEXT.next}</button>
-                      </div>
-                    ) : null}
+                    <div className="public-board-pager">
+                      <button type="button" disabled={page <= 1} onClick={() => setPage((prev) => Math.max(1, prev - 1))}>‹</button>
+                      <button type="button" className="is-active" disabled>{page}</button>
+                      <button type="button" disabled={page >= totalPages} onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}>›</button>
+                    </div>
                   </>
                 )}
                 {screen === 'detail' && detail?.post ? (
                   <>
-                    <div className="public-board-head"><h2><span className="public-detail-title">{renderVersionBadge(detail.post.version)}<span>{detail.post.title}</span></span></h2><div className="public-board-toolbar"><button className="btn" type="button" onClick={() => navigate(`/?board=${encodeURIComponent(currentBoard.id)}`)}>{TEXT.back}</button></div></div>
-                    <div className="public-comment-meta public-detail-meta"><span>{renderAuthor(detail.post.author_name, detail.post.is_staff_author, detail.post.has_enhanced_stone)}</span><span>조회 {Number(detail.post.views || 0).toLocaleString()}</span><span>{formatDate(detail.post.created_at)}</span></div>
-                    {detail.post.category ? <div className="public-detail-chip">분류: {detail.post.category}</div> : null}
+                    <div className="public-board-head public-detail-head"><div><h2><span className="public-detail-title">{renderVersionBadge(detail.post.version)}<span>{detail.post.title}</span></span></h2></div><div className="public-board-toolbar"><button className="btn" type="button" onClick={() => navigate(`/?board=${encodeURIComponent(currentBoard.id)}`)}>{TEXT.back}</button></div></div>
+                    <div className="public-comment-meta public-detail-meta">
+                      {detail.post.category ? <span className="public-detail-cat">{detail.post.category}</span> : null}
+                      <span className="public-detail-author">{renderAuthor(detail.post.author_name, detail.post.is_staff_author, detail.post.has_enhanced_stone)}</span>
+                      <span>{formatDate(detail.post.created_at)}</span>
+                      <span>조회 {Number(detail.post.views || 0).toLocaleString()}</span>
+                      <span>댓글 {comments.length}</span>
+                    </div>
                     <article className="public-post-content" dangerouslySetInnerHTML={{ __html: sanitizeHtml(detail.post.content || '') }} />
                     {isPromotionBoard && asArray(detail.post.promotion_urls).length ? (
                       <div className="public-promotion-links"><h3>등록된 홍보 URL</h3><ul>{detail.post.promotion_urls.map((url) => <li key={url}><a href={url} target="_blank" rel="noreferrer">{url}</a></li>)}</ul></div>
                     ) : null}
-                    {canEditOwner(detail.post, user) ? (
-                      <div className="public-post-write-actions">
-                        <button className="btn" type="button" onClick={beginEdit}>수정하기</button>
-                        <button className="btn btn-danger" type="button" onClick={deletePost}>삭제하기</button>
-                      </div>
-                    ) : null}
+                    <div className="public-post-write-actions public-detail-actions">
+                      <button className="btn" type="button" onClick={() => navigate(`/?board=${encodeURIComponent(currentBoard.id)}`)}>목록</button>
+                      {canEditOwner(detail.post, user) ? (
+                        <>
+                          <button className="btn" type="button" onClick={beginEdit}>수정하기</button>
+                          <button className="btn btn-danger" type="button" onClick={deletePost}>삭제하기</button>
+                        </>
+                      ) : null}
+                    </div>
 
                     {isBugReportBoard ? (
                       <section className="public-bug-replies">
@@ -3063,9 +3275,12 @@ function App() {
 
                 {screen === 'write' ? (
                   <>
-                    <div className="public-board-head"><h2>{currentBoard.name} 글 작성</h2><div className="public-board-toolbar"><button className="btn" type="button" onClick={() => navigate(`/?board=${encodeURIComponent(currentBoard.id)}`)}>{TEXT.back}</button></div></div>
+                    <div className="public-board-head public-write-head"><div><h2>{currentBoard.name} 글 작성</h2><p className="public-board-sub">대표 캐릭터가 있는 계정만 작성 가능합니다.</p></div><div className="public-board-toolbar"><button className="btn" type="button" onClick={() => navigate(`/?board=${encodeURIComponent(currentBoard.id)}`)}>{TEXT.back}</button></div></div>
                     <div className="public-post-write-card">
-                      <input className="public-board-text-input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={TEXT.titlePlaceholder} />
+                      <div className="public-write-field">
+                        <label className="public-write-label">제목</label>
+                        <input className="public-board-text-input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={TEXT.titlePlaceholder} />
+                      </div>
                       {isSupportBoard ? <><InquiryFields mode={isBugReportBoard ? 'bugreport' : 'inquiry'} category={inquiryCategory} onCategoryChange={setInquiryCategory} sponsorAgree={sponsorAgree} onSponsorAgreeChange={setSponsorAgree} sponsorName={sponsorName} onSponsorNameChange={setSponsorName} sponsorAmount={sponsorAmount} onSponsorAmountChange={setSponsorAmount} /><QuillEditor value={content} onChange={setContent} onAlert={showAlert} /></> : null}
                       {isPromotionBoard ? <PromotionFields urls={promotionUrls} onChange={updatePromotionUrl} onAdd={addPromotionUrl} onRemove={removePromotionUrl} /> : null}
                       {!isSupportBoard && !isPromotionBoard ? <QuillEditor value={content} onChange={setContent} onAlert={showAlert} /> : null}
@@ -3081,40 +3296,14 @@ function App() {
 
       <footer className="footer">
         <div className="footer-inner">
-          <div className="footer-brand">
-            <div className="footer-logo-text">The Karazhan</div>
-            <p>카라잔 월드에 필요한 안내와 커뮤니티 정보를 한 곳에서 제공합니다.</p>
+          <div className="footer-brand-block">
+            <div className="footer-brand"><span aria-hidden="true">♜</span> Karazhan</div>
+            <small>© 2026 Karazhan Server. All rights reserved.</small>
           </div>
-          <div>
-            <h3>게임 정보</h3>
-            <a href="#">게임 소개</a>
-            <a href="#connect-section">접속 방법</a>
-            <button type="button" className="button-reset footer-link-button" onClick={openServerRules}>
-              서버 규칙
-            </button>
-            <a href="#">시스템 안내</a>
-            <a href="/shop/">선술집</a>
-          </div>
-          <div>
-            <h3>고객지원</h3>
-            <a href="#">1:1 문의</a>
-            <a href="#">FAQ</a>
-            <a href="#">내 계정</a>
-            <button type="button" className="button-reset footer-link-button" onClick={() => openBoard(visibleBoards[0]?.id)}>
-              공지 모음
-            </button>
-          </div>
-          <div>
-            <h3>커뮤니티</h3>
-            <button
-              type="button"
-              className="button-reset footer-link-button"
-              onClick={() => openBoard(visibleBoards.find((board) => board.name.includes('자유'))?.id || visibleBoards[0]?.id)}
-            >
-              자유게시판
-            </button>
-            <a href="#">SNS 채널</a>
-            <a href="#">디스코드</a>
+          <div className="footer-links">
+            <button type="button" className="button-reset footer-link-button" onClick={openServerRules}>개인정보처리방침</button>
+            <button type="button" className="button-reset footer-link-button" onClick={openServerRules}>이용약관</button>
+            <button type="button" className="button-reset footer-link-button" onClick={() => openBoard(visibleBoards.find((board) => board.name.includes('문의'))?.id || visibleBoards[0]?.id)}>문의하기</button>
           </div>
         </div>
       </footer>

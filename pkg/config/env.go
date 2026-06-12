@@ -165,6 +165,14 @@ func Port() string {
 	return "80"
 }
 
+// ThemeName : 활성 디자인 테마 디렉토리명 (themes/<name>). 기본 stormwind.
+func ThemeName() string {
+	if v := get("KARAZHAN_THEME"); v != "" {
+		return v
+	}
+	return "stormwind"
+}
+
 func AuthDSN() string       { return get("KARAZHAN_AUTH_DSN") }
 func CharactersDSN() string { return get("KARAZHAN_CHARACTERS_DSN") }
 func WorldDSN() string      { return get("KARAZHAN_WORLD_DSN") }

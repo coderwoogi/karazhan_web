@@ -1,8 +1,8 @@
 :root {
   font-family: 'Noto Sans KR', sans-serif;
-  color: #f5efe4;
-  background: #05050a;
-  --gold: #cfb073;
+  color: var(--kz-text);
+  background: #ffffff;
+  --gold: var(--kz-gold);
   --gold-soft: rgba(207, 176, 115, 0.18);
   --panel: rgba(9, 8, 18, 0.76);
   --panel-strong: rgba(6, 5, 12, 0.88);
@@ -16,8 +16,14 @@ html, body, #root { min-height: 100%; }
 body {
   margin: 0;
   background:
-    radial-gradient(circle at top, rgba(134, 70, 255, 0.16), transparent 28%),
-    linear-gradient(180deg, #0a0911 0%, #05050a 70%);
+    radial-gradient(circle at 50% 0, rgba(var(--kz-blue-rgb), 0.12), transparent 420px),
+    linear-gradient(180deg, #ffffff 0%, var(--kz-accent-soft) 42%, #ffffff 100%);
+}
+
+main {
+  background:
+    radial-gradient(circle at 50% 0, rgba(var(--kz-blue-rgb), 0.12), transparent 420px),
+    linear-gradient(180deg, #ffffff 0%, var(--kz-accent-soft) 42%, #ffffff 100%);
 }
 
 a { color: inherit; text-decoration: none; }

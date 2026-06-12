@@ -279,6 +279,9 @@
   function applyLoginState() {
     if (!user) return;
     const name = user.mainCharacter && user.mainCharacter.name ? String(user.mainCharacter.name).trim() : String(user.username || '').trim();
+    const pointValue = Number(user.points ?? user.point ?? user.webPoint ?? user.web_point ?? 0);
+    const pointText = Number.isFinite(pointValue) ? pointValue.toLocaleString() + ' point' : '0 point';
+    const avatarText = (name || user.username || 'K').trim().slice(0, 1).toUpperCase();
     const action = qs('.nav-action');
     if (!action || !name) return;
     const wrap = document.createElement('div');
@@ -288,16 +291,37 @@
         '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a2.4 2.4 0 0 0 2.35-2h-4.7A2.4 2.4 0 0 0 12 22Zm7-6.2-1.7-1.95V9.7A5.9 5.9 0 0 0 13 4.05V3a1 1 0 0 0-2 0v1.05A5.9 5.9 0 0 0 6.7 9.7v4.15L5 15.8V18h14v-2.2Z"/></svg>' +
         '<span id="public-notification-badge" class="nav-notification-badge"></span>' +
       '</button>' +
-      '<button class="nav-user" type="button" aria-label="' + esc(name) + '">' +
-        '<span class="nav-user-avatar" aria-hidden="true"></span><span class="nav-user-text"></span>' +
-      '</button>' +
+      '<a class="nav-user" href="/admin/?tab=mypage" aria-label="' + esc(name) + ' 마이페이지">' +
+        '<span class="nav-user-avatar" aria-hidden="true">' + esc(avatarText) + '</span><span class="nav-user-text"><strong></strong><small></small></span>' +
+      '</a>' +
+      '<a class="nav-action nav-action-game" href="#connect-section">게임 시작</a>' +
       '<div id="public-notification-dropdown" class="nav-notification-dropdown" aria-live="polite">' +
-        '<div class="nav-notification-head"><span>알림</span><a href="/admin/?tab=mailbox">전체보기</a></div>' +
+        '<div class="nav-notification-head"><span>최근 알림</span><a href="/admin/?tab=mailbox">전체보기</a></div>' +
         '<div id="public-notification-list" class="nav-notification-list"><div class="nav-notification-empty">알림을 불러오는 중입니다.</div></div>' +
       '</div>';
-    wrap.querySelector('.nav-user-text').textContent = name + K.welcome;
+    const nameEl = wrap.querySelector('.nav-user-text strong');
+    const pointEl = wrap.querySelector('.nav-user-text small');
+    if (nameEl) nameEl.textContent = name;
+    if (pointEl) pointEl.textContent = pointText;
     action.replaceWith(wrap);
     loadPublicNotifications();
+  }
+
+  function formatNotificationType(type) {
+    const normalized = String(type || '').toLowerCase();
+    if (normalized === 'point') return 'P';
+    if (normalized === 'comment') return '↳';
+    if (normalized === 'bug') return '!';
+    if (normalized === 'support') return '?';
+    return 'K';
+  }
+
+  function formatNotificationClass(type) {
+    const normalized = String(type || '').toLowerCase();
+    if (normalized === 'point') return ' point';
+    if (normalized === 'comment') return ' comment';
+    if (normalized === 'bug') return ' bug';
+    return '';
   }
 
   function formatNotificationTime(value) {
@@ -334,9 +358,12 @@
     list.innerHTML = notifications.map((item) => {
       const link = String(item.link || '/admin/?tab=mailbox');
       return '<a class="nav-notification-item ' + (item.is_read ? '' : 'unread') + '" href="' + esc(link) + '" data-public-notification-id="' + esc(item.id) + '">' +
-        '<span class="nav-notification-title">' + esc(item.title || '알림') + '</span>' +
-        '<span class="nav-notification-message">' + esc(item.message || '') + '</span>' +
-        '<span class="nav-notification-time">' + esc(formatNotificationTime(item.created_at)) + '</span>' +
+        '<span class="nav-notification-icon' + formatNotificationClass(item.type) + '">' + esc(formatNotificationType(item.type)) + '</span>' +
+        '<span class="nav-notification-copy">' +
+          '<span class="nav-notification-title">' + esc(item.title || '알림') + '</span>' +
+          '<span class="nav-notification-message">' + esc(item.message || '') + '</span>' +
+          '<span class="nav-notification-time">' + esc(formatNotificationTime(item.created_at)) + '</span>' +
+        '</span>' +
       '</a>';
     }).join('');
   }

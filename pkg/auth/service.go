@@ -26,6 +26,7 @@ const (
 
 func RegisterRoutes(mux *http.ServeMux) {
 	ensureAccountRecoverySchema()
+	ensureThemeColumn()
 
 	mux.HandleFunc("/login/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
@@ -76,6 +77,7 @@ func RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/user/characters", userCharactersHandler)
 	mux.HandleFunc("/api/server/online", serverOnlineHandler)
 	mux.HandleFunc("/api/user/main_character", handleSetMainCharacter)
+	mux.HandleFunc("/api/user/theme", handleSetUserTheme)
 	mux.HandleFunc("/api/user/points/history", handlePointHistory)
 	mux.HandleFunc("/api/admin/users/points/history", adminPointHistoryHandler)
 	mux.HandleFunc("/api/admin/users/points/update", adminUpdatePointsHandler)
@@ -454,6 +456,7 @@ func userStatusHandler(w http.ResponseWriter, r *http.Request) {
 		"isBanned":                     false,
 		"gmLevel":                      gmLevel,
 		"webRank":                      webRank,
+		"theme":                        UserThemeForStatus(updateDB, id),
 		"isSecondAccountUser":          isSecondAccountUser,
 		"enhancedStoneSubscribed":      enhancedStoneSubscribed,
 		"enhancedStoneActive":          enhancedStoneActive,

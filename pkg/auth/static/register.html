@@ -8,15 +8,26 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=4">
 </head>
 
 <body>
-    <div class="login-container">
+    <video class="login-video-bg" autoplay muted loop playsinline aria-hidden="true" poster="/img/stormwind_bg.png">
+        <source src="/img/test.mp4" type="video/mp4">
+    </video>
+    <div class="login-video-overlay" aria-hidden="true"></div>
+    <div class="login-stage">
+        <aside class="login-hero" aria-hidden="true">
+            <div class="login-hero-crest">♜</div>
+            <h2 class="login-hero-title">Karazhan</h2>
+            <div class="login-hero-sub">Wrath of the Lich King</div>
+            <p class="login-hero-desc">새로운 모험의 시작.<br>지금 계정을 만들고 카라잔에 합류하세요.</p>
+        </aside>
+        <div class="login-container">
         <div class="login-box">
             <div class="login-header">
-                <h1>Karazhan</h1>
-                <p>회원가입</p>
+                <h1>회원가입</h1>
+                <p class="login-lead">사이트 회원가입 시 인게임 계정과 연동됩니다.</p>
             </div>
             <form id="registerForm">
                 <div class="form-group">
@@ -36,12 +47,13 @@
                     <input type="password" id="cpassword" name="cpassword" placeholder="비밀번호를 다시 입력하세요" required>
                 </div>
                 <button type="submit" class="login-btn">가입하기</button>
-                <div style="text-align: center; margin-top: 15px;">
-                    <a href="/login/" style="color: #6366f1; text-decoration: none; font-size: 0.9rem;">이미 계정이 있으신가요?
+                <div style="text-align: center; margin-top: 16px;">
+                    <a href="/login/" style="color: #075fd0; text-decoration: none; font-size: 0.9rem; font-weight: 800;">이미 계정이 있으신가요?
                         로그인</a>
                 </div>
             </form>
-            <div id="error-msg" style="color: red; margin-top: 10px; font-size: 0.9rem; text-align: center;"></div>
+            <div id="error-msg" style="color: #d84242; margin-top: 10px; font-size: 0.9rem; text-align: center; font-weight: 700;"></div>
+        </div>
         </div>
     </div>
     <div id="successOverlay" class="success-overlay">
