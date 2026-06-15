@@ -380,6 +380,11 @@
   transform: none;
 }
 
+/* 닫혔을 때 그림자가 화면 왼쪽 가장자리로 새어 보이지 않게 (열렸을 때만 그림자) */
+.nav-mobile-panel:not(.active) {
+  box-shadow: none;
+}
+
 .nav-mobile-section {
   display: grid;
   gap: 8px;
@@ -4970,3 +4975,144 @@ select.public-board-select {
 .public-update-content li{display:flex;gap:9px;align-items:flex-start;padding:5px 0;font-size:15px;color:var(--kz-text);line-height:1.6;}
 .public-update-content li::before{content:"";flex:none;width:6px;height:6px;border-radius:50%;background:var(--kz-line);margin-top:9px;}
 .public-update-content img{max-width:100%;height:auto;border-radius:10px;border:1px solid var(--kz-line);margin:12px 0;display:block;}
+
+/* ===========================================================
+   모바일 반응형 보강 — 시안 1 (스톰윈드 라이트)
+   기존 레이아웃을 휴대폰 폭에 맞게 정리 (홈 헤더/히어로/섹션/다운로드 등)
+   =========================================================== */
+@media (max-width: 768px) {
+  /* 헤더: 절대중앙 배치 → flex 행 (햄버거 · 브랜드 · 우측 액션) 겹침 근본 차단 */
+  .nav { display: flex; align-items: center; gap: 10px; }
+  .nav-mobile-toggle { position: static; transform: none; left: auto; top: auto; margin: 0; order: 0; flex: 0 0 auto; }
+  .nav-brand { position: static; transform: none; left: auto; top: auto; order: 1; flex: 1 1 auto; min-width: 0; max-width: none; gap: 0; justify-content: flex-start; text-align: left; overflow: hidden; }
+  .nav-brand .brand-name { font-size: 15px; letter-spacing: 0.03em; align-items: flex-start; overflow: hidden; }
+  .nav-brand .brand-name small { display: none; }
+  .nav-brand::before { display: none; }
+  .nav-links { display: none; }
+  .nav-user-zone { position: static; transform: none; left: auto; right: auto; top: auto; order: 2; flex: 0 0 auto; margin-left: auto; gap: 6px; }
+  /* 우측 액션군 축소 → 브랜드 표시 공간 확보 */
+  .nav-user-text { display: none; }
+  .theme-switch { height: 30px; padding: 2px; margin-right: 0; }
+  .theme-switch-side { padding: 0 7px; }
+  .theme-switch-crest { width: 12px; height: 12px; }
+  .nav-notification-btn { flex: 0 0 38px; width: 38px; height: 38px; }
+  .nav-notification-icon svg { width: 18px; height: 18px; }
+  .nav-user-avatar { width: 38px; height: 38px; }
+
+  /* 히어로 타이틀: 화면 폭 안으로 (clamp 최소값 축소) */
+  .hero-title-main { font-size: clamp(32px, 11vw, 48px) !important; letter-spacing: 0.02em; }
+  .hero-subtitle-main { font-size: clamp(18px, 5vw, 26px) !important; }
+  .hero-desc-main { font-size: clamp(13px, 3.6vw, 16px) !important; }
+
+  /* 섹션 제목: 양옆 라인이 제목을 짜부라뜨리지 않게 (한 줄 유지) */
+  .section-title { gap: 10px; font-size: 20px; }
+  .section-title::before,
+  .section-title::after { width: 28px; flex: 0 0 28px; }
+
+  /* 게임 다운로드: 3열 → 1열 스택, 가로형 카드 (세로 글자깨짐 해결) */
+  .download-grid { grid-template-columns: 1fr; gap: 14px; }
+  .download-card { grid-template-columns: 60px 1fr; gap: 16px; min-height: 0; padding: 16px 18px; }
+  .download-icon { width: 54px; height: 54px; font-size: 28px; }
+  .download-card h3 { font-size: 17px; }
+  .download-card p { margin: 4px 0 10px; font-size: 13px; }
+
+  /* 게시판/상세 헤더: 제목·툴바 세로 스택 (제목 줄바꿈 방지) */
+  .public-board-head { flex-direction: column; align-items: stretch; gap: 12px; }
+  .public-board-head > .public-board-toolbar,
+  .public-board-toolbar { justify-content: flex-start; flex-wrap: wrap; gap: 8px; }
+  .public-board-title-wrap h2,
+  .public-board-head h2 { font-size: 20px; white-space: nowrap; }
+  .public-board-head > div:first-child { flex-direction: column; align-items: flex-start; gap: 2px; }
+  .public-detail-title { flex-wrap: wrap; }
+
+  /* 작성/상세 카드 좌우 패딩 축소 (모바일 가독) */
+  .public-post-write-card { padding: 18px 16px; }
+
+  /* 사이드 메뉴 버튼: 화면 왼쪽에서 약 10px 거리 유지 */
+  .nav { width: calc(100% - 20px); }
+  .nav-mobile-toggle { order: -1; margin-right: 4px; }
+
+  /* 알림 드롭다운: 모바일에서 잘리지 않게 헤더 아래 전폭 패널 */
+  .nav-notification-menu {
+    position: fixed !important;
+    top: 64px !important;
+    left: 10px !important;
+    right: 10px !important;
+    width: auto !important;
+    max-width: none !important;
+    max-height: calc(100vh - 84px);
+    overflow-y: auto;
+  }
+
+  /* 홈: 모바일에선 메인영상 · 실시간현황 · 게시판만 노출 (나머지 숨김) */
+  .server-info,
+  .downloads,
+  .why-card,
+  .mobile-hide { display: none !important; }
+  .main-info-grid { grid-template-columns: 1fr !important; gap: 0; }
+
+  /* 사이드 메뉴 닫기(X) 버튼 헤더 */
+  .nav-mobile-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    margin-bottom: 6px;
+    border-bottom: 1px solid var(--kz-line);
+  }
+  .nav-mobile-head-brand {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--kz-ink);
+    letter-spacing: 0.02em;
+  }
+  .nav-mobile-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    border: 1px solid var(--kz-line);
+    background: var(--kz-accent-soft);
+    color: var(--kz-ink);
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .nav-mobile-close:hover { background: var(--kz-blue-soft); }
+
+  /* 게시판 목록 행: 시안1 카드형 (번호 숨김 · 배지+제목 / 작성자·작성일·조회) */
+  .public-mobile-post {
+    display: grid !important;
+    grid-template-columns: max-content max-content 1fr;
+    grid-template-areas: "title title title" "author date views";
+    gap: 3px 8px;
+    align-items: center;
+    padding: 13px 14px;
+    min-height: 60px;
+  }
+  .public-post-no { display: none !important; }
+  .public-mobile-post-main { grid-area: title; min-width: 0; }
+  .public-mobile-post-summary { display: none; }
+  .public-mobile-post-title { font-size: 15px; }
+  .public-mobile-post-author { grid-area: author; }
+  .public-mobile-post-date { grid-area: date; justify-self: start; }
+  .public-mobile-post-count { grid-area: views; justify-self: end; }
+  .public-mobile-post-author,
+  .public-mobile-post-date,
+  .public-mobile-post-count {
+    display: inline-flex;
+    align-items: center;
+    font-size: 12.5px;
+    color: var(--kz-muted);
+    white-space: nowrap;
+  }
+  .public-mobile-post-date::before { content: "·"; margin-right: 7px; color: var(--kz-line); }
+  .public-update-body { grid-column: 1 / -1; }
+}
+
+/* 닫기 버튼은 데스크톱(드로어 미사용)에선 숨김 */
+@media (min-width: 769px) {
+  .nav-mobile-head { display: none; }
+}

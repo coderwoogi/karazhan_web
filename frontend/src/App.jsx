@@ -2305,6 +2305,10 @@ function App() {
       </header>
       {mobileNavOpen ? <button type="button" className="nav-mobile-overlay button-reset" aria-label="모바일 메뉴 닫기" onClick={() => setMobileNavOpen(false)} /> : null}
       <div id="mobile-nav-panel" className={`nav-mobile-panel${mobileNavOpen ? ' active' : ''}`}>
+        <div className="nav-mobile-head">
+          <span className="nav-mobile-head-brand">Karazhan</span>
+          <button type="button" className="nav-mobile-close button-reset" aria-label="메뉴 닫기" onClick={() => setMobileNavOpen(false)}>✕</button>
+        </div>
         <div className="nav-mobile-section">
           <div className="nav-mobile-title">{TEXT.board}</div>
           <div className="nav-mobile-board-list">
@@ -2414,7 +2418,7 @@ function App() {
               <div className="server-item"><span className="server-icon">⚖</span><span><small>전문기술</small><b>x10</b></span></div>
             </section>
 
-            <section className="section">
+            <section className="section mobile-hide">
               <h2 className="section-title"><span>핵심 콘텐츠</span></h2>
               <div className="content-grid">
                 <article className="feature-card"><img src="/img/contents/시련.png" alt="시련" /><h3>시련</h3><p>강력한 보스와의 시련!<br />보상을 쟁취하라!</p></article>
