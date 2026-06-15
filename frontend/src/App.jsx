@@ -3243,7 +3243,7 @@ function App() {
                       </div>
                       <div className="public-board-toolbar">
                         <button className="btn" type="button" onClick={goHome}>{TEXT.home}</button>
-                        {canWrite(currentBoard, user) ? <button className="btn" type="button" onClick={openWrite}>{TEXT.write}</button> : null}
+                        {canWrite(currentBoard, user) ? <button className="btn public-write-btn" type="button" onClick={openWrite}>{TEXT.write}</button> : null}
                       </div>
                     </div>
 
