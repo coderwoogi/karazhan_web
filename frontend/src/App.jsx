@@ -3242,13 +3242,26 @@ function App() {
                         <p className="public-board-sub">{currentBoard.description || `${currentBoard.name} 게시글을 확인할 수 있습니다.`}</p>
                       </div>
                       <div className="public-board-toolbar">
-                        <button className="btn" type="button" onClick={goHome}>{TEXT.home}</button>
+                        <button className="btn public-board-home-btn" type="button" onClick={goHome}>{TEXT.home}</button>
                         {canWrite(currentBoard, user) ? <button className="btn public-write-btn" type="button" onClick={openWrite}>{TEXT.write}</button> : null}
                       </div>
                     </div>
 
+                    <nav className="public-board-chips" aria-label="게시판 바로가기">
+                      {visibleBoards.map((board) => (
+                        <button
+                          key={board.id}
+                          type="button"
+                          className={`public-board-chip${board.id === boardId ? ' on' : ''}`}
+                          onClick={() => openBoard(board.id)}
+                        >
+                          {board.name}
+                        </button>
+                      ))}
+                    </nav>
+
                     <div className="public-board-search-wrap">
-                      <input value={searchInput} onChange={(e) => setSearchInput(e.target.value)} placeholder="검색어를 입력해 주세요." />
+                      <input value={searchInput} onChange={(e) => setSearchInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { setPage(1); setSearch(searchInput.trim()) } }} placeholder="검색어를 입력해 주세요." />
                       <button className="btn" type="button" onClick={() => { setPage(1); setSearch(searchInput.trim()) }}>{TEXT.search}</button>
                     </div>
 
@@ -3300,7 +3313,7 @@ function App() {
                                   {summary ? <span className="public-mobile-post-summary">{summary}</span> : null}
                                 </span>
                                 <span className="public-mobile-post-meta public-mobile-post-author">{renderAuthor(post.author_name, post.is_staff_author, post.has_enhanced_stone)}</span>
-                                <span className="public-mobile-post-date">{formatDate(post.created_at)}</span>
+                                <span className="public-mobile-post-date"><span className="pmp-date-full">{formatDate(post.created_at)}</span><span className="pmp-date-short">{formatDate(post.created_at).slice(0, 10).replace(/-/g, '.')}</span></span>
                                 <span className="public-mobile-post-count">{isBugReportBoard ? renderSupportStatus(post.inquiry_status) : Number(post.views || 0).toLocaleString()}</span>
                                 {isUpdateBoard && Number(expandedUpdatePostId) === Number(post.id) ? (
                                   <span className="public-update-body" onClick={(event) => event.stopPropagation()}>

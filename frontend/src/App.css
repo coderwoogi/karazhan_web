@@ -4976,6 +4976,11 @@ select.public-board-select {
 .public-update-content li::before{content:"";flex:none;width:6px;height:6px;border-radius:50%;background:var(--kz-line);margin-top:9px;}
 .public-update-content img{max-width:100%;height:auto;border-radius:10px;border:1px solid var(--kz-line);margin:12px 0;display:block;}
 
+/* 게시판 카테고리 칩(모바일 사이드바 대체) — 데스크톱에서는 숨김 */
+.public-board-chips { display: none; }
+/* 모바일 전용 짧은 날짜(연.월.일) — 데스크톱에서는 숨기고 전체 일시 표시 */
+.pmp-date-short { display: none; }
+
 /* ===========================================================
    모바일 반응형 보강 — 시안 1 (스톰윈드 라이트)
    기존 레이아웃을 휴대폰 폭에 맞게 정리 (홈 헤더/히어로/섹션/다운로드 등)
@@ -5037,21 +5042,25 @@ select.public-board-select {
   .public-post-list-head { display: none !important; }
   .public-board-search-wrap { padding: 0 0 10px; }
 
-  /* 글쓰기: 하단 우측 고정 FAB (시안) */
+  /* 글쓰기: 하단 우측 고정 컴팩트 FAB (시안) — 전체너비 막대 방지 */
   .public-write-btn {
     position: fixed !important;
-    right: 14px;
-    bottom: 18px;
+    right: 16px;
+    bottom: 20px;
+    left: auto !important;
     z-index: 200;
-    width: auto;
+    width: auto !important;
+    min-width: 0 !important;
+    flex: 0 0 auto !important;
     border: 0 !important;
     border-radius: 26px !important;
-    padding: 13px 22px !important;
+    padding: 14px 22px !important;
     background: var(--kz-blue) !important;
     color: #fff !important;
     font-weight: 800;
     box-shadow: 0 10px 24px rgba(var(--kz-blue-rgb), 0.4) !important;
   }
+  .public-write-btn::before { content: "\270E\00a0"; }
 
   /* 작성/상세 카드 좌우 패딩 축소 (모바일 가독) */
   .public-post-write-card { padding: 18px 16px; }
@@ -5110,34 +5119,199 @@ select.public-board-select {
   }
   .nav-mobile-close:hover { background: var(--kz-blue-soft); }
 
-  /* 게시판 목록 행: 시안1 카드형 (번호 숨김 · 배지+제목 / 작성자·작성일·조회) */
+  /* 배경: 시안1 — 모바일 전 화면 흰색 (블루 틴트 그라데이션 제거) */
+  body, main { background: #fff !important; }
+
+  /* 헤더: 시안1 appbar — 아래로 번지는 그림자 제거, 하단 얇은 선만 (간격 깔끔하게) */
+  .topbar { box-shadow: none !important; border-bottom: 1px solid var(--kz-line); background: #fff !important; }
+
+  /* 상단 화면 섹션(게시판/마이페이지/안내 등): 헤더 바로 아래 16px + 좌우 16px 거터 (시안1) */
+  main > section.section:first-child {
+    margin: 0 auto !important;
+    padding-top: 16px !important;
+    width: calc(100% - 32px) !important;
+  }
+
+  /* 게시판 목록: 헤더·검색·리스트 좌측 거터 통일 (시안1) */
+  .public-board-head { padding: 0 0 10px !important; }
+  .public-board-search-wrap { margin: 0 0 6px !important; width: 100% !important; padding: 0 !important; }
+  .public-mobile-post-list { padding: 0 !important; }
+  .public-board-chips { padding: 0 0 12px !important; }
+
+  /* 게시판 목록 행: 시안1 — 평평한 리스트 행(카드 아님) · 얇은 구분선 · 배지+제목 / 작성자·작성일·조회 한 줄 */
   .public-mobile-post {
     display: grid !important;
-    grid-template-columns: max-content max-content 1fr;
-    grid-template-areas: "title title title" "author date views";
-    gap: 3px 8px;
+    grid-template-columns: max-content max-content minmax(0, 1fr) !important;
+    grid-template-areas: "title title title" "author date count" !important;
+    gap: 6px 0 !important;
     align-items: center;
-    padding: 13px 14px;
-    min-height: 60px;
+    width: 100%;
+    margin: 0 !important;
+    padding: 14px 0 !important;
+    min-height: 64px !important;
+    justify-content: center;
+    background: transparent !important;
+    border: 0 !important;
+    border-bottom: 1px solid #f0f5fc !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
   }
   .public-post-no { display: none !important; }
   .public-mobile-post-main { grid-area: title; min-width: 0; }
-  .public-mobile-post-summary { display: none; }
-  .public-mobile-post-title { font-size: 15px; }
+  .public-mobile-post-summary { display: none !important; }
+  .public-mobile-post-title { font-size: 14px; font-weight: 600; gap: 7px; }
+  .public-mobile-post-title .tag,
+  .public-mobile-post-title .public-version-badge {
+    min-height: 0;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: 800;
+    border-radius: 6px;
+  }
   .public-mobile-post-author { grid-area: author; }
-  .public-mobile-post-date { grid-area: date; justify-self: start; }
-  .public-mobile-post-count { grid-area: views; justify-self: end; }
+  .public-mobile-post-date { grid-area: date; }
+  .public-mobile-post-count { grid-area: count; }
   .public-mobile-post-author,
   .public-mobile-post-date,
   .public-mobile-post-count {
-    display: inline-flex;
+    display: inline-flex !important;
     align-items: center;
-    font-size: 12.5px;
+    justify-self: start !important;
+    font-size: 11px;
     color: var(--kz-muted);
     white-space: nowrap;
+    text-align: left !important;
   }
-  .public-mobile-post-date::before { content: "·"; margin-right: 7px; color: var(--kz-line); }
+  .public-mobile-post-date::before { content: "·"; margin: 0 6px; color: var(--kz-line); }
+  /* 조회수: "· 조회 N" (상태 배지가 들어가는 버그리포트는 제외) */
+  .public-mobile-post-count:not(:has(.support-status-badge))::before { content: "· \C870\D68C\00a0"; margin-left: 6px; color: var(--kz-muted); }
+  .public-mobile-post-count:has(.support-status-badge)::before { content: "·"; margin: 0 6px; color: var(--kz-line); }
+  /* 모바일: 짧은 날짜(연.월.일)만 노출 */
+  .public-mobile-post-date .pmp-date-full { display: none; }
+  .public-mobile-post-date .pmp-date-short { display: inline; }
   .public-update-body { grid-column: 1 / -1; }
+
+  /* ===== 시안1 정합 보강 (실화면 검증 기반) ===== */
+
+  /* 홈 섹션 순서 = 히어로 → 실시간현황 → 핵심콘텐츠 → 다운로드 → 게시판 (시안1) */
+  main { display: flex; flex-direction: column; }
+  .hero { order: 1; }
+  .section.main-info-grid { order: 2; }
+  .section.mobile-hide { order: 3; display: block !important; }
+  .section.downloads { order: 4; display: block !important; }
+  .bottom-grid-3 { order: 5; }
+  /* 홈 게시판 미리보기: 모바일에선 빈 패딩행 숨김 (시안1 — 내용만큼만) */
+  .bottom-grid-3 .notice-row-empty { display: none; }
+
+  /* 핵심 콘텐츠 2×2 카드 (시안1) */
+  .content-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
+  .feature-card { min-height: 0; }
+  .feature-card img { height: 96px; }
+  .feature-card h3 { margin: 10px 0 4px; font-size: 15px; }
+  .feature-card p { margin: 0 0 12px; font-size: 11px; padding: 0 8px; }
+
+  /* 실시간 서버 현황: 단일 행 카드 → 2×2 스탯 그리드 (시안1) */
+  .main-info-grid .status-card {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    padding: 16px;
+  }
+  .main-info-grid .status-card h3 { grid-column: 1 / -1; margin: 0 0 2px; }
+  .main-info-grid .status-row {
+    grid-template-columns: auto 1fr;
+    grid-template-areas: "icon label" "value value";
+    gap: 2px 6px;
+    min-height: 0;
+    padding: 12px 13px;
+    border: 1px solid var(--kz-line);
+    border-radius: 14px;
+    background: #fff;
+  }
+  .main-info-grid .status-row i { grid-area: icon; font-size: 12px; font-style: normal; }
+  .main-info-grid .status-row span { grid-area: label; font-size: 11px; color: var(--kz-muted); }
+  .main-info-grid .status-row b { grid-area: value; font-size: 15px; margin-top: 4px; }
+
+  /* 게시판 목록: 카테고리 칩 (시안1, 사이드바 대체) */
+  .public-board-chips {
+    display: flex;
+    gap: 7px;
+    overflow-x: auto;
+    padding: 2px 0 12px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .public-board-chips::-webkit-scrollbar { height: 0; }
+  .public-board-chip {
+    flex: 0 0 auto;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 7px 13px;
+    border-radius: 18px;
+    border: 1px solid var(--kz-line);
+    color: var(--kz-muted);
+    background: #fff;
+    cursor: pointer;
+    white-space: nowrap;
+    font-family: inherit;
+  }
+  .public-board-chip.on { background: var(--kz-blue); color: #fff; border-color: var(--kz-blue); }
+
+  /* 게시판 목록 헤더: 플랫화 — 설명문구·홈으로 숨김 (시안1) */
+  .public-board-sub { display: none; }
+  .public-board-home-btn { display: none; }
+
+  /* 빈 슬롯 카드 숨김 (모바일에선 패딩행 불필요) */
+  .public-mobile-post-empty-slot { display: none !important; }
+
+  /* 검색바: 시안1 — 아이콘 내장 단일 필 (별도 검색 버튼 숨김, Enter로 검색) */
+  /* wrap 자체 테두리·배경 제거 → input 필 하나만 보이도록 (보더 겹침 해소) */
+  .public-board-search-wrap {
+    position: relative;
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+  .public-board-search-wrap::before {
+    content: "🔍";
+    position: absolute;
+    left: 15px;
+    top: 13px;
+    font-size: 14px;
+    color: var(--kz-muted);
+    pointer-events: none;
+  }
+  .public-board-search-wrap .btn { display: none !important; }
+  .public-board-search-wrap input {
+    width: 100% !important;
+    background: var(--kz-blue-soft);
+    border: 1px solid var(--kz-line);
+    border-radius: 14px;
+    padding: 12px 14px 12px 42px;
+  }
+
+  /* 마이페이지: 홈으로 숨김 + 프로필 헤더 다크 그라데이션 (시안1) */
+  .mypage-head .public-board-toolbar { display: none; }
+  .mypage-profile-card {
+    background: linear-gradient(135deg, var(--kz-ink), var(--kz-blue)) !important;
+    border-color: transparent !important;
+    color: #fff;
+  }
+  .mypage-profile-card .mypage-name-row strong { color: #fff; }
+  .mypage-profile-card .mypage-profile-copy p { color: rgba(255, 255, 255, 0.8); }
+  .mypage-profile-card .mypage-point-box {
+    background: rgba(255, 255, 255, 0.14);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+  .mypage-profile-card .mypage-point-box span { color: rgba(255, 255, 255, 0.85); }
+  .mypage-profile-card .mypage-point-box strong { color: #ffe6b0; }
+  .mypage-profile-card .mypage-profile-summary { border-top: 1px solid rgba(255, 255, 255, 0.18); }
+  .mypage-profile-card .mypage-summary-item {
+    background: rgba(255, 255, 255, 0.1) !important;
+    border-color: rgba(255, 255, 255, 0.18) !important;
+    padding: 11px 14px;
+  }
+  .mypage-profile-card .mypage-summary-item span { color: rgba(255, 255, 255, 0.78); }
+  .mypage-profile-card .mypage-summary-item strong { color: #fff; }
 }
 
 /* 닫기 버튼은 데스크톱(드로어 미사용)에선 숨김 */

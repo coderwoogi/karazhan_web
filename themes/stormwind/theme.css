@@ -3754,3 +3754,173 @@ body {
 .theme-switch.is-orgrimmar .theme-switch-side--stormwind { color: var(--kz-muted); opacity: 0.5; }
 /* 좁은 화면에서는 이름 숨기고 진영 마크만 노출 */
 
+/* ===========================================================
+   모바일 시안1(스톰윈드 라이트) 정합 — 최종 오버라이드
+   theme.css가 cascade 마지막에 로드되므로 여기서 배경/검색/구분선을 결정적으로 적용
+   =========================================================== */
+@media (max-width: 768px) {
+  /* 배경: 전 화면 흰색 (블루 틴트 그라데이션 제거) — 시안1 .screen{#fff} */
+  .page,
+  .react-home-page,
+  .react-home-page main,
+  body,
+  main { background: #fff !important; }
+
+  /* 헤더: 아래로 번지는 그림자 제거, 하단 얇은 선만 (시안1 appbar) */
+  .topbar {
+    box-shadow: none !important;
+    border-bottom: 1px solid var(--kz-line) !important;
+    background: #fff !important;
+    backdrop-filter: none !important;
+  }
+
+  /* 게시판 헤더(타이틀): 하단 구분선 제거 — 시안엔 없음 */
+  .public-board-head { border-bottom: 0 !important; }
+
+  /* 검색바: 단일 라이트 필 — wrap 테두리/배경 제거(보더 겹침 해소), input 하나만 보더 */
+  .public-board-search-wrap {
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+  }
+  .public-board-search-wrap .btn { display: none !important; }
+  .public-board-search-wrap input {
+    width: 100% !important;
+    border: 1px solid var(--kz-line) !important;
+    border-radius: 14px !important;
+    background: var(--kz-blue-soft) !important;
+    color: var(--kz-ink) !important;
+    padding: 12px 14px 12px 42px !important;
+  }
+
+  /* 게시물 행: 평평한 리스트(카드/라운드 제거) + 균일 구분선 (시안1 .prow) */
+  .public-mobile-post-list { border: 0 !important; background: transparent !important; box-shadow: none !important; }
+  .public-mobile-post,
+  .public-update-post {
+    border: 0 !important;
+    border-bottom: 1px solid #f0f5fc !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+  .public-mobile-post:hover { background: transparent !important; }
+
+  /* 제목/메타 색·굵기: 시안1 톤 (제목 #1a2a42 / 600) */
+  .public-mobile-post-title { color: var(--kz-text) !important; font-weight: 600 !important; }
+  .public-mobile-post-title b { color: var(--kz-blue) !important; font-weight: 700 !important; }
+
+  /* ===== 게시글 상세: 시안1 (업데이트 기준 → 일반 게시판도 동일 적용) ===== */
+  /* full-bleed 헤드가 잘리지 않도록 패널 overflow 해제 (모바일은 라운드 없음) */
+  .public-board-panel { overflow: visible !important; }
+
+  /* 상세 헤드: 평평한 그라데이션 스트립(full-bleed), 라운드/그림자 제거, 하단 선 */
+  .public-board-panel .public-detail-head {
+    margin: 0 -16px !important;
+    padding: 16px 16px 14px !important;
+    border: 0 !important;
+    border-bottom: 1px solid var(--kz-line) !important;
+    border-radius: 0 !important;
+    background: linear-gradient(135deg, #f3f8ff, #eaf3ff) !important;
+    box-shadow: none !important;
+  }
+  .public-board-panel .public-detail-head h2 { font-size: 18px !important; line-height: 1.35 !important; }
+  /* 헤드 안의 '목록' 버튼은 숨기고 하단 액션 행으로 통일 (시안) */
+  .public-board-panel .public-detail-head .public-board-toolbar { display: none !important; }
+
+  /* 메타: 헤드 바로 아래 full-bleed, 얇은 하단선, 작은 글자 */
+  .public-board-panel .public-detail-meta {
+    margin: 0 -16px !important;
+    padding: 10px 16px 14px !important;
+    border: 0 !important;
+    border-bottom: 1px solid #f0f5fc !important;
+    font-size: 11px !important;
+  }
+
+  /* 본문: 카드 테두리/라운드/그림자 제거 → 평평하게 (시안) */
+  .public-post-content {
+    margin: 16px 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  /* 액션: 가로 3분할 행 (목록/수정/삭제) — 시안 .actions{flex:1} */
+  .public-detail-actions {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    gap: 8px !important;
+    margin: 0 !important;
+    padding: 4px 0 26px !important;
+  }
+  .public-detail-actions .btn {
+    flex: 1 1 0 !important;
+    width: auto !important;
+    min-width: 0 !important;
+  }
+
+  /* 댓글/홍보 박스: 평평하게(좌우 카드 여백 제거) */
+  .public-comments,
+  .public-bug-replies,
+  .public-promotion-links {
+    margin: 16px 0 !important;
+    padding: 16px 0 0 !important;
+    border: 0 !important;
+    border-top: 1px solid #f0f5fc !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  /* 일반 게시판 본문 타이포그래피: 업데이트 게시판 수준으로 정돈
+     (업데이트 전용 스타일은 보존하기 위해 :not(.public-update-content) 스코프) */
+  .public-post-content:not(.public-update-content) h1,
+  .public-post-content:not(.public-update-content) h2,
+  .public-post-content:not(.public-update-content) h3,
+  .public-post-content:not(.public-update-content) h4 {
+    margin: 20px 0 8px !important;
+    font-weight: 800 !important;
+    color: var(--kz-ink) !important;
+    line-height: 1.35 !important;
+  }
+  .public-post-content:not(.public-update-content) h1 { font-size: 20px !important; }
+  .public-post-content:not(.public-update-content) h2 { font-size: 18px !important; }
+  .public-post-content:not(.public-update-content) h3,
+  .public-post-content:not(.public-update-content) h4 { font-size: 16px !important; }
+  .public-post-content:not(.public-update-content) p { margin: 0 0 12px !important; line-height: 1.75 !important; }
+  .public-post-content:not(.public-update-content) ul,
+  .public-post-content:not(.public-update-content) ol { margin: 0 0 12px !important; padding-left: 20px !important; }
+  .public-post-content:not(.public-update-content) li { margin-bottom: 5px !important; line-height: 1.65 !important; }
+  .public-post-content:not(.public-update-content) blockquote {
+    margin: 12px 0 !important;
+    padding: 8px 14px !important;
+    border-left: 3px solid var(--kz-blue) !important;
+    border-radius: 0 8px 8px 0 !important;
+    background: var(--kz-blue-soft) !important;
+    color: var(--kz-text) !important;
+  }
+  .public-post-content:not(.public-update-content) img {
+    max-width: 100% !important;
+    height: auto !important;
+    border-radius: 10px !important;
+    border: 1px solid var(--kz-line) !important;
+    margin: 12px 0 !important;
+  }
+  .public-post-content:not(.public-update-content) a { color: var(--kz-blue) !important; text-decoration: underline !important; }
+
+  /* 댓글 항목: 카드 → 평평한 행(얇은 구분선) — 시안 .cmt */
+  .public-comments .public-comment {
+    margin: 0 !important;
+    padding: 12px 0 !important;
+    border: 0 !important;
+    border-top: 1px solid #f0f5fc !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+  .public-comments .public-comment:first-of-type { border-top: 0 !important; }
+}
+
