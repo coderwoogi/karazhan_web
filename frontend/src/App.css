@@ -5016,10 +5016,16 @@ select.public-board-select {
   .download-card h3 { font-size: 17px; }
   .download-card p { margin: 4px 0 10px; font-size: 13px; }
 
-  /* 게시판/상세 헤더: 제목·툴바 세로 스택 (제목 줄바꿈 방지) */
-  .public-board-head { flex-direction: column; align-items: stretch; gap: 12px; }
+  /* 게시판 선택 사이드바: 모바일에선 숨김 (게시판 전환은 햄버거 드로어에서) — 상단 공백 제거 */
+  .public-board-sidebar { display: none !important; }
+  .public-board-layout { grid-template-columns: 1fr !important; display: block !important; }
+
+  /* 게시판/상세 헤더: 제목·툴바 세로 스택 (제목 줄바꿈 방지), 헤더 슬림 */
+  .public-board-head { flex-direction: column; align-items: stretch; gap: 10px; padding: 14px 14px; }
   .public-board-head > .public-board-toolbar,
-  .public-board-toolbar { justify-content: flex-start; flex-wrap: wrap; gap: 8px; }
+  .public-board-toolbar { display: flex; flex-direction: row; justify-content: flex-start; flex-wrap: wrap; gap: 8px; padding: 0; }
+  .public-board-toolbar .btn,
+  .public-board-toolbar > button { flex: 1 1 0; min-width: 0; }
   .public-board-title-wrap h2,
   .public-board-head h2 { font-size: 20px; white-space: nowrap; }
   .public-board-head > div:first-child { flex-direction: column; align-items: flex-start; gap: 2px; }
