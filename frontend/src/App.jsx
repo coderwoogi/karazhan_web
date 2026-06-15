@@ -917,6 +917,8 @@ function App() {
   const [myPagePointPage, setMyPagePointPage] = useState(1)
   const [myPagePointTotalPages, setMyPagePointTotalPages] = useState(1)
   const [myPagePointLoading, setMyPagePointLoading] = useState(false)
+  const [myInquiries, setMyInquiries] = useState([])
+  const [myInquiriesLoading, setMyInquiriesLoading] = useState(false)
   const [noticePreviewPosts, setNoticePreviewPosts] = useState([])
   const [communityPreviewPosts, setCommunityPreviewPosts] = useState([])
   const [mediaPreviewPosts, setMediaPreviewPosts] = useState([])
@@ -1378,6 +1380,17 @@ function App() {
     }
   }, [])
 
+  const loadMyInquiries = useCallback(async () => {
+    setMyInquiriesLoading(true)
+    try {
+      const query = new URLSearchParams({ board_id: 'inquiry', page: '1', limit: '30' })
+      const response = await apiFetch(`/api/board/posts?${query.toString()}`)
+      setMyInquiries(asArray(response?.posts))
+    } finally {
+      setMyInquiriesLoading(false)
+    }
+  }, [])
+
   const openPost = useCallback(async (postId) => {
     const response = await apiFetch(`/api/board/post?id=${postId}`)
     setDetail(response)
@@ -1423,7 +1436,7 @@ function App() {
   }, [loadNotifications, user])
 
   useEffect(() => {
-    if (!user || screen !== 'notifications') return
+    if (!user || (screen !== 'notifications' && screen !== 'mynoti')) return
     loadNotificationCenter(notificationPage, notificationSearch, notificationCategory).catch(async (error) => {
       await showAlert(error?.message || '알림 목록을 불러오지 못했습니다.')
     })
@@ -1445,6 +1458,11 @@ function App() {
     if (!nextBoardId) {
       setBoardId('')
       if (nextView === 'mypage' && user) setScreen('mypage')
+      else if (nextView === 'myinfo' && user) setScreen('myinfo')
+      else if (nextView === 'characters' && user) setScreen('characters')
+      else if (nextView === 'points' && user) setScreen('points')
+      else if (nextView === 'mynoti' && user) setScreen('mynoti')
+      else if (nextView === 'myinquiries' && user) setScreen('myinquiries')
       else if (nextView === 'notifications' && user) setScreen('notifications')
       else if (nextView === 'connect') setScreen('connect')
       else if (nextView === 'rules') setScreen('rules')
@@ -1586,14 +1604,19 @@ function App() {
   }, [showAlert])
 
   useEffect(() => {
-    if (screen !== 'mypage' || !user) return
+    if ((screen !== 'mypage' && screen !== 'characters' && screen !== 'myinfo') || !user) return
     loadMyPageCharacters().catch((error) => { void showAlert(error?.message || '캐릭터 목록을 불러오지 못했습니다.') })
   }, [loadMyPageCharacters, screen, showAlert, user])
 
   useEffect(() => {
-    if (screen !== 'mypage' || !user) return
+    if ((screen !== 'mypage' && screen !== 'points') || !user) return
     loadMyPagePointHistory(myPagePointPage).catch((error) => { void showAlert(error?.message || '포인트 내역을 불러오지 못했습니다.') })
   }, [loadMyPagePointHistory, myPagePointPage, screen, showAlert, user])
+
+  useEffect(() => {
+    if (screen !== 'myinquiries' || !user) return
+    loadMyInquiries().catch((error) => { void showAlert(error?.message || '문의 내역을 불러오지 못했습니다.') })
+  }, [loadMyInquiries, screen, showAlert, user])
 
   useEffect(() => {
     if (screen !== 'auction' || !user) return
@@ -2979,7 +3002,7 @@ function App() {
               </div>
 
               <div className="mypage-grid">
-                <section className="mypage-card mypage-profile-card">
+                <section id="mypage-profile" className="mypage-card mypage-profile-card">
                   <div className="mypage-profile-main">
                     <div className="mypage-avatar-frame">
                       <img src={getRaceIcon(myPageMainCharacter?.race, myPageMainCharacter?.gender)} alt={`${welcomeName} 대표 캐릭터`} />
@@ -2989,6 +3012,7 @@ function App() {
                         <strong>{user.username || welcomeName}</strong>
                         {isAdmin(user) ? <span className="mypage-badge">관리자</span> : null}
                       </div>
+                      <div className="mypage-mobile-cls">{myPageMainCharacter ? `${myPageMainCharacter.level} 레벨 · ${getClassName(myPageMainCharacter.class)}` : '대표 캐릭터 미설정'}</div>
                       <p>{user.email || '등록된 이메일이 없습니다.'}</p>
                       <div className="mypage-point-box">
                         <span>웹 포인트</span>
@@ -3012,7 +3036,15 @@ function App() {
                   </div>
                 </section>
 
-                <section className="mypage-card mypage-character-section">
+                <nav className="mypage-mobile-menu" aria-label="마이페이지 메뉴">
+                  <button type="button" className="mp-row" onClick={() => navigate('/?view=myinfo')}><span className="ic" aria-hidden="true">👤</span>내 정보<span className="cv" aria-hidden="true">›</span></button>
+                  <button type="button" className="mp-row" onClick={() => navigate('/?view=characters')}><span className="ic" aria-hidden="true">🛡</span>캐릭터 관리<span className="cv" aria-hidden="true">›</span></button>
+                  <button type="button" className="mp-row" onClick={() => navigate('/?view=points')}><span className="ic" aria-hidden="true">◈</span>포인트 내역<span className="cv" aria-hidden="true">›</span></button>
+                  <button type="button" className="mp-row" onClick={() => navigate('/?view=mynoti')}><span className="ic" aria-hidden="true">🔔</span>알림함<span className="cv" aria-hidden="true">›</span></button>
+                  <button type="button" className="mp-row" onClick={() => navigate('/?view=myinquiries')}><span className="ic" aria-hidden="true">✉</span>문의 내역<span className="cv" aria-hidden="true">›</span></button>
+                </nav>
+
+                <section id="mypage-characters" className="mypage-card mypage-character-section">
                   <div className="mypage-section-head">
                     <h3>대표 캐릭터 설정</h3>
                     <span className="public-board-status">{myPageCharactersLoading ? '불러오는 중...' : `${myPageCharacters.length}명`}</span>
@@ -3043,13 +3075,31 @@ function App() {
                   ) : null}
                 </section>
 
-                <section className="mypage-card mypage-points-card">
+                <section id="mypage-points" className="mypage-card mypage-points-card">
                   <div className="mypage-section-head">
                     <h3>포인트 이용 내역</h3>
                     <span className="public-board-status">
                       {myPagePointLoading ? '불러오는 중...' : `페이지 ${myPagePointPage} / ${myPagePointTotalPages}`}
                     </span>
                   </div>
+                  <ul className="mypage-mobile-points">
+                    {myPagePointLogs.length ? myPagePointLogs.slice(0, 4).map((log, index) => (
+                      <li key={`mp-${log.createdAt || 'pt'}-${index}`} className="pt-row">
+                        <div className="pt-info">
+                          <div className="rs">{log.reason || '-'}</div>
+                          <div className="dt">{formatDate(log.createdAt).slice(0, 10).replace(/-/g, '.')}</div>
+                        </div>
+                        <div className={`am ${Number(log.amount || 0) >= 0 ? 'plus' : 'minus'}`}>
+                          {Number(log.amount || 0) >= 0 ? '+' : ''}{Number(log.amount || 0).toLocaleString()} P
+                        </div>
+                      </li>
+                    )) : (
+                      <li className="pt-row pt-empty">{myPagePointLoading ? '포인트 내역을 불러오는 중입니다.' : '포인트 이용 내역이 없습니다.'}</li>
+                    )}
+                  </ul>
+                  {myPagePointLogs.length > 4 ? (
+                    <button type="button" className="mypage-points-more" onClick={() => navigate('/?view=points')}>포인트 내역 전체 보기 ›</button>
+                  ) : null}
                   <div className="mypage-point-table-wrap">
                     <table className="mypage-point-table">
                       <thead>
@@ -3100,6 +3150,186 @@ function App() {
                     </div>
                   ) : null}
                 </section>
+
+                <div className="mypage-mobile-logout">
+                  <button type="button" className="btn mypage-logout-btn" onClick={handleLogout}>로그아웃</button>
+                </div>
+              </div>
+            </div>
+          </section>
+        ) : null}
+
+        {!boardId && screen === 'myinfo' && user ? (
+          <section className="section">
+            <div className="mypage-subpage">
+              <div className="mypage-subpage-head">
+                <button type="button" className="mypage-back-btn" onClick={() => navigate('/?view=mypage')}>‹ 마이페이지</button>
+                <h2>내 정보</h2>
+              </div>
+              <div className="mypage-card mypage-info-card">
+                <div className="mypage-info-row"><span>아이디</span><strong>{user.username || '-'}</strong></div>
+                <div className="mypage-info-row"><span>이메일</span><strong>{user.email || '미등록'}</strong></div>
+                <div className="mypage-info-row"><span>웹 포인트</span><strong>{Number(user.points || 0).toLocaleString()} P</strong></div>
+                <div className="mypage-info-row"><span>회원 등급</span><strong>{isAdmin(user) ? '관리자' : '일반 회원'}</strong></div>
+                <div className="mypage-info-row"><span>대표 캐릭터</span><strong>{myPageMainCharacter?.name || '미설정'}</strong></div>
+                <div className="mypage-info-row"><span>종족 / 직업</span><strong>{myPageMainCharacter ? `${getRaceName(myPageMainCharacter.race)} / ${getClassName(myPageMainCharacter.class)}` : '-'}</strong></div>
+                <div className="mypage-info-row"><span>레벨</span><strong>{myPageMainCharacter ? `Lv.${myPageMainCharacter.level}` : '-'}</strong></div>
+              </div>
+            </div>
+          </section>
+        ) : null}
+
+        {!boardId && screen === 'characters' && user ? (
+          <section className="section">
+            <div className="mypage-subpage">
+              <div className="mypage-subpage-head">
+                <button type="button" className="mypage-back-btn" onClick={() => navigate('/?view=mypage')}>‹ 마이페이지</button>
+                <h2>캐릭터 관리</h2>
+              </div>
+              <div className="mypage-card">
+                <div className="mypage-section-head">
+                  <h3>대표 캐릭터 설정</h3>
+                  <span className="public-board-status">{myPageCharactersLoading ? '불러오는 중...' : `${myPageCharacters.length}명`}</span>
+                </div>
+                {myPageCharactersLoading ? <div className="mypage-empty">캐릭터 목록을 불러오는 중입니다.</div> : null}
+                {!myPageCharactersLoading && !myPageCharacters.length ? <div className="mypage-empty">등록된 캐릭터가 없습니다.</div> : null}
+                {!myPageCharactersLoading && myPageCharacters.length ? (
+                  <div className="mypage-character-grid">
+                    {myPageCharacters.map((character) => {
+                      const active = Number(character.guid) === Number(myPageMainCharacter?.guid || 0)
+                      return (
+                        <button key={character.guid} type="button" className={`mypage-character-card${active ? ' active' : ''}`} onClick={() => handleSetMainCharacter(character)}>
+                          <div className="mypage-character-top">
+                            <img src={getRaceIcon(character.race, character.gender)} alt={`${character.name} 종족`} className="mypage-character-avatar" />
+                            <div className="mypage-character-copy">
+                              <strong>{character.name}</strong>
+                              <span>Lv.{character.level} {getRaceName(character.race)} / {getClassName(character.class)}</span>
+                            </div>
+                          </div>
+                          <div className="mypage-character-meta">
+                            <span>{getZoneName(character.map)}</span>
+                            <span>{active ? '대표 캐릭터' : '대표로 설정'}</span>
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          </section>
+        ) : null}
+
+        {!boardId && screen === 'points' && user ? (
+          <section className="section">
+            <div className="mypage-subpage">
+              <div className="mypage-subpage-head">
+                <button type="button" className="mypage-back-btn" onClick={() => navigate('/?view=mypage')}>‹ 마이페이지</button>
+                <h2>포인트 내역</h2>
+              </div>
+              <div className="mypage-card">
+                <ul className="mypage-mobile-points mypage-subpage-points">
+                  {myPagePointLogs.length ? myPagePointLogs.map((log, index) => (
+                    <li key={`sp-${log.createdAt || 'pt'}-${index}`} className="pt-row">
+                      <div className="pt-info">
+                        <div className="rs">{log.reason || '-'}</div>
+                        <div className="dt">{formatDate(log.createdAt).slice(0, 10).replace(/-/g, '.')}</div>
+                      </div>
+                      <div className={`am ${Number(log.amount || 0) >= 0 ? 'plus' : 'minus'}`}>
+                        {Number(log.amount || 0) >= 0 ? '+' : ''}{Number(log.amount || 0).toLocaleString()} P
+                      </div>
+                    </li>
+                  )) : (
+                    <li className="pt-row pt-empty">{myPagePointLoading ? '포인트 내역을 불러오는 중입니다.' : '포인트 이용 내역이 없습니다.'}</li>
+                  )}
+                </ul>
+                {myPagePointTotalPages > 1 ? (
+                  <div className="public-board-pager">
+                    <button type="button" disabled={myPagePointLoading || myPagePointPage <= 1} onClick={() => setMyPagePointPage((prev) => Math.max(1, prev - 1))}>{TEXT.previous}</button>
+                    <button type="button" disabled>{myPagePointPage} / {myPagePointTotalPages}</button>
+                    <button type="button" disabled={myPagePointLoading || myPagePointPage >= myPagePointTotalPages} onClick={() => setMyPagePointPage((prev) => Math.min(myPagePointTotalPages, prev + 1))}>{TEXT.next}</button>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          </section>
+        ) : null}
+
+        {!boardId && screen === 'mynoti' && user ? (
+          <section className="section">
+            <div className="mypage-subpage">
+              <div className="mypage-subpage-head">
+                <button type="button" className="mypage-back-btn" onClick={() => navigate('/?view=mypage')}>‹ 마이페이지</button>
+                <h2>알림함</h2>
+              </div>
+              <div className="mypage-card">
+                <div className="mypage-section-head">
+                  <h3>받은 알림</h3>
+                  <span className="public-board-status">{notificationCenterLoading ? '불러오는 중...' : `안읽음 ${notificationUnreadCount}개`}</span>
+                </div>
+                <ul className="mypage-noti-list">
+                  {notificationCenterLoading ? (
+                    <li className="mypage-noti-empty">알림을 불러오는 중입니다.</li>
+                  ) : notifications.length ? notifications.map((n) => {
+                    const meta = notificationTypeMeta(n.type)
+                    return (
+                      <li key={`mynoti-${n.id}`} className={`mypage-noti-item${n.is_read ? '' : ' unread'}`} onClick={() => { void openNotificationTarget(n) }}>
+                        <span className={`mypage-noti-ic ${meta.className}`} aria-hidden="true">{meta.icon}</span>
+                        <div className="mypage-noti-body">
+                          <div className="mypage-noti-top"><strong>{n.title || '알림'}</strong><span className="mypage-noti-kind">{notificationTypeLabel(n.type)}</span></div>
+                          <div className="mypage-noti-msg">{n.message || '-'}</div>
+                          <div className="mypage-noti-dt">{formatNotificationTime(n.created_at)}</div>
+                        </div>
+                      </li>
+                    )
+                  }) : (
+                    <li className="mypage-noti-empty">받은 알림이 없습니다.</li>
+                  )}
+                </ul>
+                {notificationTotalPages > 1 ? (
+                  <div className="public-board-pager">
+                    <button type="button" disabled={notificationCenterLoading || notificationPage <= 1} onClick={() => setNotificationPage((p) => Math.max(1, p - 1))}>{TEXT.previous}</button>
+                    <button type="button" disabled>{notificationPage} / {notificationTotalPages}</button>
+                    <button type="button" disabled={notificationCenterLoading || notificationPage >= notificationTotalPages} onClick={() => setNotificationPage((p) => Math.min(notificationTotalPages, p + 1))}>{TEXT.next}</button>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          </section>
+        ) : null}
+
+        {!boardId && screen === 'myinquiries' && user ? (
+          <section className="section">
+            <div className="mypage-subpage">
+              <div className="mypage-subpage-head">
+                <button type="button" className="mypage-back-btn" onClick={() => navigate('/?view=mypage')}>‹ 마이페이지</button>
+                <h2>문의 내역</h2>
+              </div>
+              <div className="mypage-card">
+                <div className="mypage-section-head">
+                  <h3>내 문의</h3>
+                  <span className="public-board-status">{myInquiriesLoading ? '불러오는 중...' : `${myInquiries.length}건`}</span>
+                </div>
+                <ul className="mypage-inquiry-list">
+                  {myInquiriesLoading ? (
+                    <li className="mypage-inquiry-empty">문의 내역을 불러오는 중입니다.</li>
+                  ) : myInquiries.length ? myInquiries.map((post) => (
+                    <li key={`myinq-${post.id}`} className="mypage-inquiry-item" onClick={() => navigate(`/?board=inquiry&post=${post.id}`)}>
+                      <div className="mypage-inquiry-main">
+                        <div className="mypage-inquiry-title">
+                          {post.category ? <span className="tag event">{post.category}</span> : null}
+                          <span>{post.title}</span>
+                          {Number(post.comment_count || 0) > 0 ? <b>[{post.comment_count}]</b> : null}
+                        </div>
+                        <div className="mypage-inquiry-meta">{formatDate(post.created_at).slice(0, 10).replace(/-/g, '.')} · 조회 {Number(post.views || 0).toLocaleString()}</div>
+                      </div>
+                      {renderSupportStatus(post.inquiry_status)}
+                    </li>
+                  )) : (
+                    <li className="mypage-inquiry-empty">등록한 문의가 없습니다.</li>
+                  )}
+                </ul>
+                <button type="button" className="mypage-subpage-action" onClick={() => navigate('/?board=inquiry&write=1')}>새 문의 작성하기 ›</button>
               </div>
             </div>
           </section>
