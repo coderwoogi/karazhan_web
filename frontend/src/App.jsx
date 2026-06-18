@@ -168,6 +168,88 @@ function sanitizeHtml(content) {
   return template.innerHTML
 }
 
+// ---- 임의 HTML / claude.ai standalone 아티팩트 가져오기 ----
+// gzip 해제 (번들 자산 디코딩용). DecompressionStream 미지원 환경에서는 원본 바이트 반환.
+async function gunzipBytes(bytes) {
+  if (typeof DecompressionStream === 'undefined') return bytes
+  const ds = new DecompressionStream('gzip')
+  const writer = ds.writable.getWriter()
+  writer.write(bytes)
+  writer.close()
+  const reader = ds.readable.getReader()
+  const chunks = []
+  let total = 0
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    chunks.push(value)
+    total += value.length
+  }
+  const out = new Uint8Array(total)
+  let offset = 0
+  for (const c of chunks) { out.set(c, offset); offset += c.length }
+  return out
+}
+
+// 번들 자산(base64, gzip 가능) → data URI. 인라인 가능한 자산(이미지 등)에만 사용.
+async function bundleAssetToDataUri(entry) {
+  const binary = atob(entry.data || '')
+  let bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+  if (entry.compressed) bytes = await gunzipBytes(bytes)
+  let b64 = ''
+  const chunk = 0x8000
+  for (let i = 0; i < bytes.length; i += chunk) {
+    b64 += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk))
+  }
+  return `data:${entry.mime || 'application/octet-stream'};base64,${btoa(b64)}`
+}
+
+// claude.ai "standalone" 번들 HTML을 일반 HTML로 해제. 번들이 아니면 '' 반환.
+// 이미지 자산은 data URI로 인라인하고, 폰트·스크립트 참조는 제거한다.
+async function unbundleArtifactHtml(text) {
+  const tpl = text.match(/<script type="__bundler\/template">\s*([\s\S]*?)<\/script>/)
+  if (!tpl) return ''
+  let template
+  try { template = JSON.parse(tpl[1]) } catch (e) { return '' }
+  const man = text.match(/<script type="__bundler\/manifest">\s*([\s\S]*?)<\/script>/)
+  if (man) {
+    let manifest = {}
+    try { manifest = JSON.parse(man[1]) } catch (e) { manifest = {} }
+    for (const uuid of Object.keys(manifest)) {
+      const entry = manifest[uuid]
+      const mime = String((entry && entry.mime) || '')
+      if (mime.startsWith('image/')) {
+        try {
+          const dataUri = await bundleAssetToDataUri(entry)
+          template = template.split(uuid).join(dataUri)
+        } catch (e) { template = template.split(uuid).join('') }
+      } else {
+        template = template.split(uuid).join('')
+      }
+    }
+  }
+  const doc = new DOMParser().parseFromString(template, 'text/html')
+  const host = doc.querySelector('x-dc') || doc.body || doc.documentElement
+  host.querySelectorAll('script, link, meta, title, noscript, helmet').forEach((node) => node.remove())
+  return (host.innerHTML || '').trim()
+}
+
+// 가져온 파일 텍스트에서 게시글 본문에 넣을 HTML 추출.
+// claude.ai 번들이면 해제하고, 일반 HTML이면 <head>의 style + <body> 내용을 사용한다.
+async function extractImportableHtml(raw) {
+  const text = String(raw || '')
+  if (text.includes('__bundler/template')) {
+    const out = await unbundleArtifactHtml(text)
+    if (out) return out
+  }
+  const doc = new DOMParser().parseFromString(text, 'text/html')
+  const headStyles = Array.from(doc.head ? doc.head.querySelectorAll('style') : []).map((node) => node.outerHTML).join('')
+  const body = doc.body || doc.documentElement
+  body.querySelectorAll('script, link, meta, title, noscript').forEach((node) => node.remove())
+  return `${headStyles}${(body.innerHTML || '').trim()}`.trim()
+}
+
 // 업데이트 게시판 작성 양식(템플릿). 새 업데이트 글 작성 시 에디터에 미리 채워진다.
 const UPDATE_TEMPLATE = '<p>이번 업데이트 요약을 한 줄로 적어주세요.</p><h3>신규</h3><ul><li>추가된 콘텐츠를 입력하세요</li></ul><h3>개선</h3><ul><li>개선 사항을 입력하세요</li></ul><h3>수정</h3><ul><li>수정·버그 픽스 내용을 입력하세요</li></ul>'
 
@@ -454,9 +536,10 @@ function RteDivider() {
   return <span className="rte-divider" aria-hidden="true" />
 }
 
-function RichEditor({ value, onChange, onAlert }) {
+function RichEditor({ value, onChange, onAlert, allowHtml = false }) {
   const editorRef = useRef(null)
   const onAlertRef = useRef(onAlert)
+  const [htmlMode, setHtmlMode] = useState(false)
   useEffect(() => { onAlertRef.current = onAlert }, [onAlert])
 
   const insertImageFiles = useCallback((files) => {
@@ -514,14 +597,54 @@ function RichEditor({ value, onChange, onAlert }) {
 
   useEffect(() => { editorRef.current = editor }, [editor])
 
-  // 외부 value 동기화 (수정 모드 로딩 등). 입력 중에는 건드리지 않음.
+  // 외부 value 동기화 (수정 모드 로딩 등). 입력 중·HTML 직접 작성 모드에는 건드리지 않음.
   useEffect(() => {
-    if (!editor) return
+    if (!editor || htmlMode) return
     const current = editor.getHTML()
     if ((value || '') !== current && !editor.isFocused) {
       editor.commands.setContent(value || '', false)
     }
-  }, [value, editor])
+  }, [value, editor, htmlMode])
+
+  const toggleHtmlMode = useCallback(() => {
+    if (!editor) return
+    if (htmlMode) {
+      // 리치 모드로 복귀: 작성한 원본 HTML을 에디터에 반영(스키마 미지원 태그는 손실될 수 있음)
+      editor.commands.setContent(value || '', false)
+      setHtmlMode(false)
+    } else {
+      // HTML 모드 진입: 현재 에디터 HTML을 원본으로 노출
+      onChange(editor.getHTML())
+      setHtmlMode(true)
+    }
+  }, [editor, htmlMode, onChange, value])
+
+  // 임의 HTML 가져오기: .html 파일 선택 → (claude.ai standalone 번들은 자동 해제) 본문 HTML을 추출해
+  // 기존 내용 뒤에 덧붙이고 HTML 직접 작성 모드로 전환. script는 게시글 표시 시 자동 제거된다.
+  const importHtmlFile = useCallback(() => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.html,.htm,text/html'
+    input.onchange = async () => {
+      const file = input.files && input.files[0]
+      if (!file) return
+      try {
+        const raw = await file.text()
+        const html = (await extractImportableHtml(raw)).trim()
+        if (!html) {
+          if (onAlertRef.current) onAlertRef.current('가져올 HTML 내용을 찾지 못했습니다.')
+          return
+        }
+        const current = htmlMode ? (value || '') : (editor ? editor.getHTML() : '')
+        const hasBody = current.replace(/<p>\s*<\/p>/gi, '').trim() !== ''
+        onChange(hasBody ? `${current}\n${html}` : html)
+        setHtmlMode(true)
+      } catch (err) {
+        if (onAlertRef.current) onAlertRef.current((err && err.message) || 'HTML 가져오기에 실패했습니다.')
+      }
+    }
+    input.click()
+  }, [editor, htmlMode, value, onChange])
 
   const pickImage = useCallback(() => {
     const input = document.createElement('input')
@@ -546,6 +669,29 @@ function RichEditor({ value, onChange, onAlert }) {
 
   return (
     <div className="public-editor-shell rte-editor">
+      {allowHtml ? (
+        <div className="rte-toolbar rte-mode-bar">
+          <RteButton title="HTML 직접 작성 모드" active={htmlMode} onClick={toggleHtmlMode}>{'</>'} HTML 직접 작성</RteButton>
+          <RteButton title="HTML 파일 가져오기 — claude.ai standalone 번들 자동 해제 · HTML 직접 작성 모드로 삽입" onClick={importHtmlFile}>⬇ HTML 가져오기</RteButton>
+          {htmlMode ? <span className="rte-html-hint">script·iframe·이벤트 핸들러는 표시 시 자동 제거됩니다.</span> : null}
+        </div>
+      ) : null}
+      {htmlMode ? (
+        <div className="rte-html-mode">
+          <textarea
+            className="rte-html-source"
+            value={value || ''}
+            spellCheck={false}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder={'<div class="notice-box">HTML 코드를 입력하세요</div>'}
+          />
+          <div className="rte-html-preview">
+            <div className="rte-html-preview-label">미리보기</div>
+            <div className="rte-content" dangerouslySetInnerHTML={{ __html: sanitizeHtml(value || '') }} />
+          </div>
+        </div>
+      ) : (
+      <>
       <div className="rte-toolbar">
         <RteButton title="본문" active={editor.isActive('paragraph') && !editor.isActive('heading')} onClick={() => editor.chain().focus().setParagraph().run()}>본문</RteButton>
         <RteButton title="제목 1" active={editor.isActive('heading', { level: 1 })} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}>H1</RteButton>
@@ -605,6 +751,8 @@ function RichEditor({ value, onChange, onAlert }) {
         </div>
       ) : null}
       <EditorContent editor={editor} />
+      </>
+      )}
     </div>
   )
 }
@@ -964,10 +1112,14 @@ function App() {
   const [grandOpenCountdown, setGrandOpenCountdown] = useState(() => getGrandOpenCountdown())
 
   const currentBoard = useMemo(() => boards.find((board) => board.id === boardId) || null, [boards, boardId])
-  const headerNavItems = useMemo(
-    () => home.nav.filter((item) => ![TEXT.notice, TEXT.community, TEXT.contents].includes(item.label)),
-    [home.nav],
-  )
+  const headerNavItems = useMemo(() => {
+    const items = home.nav.filter((item) => ![TEXT.notice, TEXT.community].includes(item.label))
+    // 컨텐츠 메뉴 복구: 서버 nav에 없으면 헤더에 추가 (클릭 시 컨텐츠 화면으로 이동)
+    if (!items.some((item) => item.label === TEXT.contents)) {
+      items.push({ label: TEXT.contents, url: '#contents-section' })
+    }
+    return items
+  }, [home.nav])
   const visibleBoards = useMemo(() => boards.filter((board) => canRead(board, user)), [boards, user])
   const noticeBoard = useMemo(() => visibleBoards.find((board) => board.name.includes('공지')) || null, [visibleBoards])
   const freeBoard = useMemo(() => visibleBoards.find((board) => board.name.includes('자유')) || null, [visibleBoards])
@@ -3689,8 +3841,8 @@ function App() {
                         <label className="public-write-label">제목</label>
                         <input className="public-board-text-input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={TEXT.titlePlaceholder} />
                       </div>
-                      {isSupportBoard ? <><InquiryFields mode={isBugReportBoard ? 'bugreport' : 'inquiry'} category={inquiryCategory} onCategoryChange={setInquiryCategory} sponsorAgree={sponsorAgree} onSponsorAgreeChange={setSponsorAgree} sponsorName={sponsorName} onSponsorNameChange={setSponsorName} sponsorAmount={sponsorAmount} onSponsorAmountChange={setSponsorAmount} /><RichEditor value={content} onChange={setContent} onAlert={showAlert} /></> : null}
-                      {isPromotionBoard ? <><PromotionFields urls={promotionUrls} onChange={updatePromotionUrl} onAdd={addPromotionUrl} onRemove={removePromotionUrl} /><RichEditor value={content} onChange={setContent} onAlert={showAlert} /></> : null}
+                      {isSupportBoard ? <><InquiryFields mode={isBugReportBoard ? 'bugreport' : 'inquiry'} category={inquiryCategory} onCategoryChange={setInquiryCategory} sponsorAgree={sponsorAgree} onSponsorAgreeChange={setSponsorAgree} sponsorName={sponsorName} onSponsorNameChange={setSponsorName} sponsorAmount={sponsorAmount} onSponsorAmountChange={setSponsorAmount} /><RichEditor value={content} onChange={setContent} onAlert={showAlert} allowHtml={isAdmin(user)} /></> : null}
+                      {isPromotionBoard ? <><PromotionFields urls={promotionUrls} onChange={updatePromotionUrl} onAdd={addPromotionUrl} onRemove={removePromotionUrl} /><RichEditor value={content} onChange={setContent} onAlert={showAlert} allowHtml={isAdmin(user)} /></> : null}
                       {!isSupportBoard && !isPromotionBoard ? (
                         <>
                           {isUpdateBoard ? (
@@ -3699,7 +3851,7 @@ function App() {
                               <button type="button" className="btn btn-small" onClick={loadUpdateTemplate}>양식 불러오기</button>
                             </div>
                           ) : null}
-                          <RichEditor value={content} onChange={setContent} onAlert={showAlert} />
+                          <RichEditor value={content} onChange={setContent} onAlert={showAlert} allowHtml={isAdmin(user)} />
                         </>
                       ) : null}
                       <div className="public-post-write-actions"><button className="btn" type="button" onClick={savePost}>{TEXT.save}</button></div>
