@@ -599,7 +599,7 @@ async function openShopBuyPrompt(itemID) {
     }
 
     const functionCode = String(item.function_code || '').toLowerCase();
-    const needCharacter = item.item_type === 'game' || (item.item_type === 'function' && functionCode !== 'dual_account' && functionCode !== 'enhanced_enchant_stone' && functionCode !== 'carddraw_count');
+    const needCharacter = item.item_type === 'game' || (item.item_type === 'function' && functionCode !== 'dual_account' && functionCode !== 'enhanced_enchant_stone' && functionCode !== 'enhanced_enchant_stone_15d' && functionCode !== 'carddraw_count');
     if (needCharacter) {
         const picked = await promptShopCharacterSelection();
         if (!picked || !picked.name) return;
@@ -788,26 +788,145 @@ async function loadShopAdminPage() {
 }
 
 function openShopAdminSubTab(tabName) {
-    const itemsBtn = document.getElementById('shop-admin-sub-btn-items');
-    const ordersBtn = document.getElementById('shop-admin-sub-btn-orders');
-    const itemsPanel = document.getElementById('shop-admin-sub-items');
-    const ordersPanel = document.getElementById('shop-admin-sub-orders');
+    const tabs = {
+        items: { btn: 'shop-admin-sub-btn-items', panel: 'shop-admin-sub-items' },
+        orders: { btn: 'shop-admin-sub-btn-orders', panel: 'shop-admin-sub-orders' },
+        gift: { btn: 'shop-admin-sub-btn-gift', panel: 'shop-admin-sub-gift' }
+    };
+    Object.values(tabs).forEach(({ btn, panel }) => {
+        const b = document.getElementById(btn);
+        const p = document.getElementById(panel);
+        if (b) b.classList.remove('active');
+        if (p) p.style.display = 'none';
+    });
 
-    if (itemsBtn) itemsBtn.classList.remove('active');
-    if (ordersBtn) ordersBtn.classList.remove('active');
-    if (itemsPanel) itemsPanel.style.display = 'none';
-    if (ordersPanel) ordersPanel.style.display = 'none';
+    const target = tabs[tabName] || tabs.items;
+    const btnEl = document.getElementById(target.btn);
+    const panelEl = document.getElementById(target.panel);
+    if (btnEl) btnEl.classList.add('active');
+    if (panelEl) panelEl.style.display = 'block';
 
     if (tabName === 'orders') {
-        if (ordersBtn) ordersBtn.classList.add('active');
-        if (ordersPanel) ordersPanel.style.display = 'block';
         loadShopAdminOrders();
-        return;
+    } else if (tabName === 'gift') {
+        populateShopGiftItems();
+    } else {
+        loadShopAdminItems();
     }
+}
 
-    if (itemsBtn) itemsBtn.classList.add('active');
-    if (itemsPanel) itemsPanel.style.display = 'block';
-    loadShopAdminItems();
+// ===== 선술집관리 > 선물하기 =====
+function shopGiftAlert(message) {
+    if (window.ModalUtils && typeof window.ModalUtils.showAlert === 'function') {
+        window.ModalUtils.showAlert(message);
+    } else {
+        alert(message);
+    }
+}
+
+// 상품 분류: 타입/귀속(계정·캐릭터) 라벨 계산. 서버 정규화 규칙과 동일하게 맞춘다.
+function shopGiftClassify(item) {
+    const type = (item && item.item_type) || 'game';
+    if (type !== 'function') {
+        return { typeLabel: '인게임 아이템', bindingLabel: '캐릭터 귀속', accountBound: false, isGame: true };
+    }
+    let fc = String((item && item.function_code) || '').toLowerCase().trim();
+    const name = String((item && item.name) || '');
+    if (['shining_hero_stone', 'bright_hero_stone', 'hero_stone', 'enhanced_stone'].includes(fc)) fc = 'enhanced_enchant_stone';
+    if (fc !== 'enhanced_enchant_stone_15d' && (name.indexOf('영웅석') !== -1 || name === '강화된 강화석')) fc = 'enhanced_enchant_stone';
+    const accountBound = ['dual_account', 'carddraw_count', 'enhanced_enchant_stone', 'enhanced_enchant_stone_15d'].includes(fc);
+    return { typeLabel: '기능 상품', bindingLabel: accountBound ? '계정 귀속' : '캐릭터 귀속', accountBound, isGame: false, funcCode: fc };
+}
+
+async function populateShopGiftItems() {
+    const sel = document.getElementById('shop-gift-item');
+    if (!sel) return;
+    if (!Array.isArray(g_shopAdminItems) || g_shopAdminItems.length === 0) {
+        await loadShopAdminItems();
+    }
+    const items = (g_shopAdminItems || []).filter((it) => !it.is_deleted);
+    const current = sel.value;
+    sel.innerHTML = '<option value="">-- 상품을 선택하세요 --</option>' + items.map((it) => {
+        const c = shopGiftClassify(it);
+        return `<option value="${it.id}">${escShop(it.name)} [${c.typeLabel} · ${c.bindingLabel}]</option>`;
+    }).join('');
+    if (current) sel.value = current;
+    onShopGiftItemChange();
+}
+
+function onShopGiftItemChange() {
+    const sel = document.getElementById('shop-gift-item');
+    const hint = document.getElementById('shop-gift-binding');
+    if (!sel || !hint) return;
+    const id = parseInt(sel.value || '0', 10);
+    const item = (g_shopAdminItems || []).find((it) => Number(it.id) === id);
+    if (!item) { hint.style.display = 'none'; hint.innerHTML = ''; return; }
+    const c = shopGiftClassify(item);
+    hint.style.display = 'block';
+    if (c.accountBound) {
+        hint.style.background = '#eef2ff'; hint.style.color = '#3730a3';
+        hint.innerHTML = '<i class="fas fa-user-shield"></i> <b>계정 귀속</b> 상품입니다. 입력한 캐릭터의 <b>계정</b>에 적용됩니다.';
+    } else if (c.isGame) {
+        hint.style.background = '#ecfeff'; hint.style.color = '#155e75';
+        hint.innerHTML = '<i class="fas fa-user"></i> <b>캐릭터 귀속</b> 인게임 아이템입니다. 입력한 <b>캐릭터 우편함</b>으로 발송됩니다.';
+    } else {
+        hint.style.background = '#fff7ed'; hint.style.color = '#9a3412';
+        hint.innerHTML = '<i class="fas fa-bolt"></i> <b>캐릭터 기능</b> 상품입니다. 입력한 캐릭터에 적용되며 <b>월드서버가 가동 중</b>이어야 합니다.';
+    }
+}
+
+function resetShopGiftForm() {
+    ['shop-gift-character', 'shop-gift-message'].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    const sel = document.getElementById('shop-gift-item');
+    if (sel) sel.value = '';
+    const countEl = document.getElementById('shop-gift-count');
+    if (countEl) countEl.value = '1';
+    const hint = document.getElementById('shop-gift-binding');
+    if (hint) { hint.style.display = 'none'; hint.innerHTML = ''; }
+}
+
+async function sendShopGift() {
+    const itemId = parseInt(document.getElementById('shop-gift-item')?.value || '0', 10);
+    const character = (document.getElementById('shop-gift-character')?.value || '').trim();
+    const qty = parseInt(document.getElementById('shop-gift-count')?.value || '0', 10);
+    const note = (document.getElementById('shop-gift-message')?.value || '').trim();
+
+    if (!itemId || itemId <= 0) { shopGiftAlert('선물할 상품을 선택해주세요.'); return; }
+    if (!character) { shopGiftAlert('받는 캐릭터명을 입력해주세요.'); return; }
+    if (!qty || qty <= 0 || qty > 1000) { shopGiftAlert('수량은 1~1000 사이로 입력해주세요.'); return; }
+
+    const item = (g_shopAdminItems || []).find((it) => Number(it.id) === itemId);
+    const itemLabel = item ? item.name : ('#' + itemId);
+    const c = item ? shopGiftClassify(item) : { bindingLabel: '' };
+    const confirmMsg = `${character} 님에게 "${itemLabel}" (${c.bindingLabel}) ${qty}개를 선물할까요?`;
+
+    const proceed = async () => {
+        try {
+            const res = await fetch('/api/admin/shop/gift', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ item_id: itemId, character, qty, note })
+            });
+            const data = await res.json().catch(() => ({}));
+            if (res.ok && data.status === 'success') {
+                shopGiftAlert(data.message || '선물을 발송했습니다.');
+                resetShopGiftForm();
+            } else {
+                shopGiftAlert(data.message || '선물 발송에 실패했습니다.');
+            }
+        } catch (e) {
+            shopGiftAlert('선물 발송 중 오류가 발생했습니다.');
+        }
+    };
+
+    if (window.ModalUtils && typeof window.ModalUtils.showConfirm === 'function') {
+        window.ModalUtils.showConfirm(confirmMsg, proceed);
+    } else if (confirm(confirmMsg)) {
+        proceed();
+    }
 }
 
 async function loadShopAdminItems() {

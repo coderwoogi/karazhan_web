@@ -614,7 +614,17 @@ func quoteShopWorldCommandArg(value string) string {
 }
 
 func extendFeatureSubscription(tx *sql.Tx, userID int, featureCode string, months int, orderID int64) (time.Time, error) {
-	if tx == nil || userID <= 0 || strings.TrimSpace(featureCode) == "" || months <= 0 {
+	return extendFeatureSubscriptionDuration(tx, userID, featureCode, months, 0, orderID)
+}
+
+// extendFeatureSubscriptionDays: 일(day) 단위로 기능 구독을 연장한다. (예: 빛나는 영웅석 15일권)
+func extendFeatureSubscriptionDays(tx *sql.Tx, userID int, featureCode string, days int, orderID int64) (time.Time, error) {
+	return extendFeatureSubscriptionDuration(tx, userID, featureCode, 0, days, orderID)
+}
+
+// extendFeatureSubscriptionDuration: 개월(months) + 일(days) 단위로 구독 만료일을 연장한다.
+func extendFeatureSubscriptionDuration(tx *sql.Tx, userID int, featureCode string, months, days int, orderID int64) (time.Time, error) {
+	if tx == nil || userID <= 0 || strings.TrimSpace(featureCode) == "" || (months <= 0 && days <= 0) {
 		return time.Time{}, fmt.Errorf("invalid subscription arguments")
 	}
 
@@ -676,7 +686,7 @@ func extendFeatureSubscription(tx *sql.Tx, userID int, featureCode string, month
 		if hasCurrentExp && currentExp.After(now) {
 			base = currentExp
 		}
-		newExp := base.AddDate(0, months, 0)
+		newExp := base.AddDate(0, months, days)
 		if _, uerr := tx.Exec(
 			"UPDATE web_feature_subscriptions SET expires_at = ?, last_order_id = ?, total_months = total_months + ?, updated_at = NOW() WHERE user_id = ? AND feature_code = ?",
 			newExp, orderID, months, userID, featureCode,
@@ -690,7 +700,7 @@ func extendFeatureSubscription(tx *sql.Tx, userID int, featureCode string, month
 		return time.Time{}, err
 	}
 
-	newExp := base.AddDate(0, months, 0)
+	newExp := base.AddDate(0, months, days)
 	if _, ierr := tx.Exec(
 		"INSERT INTO web_feature_subscriptions (user_id, feature_code, started_at, expires_at, last_order_id, total_months, created_at, updated_at) VALUES (?, ?, NOW(), ?, ?, ?, NOW(), NOW())",
 		userID, featureCode, newExp, orderID, months,
@@ -1456,10 +1466,10 @@ func handleShopCreateOrder(w http.ResponseWriter, r *http.Request) {
 		funcCode = "enhanced_enchant_stone"
 	}
 	itemNameNormalized := strings.TrimSpace(itemName)
-	if itemType == "function" && (itemNameNormalized == "빛나는 영웅석" || itemNameNormalized == "강화된 강화석" || strings.Contains(itemNameNormalized, "영웅석")) {
+	if itemType == "function" && funcCode != "enhanced_enchant_stone_15d" && (itemNameNormalized == "빛나는 영웅석" || itemNameNormalized == "강화된 강화석" || strings.Contains(itemNameNormalized, "영웅석")) {
 		funcCode = "enhanced_enchant_stone"
 	}
-	if itemType == "function" && funcCode != "dual_account" && funcCode != "enhanced_enchant_stone" && funcCode != "carddraw_count" && strings.TrimSpace(req.Character) == "" {
+	if itemType == "function" && funcCode != "dual_account" && funcCode != "enhanced_enchant_stone" && funcCode != "enhanced_enchant_stone_15d" && funcCode != "carddraw_count" && strings.TrimSpace(req.Character) == "" {
 		log.Printf("[shop/order] empty character for function item user_id=%d item_id=%d func=%s", userID, req.ItemID, funcCode)
 		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "기능을 적용할 캐릭터를 선택해주세요."})
 		return
@@ -1476,19 +1486,20 @@ func handleShopCreateOrder(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		allowed := map[string]bool{
-			"level_up":               true,
-			"level80":                true,
-			"level_80":               true,
-			"faction_change":         true,
-			"change_faction":         true,
-			"race_change":            true,
-			"change_race":            true,
-			"rename":                 true,
-			"rename_character":       true,
-			"name_change":            true,
-			"dual_account":           true,
-			"carddraw_count":         true,
-			"enhanced_enchant_stone": true,
+			"level_up":                   true,
+			"level80":                    true,
+			"level_80":                   true,
+			"faction_change":             true,
+			"change_faction":             true,
+			"race_change":                true,
+			"change_race":                true,
+			"rename":                     true,
+			"rename_character":           true,
+			"name_change":                true,
+			"dual_account":               true,
+			"carddraw_count":             true,
+			"enhanced_enchant_stone":     true,
+			"enhanced_enchant_stone_15d": true,
 		}
 		if !allowed[funcCode] {
 			log.Printf("[shop/order] unsupported function code user_id=%d item_id=%d func=%s", userID, req.ItemID, funcCode)
@@ -1615,8 +1626,12 @@ func handleShopCreateOrder(w http.ResponseWriter, r *http.Request) {
 				writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "\uc694\uccad \ucc98\ub9ac \uc911 \uc624\ub958\uac00 \ubc1c\uc0dd\ud588\uc2b5\ub2c8\ub2e4."})
 				return
 			}
-		} else if funcCode == "enhanced_enchant_stone" {
-			enhancedStoneExpiresAt, err = extendFeatureSubscription(tx, userID, funcCode, req.Qty, orderID)
+		} else if funcCode == "enhanced_enchant_stone" || funcCode == "enhanced_enchant_stone_15d" {
+			if funcCode == "enhanced_enchant_stone_15d" {
+				enhancedStoneExpiresAt, err = extendFeatureSubscriptionDays(tx, userID, "enhanced_enchant_stone", 15*req.Qty, orderID)
+			} else {
+				enhancedStoneExpiresAt, err = extendFeatureSubscription(tx, userID, funcCode, req.Qty, orderID)
+			}
 			if err != nil {
 				writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "\uc694\uccad \ucc98\ub9ac \uc911 \uc624\ub958\uac00 \ubc1c\uc0dd\ud588\uc2b5\ub2c8\ub2e4."})
 				return
@@ -1650,7 +1665,7 @@ func handleShopCreateOrder(w http.ResponseWriter, r *http.Request) {
 			notifMsg = fmt.Sprintf("%s \uad6c\ub9e4\uac00 \uc644\ub8cc\ub418\uc5c8\uc2b5\ub2c8\ub2e4. 2\uacc4\uc815 \uad6c\ub9e4 \uad8c\ud55c\uc774 \ud65c\uc131\ud654\ub418\uc5c8\uc2b5\ub2c8\ub2e4. (%d \ud3ec\uc778\ud2b8)", itemName, total)
 		} else if funcCode == "carddraw_count" {
 			notifMsg = fmt.Sprintf("%s \uad6c\ub9e4\uac00 \uc644\ub8cc\ub418\uc5c8\uc2b5\ub2c8\ub2e4. \uce74\ub4dc \ubf51\uae30 \ud69f\uc218 %d\ud68c\uac00 \uc9c0\uae09\ub418\uc5c8\uc2b5\ub2c8\ub2e4. (%d \ud3ec\uc778\ud2b8)", itemName, req.Qty, total)
-		} else if funcCode == "enhanced_enchant_stone" {
+		} else if funcCode == "enhanced_enchant_stone" || funcCode == "enhanced_enchant_stone_15d" {
 			expText := enhancedStoneExpiresAt.Format("2006-01-02 15:04:05")
 			notifMsg = fmt.Sprintf("%s \uad6c\ub9e4\uac00 \uc644\ub8cc\ub418\uc5c8\uc2b5\ub2c8\ub2e4. \ud2b9\uc218 \uc544\uc774\ucf58 \ud6a8\uacfc \uc720\ud6a8\uae30\uac04: %s (%d \ud3ec\uc778\ud2b8)", itemName, expText, total)
 		} else {
@@ -1757,7 +1772,7 @@ func handleShopSubscriptionStatus(w http.ResponseWriter, r *http.Request) {
 	if code == "" {
 		code = "enhanced_enchant_stone"
 	}
-	if code == "shining_hero_stone" || code == "bright_hero_stone" || code == "hero_stone" || code == "enhanced_stone" {
+	if code == "shining_hero_stone" || code == "bright_hero_stone" || code == "hero_stone" || code == "enhanced_stone" || code == "enhanced_enchant_stone_15d" {
 		code = "enhanced_enchant_stone"
 	}
 
@@ -2284,6 +2299,260 @@ func handleAdminShopOrderStatus(w http.ResponseWriter, r *http.Request) {
 	_ = notify.CreateNotification(userID, "admin_msg", "Tavern order status changed", msg, "", adminDisplay)
 
 	writeJSON(w, http.StatusOK, map[string]string{"status": "success"})
+}
+
+// handleAdminShopGiftItem: 관리자가 선술집 "상품"을 특정 유저/캐릭터에게 무료로 선물한다.
+// 구매(handleShopCreateOrder)의 지급 로직을 그대로 따르되 포인트는 차감하지 않는다.
+//   - game(인게임 아이템): 해당 캐릭터 우편함으로 발송 → 캐릭터 귀속
+//   - function(영웅석/2계정/카드뽑기): 캐릭터가 속한 "계정"에 적용 → 계정 귀속
+//   - function(레벨업/진영·종족·이름 변경 등): 해당 캐릭터 대상 월드 명령 실행 → 캐릭터 귀속
+//
+// 받는 캐릭터명으로 characters.guid/account를 조회하고, 계정 귀속 상품은 그 account에 적용한다.
+func handleAdminShopGiftItem(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"status": "error", "message": "요청 처리 중 오류가 발생했습니다."})
+		return
+	}
+	if !CheckMenuPermission(w, r, "shop-admin") {
+		return
+	}
+	adminID, adminUsername, err := getSessionUserIDAndName(r)
+	if err != nil {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"status": "error", "message": "로그인이 필요합니다."})
+		return
+	}
+
+	var req struct {
+		ItemID    int    `json:"item_id"`
+		Character string `json:"character"`
+		Qty       int    `json:"qty"`
+		Note      string `json:"note"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "잘못된 요청입니다."})
+		return
+	}
+	req.Character = strings.TrimSpace(req.Character)
+	req.Note = strings.TrimSpace(req.Note)
+	if req.ItemID <= 0 {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "선물할 상품을 선택해주세요."})
+		return
+	}
+	if req.Character == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "받는 캐릭터명을 입력해주세요."})
+		return
+	}
+	if req.Qty <= 0 {
+		req.Qty = 1
+	}
+	if req.Qty > 1000 {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "수량은 1~1000 사이여야 합니다."})
+		return
+	}
+
+	// 받는 캐릭터 → guid + account (계정 귀속 상품은 이 account에 적용)
+	charDB, err := sql.Open("mysql", config.CharactersDSN())
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "요청 처리 중 오류가 발생했습니다."})
+		return
+	}
+	var targetGUID, targetAccount int
+	cerr := charDB.QueryRow("SELECT guid, account FROM characters WHERE name = ?", req.Character).Scan(&targetGUID, &targetAccount)
+	charDB.Close()
+	if cerr == sql.ErrNoRows {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "해당 이름의 캐릭터를 찾을 수 없습니다."})
+		return
+	} else if cerr != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "요청 처리 중 오류가 발생했습니다."})
+		return
+	}
+	if targetAccount <= 0 {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "캐릭터의 계정 정보를 찾을 수 없습니다."})
+		return
+	}
+
+	db, err := sql.Open("mysql", updateDSN)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "요청 처리 중 오류가 발생했습니다."})
+		return
+	}
+	defer db.Close()
+	ensurePointShopTables(db)
+
+	tx, err := db.Begin()
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "요청 처리 중 오류가 발생했습니다."})
+		return
+	}
+	defer tx.Rollback()
+
+	var itemName, itemType, functionCode string
+	var itemEntry, stock, isDeleted int
+	if err := tx.QueryRow(`
+		SELECT name, IFNULL(item_type,'game'), IFNULL(item_entry,0), IFNULL(function_code,''), stock_qty, is_deleted
+		FROM point_shop_items WHERE id = ? FOR UPDATE
+	`, req.ItemID).Scan(&itemName, &itemType, &itemEntry, &functionCode, &stock, &isDeleted); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "선물할 상품을 찾을 수 없습니다."})
+		return
+	}
+	if isDeleted == 1 {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "삭제된 상품은 선물할 수 없습니다."})
+		return
+	}
+	if stock >= 0 && stock < req.Qty {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "상품 재고가 부족합니다."})
+		return
+	}
+
+	// 기능 코드 정규화 (구매 로직과 동일)
+	funcCode := strings.ToLower(strings.TrimSpace(functionCode))
+	switch funcCode {
+	case "shining_hero_stone", "bright_hero_stone", "hero_stone", "enhanced_stone":
+		funcCode = "enhanced_enchant_stone"
+	}
+	if itemType == "function" && funcCode != "enhanced_enchant_stone_15d" && (itemName == "빛나는 영웅석" || itemName == "강화된 강화석" || strings.Contains(itemName, "영웅석")) {
+		funcCode = "enhanced_enchant_stone"
+	}
+
+	// 계정 귀속 기능(영웅석 1개월/15일·2계정·카드뽑기). 그 외 기능은 캐릭터 대상 월드 명령.
+	accountBound := itemType == "function" && (funcCode == "dual_account" || funcCode == "carddraw_count" || funcCode == "enhanced_enchant_stone" || funcCode == "enhanced_enchant_stone_15d")
+
+	// 타입별 사전 검증
+	if itemType == "game" && itemEntry <= 0 {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "상품의 인게임 아이템 entry 설정이 올바르지 않습니다."})
+		return
+	}
+	if itemType == "function" {
+		allowed := map[string]bool{
+			"level_up": true, "level80": true, "level_80": true,
+			"faction_change": true, "change_faction": true,
+			"race_change": true, "change_race": true,
+			"rename": true, "rename_character": true, "name_change": true,
+			"dual_account": true, "carddraw_count": true, "enhanced_enchant_stone": true, "enhanced_enchant_stone_15d": true,
+		}
+		if funcCode == "" || !allowed[funcCode] {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "지원하지 않는 기능 상품입니다."})
+			return
+		}
+		if !accountBound && !isShopWorldServerRunning() {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "월드서버가 가동 중이 아닙니다. 서버 가동 후 다시 시도해주세요."})
+			return
+		}
+	}
+
+	// 감사용 주문 기록 (무료 선물: 가격 0, 즉시 완료, 관리자 메모 표기)
+	giftNote := "[관리자 선물] " + adminUsername
+	if req.Note != "" {
+		giftNote += " · " + req.Note
+	}
+	res, err := tx.Exec(`
+		INSERT INTO point_shop_orders (user_id, item_id, item_name, target_character, qty, unit_price, total_price, points_before, points_after, status, request_note, admin_note, processed_by, processed_at)
+		VALUES (?, ?, ?, ?, ?, 0, 0, 0, 0, 'completed', ?, ?, ?, NOW())
+	`, targetAccount, req.ItemID, itemName, req.Character, req.Qty, req.Note, giftNote, adminID)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "요청 처리 중 오류가 발생했습니다."})
+		return
+	}
+	orderID, _ := res.LastInsertId()
+	_, _ = tx.Exec(`
+		INSERT INTO point_shop_order_logs (order_id, action, actor_user_id, before_status, after_status, memo)
+		VALUES (?, 'gift', ?, '', 'completed', ?)
+	`, orderID, adminID, giftNote)
+
+	if stock >= 0 {
+		if _, err := tx.Exec("UPDATE point_shop_items SET stock_qty = stock_qty - ? WHERE id = ?", req.Qty, req.ItemID); err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "요청 처리 중 오류가 발생했습니다."})
+			return
+		}
+	}
+
+	var enhancedExp time.Time
+	switch {
+	case itemType == "game":
+		subject := fmt.Sprintf("[선술집] 선물: %s", itemName)
+		body := strings.Join([]string{
+			"운영자가 보낸 선술집 상품 선물이 도착했습니다.",
+			"",
+			fmt.Sprintf("상품: %s x%d", itemName, req.Qty),
+			fmt.Sprintf("수령 캐릭터: %s", req.Character),
+			"",
+			"재접속 후 우편함을 확인해주세요.",
+		}, "\n")
+		if req.Note != "" {
+			body += "\n\n[메시지]\n" + req.Note
+		}
+		// sendShopItemMail은 name=? AND account=? 로 캐릭터를 찾으므로 senderUserID에 수령 계정을 넘긴다.
+		if err := sendShopItemMail(req.Character, subject, body, itemEntry, req.Qty, targetAccount, adminUsername, r); err != nil {
+			log.Printf("[shop/gift] mail failed admin=%s receiver=%s entry=%d qty=%d err=%v", adminUsername, req.Character, itemEntry, req.Qty, err)
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "선물 우편 발송에 실패했습니다: " + err.Error()})
+			return
+		}
+	case funcCode == "dual_account":
+		if _, err := tx.Exec(`
+			INSERT INTO web_second_account_purchases (user_id, order_id, is_active)
+			VALUES (?, ?, 1)
+			ON DUPLICATE KEY UPDATE is_active = 1, order_id = VALUES(order_id), purchased_at = NOW()
+		`, targetAccount, orderID); err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "요청 처리 중 오류가 발생했습니다."})
+			return
+		}
+	case funcCode == "carddraw_count":
+		if _, err := tx.Exec(`
+			INSERT INTO user_profiles (user_id, carddraw_draw_count)
+			VALUES (?, ?)
+			ON DUPLICATE KEY UPDATE carddraw_draw_count = IFNULL(carddraw_draw_count, 0) + VALUES(carddraw_draw_count)
+		`, targetAccount, req.Qty); err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "요청 처리 중 오류가 발생했습니다."})
+			return
+		}
+	case funcCode == "enhanced_enchant_stone", funcCode == "enhanced_enchant_stone_15d":
+		if funcCode == "enhanced_enchant_stone_15d" {
+			enhancedExp, err = extendFeatureSubscriptionDays(tx, targetAccount, "enhanced_enchant_stone", 15*req.Qty, orderID)
+		} else {
+			enhancedExp, err = extendFeatureSubscription(tx, targetAccount, funcCode, req.Qty, orderID)
+		}
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "요청 처리 중 오류가 발생했습니다."})
+			return
+		}
+	default:
+		// 캐릭터 대상 월드 명령 (레벨업/진영변경/종족변경/이름변경 등)
+		if err := runShopFunctionCommand(funcCode, req.Character, r); err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "기능 적용에 실패했습니다: " + err.Error()})
+			return
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "요청 처리 중 오류가 발생했습니다."})
+		return
+	}
+
+	notify := services.NewNotificationService(db)
+	adminDisplay := getSenderDisplayNameForShop(db, adminID, adminUsername)
+	var notifMsg, resultMsg string
+	switch {
+	case accountBound:
+		if funcCode == "enhanced_enchant_stone" || funcCode == "enhanced_enchant_stone_15d" {
+			notifMsg = fmt.Sprintf("운영자가 %s 상품을 선물했습니다. 유효기간: %s", itemName, enhancedExp.Format("2006-01-02 15:04:05"))
+		} else {
+			notifMsg = fmt.Sprintf("운영자가 %s 상품을 계정에 선물했습니다.", itemName)
+		}
+		resultMsg = fmt.Sprintf("%s 님의 계정에 %s 상품을 선물했습니다.", req.Character, itemName)
+	case itemType == "game":
+		notifMsg = fmt.Sprintf("운영자가 보낸 %s x%d 이(가) %s 캐릭터 우편으로 발송되었습니다.", itemName, req.Qty, req.Character)
+		resultMsg = fmt.Sprintf("%s 캐릭터에게 %s x%d 를 선물했습니다.", req.Character, itemName, req.Qty)
+	default:
+		notifMsg = fmt.Sprintf("운영자가 %s 기능을 %s 캐릭터에 적용했습니다.", itemName, req.Character)
+		resultMsg = fmt.Sprintf("%s 캐릭터에 %s 기능을 적용했습니다.", req.Character, itemName)
+	}
+	_ = notify.CreateNotification(targetAccount, "admin_msg", "선술집 선물 도착", notifMsg, "", adminDisplay)
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"status":   "success",
+		"message":  resultMsg,
+		"order_id": orderID,
+	})
 }
 
 func parseIntOrDefault(v string, def int) int {

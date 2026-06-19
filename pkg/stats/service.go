@@ -118,6 +118,7 @@ func RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/admin/shop/iconpack/list", handleAdminShopIconPackList)
 	mux.HandleFunc("/api/admin/shop/orders", handleAdminShopOrders)
 	mux.HandleFunc("/api/admin/shop/order/status", handleAdminShopOrderStatus)
+	mux.HandleFunc("/api/admin/shop/gift", handleAdminShopGiftItem)
 	mux.HandleFunc("/api/auction/list", handleAuctionList)
 	mux.HandleFunc("/api/auction/my-characters", handleAuctionMyCharacters)
 	mux.HandleFunc("/api/auction/my-items", handleAuctionMyItems)
