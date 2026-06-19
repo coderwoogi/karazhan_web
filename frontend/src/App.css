@@ -778,6 +778,20 @@
       margin-top: 28px;
     }
 
+    .feature-card--link {
+      cursor: pointer;
+      transition: transform .15s ease;
+    }
+
+    .feature-card--link:hover {
+      transform: translateY(-4px);
+    }
+
+    .section-more {
+      margin-top: 22px;
+      text-align: center;
+    }
+
     .panel {
       position: relative;
     }
@@ -1391,6 +1405,26 @@
   min-height: 220px;
 }
 
+/* HTML 컨텐츠: 썸네일에 실제 게시글 내용을 축소 미리보기로 표시 */
+.contents-feature-thumb--html {
+  position: relative;
+  height: 220px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.contents-thumb-frame {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 400%;   /* 박스의 4배 폭으로 렌더(데스크톱 레이아웃) 후 0.25배 축소 → 폭에 맞춤 */
+  height: 400%;
+  border: 0;
+  transform: scale(0.25);
+  transform-origin: top left;
+  pointer-events: none; /* 클릭은 카드 버튼으로 전달 */
+}
+
 .contents-feature-copy {
   padding: 18px 18px 20px;
 }
@@ -1832,6 +1866,15 @@
       width: 100%;
       height: auto;
       object-fit: contain;
+    }
+
+    .guide-view-html {
+      display: block;
+      width: 100%;
+      height: 600px; /* 로드 전 임시 — onLoad 시 콘텐츠 전체 높이로 자동 확장(내부 스크롤 제거) */
+      border: 0;
+      border-radius: 12px;
+      background: #fff;
     }
 
     .guide-download-hitbox {

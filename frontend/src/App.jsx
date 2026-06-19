@@ -1941,6 +1941,15 @@ function App() {
     navigate(`/?view=contents&content=${encodeURIComponent(contentId)}`)
   }, [contentItems, navigate, resetWriteState])
 
+  // 홈 "핵심 콘텐츠" 카드 → 해당 컨텐츠 상세(있으면) / 없으면 컨텐츠 목록
+  const goToContent = useCallback((contentId) => {
+    if (contentId && contentItems.some((item) => item.id === contentId)) {
+      openContentDetail(contentId)
+    } else {
+      openContents()
+    }
+  }, [contentItems, openContentDetail, openContents])
+
   const openWrite = useCallback(async () => {
     if (!currentBoard || !canWrite(currentBoard, user)) {
       await showAlert(TEXT.writeDenied)
@@ -2596,10 +2605,28 @@ function App() {
             <section className="section mobile-hide">
               <h2 className="section-title"><span>핵심 콘텐츠</span></h2>
               <div className="content-grid">
-                <article className="feature-card"><img src="/img/contents/시련.png" alt="시련" /><h3>시련</h3><p>강력한 보스와의 시련!<br />보상을 쟁취하라!</p></article>
-                <article className="feature-card"><img src="/img/contents/강화.png" alt="아이템 강화" /><h3>아이템 강화</h3><p>1부터 10까지!<br />한계를 뛰어넘는 강화 시스템!</p></article>
-                <article className="feature-card"><img src="/img/contents/영웅석_룬문자.png" alt="영웅석" /><h3>영웅석</h3><p>룬문자를 통한<br />순간이동 시스템!</p></article>
-                <article className="feature-card"><img src="/img/shop/종족변경.png" alt="형상변환" /><h3>형상변환</h3><p>다양한 외형을 수집하고<br />나만의 스타일을 완성하라!</p></article>
+                {[
+                  { id: '시련', img: '/img/contents/시련.png', alt: '시련', title: '시련', desc: ['강력한 보스와의 시련!', '보상을 쟁취하라!'] },
+                  { id: '강화', img: '/img/contents/강화.png', alt: '아이템 강화', title: '아이템 강화', desc: ['1부터 10까지!', '한계를 뛰어넘는 강화 시스템!'] },
+                  { id: '영웅석_룬문자', img: '/img/contents/영웅석_룬문자.png', alt: '영웅석', title: '영웅석', desc: ['룬문자를 통한', '순간이동 시스템!'] },
+                  { id: '형상변환', img: '/img/shop/종족변경.png', alt: '형상변환', title: '형상변환', desc: ['다양한 외형을 수집하고', '나만의 스타일을 완성하라!'] },
+                ].map((card) => (
+                  <article
+                    key={card.title}
+                    className="feature-card feature-card--link"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => goToContent(card.id)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); goToContent(card.id) } }}
+                  >
+                    <img src={card.img} alt={card.alt} />
+                    <h3>{card.title}</h3>
+                    <p>{card.desc[0]}<br />{card.desc[1]}</p>
+                  </article>
+                ))}
+              </div>
+              <div className="section-more">
+                <button type="button" className="btn" onClick={openContents}>더보기</button>
               </div>
             </section>
 
@@ -2724,7 +2751,20 @@ function App() {
                 <div className="contents-card-grid">
                   {contentItems.map((item) => (
                     <button key={item.id} type="button" className="contents-feature-card" onClick={() => openContentDetail(item.id)}>
-                      <div className="contents-feature-thumb" style={{ '--bg-img': `url('${item.image}')` }}></div>
+                      {item.type === 'html' ? (
+                        <div className="contents-feature-thumb contents-feature-thumb--html">
+                          <iframe
+                            src={item.url}
+                            className="contents-thumb-frame"
+                            title={`${item.title} 미리보기`}
+                            scrolling="no"
+                            tabIndex={-1}
+                            aria-hidden="true"
+                          />
+                        </div>
+                      ) : (
+                        <div className="contents-feature-thumb" style={{ '--bg-img': `url('${item.image}')` }}></div>
+                      )}
                       <div className="contents-feature-copy">
                         <h3>{item.title}</h3>
                         <p>{item.description}</p>
@@ -2744,11 +2784,37 @@ function App() {
                 </div>
                 <div className="guide-view-body">
                   <div className="guide-view-image-wrap">
-                    <img
-                      src={selectedContentItem?.image || ''}
-                      alt={`${selectedContentItem?.title || '컨텐츠'} 안내`}
-                      className="guide-view-image"
-                    />
+                    {selectedContentItem?.type === 'html' ? (
+                      <iframe
+                        src={selectedContentItem?.url || ''}
+                        title={`${selectedContentItem?.title || '컨텐츠'} 안내`}
+                        className="guide-view-html"
+                        scrolling="no"
+                        onLoad={(e) => {
+                          const f = e.currentTarget
+                          const fit = () => {
+                            try {
+                              const doc = f.contentDocument
+                              if (doc) {
+                                const h = Math.max(
+                                  doc.documentElement?.scrollHeight || 0,
+                                  doc.body?.scrollHeight || 0,
+                                )
+                                if (h > 0) f.style.height = h + 'px'
+                              }
+                            } catch (_) { /* 동일 출처 아닐 때 무시 */ }
+                          }
+                          fit()
+                          setTimeout(fit, 400)
+                        }}
+                      />
+                    ) : (
+                      <img
+                        src={selectedContentItem?.image || ''}
+                        alt={`${selectedContentItem?.title || '컨텐츠'} 안내`}
+                        className="guide-view-image"
+                      />
+                    )}
                   </div>
                 </div>
               </div>

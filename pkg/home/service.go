@@ -89,7 +89,9 @@ type publicContentItem struct {
 	ID          string `json:"id"`
 	Title       string `json:"title"`
 	Description string `json:"description"`
-	Image       string `json:"image"`
+	Image       string `json:"image"` // 썸네일(이미지 항목은 본문 겸용)
+	Type        string `json:"type"`  // "image" | "html"
+	URL         string `json:"url"`   // html 항목의 본문 경로
 }
 
 func handlePublicContents(w http.ResponseWriter, r *http.Request) {
@@ -99,6 +101,17 @@ func handlePublicContents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// HTML \ud30c\uc77c \ubca0\uc774\uc2a4\uba85 \uc9d1\ud569 \u2014 \uac19\uc740 \uc774\ub984\uc758 \uc774\ubbf8\uc9c0\ub294 HTML \uc378\ub124\uc77c\ub85c \uac04\uc8fc(\ub2e8\ub3c5 \ub178\ucd9c \uc548 \ud568)
+	htmlBases := make(map[string]bool)
+	for _, entry := range entries {
+		if entry.IsDir() || strings.HasPrefix(entry.Name(), ".") {
+			continue
+		}
+		if strings.EqualFold(filepath.Ext(entry.Name()), ".html") {
+			htmlBases[strings.TrimSuffix(entry.Name(), filepath.Ext(entry.Name()))] = true
+		}
+	}
+
 	items := make([]publicContentItem, 0, len(entries))
 	for _, entry := range entries {
 		if entry.IsDir() {
@@ -106,7 +119,12 @@ func handlePublicContents(w http.ResponseWriter, r *http.Request) {
 		}
 
 		name := entry.Name()
-		if strings.HasPrefix(name, ".") || !isContentImageFile(name) {
+		if strings.HasPrefix(name, ".") {
+			continue
+		}
+
+		isHTML := strings.EqualFold(filepath.Ext(name), ".html")
+		if !isHTML && !isContentImageFile(name) {
 			continue
 		}
 
@@ -120,11 +138,30 @@ func handlePublicContents(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
+		ver := contentVersion(info.ModTime())
+
+		if isHTML {
+			items = append(items, publicContentItem{
+				ID:          title,
+				Title:       title,
+				Description: title + " \ucee8\ud150\uce20 \uc548\ub0b4\ub97c \ud655\uc778\ud560 \uc218 \uc788\uc2b5\ub2c8\ub2e4.",
+				Type:        "html",
+				URL:         "/img/contents/" + url.PathEscape(name) + "?v=" + ver,
+				Image:       contentHTMLThumb(entries, title, ver),
+			})
+			continue
+		}
+
+		// \uc774\ubbf8\uc9c0: HTML \ucef4\ud328\ub2c8\uc5b8 \uc378\ub124\uc77c\uc774\uba74 \ub2e8\ub3c5 \ud56d\ubaa9\uc73c\ub85c \ub178\ucd9c\ud558\uc9c0 \uc54a\uc74c
+		if htmlBases[title] {
+			continue
+		}
 		items = append(items, publicContentItem{
 			ID:          title,
 			Title:       title,
 			Description: title + " \ucee8\ud150\uce20 \uc548\ub0b4 \uc774\ubbf8\uc9c0\ub97c \ud655\uc778\ud560 \uc218 \uc788\uc2b5\ub2c8\ub2e4.",
-			Image:       "/img/contents/" + url.PathEscape(name) + "?v=" + contentVersion(info.ModTime()),
+			Type:        "image",
+			Image:       "/img/contents/" + url.PathEscape(name) + "?v=" + ver,
 		})
 	}
 
@@ -146,6 +183,21 @@ func isContentImageFile(name string) bool {
 	default:
 		return false
 	}
+}
+
+// HTML 컨텐츠 썸네일: 같은 이름의 이미지(예: "X.png")가 있으면 그것을, 없으면 기본 썸네일.
+const defaultContentThumb = "/img/wowlogo_white.png"
+
+func contentHTMLThumb(entries []os.DirEntry, base, ver string) string {
+	for _, ext := range []string{".png", ".jpg", ".jpeg", ".webp", ".gif"} {
+		cand := base + ext
+		for _, entry := range entries {
+			if !entry.IsDir() && strings.EqualFold(entry.Name(), cand) {
+				return "/img/contents/" + url.PathEscape(entry.Name()) + "?v=" + ver
+			}
+		}
+	}
+	return defaultContentThumb
 }
 
 func contentVersion(modTime time.Time) string {
