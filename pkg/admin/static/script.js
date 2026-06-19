@@ -1090,8 +1090,14 @@ const statsDateFilters = {
     account: { from: '', to: '' },
     character: { from: '', to: '' },
     gold: { from: '', to: '' },
-    item: { from: '', to: '' }
+    item: { from: '', to: '' },
+    retention: { from: '', to: '' },
+    economy: { from: '', to: '' },
+    revenue: { from: '', to: '' },
+    content: { from: '', to: '' },
+    security: { from: '', to: '' }
 };
+const STATS_EXTRA_TABS = ['retention', 'economy', 'revenue', 'content', 'security'];
 const statsCharts = {};
 
 function destroyStatsChart(key) {
@@ -1189,6 +1195,11 @@ function renderStatsChart(canvasId, chartKey, type, labels, values, label, color
             } : {}
         }
     });
+}
+
+function setStatsSummary(id, text) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text || '데이터 없음';
 }
 
 function renderStatsSubTab(tabName) {
@@ -1334,6 +1345,42 @@ function renderStatsSubTab(tabName) {
             'rgba(168, 85, 247, 0.9)',
             true
         );
+    } else if (tabName === 'retention') {
+        setStatsSummary('stats-retention-summary', d.summary);
+        renderStatsChart('stats-retention-rate-chart', 'retRate', 'bar', d.retentionRate?.labels || [], d.retentionRate?.values || [], '잔존율(%)', 'rgba(37,99,235,0.85)');
+        renderStatsChart('stats-retention-dormancy-chart', 'retDormancy', 'doughnut', d.dormancy?.labels || [], d.dormancy?.values || [], '계정 수', '', true);
+        renderStatsChart('stats-retention-alt-chart', 'retAlt', 'bar', d.altCount?.labels || [], d.altCount?.values || [], '계정 수', 'rgba(139,92,246,0.85)', true);
+        renderStatsChart('stats-retention-playtime-chart', 'retPlaytime', 'bar', d.playtime?.labels || [], d.playtime?.values || [], '캐릭터 수', 'rgba(16,185,129,0.85)', true);
+        renderStatsChart('stats-retention-hourly-chart', 'retHourly', 'bar', d.hourly?.labels || [], d.hourly?.values || [], '접속 캐릭터', 'rgba(20,184,166,0.85)');
+    } else if (tabName === 'economy') {
+        setStatsSummary('stats-economy-summary', d.summary);
+        renderStatsChart('stats-economy-gold-daily-chart', 'ecoGold', 'line', d.goldDaily?.labels || [], d.goldDaily?.values || [], '골드 이동', 'rgba(234,179,8,0.9)', false, formatCoinsText);
+        renderStatsChart('stats-economy-receivers-chart', 'ecoRecv', 'bar', d.goldReceivers?.labels || [], d.goldReceivers?.values || [], '수령 골드', 'rgba(245,158,11,0.85)', true, formatCoinsText);
+        renderStatsChart('stats-economy-mail-chart', 'ecoMail', 'line', d.mailDaily?.labels || [], d.mailDaily?.values || [], '우편 건수', 'rgba(59,130,246,0.9)');
+        renderStatsChart('stats-economy-coinmarket-chart', 'ecoCoin', 'line', d.coinMarketDaily?.labels || [], d.coinMarketDaily?.values || [], '거래 골드량', 'rgba(16,185,129,0.9)', false, formatCoinsText);
+    } else if (tabName === 'revenue') {
+        setStatsSummary('stats-revenue-summary', d.summary);
+        renderStatsChart('stats-revenue-point-daily-chart', 'revPoint', 'line', d.pointSpentDaily?.labels || [], d.pointSpentDaily?.values || [], '포인트 소비', 'rgba(236,72,153,0.9)');
+        renderStatsChart('stats-revenue-shop-daily-chart', 'revShop', 'line', d.shopRevenueDaily?.labels || [], d.shopRevenueDaily?.values || [], '매출(pt)', 'rgba(37,99,235,0.9)');
+        renderStatsChart('stats-revenue-products-chart', 'revProd', 'bar', d.topProducts?.labels || [], d.topProducts?.values || [], '판매 수량', 'rgba(139,92,246,0.85)', true);
+        renderStatsChart('stats-revenue-orderstatus-chart', 'revStatus', 'doughnut', d.orderStatus?.labels || [], d.orderStatus?.values || [], '주문 수', '', true);
+        renderStatsChart('stats-revenue-subs-chart', 'revSubs', 'bar', d.activeSubs?.labels || [], d.activeSubs?.values || [], '활성 구독', 'rgba(16,185,129,0.85)', true);
+    } else if (tabName === 'content') {
+        setStatsSummary('stats-content-summary', d.summary);
+        renderStatsChart('stats-content-draw-chart', 'conDraw', 'line', d.drawDaily?.labels || [], d.drawDaily?.values || [], '뽑기 수', 'rgba(168,85,247,0.9)');
+        renderStatsChart('stats-content-rarity-chart', 'conRarity', 'doughnut', d.drawRarity?.labels || [], d.drawRarity?.values || [], '뽑기 수', '', true);
+        renderStatsChart('stats-content-encounter-chart', 'conEnc', 'line', d.encounterDaily?.labels || [], d.encounterDaily?.values || [], '클리어 수', 'rgba(245,158,11,0.9)');
+        renderStatsChart('stats-content-pvp-chart', 'conPvp', 'line', d.pvpDaily?.labels || [], d.pvpDaily?.values || [], '전장 수', 'rgba(239,68,68,0.9)');
+        renderStatsChart('stats-content-guild-chart', 'conGuild', 'bar', d.guildTop?.labels || [], d.guildTop?.values || [], '인원', 'rgba(59,130,246,0.9)', true);
+        renderStatsChart('stats-content-board-chart', 'conBoard', 'line', d.boardDaily?.labels || [], d.boardDaily?.values || [], '게시글', 'rgba(20,184,166,0.9)');
+    } else if (tabName === 'security') {
+        setStatsSummary('stats-security-summary', d.summary);
+        renderStatsChart('stats-security-sharedip-chart', 'secIp', 'bar', d.sharedIp?.labels || [], d.sharedIp?.values || [], '계정 수', 'rgba(239,68,68,0.85)', true);
+        renderStatsChart('stats-security-sanctions-chart', 'secSanc', 'bar', d.sanctions?.labels || [], d.sanctions?.values || [], '건수', 'rgba(245,158,11,0.85)', true);
+        renderStatsChart('stats-security-ban-daily-chart', 'secBan', 'line', d.banDaily?.labels || [], d.banDaily?.values || [], '신규 밴', 'rgba(239,68,68,0.9)');
+        renderStatsChart('stats-security-failed-chart', 'secFail', 'bar', d.failedLogins?.labels || [], d.failedLogins?.values || [], '실패 횟수', 'rgba(236,72,153,0.85)', true);
+        renderStatsChart('stats-security-recovery-chart', 'secRecov', 'line', d.recoveryDaily?.labels || [], d.recoveryDaily?.values || [], '복구 요청', 'rgba(59,130,246,0.9)');
+        renderStatsChart('stats-security-downtime-chart', 'secDown', 'doughnut', d.downtime?.labels || [], d.downtime?.values || [], '횟수', '', true);
     }
 }
 
@@ -1380,7 +1427,8 @@ async function loadStatsDashboard(force = false, tabName = currentStatsTab) {
         qs.set('from', f.from);
         qs.set('to', f.to);
     }
-    const url = qs.toString() ? `/api/stats/dashboard?${qs.toString()}` : '/api/stats/dashboard';
+    const base = STATS_EXTRA_TABS.indexOf(tabName) !== -1 ? `/api/stats/${tabName}` : '/api/stats/dashboard';
+    const url = qs.toString() ? `${base}?${qs.toString()}` : base;
     const res = await fetch(url);
     if (!res.ok) throw new Error('통계 정보를 불러오지 못했습니다.');
     statsDashboardCache = await res.json();

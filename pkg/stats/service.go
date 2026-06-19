@@ -37,6 +37,11 @@ type StatsResponse struct {
 func RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/stats/summary", statsHandler)
 	mux.HandleFunc("/api/stats/dashboard", handleStatsDashboard)
+	mux.HandleFunc("/api/stats/retention", handleStatsRetention)
+	mux.HandleFunc("/api/stats/economy", handleStatsEconomy)
+	mux.HandleFunc("/api/stats/revenue", handleStatsRevenue)
+	mux.HandleFunc("/api/stats/content", handleStatsContent)
+	mux.HandleFunc("/api/stats/security", handleStatsSecurity)
 	mux.HandleFunc("/api/logs/list", handleLogsList)
 	mux.HandleFunc("/api/logs/blackmarket", handleBlackMarketLogs)
 	mux.HandleFunc("/api/logs/karazhan", handleKarazhanLogs)

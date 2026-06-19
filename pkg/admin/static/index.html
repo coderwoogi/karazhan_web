@@ -3110,6 +3110,11 @@
                         <button class="log-sub-tab-btn" onclick="openStatsSubTab('character')">캐릭터 통계</button>
                         <button class="log-sub-tab-btn" onclick="openStatsSubTab('gold')">골드 통계</button>
                         <button class="log-sub-tab-btn" onclick="openStatsSubTab('item')">아이템 통계</button>
+                        <button class="log-sub-tab-btn" onclick="openStatsSubTab('retention')">리텐션/활동</button>
+                        <button class="log-sub-tab-btn" onclick="openStatsSubTab('economy')">경제</button>
+                        <button class="log-sub-tab-btn" onclick="openStatsSubTab('revenue')">수익/구독</button>
+                        <button class="log-sub-tab-btn" onclick="openStatsSubTab('content')">콘텐츠</button>
+                        <button class="log-sub-tab-btn" onclick="openStatsSubTab('security')">보안/운영</button>
                     </div>
                     <div class="filter-bar" style="margin:1rem 1.5rem 0 1.5rem;">
                         <div class="filter-group">
@@ -3216,6 +3221,76 @@
                             <div class="card" style="border-radius:12px;">
                                 <div class="card-header"><h2 style="font-size:0.95rem;">아이템 보유량 TOP 10</h2></div>
                                 <div class="card-body" style="padding:1rem;"><canvas id="stats-item-top-chart" height="180"></canvas></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="stats-retention" class="log-sub-content">
+                        <div style="padding:1.5rem;">
+                            <div class="filter-bar" style="margin-bottom:1rem;"><div class="filter-group" style="flex:1;"><label>요약</label><div id="stats-retention-summary" style="font-size:0.95rem; color:var(--text-secondary);">불러오는 중...</div></div></div>
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+                                <div class="card" style="border-radius:12px;"><div class="card-header"><h2 style="font-size:0.95rem;">신규 가입 잔존율 (D1/D7/D30, %)</h2></div><div class="card-body" style="padding:1rem;"><canvas id="stats-retention-rate-chart" height="170"></canvas></div></div>
+                                <div class="card" style="border-radius:12px;"><div class="card-header"><h2 style="font-size:0.95rem;">휴면 단계 분포</h2></div><div class="card-body" style="padding:1rem;"><canvas id="stats-retention-dormancy-chart" height="170"></canvas></div></div>
+                                <div class="card" style="border-radius:12px;"><div class="card-header"><h2 style="font-size:0.95rem;">계정당 캐릭터 수</h2></div><div class="card-body" style="padding:1rem;"><canvas id="stats-retention-alt-chart" height="170"></canvas></div></div>
+                                <div class="card" style="border-radius:12px;"><div class="card-header"><h2 style="font-size:0.95rem;">플레이타임 분포</h2></div><div class="card-body" style="padding:1rem;"><canvas id="stats-retention-playtime-chart" height="170"></canvas></div></div>
+                            </div>
+                            <div style="display:grid; grid-template-columns:1fr; gap:1rem; margin-top:1rem;">
+                                <div class="card" style="border-radius:12px;"><div class="card-header"><h2 style="font-size:0.95rem;">시간대별 접속 분포 (마지막 접속 기준)</h2></div><div class="card-body" style="padding:1rem;"><canvas id="stats-retention-hourly-chart" height="150"></canvas></div></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="stats-economy" class="log-sub-content">
+                        <div style="padding:1.5rem;">
+                            <div class="filter-bar" style="margin-bottom:1rem;"><div class="filter-group" style="flex:1;"><label>요약</label><div id="stats-economy-summary" style="font-size:0.95rem; color:var(--text-secondary);">불러오는 중...</div></div></div>
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+                                <div class="card" style="border-radius:12px;"><div class="card-header"><h2 style="font-size:0.95rem;">일별 골드 이동량 (최근 30일)</h2></div><div class="card-body" style="padding:1rem;"><canvas id="stats-economy-gold-daily-chart" height="170"></canvas></div></div>
+                                <div class="card" style="border-radius:12px;"><div class="card-header"><h2 style="font-size:0.95rem;">골드 수령 TOP 10 (최근 30일)</h2></div><div class="card-body" style="padding:1rem;"><canvas id="stats-economy-receivers-chart" height="170"></canvas></div></div>
+                                <div class="card" style="border-radius:12px;"><div class="card-header"><h2 style="font-size:0.95rem;">일별 우편 거래 건수 (최근 30일)</h2></div><div class="card-body" style="padding:1rem;"><canvas id="stats-economy-mail-chart" height="170"></canvas></div></div>
+                                <div class="card" style="border-radius:12px;"><div class="card-header"><h2 style="font-size:0.95rem;">코인마켓 거래 골드량 (최근 30일)</h2></div><div class="card-body" style="padding:1rem;"><canvas id="stats-economy-coinmarket-chart" height="170"></canvas></div></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="stats-revenue" class="log-sub-content">
+                        <div style="padding:1.5rem;">
+                            <div class="filter-bar" style="margin-bottom:1rem;"><div class="filter-group" style="flex:1;"><label>요약</label><div id="stats-revenue-summary" style="font-size:0.95rem; color:var(--text-secondary);">불러오는 중...</div></div></div>
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+                                <div class="card" style="border-radius:12px;"><div class="card-header"><h2 style="font-size:0.95rem;">일별 포인트 소비 (최근 30일)</h2></div><div class="card-body" style="padding:1rem;"><canvas id="stats-revenue-point-daily-chart" height="170"></canvas></div></div>
+                                <div class="card" style="border-radius:12px;"><div class="card-header"><h2 style="font-size:0.95rem;">선술집 일별 매출(포인트, 최근 30일)</h2></div><div class="card-body" style="padding:1rem;"><canvas id="stats-revenue-shop-daily-chart" height="170"></canvas></div></div>
+                                <div class="card" style="border-radius:12px;"><div class="card-header"><h2 style="font-size:0.95rem;">상품별 판매 TOP 10</h2></div><div class="card-body" style="padding:1rem;"><canvas id="stats-revenue-products-chart" height="170"></canvas></div></div>
+                                <div class="card" style="border-radius:12px;"><div class="card-header"><h2 style="font-size:0.95rem;">주문 상태 분포</h2></div><div class="card-body" style="padding:1rem;"><canvas id="stats-revenue-orderstatus-chart" height="170"></canvas></div></div>
+                            </div>
+                            <div style="display:grid; grid-template-columns:1fr; gap:1rem; margin-top:1rem;">
+                                <div class="card" style="border-radius:12px;"><div class="card-header"><h2 style="font-size:0.95rem;">기능별 활성 구독</h2></div><div class="card-body" style="padding:1rem;"><canvas id="stats-revenue-subs-chart" height="150"></canvas></div></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="stats-content" class="log-sub-content">
+                        <div style="padding:1.5rem;">
+                            <div class="filter-bar" style="margin-bottom:1rem;"><div class="filter-group" style="flex:1;"><label>요약</label><div id="stats-content-summary" style="font-size:0.95rem; color:var(--text-secondary);">불러오는 중...</div></div></div>
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+                                <div class="card" style="border-radius:12px;"><div class="card-header"><h2 style="font-size:0.95rem;">일별 카드뽑기 (최근 30일)</h2></div><div class="card-body" style="padding:1rem;"><canvas id="stats-content-draw-chart" height="170"></canvas></div></div>
+                                <div class="card" style="border-radius:12px;"><div class="card-header"><h2 style="font-size:0.95rem;">뽑기 희귀도 분포</h2></div><div class="card-body" style="padding:1rem;"><canvas id="stats-content-rarity-chart" height="170"></canvas></div></div>
+                                <div class="card" style="border-radius:12px;"><div class="card-header"><h2 style="font-size:0.95rem;">던전/레이드 클리어 (최근 30일)</h2></div><div class="card-body" style="padding:1rem;"><canvas id="stats-content-encounter-chart" height="170"></canvas></div></div>
+                                <div class="card" style="border-radius:12px;"><div class="card-header"><h2 style="font-size:0.95rem;">전장 진행 (최근 30일)</h2></div><div class="card-body" style="padding:1rem;"><canvas id="stats-content-pvp-chart" height="170"></canvas></div></div>
+                                <div class="card" style="border-radius:12px;"><div class="card-header"><h2 style="font-size:0.95rem;">길드 인원 TOP 10</h2></div><div class="card-body" style="padding:1rem;"><canvas id="stats-content-guild-chart" height="170"></canvas></div></div>
+                                <div class="card" style="border-radius:12px;"><div class="card-header"><h2 style="font-size:0.95rem;">게시판 활동 (최근 30일)</h2></div><div class="card-body" style="padding:1rem;"><canvas id="stats-content-board-chart" height="170"></canvas></div></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="stats-security" class="log-sub-content">
+                        <div style="padding:1.5rem;">
+                            <div class="filter-bar" style="margin-bottom:1rem;"><div class="filter-group" style="flex:1;"><label>요약</label><div id="stats-security-summary" style="font-size:0.95rem; color:var(--text-secondary);">불러오는 중...</div></div></div>
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+                                <div class="card" style="border-radius:12px;"><div class="card-header"><h2 style="font-size:0.95rem;">공유 IP 다계정 TOP 10</h2></div><div class="card-body" style="padding:1rem;"><canvas id="stats-security-sharedip-chart" height="170"></canvas></div></div>
+                                <div class="card" style="border-radius:12px;"><div class="card-header"><h2 style="font-size:0.95rem;">제재 현황</h2></div><div class="card-body" style="padding:1rem;"><canvas id="stats-security-sanctions-chart" height="170"></canvas></div></div>
+                                <div class="card" style="border-radius:12px;"><div class="card-header"><h2 style="font-size:0.95rem;">일별 신규 밴 (최근 30일)</h2></div><div class="card-body" style="padding:1rem;"><canvas id="stats-security-ban-daily-chart" height="170"></canvas></div></div>
+                                <div class="card" style="border-radius:12px;"><div class="card-header"><h2 style="font-size:0.95rem;">로그인 실패 TOP 10</h2></div><div class="card-body" style="padding:1rem;"><canvas id="stats-security-failed-chart" height="170"></canvas></div></div>
+                                <div class="card" style="border-radius:12px;"><div class="card-header"><h2 style="font-size:0.95rem;">계정 복구 요청 (최근 30일)</h2></div><div class="card-body" style="padding:1rem;"><canvas id="stats-security-recovery-chart" height="170"></canvas></div></div>
+                                <div class="card" style="border-radius:12px;"><div class="card-header"><h2 style="font-size:0.95rem;">서버 중단 유형 분포</h2></div><div class="card-body" style="padding:1rem;"><canvas id="stats-security-downtime-chart" height="170"></canvas></div></div>
                             </div>
                         </div>
                     </div>
