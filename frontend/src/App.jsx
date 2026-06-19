@@ -2599,7 +2599,7 @@ function App() {
               <div className="server-item"><span className="server-icon">⚔</span><span><small>퀘배율</small><b>x5</b></span></div>
               <div className="server-item"><span className="server-icon">!</span><span><small>퀘스트</small><b>x5</b></span></div>
               <div className="server-item"><span className="server-icon">💰</span><span><small>드랍배율</small><b>x3</b></span></div>
-              <div className="server-item"><span className="server-icon">⚖</span><span><small>전문기술</small><b>x10</b></span></div>
+              <div className="server-item"><span className="server-icon">⚖</span><span><small>전문기술</small><b>x3</b></span></div>
             </section>
 
             <section className="section mobile-hide">
