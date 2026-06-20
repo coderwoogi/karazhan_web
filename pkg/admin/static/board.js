@@ -1207,6 +1207,7 @@ async function viewPost(id, pushHistory) {
                     <i class="fas fa-arrow-left" style="margin-right: 6px;"></i> 목록으로
                 </button>
                 <div style="display: flex; gap: 0.5rem;">
+                    <button onclick="copyBoardPostUrl(${id})" class="btn" style="background: #0ea5e9; color: white; padding: 8px 16px; border-radius: 8px;">주소복사</button>
                     ${canEdit ? `<button onclick="openPostEdit(${id})" class="btn" style="background: var(--primary-color); color: white; padding: 8px 16px; border-radius: 8px;">수정</button>` : ''}
                     ${canDelete ? `<button onclick="deletePost(${id})" class="btn btn-stop" style="padding: 8px 16px; border-radius: 8px;">삭제</button>` : ''}
                 </div>
@@ -1487,6 +1488,27 @@ function openPostWriteModal() {
     if (isUpdateBoard) {
         loadUpdateTemplateToEditor(true);
     }
+}
+
+function copyBoardPostUrl(postId) {
+    var url = window.location.origin + '/?board=' + encodeURIComponent(g_currentBoard || '') + '&post=' + postId;
+    function done(ok) {
+        var msg = ok ? ('게시글 주소가 복사되었습니다.\n' + url) : ('주소 복사에 실패했습니다. 직접 복사해 주세요:\n' + url);
+        if (window.ModalUtils && typeof ModalUtils.showAlert === 'function') ModalUtils.showAlert(msg);
+        else alert(msg);
+    }
+    try {
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(url).then(function () { done(true); }).catch(function () { done(false); });
+        } else {
+            var ta = document.createElement('textarea');
+            ta.value = url; ta.style.position = 'fixed'; ta.style.opacity = '0';
+            document.body.appendChild(ta); ta.focus(); ta.select();
+            var ok = document.execCommand('copy');
+            document.body.removeChild(ta);
+            done(ok);
+        }
+    } catch (e) { done(false); }
 }
 
 async function openPostEdit(postId) {
