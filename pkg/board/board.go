@@ -1142,7 +1142,7 @@ func buildPromotionContent(urls []string) string {
 		return ""
 	}
 	var b strings.Builder
-	b.WriteString("<div><p><strong>???쒓텠 URL 嶺뚮ㅄ維뽨빳?/strong></p><ul>")
+	b.WriteString("<div><p><strong>홍보 URL 목록</strong></p><ul>")
 	for _, u := range urls {
 		esc := strings.ReplaceAll(strings.ReplaceAll(strings.TrimSpace(u), "&", "&amp;"), "\"", "&quot;")
 		b.WriteString(`<li><a href="`)
@@ -1225,7 +1225,7 @@ func CreatePostHandler(w http.ResponseWriter, r *http.Request) {
 	if isPromotionBoard(p.BoardID) {
 		p.PromotionURLs = normalizePromotionURLs(p.PromotionURLs)
 		if len(p.PromotionURLs) == 0 {
-			http.Error(w, "???쒓텠 URL??1????怨대쭜 ???놁졑??琉얠돪??", http.StatusBadRequest)
+			http.Error(w, "홍보 URL을 최소 1개 이상 입력해 주세요.", http.StatusBadRequest)
 			return
 		}
 		p.Content = buildPromotionContent(p.PromotionURLs)
@@ -1259,7 +1259,7 @@ func CreatePostHandler(w http.ResponseWriter, r *http.Request) {
 	if isPromotionBoard(p.BoardID) {
 		postID, _ := res.LastInsertId()
 		if err := replacePromotionLinks(db, postID, p.PromotionURLs); err != nil {
-			http.Error(w, "???쒓텠 URL ????쒑굢????덉넮???곕????덈펲: "+err.Error(), http.StatusInternalServerError)
+			http.Error(w, "홍보 URL 저장 중 오류가 발생했습니다: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
 	}
@@ -1429,7 +1429,7 @@ func UpdatePostHandler(w http.ResponseWriter, r *http.Request) {
 	if isPromotionBoard(boardID) {
 		req.PromotionURLs = normalizePromotionURLs(req.PromotionURLs)
 		if len(req.PromotionURLs) == 0 {
-			http.Error(w, "???쒓텠 URL??1????怨대쭜 ???놁졑??琉얠돪??", http.StatusBadRequest)
+			http.Error(w, "홍보 URL을 최소 1개 이상 입력해 주세요.", http.StatusBadRequest)
 			return
 		}
 		req.Content = buildPromotionContent(req.PromotionURLs)
@@ -1448,7 +1448,7 @@ func UpdatePostHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	if isPromotionBoard(boardID) {
 		if err := replacePromotionLinks(db, int64(req.ID), req.PromotionURLs); err != nil {
-			http.Error(w, "???쒓텠 URL ???????덉넮: "+err.Error(), http.StatusInternalServerError)
+			http.Error(w, "홍보 URL 저장 중 오류가 발생했습니다: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
 	}
