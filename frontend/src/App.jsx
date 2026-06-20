@@ -2025,6 +2025,29 @@ function App() {
     navigate(`/?board=${encodeURIComponent(currentBoard.id)}&write=1&edit=${detail.post.id}`)
   }, [currentBoard, detail, navigate, user])
 
+  const copyPostUrl = useCallback(async () => {
+    if (!detail?.post?.id || !currentBoard) return
+    const url = `${window.location.origin}/?board=${encodeURIComponent(currentBoard.id)}&post=${detail.post.id}`
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(url)
+      } else {
+        const ta = document.createElement('textarea')
+        ta.value = url
+        ta.style.position = 'fixed'
+        ta.style.opacity = '0'
+        document.body.appendChild(ta)
+        ta.focus()
+        ta.select()
+        document.execCommand('copy')
+        document.body.removeChild(ta)
+      }
+      await showAlert('게시글 주소가 복사되었습니다.')
+    } catch (error) {
+      await showAlert(`주소 복사에 실패했습니다. 직접 복사해 주세요:\n${url}`)
+    }
+  }, [currentBoard, detail, showAlert])
+
   const savePost = useCallback(async () => {
     if (!currentBoard) return
     if (!isAdmin(user) && !hasRepresentativeCharacter(user)) {
@@ -3802,6 +3825,7 @@ function App() {
                       {canEditOwner(detail.post, user) ? (
                         <>
                           <button className="btn" type="button" onClick={beginEdit}>수정하기</button>
+                          <button className="btn" type="button" onClick={copyPostUrl}>주소복사</button>
                           <button className="btn btn-danger" type="button" onClick={deletePost}>삭제하기</button>
                         </>
                       ) : null}
