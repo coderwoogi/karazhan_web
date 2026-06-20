@@ -2493,9 +2493,12 @@ func verifyPromotionURLWithPython(targetURL, title, author, requiredText, requir
 	}
 
 	args := []string{scriptPath, targetURL, title, author, requiredText, requiredImage}
+	// 인터프리터 후보: Windows(py 런처)·macOS/Linux(python3)·일반(python) 모두 시도.
+	// Playwright가 설치된 인터프리터에서 status=success가 나오면 그 결과를 사용한다.
 	commands := [][]string{
-		append([]string{"python"}, args...),
 		append([]string{"py", "-3"}, args...),
+		append([]string{"python3"}, args...),
+		append([]string{"python"}, args...),
 	}
 
 	for _, cmdArgs := range commands {
