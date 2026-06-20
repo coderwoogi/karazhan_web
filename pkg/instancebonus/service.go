@@ -412,6 +412,7 @@ func RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/instance-bonus/runs/", handleRunRoutes)
 	mux.HandleFunc("/instance-bonus/daily-usage", handleDailyUsage)
 	mux.HandleFunc("/instance-bonus/daily-usage/reset", handleDailyUsageReset)
+	mux.HandleFunc("/instance-bonus/publish-runtime", handleRuntimePublish)
 }
 
 func ensureSchema() {
@@ -2030,6 +2031,7 @@ func handleMissions(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
+		syncMissionToRuntime(id)
 		writeJSON(w, http.StatusOK, map[string]any{"success": true, "mission_id": id, "mission_key": item.MissionKey})
 	default:
 		http.Error(w, "지원하지 않는 요청 방식입니다", http.StatusMethodNotAllowed)
@@ -2097,6 +2099,7 @@ func handleMissionByID(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		syncMissionToRuntime(id)
 		writeJSON(w, http.StatusOK, map[string]any{"success": true})
 	default:
 		http.Error(w, "지원하지 않는 요청 방식입니다", http.StatusMethodNotAllowed)
@@ -2162,6 +2165,7 @@ func handleThemes(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		id, _ := res.LastInsertId()
+		syncThemeToRuntime(id)
 		writeJSON(w, http.StatusOK, map[string]any{"success": true, "theme_id": id})
 	default:
 		http.Error(w, "??嚥?援????釉먯뒜???袁⑸젻泳?????낇돲??", http.StatusMethodNotAllowed)
@@ -2213,6 +2217,7 @@ func handleThemeRoutes(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
+			syncThemeToRuntime(themeID)
 			writeJSON(w, http.StatusOK, map[string]any{"success": true})
 		default:
 			http.Error(w, "??嚥?援????釉먯뒜???袁⑸젻泳?????낇돲??", http.StatusMethodNotAllowed)
@@ -2256,6 +2261,7 @@ func handleThemeRoutes(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
+			syncThemeLinksToRuntime(themeID)
 			writeJSON(w, http.StatusOK, map[string]any{"success": true})
 		default:
 			http.Error(w, "지원하지 않는 요청 방식입니다", http.StatusMethodNotAllowed)
@@ -2276,6 +2282,7 @@ func handleThemeRoutes(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	syncThemeLinksToRuntime(themeID)
 	writeJSON(w, http.StatusOK, map[string]any{"success": true})
 }
 

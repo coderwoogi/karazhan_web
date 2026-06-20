@@ -675,6 +675,14 @@ const instanceBonusApp = (() => {
         }, '가져오기 확인');
     }
 
+    async function publishRuntime() {
+        return modalConfirm('현재 발행된 미션·테마·연결을 게임 서버 런타임 테이블에 전체 반영하시겠습니까?\n저장 시 자동으로 반영되지만, 이 작업은 발행+활성 상태 기준으로 풀을 전체 재동기화합니다.', async () => {
+            const result = await runProgress('게임 서버 런타임 테이블에 반영하는 중입니다.', () => api('/instance-bonus/publish-runtime', { method: 'POST', body: '{}' }));
+            const s = (result && result.summary) || {};
+            await modalAlert(`서버 반영이 완료되었습니다.\n미션 ${s.missions || 0}건\n테마 ${s.themes || 0}건\n연결 ${s.links || 0}건`, '서버 반영 완료');
+        }, '서버 반영 확인');
+    }
+
     function resetMapsFilter() {
         ['maps-filter-map-id', 'maps-filter-enabled'].forEach((id) => { const el = document.getElementById(id); if (el) el.value = ''; });
         state.mapsPage = 1;
@@ -1756,6 +1764,7 @@ function openRewardForm(data = null) {
         init,
         refreshCurrent,
         importRuntimeData,
+        publishRuntime,
         loadMaps,
         resetMapsFilter,
         openMapForm,
