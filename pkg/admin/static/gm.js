@@ -989,17 +989,68 @@ var GMManager = {
         }
     },
 
+    promotionRewardRowHtml(entry, count) {
+        const e = Number(entry || 0) || '';
+        const c = Number(count || 1) || 1;
+        return `<div class="gm-reward-item-row" style="display:flex; gap:6px; align-items:center; margin-bottom:6px;">
+            <button type="button" class="btn" style="padding:6px 10px; white-space:nowrap;" onclick="GMManager.pickPromotionRewardItem(this)"><i class="fas fa-search"></i> 아이템</button>
+            <input type="number" class="gm-reward-item-entry" placeholder="Entry" style="width:120px;" value="${e}">
+            <span class="gm-reward-item-name" style="font-size:0.8rem; color:var(--text-secondary); min-width:90px;"></span>
+            <input type="number" class="gm-reward-item-count" placeholder="수량" min="1" style="width:90px;" value="${c}">
+            <button type="button" class="btn btn-stop" style="padding:6px 10px;" onclick="GMManager.removePromotionRewardItemRow(this)">삭제</button>
+        </div>`;
+    },
+
+    addPromotionRewardItemRow(entry, count) {
+        const box = document.getElementById('gm-promotion-reward-items');
+        if (!box) return;
+        if (box.querySelectorAll('.gm-reward-item-row').length >= 12) {
+            ModalUtils.showAlert('보상 아이템은 최대 12개까지 추가할 수 있습니다.');
+            return;
+        }
+        box.insertAdjacentHTML('beforeend', this.promotionRewardRowHtml(entry, count));
+    },
+
+    removePromotionRewardItemRow(btn) {
+        const row = btn && btn.closest ? btn.closest('.gm-reward-item-row') : null;
+        if (row) row.remove();
+    },
+
+    pickPromotionRewardItem(btn) {
+        const row = btn && btn.closest ? btn.closest('.gm-reward-item-row') : null;
+        if (!row) return;
+        if (typeof ItemPicker === 'undefined' || typeof ItemPicker.open !== 'function') {
+            ModalUtils.showAlert('아이템 선택기를 불러올 수 없습니다.');
+            return;
+        }
+        ItemPicker.open((item) => {
+            if (!item || !item.entry) return;
+            const entryEl = row.querySelector('.gm-reward-item-entry');
+            const nameEl = row.querySelector('.gm-reward-item-name');
+            if (entryEl) entryEl.value = item.entry;
+            if (nameEl) nameEl.textContent = item.name || ('#' + item.entry);
+        });
+    },
+
     async loadPromotionRewardConfig() {
         try {
             const res = await fetch('/api/board/promotion/reward/config');
             if (!res.ok) return;
             const data = await res.json();
-            const entryEl = document.getElementById('gm-promotion-reward-entry');
-            const countEl = document.getElementById('gm-promotion-reward-count');
+            const box = document.getElementById('gm-promotion-reward-items');
+            const goldEl = document.getElementById('gm-promotion-reward-gold');
             const subjectEl = document.getElementById('gm-promotion-reward-subject');
             const bodyEl = document.getElementById('gm-promotion-reward-body');
-            if (entryEl) entryEl.value = Number(data.item_entry || 0) || '';
-            if (countEl) countEl.value = Number(data.item_count || 1) || 1;
+            if (box) {
+                box.innerHTML = '';
+                const items = Array.isArray(data.items) ? data.items : [];
+                if (items.length === 0) {
+                    this.addPromotionRewardItemRow('', 1);
+                } else {
+                    items.forEach((it) => this.addPromotionRewardItemRow(it.item_entry, it.item_count));
+                }
+            }
+            if (goldEl) goldEl.value = Number(data.reward_gold || 0) || 0;
             if (subjectEl) subjectEl.value = String(data.mail_subject || '');
             if (bodyEl) bodyEl.value = String(data.mail_body || '');
         } catch (e) {
@@ -1008,24 +1059,27 @@ var GMManager = {
     },
 
     async savePromotionRewardConfig() {
-        const itemEntry = Number(document.getElementById('gm-promotion-reward-entry')?.value || 0);
-        const itemCount = Number(document.getElementById('gm-promotion-reward-count')?.value || 0);
+        const box = document.getElementById('gm-promotion-reward-items');
+        const items = [];
+        if (box) {
+            box.querySelectorAll('.gm-reward-item-row').forEach((row) => {
+                const entry = Number(row.querySelector('.gm-reward-item-entry')?.value || 0);
+                const count = Number(row.querySelector('.gm-reward-item-count')?.value || 0);
+                if (entry > 0 && count > 0) items.push({ item_entry: entry, item_count: count });
+            });
+        }
+        const gold = Number(document.getElementById('gm-promotion-reward-gold')?.value || 0);
         const mailSubject = String(document.getElementById('gm-promotion-reward-subject')?.value || '').trim();
         const mailBody = String(document.getElementById('gm-promotion-reward-body')?.value || '').trim();
-        if (!itemEntry || itemEntry <= 0 || !itemCount || itemCount <= 0) {
-            ModalUtils.showAlert('보상 아이템 Entry와 수량을 입력하세요.');
+        if (items.length === 0 && (!gold || gold <= 0)) {
+            ModalUtils.showAlert('보상 아이템 또는 골드를 1개 이상 설정하세요.');
             return;
         }
         try {
             const res = await fetch('/api/board/promotion/reward/config', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    item_entry: itemEntry,
-                    item_count: itemCount,
-                    mail_subject: mailSubject,
-                    mail_body: mailBody
-                })
+                body: JSON.stringify({ items: items, reward_gold: gold, mail_subject: mailSubject, mail_body: mailBody })
             });
             if (!res.ok) {
                 const msg = await res.text();

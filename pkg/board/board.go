@@ -242,6 +242,11 @@ func ensureBoardSchema(db *sql.DB) {
 		_, _ = db.Exec("ALTER TABLE web_promotion_links ADD COLUMN review_status VARCHAR(20) DEFAULT 'pending'")
 		_, _ = db.Exec("ALTER TABLE web_promotion_links ADD COLUMN review_at DATETIME NULL")
 		_, _ = db.Exec("ALTER TABLE web_promotion_links ADD COLUMN review_by INT DEFAULT 0")
+		// 홍보 보상: 다중 아이템(JSON) + 골드 지원
+		_, _ = db.Exec("ALTER TABLE web_promotion_reward_config ADD COLUMN reward_gold BIGINT NOT NULL DEFAULT 0")
+		_, _ = db.Exec("ALTER TABLE web_promotion_reward_config ADD COLUMN reward_items TEXT")
+		_, _ = db.Exec("ALTER TABLE web_promotion_reward_log ADD COLUMN reward_gold BIGINT NOT NULL DEFAULT 0")
+		_, _ = db.Exec("ALTER TABLE web_promotion_reward_log ADD COLUMN reward_items TEXT")
 
 		_, _ = db.Exec("UPDATE web_boards SET min_web_read = IFNULL(min_gm_read, 0) WHERE min_web_read = 0")
 		_, _ = db.Exec("UPDATE web_boards SET min_web_write = IFNULL(min_gm_write, 0) WHERE min_web_write = 0")
@@ -2077,6 +2082,45 @@ func PromotionLinkReviewHandler(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(map[string]string{"status": "success"})
 }
 
+const maxPromotionRewardItems = 12
+const maxPromotionRewardGold = 200000
+
+type promoRewardItem struct {
+	ItemEntry int `json:"item_entry"`
+	ItemCount int `json:"item_count"`
+}
+
+// loadPromotionRewardConfig: 보상 설정(아이템 목록·골드·우편 제목/내용)을 읽는다.
+// reward_items(JSON)가 비어 있으면 레거시 단일 item_entry/item_count로 폴백한다.
+func loadPromotionRewardConfig(db *sql.DB) ([]promoRewardItem, int64, string, string, error) {
+	var legacyEntry, legacyCount int
+	var gold int64
+	var itemsJSON, subject, body string
+	err := db.QueryRow(`SELECT IFNULL(item_entry,0), IFNULL(item_count,1), IFNULL(reward_gold,0), IFNULL(reward_items,''), IFNULL(mail_subject,''), IFNULL(mail_body,'') FROM web_promotion_reward_config WHERE id=1`).
+		Scan(&legacyEntry, &legacyCount, &gold, &itemsJSON, &subject, &body)
+	if err != nil {
+		return nil, 0, "", "", err
+	}
+	items := make([]promoRewardItem, 0, maxPromotionRewardItems)
+	if strings.TrimSpace(itemsJSON) != "" {
+		var parsed []promoRewardItem
+		if jerr := json.Unmarshal([]byte(itemsJSON), &parsed); jerr == nil {
+			for _, it := range parsed {
+				if it.ItemEntry > 0 && it.ItemCount > 0 {
+					items = append(items, promoRewardItem{ItemEntry: it.ItemEntry, ItemCount: it.ItemCount})
+				}
+			}
+		}
+	}
+	if len(items) == 0 && legacyEntry > 0 && legacyCount > 0 {
+		items = append(items, promoRewardItem{ItemEntry: legacyEntry, ItemCount: legacyCount})
+	}
+	if len(items) > maxPromotionRewardItems {
+		items = items[:maxPromotionRewardItems]
+	}
+	return items, gold, subject, body, nil
+}
+
 func PromotionRewardConfigHandler(w http.ResponseWriter, r *http.Request) {
 	user, err := getUserInfo(r)
 	if err != nil {
@@ -2096,20 +2140,19 @@ func PromotionRewardConfigHandler(w http.ResponseWriter, r *http.Request) {
 	defer db.Close()
 
 	if r.Method == http.MethodGet {
-		var itemEntry, itemCount int
-		var subject, body string
-		err := db.QueryRow("SELECT IFNULL(item_entry,0), IFNULL(item_count,1), IFNULL(mail_subject,''), IFNULL(mail_body,'') FROM web_promotion_reward_config WHERE id=1").
-			Scan(&itemEntry, &itemCount, &subject, &body)
-		if err != nil {
-			http.Error(w, "蹂댁긽 ?ㅼ젙??遺덈윭?ㅼ? 紐삵뻽?듬땲??", http.StatusInternalServerError)
+		items, gold, subject, body, lerr := loadPromotionRewardConfig(db)
+		if lerr != nil {
+			http.Error(w, "보상 설정을 불러오지 못했습니다.", http.StatusInternalServerError)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
-			"item_entry":   itemEntry,
-			"item_count":   itemCount,
+			"items":        items,
+			"reward_gold":  gold,
 			"mail_subject": subject,
 			"mail_body":    body,
+			"max_items":    maxPromotionRewardItems,
+			"max_gold":     maxPromotionRewardGold,
 		})
 		return
 	}
@@ -2120,34 +2163,118 @@ func PromotionRewardConfigHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		ItemEntry   int    `json:"item_entry"`
-		ItemCount   int    `json:"item_count"`
-		MailSubject string `json:"mail_subject"`
-		MailBody    string `json:"mail_body"`
+		Items       []promoRewardItem `json:"items"`
+		RewardGold  int64             `json:"reward_gold"`
+		MailSubject string            `json:"mail_subject"`
+		MailBody    string            `json:"mail_body"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request", http.StatusBadRequest)
+		http.Error(w, "잘못된 요청입니다.", http.StatusBadRequest)
 		return
 	}
-	if req.ItemEntry <= 0 || req.ItemCount <= 0 {
-		http.Error(w, "蹂댁긽 ?꾩씠??踰덊샇/?섎웾???뺤씤?섏꽭??", http.StatusBadRequest)
+
+	cleanItems := make([]promoRewardItem, 0, maxPromotionRewardItems)
+	for _, it := range req.Items {
+		if it.ItemEntry > 0 && it.ItemCount > 0 {
+			cleanItems = append(cleanItems, promoRewardItem{ItemEntry: it.ItemEntry, ItemCount: it.ItemCount})
+		}
+	}
+	if len(cleanItems) > maxPromotionRewardItems {
+		http.Error(w, fmt.Sprintf("보상 아이템은 최대 %d개까지 가능합니다.", maxPromotionRewardItems), http.StatusBadRequest)
+		return
+	}
+	if req.RewardGold < 0 {
+		req.RewardGold = 0
+	}
+	if req.RewardGold > maxPromotionRewardGold {
+		http.Error(w, fmt.Sprintf("골드는 최대 %d까지 설정할 수 있습니다.", maxPromotionRewardGold), http.StatusBadRequest)
+		return
+	}
+	if len(cleanItems) == 0 && req.RewardGold <= 0 {
+		http.Error(w, "보상 아이템 또는 골드를 1개 이상 설정하세요.", http.StatusBadRequest)
 		return
 	}
 	if strings.TrimSpace(req.MailSubject) == "" {
-		req.MailSubject = "?띾낫 寃뚯떆??蹂댁긽"
+		req.MailSubject = "홍보 게시판 보상"
 	}
 	if strings.TrimSpace(req.MailBody) == "" {
-		req.MailBody = "?띾낫 李몄뿬 蹂댁긽?낅땲??"
+		req.MailBody = "홍보 참여 보상입니다."
 	}
+
+	itemsJSON, _ := json.Marshal(cleanItems)
+	firstEntry, firstCount := 0, 0
+	if len(cleanItems) > 0 {
+		firstEntry = cleanItems[0].ItemEntry
+		firstCount = cleanItems[0].ItemCount
+	}
+
 	_, err = db.Exec(`UPDATE web_promotion_reward_config
-		SET item_entry=?, item_count=?, mail_subject=?, mail_body=?, updated_by=?
-		WHERE id=1`, req.ItemEntry, req.ItemCount, req.MailSubject, req.MailBody, user.AccountID)
+		SET item_entry=?, item_count=?, reward_items=?, reward_gold=?, mail_subject=?, mail_body=?, updated_by=?
+		WHERE id=1`, firstEntry, firstCount, string(itemsJSON), req.RewardGold, req.MailSubject, req.MailBody, user.AccountID)
 	if err != nil {
-		http.Error(w, "蹂댁긽 ?ㅼ젙 ??μ뿉 ?ㅽ뙣?덉뒿?덈떎.", http.StatusInternalServerError)
+		http.Error(w, "보상 설정 저장에 실패했습니다.", http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]string{"status": "success"})
+}
+
+// sendPromotionRewardMail: 여러 아이템(우편 첨부 최대 12개) + 골드를 한 통의 우편으로 발송한다.
+func sendPromotionRewardMail(receiverName, subject, body string, items []promoRewardItem, goldCopper int64) error {
+	if len(items) == 0 && goldCopper <= 0 {
+		return fmt.Errorf("지급할 보상이 없습니다.")
+	}
+	if len(items) > maxPromotionRewardItems {
+		items = items[:maxPromotionRewardItems]
+	}
+	if goldCopper < 0 {
+		goldCopper = 0
+	}
+
+	charDB, err := sql.Open("mysql", config.CharactersDSNWithParams("charset=utf8mb4&parseTime=true&loc=Local"))
+	if err != nil {
+		return err
+	}
+	defer charDB.Close()
+
+	var charGUID int
+	if err := charDB.QueryRow("SELECT guid FROM characters WHERE name = ?", receiverName).Scan(&charGUID); err != nil {
+		return err
+	}
+	var nextMailID int
+	if err := charDB.QueryRow("SELECT IFNULL(MAX(id), 0) + 1 FROM mail").Scan(&nextMailID); err != nil {
+		return err
+	}
+	hasItems := 0
+	if len(items) > 0 {
+		hasItems = 1
+	}
+	_, err = charDB.Exec(`
+		INSERT INTO mail (id, messageType, stationery, mailTemplateId, sender, receiver, subject, body, has_items, expire_time, deliver_time, money, cod, checked)
+		VALUES (?, 0, 41, 0, 0, ?, ?, ?, ?, UNIX_TIMESTAMP() + 2592000, UNIX_TIMESTAMP(), ?, 0, 0)
+	`, nextMailID, charGUID, subject, body, hasItems, goldCopper)
+	if err != nil {
+		return err
+	}
+	if len(items) > 0 {
+		var baseItemGUID int
+		if err := charDB.QueryRow("SELECT IFNULL(MAX(guid), 0) + 1 FROM item_instance").Scan(&baseItemGUID); err != nil {
+			return err
+		}
+		for i, it := range items {
+			itemGUID := baseItemGUID + i
+			if _, err := charDB.Exec(`
+				INSERT INTO item_instance (guid, itemEntry, owner_guid, creatorGuid, count, enchantments)
+				VALUES (?, ?, ?, 0, ?, '')
+			`, itemGUID, it.ItemEntry, charGUID, it.ItemCount); err != nil {
+				return err
+			}
+			if _, err := charDB.Exec("INSERT INTO mail_items (mail_id, item_guid, receiver) VALUES (?, ?, ?)", nextMailID, itemGUID, charGUID); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func PromotionVerifyConfigHandler(w http.ResponseWriter, r *http.Request) {
@@ -2226,50 +2353,6 @@ func resolvePromotionReceiverCharacter(updateDB *sql.DB, accountID int) string {
 	var name string
 	_ = charDB.QueryRow("SELECT name FROM characters WHERE account = ? ORDER BY guid ASC LIMIT 1", accountID).Scan(&name)
 	return strings.TrimSpace(name)
-}
-
-func sendPromotionItemMail(receiverName, subject, body string, itemEntry, itemCount int) error {
-	charDB, err := sql.Open("mysql", config.CharactersDSNWithParams("charset=utf8mb4&parseTime=true&loc=Local"))
-	if err != nil {
-		return err
-	}
-	defer charDB.Close()
-
-	var charGUID int
-	if err := charDB.QueryRow("SELECT guid FROM characters WHERE name = ?", receiverName).Scan(&charGUID); err != nil {
-		return err
-	}
-	var nextMailID int
-	if err := charDB.QueryRow("SELECT IFNULL(MAX(id), 0) + 1 FROM mail").Scan(&nextMailID); err != nil {
-		return err
-	}
-	hasItems := 0
-	if itemEntry > 0 && itemCount > 0 {
-		hasItems = 1
-	}
-	_, err = charDB.Exec(`
-		INSERT INTO mail (id, messageType, stationery, mailTemplateId, sender, receiver, subject, body, has_items, expire_time, deliver_time, money, cod, checked)
-		VALUES (?, 0, 41, 0, 0, ?, ?, ?, ?, UNIX_TIMESTAMP() + 2592000, UNIX_TIMESTAMP(), 0, 0, 0)
-	`, nextMailID, charGUID, subject, body, hasItems)
-	if err != nil {
-		return err
-	}
-	if hasItems == 1 {
-		var nextItemGUID int
-		if err := charDB.QueryRow("SELECT IFNULL(MAX(guid), 0) + 1 FROM item_instance").Scan(&nextItemGUID); err != nil {
-			return err
-		}
-		if _, err := charDB.Exec(`
-			INSERT INTO item_instance (guid, itemEntry, owner_guid, creatorGuid, count, enchantments)
-			VALUES (?, ?, ?, 0, ?, '')
-		`, nextItemGUID, itemEntry, charGUID, itemCount); err != nil {
-			return err
-		}
-		if _, err := charDB.Exec("INSERT INTO mail_items (mail_id, item_guid, receiver) VALUES (?, ?, ?)", nextMailID, nextItemGUID, charGUID); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func verifyPromotionURL(targetURL, title, author, requiredText, requiredImage string) (bool, string) {
@@ -2698,37 +2781,43 @@ func PromotionRewardPayHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	var existing int
 	if err := db.QueryRow("SELECT IFNULL(id,0) FROM web_promotion_reward_log WHERE post_id = ?", req.PostID).Scan(&existing); err == nil && existing > 0 {
-		http.Error(w, "???? 嶺뚯솘??ル留㏆쭕??롪퍓???룸Ь????낅퉵??", http.StatusConflict)
+		http.Error(w, "이미 보상이 지급된 게시글입니다.", http.StatusConflict)
 		return
 	}
 
-	var itemEntry, itemCount int
-	var subject, body string
-	if err := db.QueryRow("SELECT IFNULL(item_entry,0), IFNULL(item_count,1), IFNULL(mail_subject,''), IFNULL(mail_body,'') FROM web_promotion_reward_config WHERE id=1").
-		Scan(&itemEntry, &itemCount, &subject, &body); err != nil {
-		http.Error(w, "?곌랜?삥묾????깆젧??嶺뚢돦堉??????怨룸????덈펲.", http.StatusInternalServerError)
+	items, gold, subject, body, lerr := loadPromotionRewardConfig(db)
+	if lerr != nil {
+		http.Error(w, "보상 설정을 불러오지 못했습니다.", http.StatusInternalServerError)
 		return
 	}
-	if itemEntry <= 0 || itemCount <= 0 {
-		http.Error(w, "?곌랜?삥묾??熬곣뫗逾?????깆젧???熬곣뫗???紐껊퉵??", http.StatusBadRequest)
+	if len(items) == 0 && gold <= 0 {
+		http.Error(w, "지급할 보상(아이템/골드)이 설정되어 있지 않습니다.", http.StatusBadRequest)
 		return
 	}
 
 	receiverName := resolvePromotionReceiverCharacter(db, accountID)
 	if receiverName == "" {
-		http.Error(w, "??濡?／ 嶺?큔???? 嶺뚢돦堉??????怨룸????덈펲.", http.StatusBadRequest)
-		return
-	}
-	if err := sendPromotionItemMail(receiverName, subject, body, itemEntry, itemCount); err != nil {
-		http.Error(w, "??⑥쥓??嶺뚯솘??????덉넮: "+err.Error(), http.StatusInternalServerError)
+		http.Error(w, "수령할 캐릭터를 찾을 수 없습니다.", http.StatusBadRequest)
 		return
 	}
 
+	goldCopper := gold * 10000
+	if err := sendPromotionRewardMail(receiverName, subject, body, items, goldCopper); err != nil {
+		http.Error(w, "우편 발송에 실패했습니다: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	itemsJSON, _ := json.Marshal(items)
+	firstEntry, firstCount := 0, 0
+	if len(items) > 0 {
+		firstEntry = items[0].ItemEntry
+		firstCount = items[0].ItemCount
+	}
 	if _, err := db.Exec(`
-		INSERT INTO web_promotion_reward_log (post_id, account_id, receiver_name, item_entry, item_count, paid_by)
-		VALUES (?, ?, ?, ?, ?, ?)
-	`, req.PostID, accountID, receiverName, itemEntry, itemCount, user.AccountID); err != nil {
-		http.Error(w, "嶺뚯솘????β돦裕???リ옇?▽빳????덉넮: "+err.Error(), http.StatusInternalServerError)
+		INSERT INTO web_promotion_reward_log (post_id, account_id, receiver_name, item_entry, item_count, reward_items, reward_gold, paid_by)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+	`, req.PostID, accountID, receiverName, firstEntry, firstCount, string(itemsJSON), gold, user.AccountID); err != nil {
+		http.Error(w, "보상 지급 기록 저장에 실패했습니다: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 

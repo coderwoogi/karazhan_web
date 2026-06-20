@@ -2618,24 +2618,27 @@
                                     <div style="font-size:0.85rem; color:var(--text-secondary);">보상 아이템을 설정 후 각 게시글에서 우편 지급할 수 있습니다.</div>
                                 </div>
                             </div>
-                            <div class="filter-bar" style="margin-bottom:1rem;">
-                                <div class="filter-group" style="width:170px;">
-                                    <label>보상 아이템 Entry</label>
-                                    <input id="gm-promotion-reward-entry" type="number" placeholder="예: 600002">
+                            <div class="filter-bar" style="margin-bottom:1rem; flex-direction:column; align-items:stretch; gap:12px;">
+                                <div class="filter-group">
+                                    <label>보상 아이템 (우편 첨부, 최대 12개)</label>
+                                    <div id="gm-promotion-reward-items"></div>
+                                    <button type="button" class="btn" style="margin-top:6px; width:fit-content;" onclick="GMManager.addPromotionRewardItemRow()"><i class="fas fa-plus"></i> 아이템 추가</button>
                                 </div>
-                                <div class="filter-group" style="width:130px;">
-                                    <label>수량</label>
-                                    <input id="gm-promotion-reward-count" type="number" value="1">
+                                <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
+                                    <div class="filter-group" style="width:160px;">
+                                        <label>골드 (우편 첨부)</label>
+                                        <input id="gm-promotion-reward-gold" type="number" min="0" value="0" placeholder="0">
+                                    </div>
+                                    <div class="filter-group" style="flex:1; min-width:160px;">
+                                        <label>우편 제목</label>
+                                        <input id="gm-promotion-reward-subject" type="text" placeholder="홍보 게시판 보상">
+                                    </div>
+                                    <div class="filter-group" style="flex:1; min-width:160px;">
+                                        <label>우편 내용</label>
+                                        <input id="gm-promotion-reward-body" type="text" placeholder="홍보 참여 보상입니다.">
+                                    </div>
+                                    <button class="btn btn-primary" style="align-self:flex-end;" onclick="GMManager.savePromotionRewardConfig()">보상 저장</button>
                                 </div>
-                                <div class="filter-group" style="flex:1;">
-                                    <label>우편 제목</label>
-                                    <input id="gm-promotion-reward-subject" type="text" placeholder="홍보 게시판 보상">
-                                </div>
-                                <div class="filter-group" style="flex:1;">
-                                    <label>우편 내용</label>
-                                    <input id="gm-promotion-reward-body" type="text" placeholder="홍보 참여 보상입니다.">
-                                </div>
-                                <button class="btn btn-primary" style="align-self:flex-end;" onclick="GMManager.savePromotionRewardConfig()">보상 저장</button>
                             </div>
                             <div class="filter-bar" style="margin-bottom:1rem; display:flex; align-items:flex-end; gap:12px; flex-wrap:wrap;">
                                 <div class="filter-group" style="flex:0 0 360px; max-width:360px;">
