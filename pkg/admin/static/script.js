@@ -737,7 +737,7 @@ function openTab(tabName, options) {
             openAccountSubTab('list');
         }
         if (tabName === 'gm' && typeof GMManager?.switchSubTab === 'function') {
-            GMManager.switchSubTab('todos'); // 업무관리(투두) 기본 로딩
+            GMManager.switchSubTab('promotion'); // 홍보 기본 로딩 (업무/일정/홈슬라이더/모듈/메모 메뉴 제거됨)
         }
         if (tabName === 'content' && typeof openContentSubTab === 'function') {
             openContentSubTab('blackmarket'); // 콘텐츠 관리 기본 탭(암시장 품목)
@@ -753,8 +753,9 @@ function openTab(tabName, options) {
         if (typeof loadAuctionPage === 'function') loadAuctionPage();
     } else if (tabName === 'home') {
         loadHomeSlider();
-        loadOnlineCount();
         loadHomeNoticePreview();
+    } else if (tabName === 'online-players') {
+        loadOnlineCount();
     } else if (tabName === 'calendar-page') {
         initUserCalendarTab();
     } else if (tabName === 'board') {
@@ -6495,7 +6496,7 @@ async function checkAdminAccess() {
 
             
             const isAdmin = data.webRank >= 2 || data.permissions.admin_all === true;
-            const coreMenus = ['home', 'mypage', 'board', 'mailbox', 'carddraw', 'connect-guide', 'shop', 'promotion'];
+            const coreMenus = ['home', 'mypage', 'board', 'mailbox', 'carddraw', 'connect-guide', 'shop', 'promotion', 'online-players'];
             
             // 1. Dynamic Main Menus
             const allTabBtns = document.querySelectorAll('[id^="tab-btn-"]');
@@ -6543,6 +6544,17 @@ async function checkAdminAccess() {
                 separator.style.display = isAdmin || hasAdmin ? 'block' : 'none';
             }
             applyAdminMenuOrder();
+
+            // 관리자 운영 대시보드 (홈 탭 상단) — 일반 유저에겐 숨김
+            if (isAdmin) {
+                const dash = document.getElementById('admin-dashboard');
+                if (dash) { dash.style.display = 'block'; loadAdminDashboard(); }
+                // 관리자 홈은 대시보드로 대체 — 유저용 공지/슬라이더는 숨김
+                const noticeBlock = document.getElementById('home-user-notice');
+                if (noticeBlock) noticeBlock.style.display = 'none';
+                const sliderBlock = document.getElementById('home-slider-block');
+                if (sliderBlock) sliderBlock.style.display = 'none';
+            }
         } catch(err) {
             console.error("[ERROR] Failed to show admin tabs:", err);
         }
@@ -6581,30 +6593,277 @@ function updateWelcomeMsg(name, points, hasEnhancedStone = null) {
 
 async function applyAdminMenuOrder() {
     try {
-        const res = await fetch('/api/admin/menu-order/list');
-        if (!res.ok) return;
-        const data = await res.json();
-        const adminMenuIds = new Set(['gm', 'remote', 'update', 'account', 'ban', 'logs', 'stats', 'content', 'board-admin', 'bug-report-admin', 'notification-admin', 'shop-admin', 'instance-bonus-admin']);
-        const menus = (Array.isArray(data.menus) ? data.menus : []).filter(m => adminMenuIds.has(m.id));
-        if (!menus.length) return;
+        // 관리자 메뉴를 도메인 그룹으로 묶어 표시한다.
+        //  - 각 그룹 '내부' 순서: DB(menu-order)·CMS 드래그 순서변경 결과를 그대로 반영
+        //  - 그룹 구성/순서: 아래 GROUPS 정의를 따른다
+        let dbOrder = [];
+        try {
+            const res = await fetch('/api/admin/menu-order/list');
+            if (res.ok) {
+                const data = await res.json();
+                dbOrder = (Array.isArray(data.menus) ? data.menus : []).map(m => m.id);
+            }
+        } catch (_) { /* 순서 조회 실패 시 정의된 기본 순서 사용 */ }
 
         const nav = document.querySelector('.sidebar-nav');
-        if (!nav) return;
         const adminSep = document.getElementById('admin-separator');
+        if (!nav || !adminSep || adminSep.parentElement !== nav) return;
+
+        const GROUPS = [
+            { title: '회원·캐릭터',    ids: ['account', 'ban'] },
+            { title: '분석·로그',      ids: ['stats', 'logs'] },
+            { title: '콘텐츠·게시판',  ids: ['board-admin', 'content', 'bug-report-admin', 'public-home-admin'] },
+            { title: '상점·보상·경제', ids: ['shop-admin', 'instance-bonus-admin'] },
+            { title: '운영·지원',      ids: ['remote', 'update', 'notification-admin', 'gm'] },
+        ];
+
+        const rank = new Map(dbOrder.map((id, i) => [id, i]));
+        const byDb = (ids) => [...ids].sort((a, b) =>
+            (rank.has(a) ? rank.get(a) : 9999) - (rank.has(b) ? rank.get(b) : 9999));
+
+        const makeHeader = (title) => {
+            const h = document.createElement('div');
+            h.className = 'admin-group-header';
+            h.textContent = title;
+            h.style.cssText = 'margin:14px 0 6px 0; padding-left:15px; font-size:0.7rem; color:#64748b; font-weight:700; text-transform:uppercase; letter-spacing:0.05em;';
+            return h;
+        };
+
+        // 재실행(권한 갱신 등) 시 중복 헤더 제거 — 버튼은 appendChild로 이동되어 중복되지 않음.
+        nav.querySelectorAll('.admin-group-header').forEach(el => el.remove());
+
         const frag = document.createDocumentFragment();
-        menus.forEach(m => {
-            const btn = document.getElementById(`tab-btn-${m.id}`);
-            if (btn) frag.appendChild(btn);
+        GROUPS.forEach(group => {
+            const btns = byDb(group.ids)
+                .map(id => document.getElementById(`tab-btn-${id}`))
+                .filter(Boolean);
+            if (!btns.length) return;
+            // 그룹 내 표시 가능한 버튼이 하나도 없으면 헤더 생략(버튼은 이동/숨김 상태 유지).
+            if (btns.some(b => b.style.display !== 'none')) frag.appendChild(makeHeader(group.title));
+            btns.forEach(b => frag.appendChild(b));
         });
-        if (!frag.childNodes.length) return;
-        if (adminSep && adminSep.parentElement === nav) {
-            nav.insertBefore(frag, adminSep.nextSibling);
-        } else {
-            nav.appendChild(frag);
-        }
+
+        if (frag.childNodes.length) adminSep.after(frag);
     } catch (e) {
-        // ignore ordering fetch errors
+        // ignore ordering errors
     }
+}
+
+// 일별 시계열 여러 개를 공통 날짜축으로 정렬 (Chart.js는 index 매핑이라 날짜 합집합 필요)
+function mergeDailySeries(seriesArr) {
+    const set = new Set();
+    seriesArr.forEach(s => (s.labels || []).forEach(l => set.add(l)));
+    const labels = Array.from(set).sort();
+    const datasets = seriesArr.map(s => {
+        const m = {};
+        (s.labels || []).forEach((l, i) => { m[l] = (s.values || [])[i]; });
+        return { label: s.label, color: s.color, values: labels.map(l => (m[l] != null ? m[l] : 0)) };
+    });
+    return { labels, datasets };
+}
+
+// 대시보드 멀티라인 차트 (renderStatsChart는 단일 시리즈만 지원하므로 별도 렌더)
+window.__dashCharts = window.__dashCharts || {};
+function renderDashMultiLine(canvasId, key, labels, datasets, valueFormatter) {
+    const el = document.getElementById(canvasId);
+    if (!el || typeof Chart === 'undefined') return;
+    if (window.__dashCharts[key]) { try { window.__dashCharts[key].destroy(); } catch (e) { } }
+    window.__dashCharts[key] = new Chart(el.getContext('2d'), {
+        type: 'line',
+        data: {
+            labels: labels || [],
+            datasets: (datasets || []).map(d => ({
+                label: d.label, data: d.values || [],
+                borderColor: d.color, backgroundColor: 'transparent',
+                borderWidth: 2, tension: 0.3, pointRadius: 0
+            }))
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+                legend: { display: true, position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } },
+                tooltip: valueFormatter ? { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${valueFormatter(Number(ctx.raw || 0))}` } } : undefined
+            },
+            scales: { y: { beginAtZero: true, ticks: { font: { size: 9 } } }, x: { ticks: { maxTicksLimit: 7, font: { size: 9 } } } }
+        }
+    });
+}
+
+// 관리자 홈 운영 대시보드 (표준/B): KPI8 + 처리대기5 + 추세3 + 분포3 + 운영·경제3
+async function loadAdminDashboard() {
+    const wrap = document.getElementById('admin-dashboard');
+    if (!wrap) return;
+    let data;
+    try {
+        const res = await fetch('/api/admin/dashboard/summary');
+        if (!res.ok) { wrap.style.display = 'none'; return; }
+        data = await res.json();
+    } catch (e) { wrap.style.display = 'none'; return; }
+
+    const kpi = data.kpi || {};
+    const q = data.queue || {};
+    const c = data.charts || {};
+    const ret = data.retention || {};
+    const fmt = (n) => Number(n || 0).toLocaleString();
+    const cd = (o) => (o && Array.isArray(o.labels)) ? o : { labels: [], values: [] };
+    const shortLabels = (arr) => (arr || []).map(l => (typeof l === 'string' && l.length >= 10) ? l.slice(5) : l);
+    const esc = (s) => String(s).replace(/"/g, '&quot;');
+
+    // ── KPI 8 ──
+    const kpiDefs = [
+        { v: fmt(kpi.online),        k: '현재 접속' },
+        { v: fmt(kpi.signupToday),   k: '오늘 가입' },
+        { v: fmt(kpi.revenueToday),  k: '오늘 매출(P)' },
+        { v: fmt(kpi.revenue30),     k: '30일 매출(P)' },
+        { v: fmt(kpi.activeSubs),    k: '활성 구독' },
+        { v: fmt(kpi.accountsTotal), k: '누적 계정' },
+        { v: (kpi.retentionD7 != null ? kpi.retentionD7 : 0) + '%', k: 'D7 리텐션' },
+        { v: fmt(kpi.sanctionsActive), k: '활성 제재' },
+    ];
+    const kpiHtml = kpiDefs.map(d => `
+        <div class="card" style="margin:0; padding:13px 15px;">
+            <div style="font-size:1.4rem; font-weight:800; color:var(--text-primary); line-height:1.05;">${d.v}</div>
+            <div style="font-size:0.76rem; color:var(--text-secondary); margin-top:3px;">${d.k}</div>
+        </div>`).join('');
+
+    // ── 처리 대기 5 ──
+    const queueDefs = [
+        { n: q.inquiries,   t: '문의 처리대기', act: "openTab('gm'); if(window.GMManager){GMManager.switchSubTab('inquiries');}" },
+        { n: q.promoReview, t: '홍보 검수대기', act: "openTab('gm'); if(window.GMManager){GMManager.switchSubTab('promotion');}" },
+        { n: q.promoReward, t: '홍보 보상대기', act: "openTab('gm'); if(window.GMManager){GMManager.switchSubTab('promotion');}" },
+        { n: q.orders,      t: '상점 주문대기', act: "openTab('shop-admin');" },
+        { n: q.bugs,        t: '버그 미처리',   act: "openTab('bug-report-admin');" },
+    ];
+    const queueHtml = queueDefs.map(d => {
+        const n = Number(d.n || 0);
+        const al = n > 0;
+        return `
+        <div class="card" onclick="${esc(d.act)}" style="margin:0; padding:13px 15px; cursor:pointer; position:relative; opacity:${al ? '1' : '0.6'}; ${al ? 'border-color:rgba(224,82,74,0.5); background:linear-gradient(180deg, rgba(224,82,74,0.08), transparent);' : ''}">
+            <div style="font-size:1.5rem; font-weight:800; color:${al ? '#e0524a' : 'var(--text-secondary)'}; line-height:1;">${n}</div>
+            <div style="font-size:0.78rem; color:var(--text-secondary); margin-top:4px;">${d.t}</div>
+            <i class="fas fa-arrow-right" style="position:absolute; top:12px; right:13px; font-size:0.7rem; color:var(--text-secondary); opacity:0.6;"></i>
+        </div>`;
+    }).join('');
+
+    // ── 인기 상품 TOP5 (HTML 막대) ──
+    const tp = cd(c.topProducts);
+    const tpMax = Math.max(1, ...(tp.values.length ? tp.values.map(Number) : [1]));
+    const tpColors = ['#6d5cff', '#7c6bff', '#8b7cff', '#a99dff', '#c4bbff'];
+    const tpHtml = tp.labels.length
+        ? tp.labels.slice(0, 5).map((lab, i) => {
+            const v = Number(tp.values[i] || 0);
+            return `<div style="margin:7px 0;">
+                <div style="display:flex; justify-content:space-between; font-size:0.78rem; color:var(--text-secondary); margin-bottom:3px;"><span>${esc(lab)}</span><span>${fmt(v)}</span></div>
+                <div style="height:8px; background:rgba(148,163,184,0.18); border-radius:6px; overflow:hidden;"><div style="height:100%; width:${Math.round(v / tpMax * 100)}%; background:${tpColors[i % tpColors.length]}; border-radius:6px;"></div></div>
+            </div>`;
+        }).join('')
+        : '<div style="color:var(--text-secondary); font-size:0.82rem; padding:8px 0;">데이터 없음</div>';
+
+    // ── 리텐션 게이지 (HTML conic-gradient) ──
+    const ring = (val, color, label) => {
+        const v = Math.max(0, Math.min(100, Number(val || 0)));
+        return `<div style="text-align:center;">
+            <div style="width:74px; height:74px; border-radius:50%; margin:0 auto; background:conic-gradient(${color} 0 ${v}%, rgba(148,163,184,0.18) ${v}% 100%); display:flex; align-items:center; justify-content:center;">
+                <div style="width:52px; height:52px; border-radius:50%; background:var(--card-bg, #ffffff); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:0.85rem; color:var(--text-primary);">${v}%</div>
+            </div>
+            <div style="font-size:0.74rem; color:var(--text-secondary); margin-top:6px;">${label}</div>
+        </div>`;
+    };
+    const retentionHtml = `<div style="display:flex; justify-content:space-around; gap:8px; padding-top:6px;">
+        ${ring(ret.d1, '#10b981', 'D1')}${ring(ret.d7, '#6d5cff', 'D7')}${ring(ret.d30, '#f59e0b', 'D30')}
+    </div>`;
+
+    const cardTop = (title) => `<div style="font-size:0.86rem; font-weight:700; color:var(--text-primary); margin-bottom:8px;">${title}</div>`;
+
+    wrap.innerHTML = `
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+            <div style="font-size:1.05rem; font-weight:800; color:var(--text-primary);"><i class="fas fa-gauge-high"></i> 운영 대시보드</div>
+            <button class="refresh-btn" style="padding:4px 10px; font-size:0.78rem;" onclick="loadAdminDashboard()">새로고침</button>
+        </div>
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(120px, 1fr)); gap:10px; margin-bottom:16px;">${kpiHtml}</div>
+
+        <div style="font-size:0.78rem; color:var(--text-secondary); font-weight:700; letter-spacing:0.03em; margin-bottom:8px;">⚡ 처리 대기 <span style="font-weight:400; opacity:0.7;">(클릭 시 해당 관리 화면으로 이동)</span></div>
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:10px; margin-bottom:16px;">${queueHtml}</div>
+
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:12px; margin-bottom:12px;">
+            <div class="card" style="margin:0; padding:13px 15px;">${cardTop('최근 14일 매출 (P)')}<div style="height:170px;"><canvas id="dash-rev"></canvas></div></div>
+            <div class="card" style="margin:0; padding:13px 15px;">${cardTop('가입 · 로그인 14일')}<div style="height:170px;"><canvas id="dash-userflow"></canvas></div></div>
+            <div class="card" style="margin:0; padding:13px 15px;">${cardTop('카드뽑기 14일')}<div style="height:170px;"><canvas id="dash-draw"></canvas></div></div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:12px; margin-bottom:12px;">
+            <div class="card" style="margin:0; padding:13px 15px;">${cardTop('카드 등급 분포')}<div style="height:170px;"><canvas id="dash-rarity"></canvas></div></div>
+            <div class="card" style="margin:0; padding:13px 15px;">${cardTop('시간대별 접속')}<div style="height:170px;"><canvas id="dash-hourly"></canvas></div></div>
+            <div class="card" style="margin:0; padding:13px 15px;">${cardTop('인기 상품 TOP5')}${tpHtml}</div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:12px;">
+            <div class="card" style="margin:0; padding:13px 15px;">${cardTop('서버 상태')}<div id="dash-server-status" style="font-size:0.85rem; color:var(--text-secondary);">불러오는 중...</div></div>
+            <div class="card" style="margin:0; padding:13px 15px;">${cardTop('리텐션 (D1·D7·D30)')}${retentionHtml}</div>
+            <div class="card" style="margin:0; padding:13px 15px;">${cardTop('경제 — 골드 · 암시장')}<div style="height:150px;"><canvas id="dash-economy"></canvas></div></div>
+        </div>`;
+
+    // ── 단일 시리즈 차트 (renderStatsChart 재사용) ──
+    if (typeof renderStatsChart === 'function') {
+        const rev = cd(c.revenueDaily);
+        renderStatsChart('dash-rev', 'dashRev', 'line', shortLabels(rev.labels), rev.values, '매출(P)', 'rgba(109,92,255,0.85)', false, (v) => fmt(v) + ' P');
+        const draw = cd(c.drawDaily);
+        renderStatsChart('dash-draw', 'dashDraw', 'bar', shortLabels(draw.labels), draw.values, '뽑기', 'rgba(139,92,246,0.7)');
+        const rar = cd(c.drawRarity);
+        renderStatsChart('dash-rarity', 'dashRarity', 'doughnut', rar.labels, rar.values, '등급', null, true);
+        const hr = cd(c.hourly);
+        renderStatsChart('dash-hourly', 'dashHourly', 'bar', hr.labels, hr.values, '접속', 'rgba(6,182,212,0.7)');
+    }
+
+    // ── 멀티라인 (가입·로그인 / 골드·암시장) ──
+    const uf = mergeDailySeries([
+        { label: '로그인', color: '#10b981', labels: cd(c.loginDaily).labels, values: cd(c.loginDaily).values },
+        { label: '가입',   color: '#3b82f6', labels: cd(c.signupDaily).labels, values: cd(c.signupDaily).values },
+    ]);
+    renderDashMultiLine('dash-userflow', 'dashUser', shortLabels(uf.labels), uf.datasets);
+    const eco = mergeDailySeries([
+        { label: '골드 이동', color: '#f59e0b', labels: cd(c.goldDaily).labels, values: cd(c.goldDaily).values },
+        { label: '암시장',   color: '#06b6d4', labels: cd(c.coinMarketDaily).labels, values: cd(c.coinMarketDaily).values },
+    ]);
+    renderDashMultiLine('dash-economy', 'dashEco', shortLabels(eco.labels), eco.datasets, (v) => fmt(v));
+
+    // 서버 상태창
+    loadDashServerStatus(kpi.online);
+}
+
+// 대시보드 서버 상태창: /api/server/home-stats (월드 가동 여부 · 업타임 · 최근 강화/시련)
+async function loadDashServerStatus(onlineCount) {
+    const el = document.getElementById('dash-server-status');
+    if (!el) return;
+    let s = {};
+    try {
+        const res = await fetch('/api/server/home-stats');
+        if (res.ok) s = await res.json();
+    } catch (e) { /* 상태 조회 실패 시 무시 */ }
+
+    const e = (v) => String(v == null ? '' : v).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    const running = !!s.world_running;
+    const up = Number(s.uptime_seconds || 0);
+    const upText = up > 0
+        ? `${Math.floor(up / 86400)}일 ${Math.floor((up % 86400) / 3600)}시간 ${Math.floor((up % 3600) / 60)}분`
+        : '-';
+    const online = (onlineCount != null) ? Number(onlineCount) : 0;
+    const enh = s.enhance || null;
+    const tr = s.trial || null;
+
+    const row = (label, val, color) => `
+        <div style="display:flex; justify-content:space-between; gap:10px; padding:7px 0; border-bottom:1px dashed rgba(148,163,184,0.25);">
+            <span style="color:var(--text-secondary);">${label}</span>
+            <span style="font-weight:700; ${color ? `color:${color};` : 'color:var(--text-primary);'} text-align:right;">${val}</span>
+        </div>`;
+
+    let html = '';
+    html += row('월드 서버', running ? '🟢 가동 중' : '🔴 중지', running ? '#16a34a' : '#e0524a');
+    html += row('업타임', upText);
+    html += row('현재 접속', online.toLocaleString() + '명');
+    if (enh && enh.item) html += row('최근 강화 성공', `${e(enh.player)} · ${e(enh.item)} +${Number(enh.level || 0)}`);
+    if (tr && (tr.player || tr.stage)) html += row('최근 시련 돌파', `${e(tr.player)}${tr.stage ? ' · ' + e(tr.stage) : ''}`);
+    el.innerHTML = html;
 }
 
 // Modal Utilities using SweetAlert2

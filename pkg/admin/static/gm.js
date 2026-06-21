@@ -60,7 +60,7 @@ var GMManager = {
         });
 
         // Activate button
-        const tabs = ['todos', 'events', 'home-slider', 'promotion', 'inquiries', 'modules', 'memos'];
+        const tabs = ['promotion', 'inquiries'];
         const index = tabs.indexOf(tabName);
         if (index !== -1) {
              const btns = document.querySelectorAll('#gm .log-sub-tab-btn');
@@ -2198,7 +2198,6 @@ function loadGMModules() {
 const originalOpenTab = window.openTab;
 window.openTab = function(tabName) {
     if (originalOpenTab) originalOpenTab(tabName);
-    if (tabName === 'gm') {
-        loadGMModules();
-    }
+    // GM 진입 시 기본 서브탭(홍보) 로딩은 script.js openTab에서 switchSubTab('promotion') 처리.
+    // 모듈분석 메뉴 제거에 따라 loadGMModules() 자동 호출 제거.
 };

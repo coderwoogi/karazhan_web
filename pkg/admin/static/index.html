@@ -548,6 +548,9 @@
                 <div id="tab-btn-connect-guide" class="nav-item tab-btn" onclick="openTab('connect-guide')">
                     <i class="fas fa-link"></i> 접속방법
                 </div>
+                <div id="tab-btn-online-players" class="nav-item tab-btn" onclick="openTab('online-players')">
+                    <i class="fas fa-users"></i> 접속 플레이어
+                </div>
                 <div id="tab-btn-carddraw" class="nav-item tab-btn" onclick="location.href='/carddraw/'">
                     <img src="/img/pack.png" alt="카드뽑기" style="width:18px; height:18px; object-fit:contain;"> 카드뽑기
                 </div>
@@ -590,7 +593,7 @@
                 관리자 메뉴
             </div>
             <div id="tab-btn-gm" class="nav-item tab-btn" onclick="openTab('gm')" style="display: none;">
-                <i class="fas fa-tools"></i> GM 관리
+                <i class="fas fa-headset"></i> 지원·홍보
             </div>
             <div id="tab-btn-remote" class="nav-item tab-btn" onclick="openTab('remote')" style="display: none;">
                 <i class="fas fa-server"></i> 서버 관리
@@ -1437,7 +1440,9 @@
             </div>
 
             <div id="home" class="tab-content active">
-                <div style="margin-bottom: 1.25rem;">
+                <!-- 관리자 운영 대시보드 (webRank>=2 일 때만 표시, 일반 유저에겐 숨김) -->
+                <div id="admin-dashboard" style="display:none; margin-bottom:1.25rem;"></div>
+                <div id="home-user-notice" style="margin-bottom: 1.25rem;">
                     <div class="card" style="margin-bottom:0;">
                         <div style="width:100%; padding: 0.95rem 1.1rem; cursor:pointer;" onclick="openHomeNoticePost(window.__homeLatestNoticeId || 0)">
                             <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:4px;">
@@ -1450,7 +1455,7 @@
                     </div>
                 </div>
 
-                <div class="home-second-row">
+                <div id="home-slider-block" class="home-second-row">
                     <!-- Home Slider Section -->
                     <div class="card home-calendar-card" style="display: flex; flex-direction: column;">
                         <div class="card-header home-slider-header">
@@ -1468,8 +1473,11 @@
 
                 </div>
 
-                <!-- Online Players Section -->
-                <div id="home-characters" class="card" style="display: none;">
+            </div>
+
+            <!-- 접속 플레이어 (홈에서 분리한 별도 메뉴) -->
+            <div id="online-players" class="tab-content">
+                <div id="home-characters" class="card">
                     <div class="card-header">
                         <h2>접속 중인 플레이어</h2>
                         <button onclick="loadOnlineCount()" class="refresh-btn">새로고침</button>
@@ -2401,17 +2409,9 @@
 
                     <!-- GM Sub-Tabs -->
                     <div class="log-sub-tabs">
-                        <button class="log-sub-tab-btn active" onclick="GMManager.switchSubTab('todos')">업무
-                            관리</button>
-                        <button class="log-sub-tab-btn" onclick="GMManager.switchSubTab('events')">서버
-                            일정</button>
-                        <button class="log-sub-tab-btn" onclick="GMManager.switchSubTab('home-slider')">홈슬라이더</button>
-                        <button class="log-sub-tab-btn" onclick="GMManager.switchSubTab('promotion')">홍보</button>
+                        <button class="log-sub-tab-btn active" onclick="GMManager.switchSubTab('promotion')">홍보</button>
                         <button class="log-sub-tab-btn" onclick="GMManager.switchSubTab('inquiries')">문의
                             관리</button>
-                        <button class="log-sub-tab-btn" onclick="GMManager.switchSubTab('modules')">모듈
-                            분석</button>
-                        <button class="log-sub-tab-btn" onclick="GMManager.switchSubTab('memos')">전체 메모</button>
                     </div>
 
                     <!-- Ensure FontAwesome is loaded if not already -->
@@ -2420,7 +2420,8 @@
 
                     <!-- To-Do Sub-Tab (Calendar View) -->
                     <!-- To-Do Sub-Tab (Calendar View) -->
-                    <div id="gm-sub-todos" class="log-sub-content active"
+                    <div id="gm-sub-todos" class="log-sub-content" style="display:none;"
+                        data-removed="true"
                         style="padding: 10px; display:flex; flex-direction:row; flex-wrap:nowrap; gap:15px; height:calc(100vh - 120px); min-height:800px;">
                         <!-- Calendar Section -->
                         <div class="card"
@@ -5065,7 +5066,7 @@
         </div>
 
         <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-        <script src="script.js?v=admin_fix_v40"></script>
+        <script src="script.js?v=admin_fix_v42"></script>
         <script src="notification.js?v=4"></script>
         <script src="shop.js?v=5"></script>
         <script src="auction.js?v=6"></script>
@@ -5074,7 +5075,7 @@
         <script src="account.js?v=31"></script>
         <script src="char_items_modal.js?v=29"></script>
         <script src="item_picker.js?v=29"></script>
-        <script src="gm.js?v=30"></script>
+        <script src="gm.js?v=31"></script>
         <script src="emoji-picker.js"></script>
         <script src="click-spark.js?v=1"></script>
         <!-- Main Character Selection Modal -->

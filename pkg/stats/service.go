@@ -62,6 +62,9 @@ func RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/admin/menu-order/list", handleAdminMenuOrderList)
 	mux.HandleFunc("/api/admin/menu-order/update", handleAdminMenuOrderUpdate)
 
+	// 관리자 홈(운영 대시보드) 요약 - KPI + 처리대기 큐 (webRank>=2)
+	mux.HandleFunc("/api/admin/dashboard/summary", handleAdminDashboardSummary)
+
 	// Content - BlackMarket
 	mux.HandleFunc("/api/content/blackmarket/list", handleBlackMarketItemList)
 	mux.HandleFunc("/api/content/blackmarket/add", handleBlackMarketItemAdd)
