@@ -513,6 +513,22 @@ func sendShopPurchaseWhisper(characterName, itemName string, r *http.Request) er
 	return runShopWorldCommand(command, r)
 }
 
+// SendGameWhisper: 인게임 귓속말 발송(.karazhan whisper). 보상 우편 발송 후 재접속 안내 등
+// 다른 패키지(board 등)에서 선술집과 동일한 귓속말 경로를 재사용하기 위해 공개한다.
+func SendGameWhisper(characterName, message string, r *http.Request) error {
+	character := strings.TrimSpace(characterName)
+	msg := strings.TrimSpace(message)
+	if character == "" || msg == "" {
+		return fmt.Errorf("whisper target or message is empty")
+	}
+	command := strings.Join([]string{
+		".karazhan whisper",
+		quoteShopWorldCommandArg(character),
+		quoteShopWorldCommandArg(msg),
+	}, " ")
+	return runShopWorldCommand(command, r)
+}
+
 func formatShopPointAmount(value int) string {
 	sign := ""
 	if value < 0 {

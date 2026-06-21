@@ -2251,7 +2251,7 @@ func sendPromotionRewardMail(receiverName, subject, body string, items []promoRe
 	}
 	_, err = charDB.Exec(`
 		INSERT INTO mail (id, messageType, stationery, mailTemplateId, sender, receiver, subject, body, has_items, expire_time, deliver_time, money, cod, checked)
-		VALUES (?, 0, 41, 0, 0, ?, ?, ?, ?, UNIX_TIMESTAMP() + 2592000, UNIX_TIMESTAMP(), ?, 0, 0)
+		VALUES (?, 0, 61, 0, 0, ?, ?, ?, ?, UNIX_TIMESTAMP() + 2592000, UNIX_TIMESTAMP(), ?, 0, 0)
 	`, nextMailID, charGUID, subject, body, hasItems, goldCopper)
 	if err != nil {
 		return err
@@ -2805,6 +2805,10 @@ func PromotionRewardPayHandler(w http.ResponseWriter, r *http.Request) {
 	if err := sendPromotionRewardMail(receiverName, subject, body, items, goldCopper); err != nil {
 		http.Error(w, "우편 발송에 실패했습니다: "+err.Error(), http.StatusInternalServerError)
 		return
+	}
+	// 선술집 구매와 동일하게, 발송 후 재접속 안내 귓속말(베스트 에포트).
+	if werr := stats.SendGameWhisper(receiverName, "홍보 보상이 우편으로 발송됐습니다. 재접속 후 확인 바랍니다.", r); werr != nil {
+		log.Printf("[promotion/reward] whisper skipped receiver=%s err=%v", receiverName, werr)
 	}
 
 	itemsJSON, _ := json.Marshal(items)
