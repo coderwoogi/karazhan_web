@@ -10,6 +10,7 @@ import (
 	"karazhan/pkg/config"
 	"karazhan/pkg/services"
 	"karazhan/pkg/stats"
+	"karazhan/pkg/utils"
 	"log"
 	"net/http"
 	"net/url"
@@ -2231,6 +2232,8 @@ func sendPromotionRewardMail(receiverName, subject, body string, items []promoRe
 		goldCopper = 0
 	}
 
+	// Validate the recipient exists up front for a friendly error (the worldserver
+	// would also reject an unknown name).
 	charDB, err := sql.Open("mysql", config.CharactersDSNWithParams("charset=utf8mb4&parseTime=true&loc=Local"))
 	if err != nil {
 		return err
@@ -2241,40 +2244,18 @@ func sendPromotionRewardMail(receiverName, subject, body string, items []promoRe
 	if err := charDB.QueryRow("SELECT guid FROM characters WHERE name = ?", receiverName).Scan(&charGUID); err != nil {
 		return err
 	}
-	var nextMailID int
-	if err := charDB.QueryRow("SELECT IFNULL(MAX(id), 0) + 1 FROM mail").Scan(&nextMailID); err != nil {
-		return err
-	}
-	hasItems := 0
-	if len(items) > 0 {
-		hasItems = 1
-	}
-	_, err = charDB.Exec(`
-		INSERT INTO mail (id, messageType, stationery, mailTemplateId, sender, receiver, subject, body, has_items, expire_time, deliver_time, money, cod, checked)
-		VALUES (?, 0, 61, 0, 0, ?, ?, ?, ?, UNIX_TIMESTAMP() + 2592000, UNIX_TIMESTAMP(), ?, 0, 0)
-	`, nextMailID, charGUID, subject, body, hasItems, goldCopper)
-	if err != nil {
-		return err
-	}
-	if len(items) > 0 {
-		var baseItemGUID int
-		if err := charDB.QueryRow("SELECT IFNULL(MAX(guid), 0) + 1 FROM item_instance").Scan(&baseItemGUID); err != nil {
-			return err
-		}
-		for i, it := range items {
-			itemGUID := baseItemGUID + i
-			if _, err := charDB.Exec(`
-				INSERT INTO item_instance (guid, itemEntry, owner_guid, creatorGuid, count, enchantments)
-				VALUES (?, ?, ?, 0, ?, '')
-			`, itemGUID, it.ItemEntry, charGUID, it.ItemCount); err != nil {
-				return err
-			}
-			if _, err := charDB.Exec("INSERT INTO mail_items (mail_id, item_guid, receiver) VALUES (?, ?, ?)", nextMailID, itemGUID, charGUID); err != nil {
-				return err
-			}
+
+	mailItems := make([]utils.WorldMailItem, 0, len(items))
+	for _, it := range items {
+		if it.ItemEntry > 0 && it.ItemCount > 0 {
+			mailItems = append(mailItems, utils.WorldMailItem{Entry: it.ItemEntry, Count: it.ItemCount})
 		}
 	}
-	return nil
+
+	// Deliver through the worldserver via SOAP so the server allocates the mail id
+	// (avoiding the duplicate-primary-key collisions that silently break player mail)
+	// and notifies online recipients immediately.
+	return utils.SendWorldMail(receiverName, subject, body, mailItems, goldCopper)
 }
 
 func PromotionVerifyConfigHandler(w http.ResponseWriter, r *http.Request) {

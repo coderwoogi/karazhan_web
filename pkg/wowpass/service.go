@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"karazhan/pkg/config"
+	"karazhan/pkg/utils"
 	"log"
 	"math/rand"
 	"net/http"
@@ -1106,23 +1107,6 @@ func sendCarddrawRewardBundleMail(selected cardCharacter, rewards []carddrawRewa
 		return fmt.Errorf("empty reward payload")
 	}
 
-	charDB, err := sql.Open("mysql", charDSN)
-	if err != nil {
-		return err
-	}
-	defer charDB.Close()
-
-	tx, err := charDB.Begin()
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-
-	var nextMailID int64
-	if err := tx.QueryRow("SELECT IFNULL(MAX(id), 0) + 1 FROM mail").Scan(&nextMailID); err != nil {
-		return err
-	}
-
 	subjectLabel := "보상 묶음"
 	if len(rewards) == 1 {
 		subjectLabel = strings.TrimSpace(rewards[0].Name)
@@ -1132,6 +1116,7 @@ func sendCarddrawRewardBundleMail(selected cardCharacter, rewards []carddrawRewa
 	}
 	subject := fmt.Sprintf("[카드뽑기] %s", subjectLabel)
 	bodyLines := []string{"카드뽑기 보상이 도착했습니다.", ""}
+	mailItems := make([]utils.WorldMailItem, 0, len(rewards))
 	for _, reward := range rewards {
 		if reward.ItemEntry <= 0 || reward.Quantity <= 0 {
 			return fmt.Errorf("invalid reward payload")
@@ -1141,34 +1126,18 @@ func sendCarddrawRewardBundleMail(selected cardCharacter, rewards []carddrawRewa
 			rewardName = fmt.Sprintf("아이템 %d", reward.ItemEntry)
 		}
 		bodyLines = append(bodyLines, fmt.Sprintf("- %s x%d", rewardName, reward.Quantity))
+		mailItems = append(mailItems, utils.WorldMailItem{Entry: reward.ItemEntry, Count: reward.Quantity})
 	}
 	body := strings.Join(bodyLines, "\n")
-	if _, err := tx.Exec(`
-		INSERT INTO mail (id, messageType, stationery, mailTemplateId, sender, receiver, subject, body, has_items, expire_time, deliver_time, money, cod, checked)
-		VALUES (?, 0, 41, 0, 0, ?, ?, ?, 1, UNIX_TIMESTAMP() + 2592000, UNIX_TIMESTAMP(), 0, 0, 0)
-	`, nextMailID, selected.Guid, subject, body); err != nil {
+
+	// Deliver through the worldserver via SOAP so the server allocates the mail id
+	// (avoiding the duplicate-primary-key collisions that silently break player mail)
+	// and notifies online recipients immediately.
+	if err := utils.SendWorldItemMail(selected.Name, subject, body, mailItems); err != nil {
 		return err
 	}
 
-	var nextItemGUID int64
-	if err := tx.QueryRow("SELECT IFNULL(MAX(guid), 0) + 1 FROM item_instance").Scan(&nextItemGUID); err != nil {
-		return err
-	}
-
-	for _, reward := range rewards {
-		if _, err := tx.Exec(`
-			INSERT INTO item_instance (guid, itemEntry, owner_guid, creatorGuid, count, enchantments)
-			VALUES (?, ?, ?, 0, ?, '')
-		`, nextItemGUID, reward.ItemEntry, selected.Guid, reward.Quantity); err != nil {
-			return err
-		}
-
-		if _, err := tx.Exec("INSERT INTO mail_items (mail_id, item_guid, receiver) VALUES (?, ?, ?)", nextMailID, nextItemGUID, selected.Guid); err != nil {
-			return err
-		}
-		nextItemGUID++
-	}
-
+	// Best-effort audit log (separate table, unrelated to mail-id allocation).
 	ip := ""
 	if r != nil {
 		ip = r.RemoteAddr
@@ -1185,14 +1154,17 @@ func sendCarddrawRewardBundleMail(selected cardCharacter, rewards []carddrawRewa
 			firstEntry = reward.ItemEntry
 		}
 	}
-	if _, err := tx.Exec(`
-		INSERT INTO web_mail_log (sender_username, receiver_name, subject, body, item_entry, item_count, gold, ip_address)
-		VALUES (?, ?, ?, ?, ?, ?, 0, ?)
-	`, senderUsername, selected.Name, subject, body, firstEntry, totalCount, ip); err != nil {
-		log.Printf("[carddraw/mail] web_mail_log insert skipped char=%s rewards=%d err=%v", selected.Name, len(rewards), err)
+	if charDB, err := sql.Open("mysql", charDSN); err == nil {
+		defer charDB.Close()
+		if _, err := charDB.Exec(`
+			INSERT INTO web_mail_log (sender_username, receiver_name, subject, body, item_entry, item_count, gold, ip_address)
+			VALUES (?, ?, ?, ?, ?, ?, 0, ?)
+		`, senderUsername, selected.Name, subject, body, firstEntry, totalCount, ip); err != nil {
+			log.Printf("[carddraw/mail] web_mail_log insert skipped char=%s rewards=%d err=%v", selected.Name, len(rewards), err)
+		}
 	}
 
-	return tx.Commit()
+	return nil
 }
 
 func handleCardDrawDraw(w http.ResponseWriter, r *http.Request) {
