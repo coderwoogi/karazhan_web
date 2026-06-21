@@ -1056,7 +1056,6 @@ function App() {
   const [notificationCenterLoading, setNotificationCenterLoading] = useState(false)
   const [commentHighlightRequest, setCommentHighlightRequest] = useState({ tick: 0, fallbackLatest: false })
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
-  const [expandedUpdatePostId, setExpandedUpdatePostId] = useState(0)
   const [userLoaded, setUserLoaded] = useState(false)
   const [dialogState, setDialogState] = useState({ open: false, mode: 'alert', title: '안내', message: '' })
   const [myPageCharacters, setMyPageCharacters] = useState([])
@@ -1840,7 +1839,6 @@ function App() {
       setDetail(null)
       setCommentInput('')
       setReplyTarget(null)
-      setExpandedUpdatePostId(0)
       setPage(1)
       setSearch('')
       setSearchInput('')
@@ -3764,12 +3762,8 @@ function App() {
                             return (
                               <li
                                 key={post.id}
-                                className={`public-mobile-post${isUpdateBoard ? ' public-update-post' : ''}${Number(expandedUpdatePostId) === Number(post.id) ? ' expanded' : ''}`}
+                                className={`public-mobile-post${isUpdateBoard ? ' public-update-post' : ''}`}
                                 onClick={() => {
-                                  if (isUpdateBoard) {
-                                    setExpandedUpdatePostId((prev) => (Number(prev) === Number(post.id) ? 0 : Number(post.id)))
-                                    return
-                                  }
                                   navigate(`/?board=${encodeURIComponent(currentBoard.id)}&post=${post.id}`)
                                 }}
                               >
@@ -3786,12 +3780,6 @@ function App() {
                                 <span className="public-mobile-post-meta public-mobile-post-author">{renderAuthor(post.author_name, post.is_staff_author, post.has_enhanced_stone)}</span>
                                 <span className="public-mobile-post-date"><span className="pmp-date-full">{formatDate(post.created_at)}</span><span className="pmp-date-short">{formatDate(post.created_at).slice(0, 10).replace(/-/g, '.')}</span></span>
                                 <span className="public-mobile-post-count">{isBugReportBoard ? renderSupportStatus(post.inquiry_status) : Number(post.views || 0).toLocaleString()}</span>
-                                {isUpdateBoard && Number(expandedUpdatePostId) === Number(post.id) ? (
-                                  <span className="public-update-body" onClick={(event) => event.stopPropagation()}>
-                                    <span>{summary || '상세 내용을 확인하려면 게시글 상세로 이동해 주세요.'}</span>
-                                    <button className="btn btn-small" type="button" onClick={() => navigate(`/?board=${encodeURIComponent(currentBoard.id)}&post=${post.id}`)}>상세보기</button>
-                                  </span>
-                                ) : null}
                               </li>
                             )
                           })}
