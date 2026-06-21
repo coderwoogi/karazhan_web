@@ -6547,6 +6547,12 @@ async function checkAdminAccess() {
 
             // 관리자 운영 대시보드 (홈 탭 상단) — 일반 유저에겐 숨김
             if (isAdmin) {
+                // 관리자 콘솔 다크모드 (유저 화면 라이트와 분리)
+                document.body.classList.add('admin-dark');
+                if (typeof Chart !== 'undefined') {
+                    Chart.defaults.color = '#9aa6c0';               // 축/범례 글자
+                    Chart.defaults.borderColor = 'rgba(255,255,255,0.08)'; // 격자선
+                }
                 const dash = document.getElementById('admin-dashboard');
                 if (dash) { dash.style.display = 'block'; loadAdminDashboard(); }
                 // 관리자 홈은 대시보드로 대체 — 유저용 공지/슬라이더는 숨김
@@ -6689,6 +6695,28 @@ function renderDashMultiLine(canvasId, key, labels, datasets, valueFormatter) {
     });
 }
 
+// 대시보드 도넛 (등급 분포) — 시안 색상 고정
+function renderDashDoughnut(canvasId, key, labels, values, colors) {
+    const el = document.getElementById(canvasId);
+    if (!el || typeof Chart === 'undefined') return;
+    if (window.__dashCharts[key]) { try { window.__dashCharts[key].destroy(); } catch (e) { } }
+    window.__dashCharts[key] = new Chart(el.getContext('2d'), {
+        type: 'doughnut',
+        data: {
+            labels: labels || [],
+            datasets: [{
+                data: values || [],
+                backgroundColor: (labels || []).map((_, i) => colors[i % colors.length]),
+                borderColor: 'rgba(0,0,0,0.25)', borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { position: 'right', labels: { boxWidth: 10, font: { size: 10 } } } }
+        }
+    });
+}
+
 // 관리자 홈 운영 대시보드 (표준/B): KPI8 + 처리대기5 + 추세3 + 분포3 + 운영·경제3
 async function loadAdminDashboard() {
     const wrap = document.getElementById('admin-dashboard');
@@ -6748,7 +6776,7 @@ async function loadAdminDashboard() {
     // ── 인기 상품 TOP5 (HTML 막대) ──
     const tp = cd(c.topProducts);
     const tpMax = Math.max(1, ...(tp.values.length ? tp.values.map(Number) : [1]));
-    const tpColors = ['#6d5cff', '#7c6bff', '#8b7cff', '#a99dff', '#c4bbff'];
+    const tpColors = ['#7c8cff', '#8f9cff', '#a3adff', '#c0c7ff', '#d4d9ff'];
     const tpHtml = tp.labels.length
         ? tp.labels.slice(0, 5).map((lab, i) => {
             const v = Number(tp.values[i] || 0);
@@ -6770,7 +6798,7 @@ async function loadAdminDashboard() {
         </div>`;
     };
     const retentionHtml = `<div style="display:flex; justify-content:space-around; gap:8px; padding-top:6px;">
-        ${ring(ret.d1, '#10b981', 'D1')}${ring(ret.d7, '#6d5cff', 'D7')}${ring(ret.d30, '#f59e0b', 'D30')}
+        ${ring(ret.d1, '#34d399', 'D1')}${ring(ret.d7, '#7c8cff', 'D7')}${ring(ret.d30, '#fbbf24', 'D30')}
     </div>`;
 
     const cardTop = (title) => `<div style="font-size:0.86rem; font-weight:700; color:var(--text-primary); margin-bottom:8px;">${title}</div>`;
@@ -6806,24 +6834,25 @@ async function loadAdminDashboard() {
     // ── 단일 시리즈 차트 (renderStatsChart 재사용) ──
     if (typeof renderStatsChart === 'function') {
         const rev = cd(c.revenueDaily);
-        renderStatsChart('dash-rev', 'dashRev', 'line', shortLabels(rev.labels), rev.values, '매출(P)', 'rgba(109,92,255,0.85)', false, (v) => fmt(v) + ' P');
+        renderStatsChart('dash-rev', 'dashRev', 'line', shortLabels(rev.labels), rev.values, '매출(P)', '#7c8cff', false, (v) => fmt(v) + ' P');
         const draw = cd(c.drawDaily);
-        renderStatsChart('dash-draw', 'dashDraw', 'bar', shortLabels(draw.labels), draw.values, '뽑기', 'rgba(139,92,246,0.7)');
-        const rar = cd(c.drawRarity);
-        renderStatsChart('dash-rarity', 'dashRarity', 'doughnut', rar.labels, rar.values, '등급', null, true);
+        renderStatsChart('dash-draw', 'dashDraw', 'bar', shortLabels(draw.labels), draw.values, '뽑기', '#a78bfa');
         const hr = cd(c.hourly);
-        renderStatsChart('dash-hourly', 'dashHourly', 'bar', hr.labels, hr.values, '접속', 'rgba(6,182,212,0.7)');
+        renderStatsChart('dash-hourly', 'dashHourly', 'bar', hr.labels, hr.values, '접속', '#22d3ee');
     }
+    // 카드 등급 분포 (시안 색상 도넛)
+    const rar = cd(c.drawRarity);
+    renderDashDoughnut('dash-rarity', 'dashRarity', rar.labels, rar.values, ['#5d6b8a', '#60a5fa', '#a78bfa', '#fbbf24', '#f87171', '#22d3ee']);
 
     // ── 멀티라인 (가입·로그인 / 골드·암시장) ──
     const uf = mergeDailySeries([
-        { label: '로그인', color: '#10b981', labels: cd(c.loginDaily).labels, values: cd(c.loginDaily).values },
-        { label: '가입',   color: '#3b82f6', labels: cd(c.signupDaily).labels, values: cd(c.signupDaily).values },
+        { label: '로그인', color: '#34d399', labels: cd(c.loginDaily).labels, values: cd(c.loginDaily).values },
+        { label: '가입',   color: '#60a5fa', labels: cd(c.signupDaily).labels, values: cd(c.signupDaily).values },
     ]);
     renderDashMultiLine('dash-userflow', 'dashUser', shortLabels(uf.labels), uf.datasets);
     const eco = mergeDailySeries([
-        { label: '골드 이동', color: '#f59e0b', labels: cd(c.goldDaily).labels, values: cd(c.goldDaily).values },
-        { label: '암시장',   color: '#06b6d4', labels: cd(c.coinMarketDaily).labels, values: cd(c.coinMarketDaily).values },
+        { label: '골드 이동', color: '#fbbf24', labels: cd(c.goldDaily).labels, values: cd(c.goldDaily).values },
+        { label: '암시장',   color: '#22d3ee', labels: cd(c.coinMarketDaily).labels, values: cd(c.coinMarketDaily).values },
     ]);
     renderDashMultiLine('dash-economy', 'dashEco', shortLabels(eco.labels), eco.datasets, (v) => fmt(v));
 
