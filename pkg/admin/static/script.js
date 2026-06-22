@@ -665,6 +665,51 @@ function restoreFromHistoryState(state) {
     return true;
 }
 
+// ── 새로고침 시 마지막 메뉴(탭) 위치 유지 ──────────────────────────
+function getSavedActiveTab() {
+    try { return sessionStorage.getItem('adminActiveTab') || ''; } catch (_) { return ''; }
+}
+function setSavedActiveTab(tabName) {
+    try { sessionStorage.setItem('adminActiveTab', String(tabName || '')); } catch (_) { /* storage 불가 시 무시 */ }
+}
+
+// 최초 진입/새로고침 시 마지막 메뉴 위치를 1회만 복원한다.
+// 권한 로딩이 끝난 뒤(checkAdminAccess 말미) 호출되어야 한다.
+function restoreInitialTab() {
+    if (window.__initialTabRestored) return;
+    window.__initialTabRestored = true;
+
+    const replaceTabState = (tab) => {
+        if (window.history && typeof window.history.replaceState === 'function') {
+            window.history.replaceState(buildAppState(tab), '', window.location.pathname + window.location.search);
+        }
+    };
+
+    // 1) history.state 우선 — 게시판/버그리포트 등 하위 상태까지 함께 복원
+    const st = window.history.state;
+    if (st && st.app === true && st.tab && st.tab !== 'home') {
+        if (restoreFromHistoryState(st)) return;
+    }
+
+    // 2) sessionStorage 에 저장된 탭 (권한상 보이는 경우에만 복원)
+    const saved = getSavedActiveTab();
+    if (saved && saved !== 'home' && saved !== 'shop') {
+        const target = document.getElementById(saved);
+        const btn = document.getElementById(saved === 'calendar-page' ? 'tab-btn-calendar' : `tab-btn-${saved}`);
+        const visible = !btn || getComputedStyle(btn).display !== 'none';
+        if (target && visible) {
+            openTab(saved, { trackHistory: false });
+            replaceTabState(saved);
+            return;
+        }
+    }
+
+    // 3) 기본: 홈
+    openTab('home', { trackHistory: false });
+    replaceTabState('home');
+}
+window.restoreInitialTab = restoreInitialTab;
+
 function openTab(tabName, options) {
     options = options || {};
     const trackHistory = options.trackHistory !== false;
@@ -761,6 +806,9 @@ function openTab(tabName, options) {
     } else if (tabName === 'board') {
         if (typeof loadPosts === 'function') loadPosts(1, { trackHistory: trackHistory });
     }
+
+    // 새로고침 복원용: 현재 탭 저장 (shop 은 외부 페이지로 리다이렉트되므로 제외)
+    if (tabName !== 'shop') setSavedActiveTab(tabName);
 
     // Auto-close sidebar on mobile after navigation
     if (window.innerWidth <= 768) {
@@ -6571,6 +6619,8 @@ async function checkAdminAccess() {
     } catch (e) {
         console.error("Status check failed", e);
     }
+    // 권한 로딩 완료 후 1회: 새로고침/최초 진입 시 마지막 메뉴 위치 복원
+    restoreInitialTab();
 }
 
 function updateWelcomeMsg(name, points, hasEnhancedStone = null) {
@@ -7188,10 +7238,11 @@ document.addEventListener('DOMContentLoaded', () => {
     setInterval(checkStatus, 30000);
 
     // Initial Load - Delay slightly to ensure board.js might be ready for any dependencies
+    // 첫 페인트: 아직 복원되지 않았으면 홈 표시(권한 로딩이 느린 경우 대비).
+    // 실제 마지막 메뉴 복원은 checkAdminAccess 말미의 restoreInitialTab()에서 1회 수행.
     setTimeout(() => {
-        openTab('home', { trackHistory: false });
-        if (window.history && typeof window.history.replaceState === 'function') {
-            window.history.replaceState(buildAppState('home'), '', window.location.pathname + window.location.search);
+        if (!window.__initialTabRestored) {
+            openTab('home', { trackHistory: false });
         }
     }, 100);
 

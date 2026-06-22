@@ -2197,7 +2197,7 @@ function loadGMModules() {
 // Hook into openTab to load data when GM tab is opened
 const originalOpenTab = window.openTab;
 window.openTab = function(tabName) {
-    if (originalOpenTab) originalOpenTab(tabName);
+    if (originalOpenTab) originalOpenTab.apply(this, arguments);
     // GM 진입 시 기본 서브탭(홍보) 로딩은 script.js openTab에서 switchSubTab('promotion') 처리.
     // 모듈분석 메뉴 제거에 따라 loadGMModules() 자동 호출 제거.
 };
