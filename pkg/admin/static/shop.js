@@ -44,11 +44,11 @@ function shopFormatGold(copper) {
 }
 
 function shopPointWithIcon(points) {
-    return `<span style="display:inline-flex; align-items:center; gap:6px; font-weight:700; color:#f59e0b;"><img src="${SHOP_POINT_ICON_URL}" alt="point" style="width:16px; height:16px; object-fit:contain;">${Number(points || 0).toLocaleString()}</span>`;
+    return `<span style="display:inline-flex; align-items:center; gap:6px; font-weight:700; color:var(--warning-color);"><img src="${SHOP_POINT_ICON_URL}" alt="point" style="width:16px; height:16px; object-fit:contain;">${Number(points || 0).toLocaleString()}</span>`;
 }
 
 function shopGoldWithIcon(copper) {
-    return `<span style="display:inline-flex; align-items:center; gap:6px; font-weight:700; color:#f59e0b;"><img src="${SHOP_GOLD_ICON_URL}" alt="gold" style="width:16px; height:16px; object-fit:contain;">${Math.floor(Number(copper || 0) / 10000).toLocaleString()} G</span>`;
+    return `<span style="display:inline-flex; align-items:center; gap:6px; font-weight:700; color:var(--warning-color);"><img src="${SHOP_GOLD_ICON_URL}" alt="gold" style="width:16px; height:16px; object-fit:contain;">${Math.floor(Number(copper || 0) / 10000).toLocaleString()} G</span>`;
 }
 
 function shopFactionIconByCode(code) {
@@ -87,10 +87,10 @@ function renderShopItemIcon(item, containerId) {
     }
     if (item && item.item_type === 'game' && Number(item.item_entry) > 0) {
         return `<div id="${containerId}" style="width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center;">
-            ${renderShopFramedIcon(`<span style="position:absolute; inset:2px; width:28px; height:28px; border-radius:4px; background:#f1f5f9; display:inline-flex; align-items:center; justify-content:center; color:#64748b; z-index:1;"><i class="fas fa-box"></i></span>`)}
+            ${renderShopFramedIcon(`<span style="position:absolute; inset:2px; width:28px; height:28px; border-radius:4px; background:var(--surface-2); display:inline-flex; align-items:center; justify-content:center; color:var(--text-secondary); z-index:1;"><i class="fas fa-box"></i></span>`)}
         </div>`;
     }
-    return renderShopFramedIcon(`<span style="position:absolute; inset:2px; width:28px; height:28px; border-radius:4px; background:#f1f5f9; color:#64748b; display:inline-flex; align-items:center; justify-content:center; z-index:1;"><i class="fas fa-magic"></i></span>`);
+    return renderShopFramedIcon(`<span style="position:absolute; inset:2px; width:28px; height:28px; border-radius:4px; background:var(--surface-2); color:var(--text-secondary); display:inline-flex; align-items:center; justify-content:center; z-index:1;"><i class="fas fa-magic"></i></span>`);
 }
 
 function renderShopProductMedia(item, containerId) {
@@ -262,7 +262,7 @@ async function loadShopCoinMarketListings() {
         g_shopCoinListings = Array.isArray(data.listings) ? data.listings : [];
         renderShopCoinMarketPage(1);
     } catch (e) {
-        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:1rem; color:#ef4444;">${escShop(e.message || '코인시장 목록 조회 실패')}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:1rem; color:var(--danger-color);">${escShop(e.message || '코인시장 목록 조회 실패')}</td></tr>`;
         if (pg) pg.innerHTML = '';
     }
 }
@@ -317,20 +317,20 @@ function renderShopCoinMarketPage(page = 1) {
         return `
             <tr>
                 <td style="font-weight:700;">${rowNo}</td>
-                <td style="font-weight:600; color:#ada292;">${created}</td>
+                <td style="font-weight:600; color:var(--text-secondary);">${created}</td>
                 <td>${shopGoldWithIcon(row.gold_copper || 0)}</td>
                 <td>
                     <div style="display:flex; align-items:center; gap:8px;">
-                        ${factionIcon ? `<img src="${factionIcon}" alt="${escShop(faction)}" style="width:18px; height:18px; object-fit:contain;">` : `<span style="width:18px; height:18px; display:inline-flex; align-items:center; justify-content:center; color:#94a3b8;"><i class="fas fa-circle"></i></span>`}
-                        <span style="display:inline-flex; align-items:center; justify-content:center; min-width:44px; height:24px; padding:0 8px; border-radius:999px; font-size:12px; font-weight:800; background:#2a2d37; color:#ada292; border:1px solid rgba(173,162,146,0.35);">${level} Lv</span>
+                        ${factionIcon ? `<img src="${factionIcon}" alt="${escShop(faction)}" style="width:18px; height:18px; object-fit:contain;">` : `<span style="width:18px; height:18px; display:inline-flex; align-items:center; justify-content:center; color:var(--text-dim);"><i class="fas fa-circle"></i></span>`}
+                        <span style="display:inline-flex; align-items:center; justify-content:center; min-width:44px; height:24px; padding:0 8px; border-radius:999px; font-size:12px; font-weight:800; background:#2a2d37; color:var(--text-secondary); border:1px solid rgba(173,162,146,0.35);">${level} Lv</span>
                         <span style="font-weight:700;">${escShop(charName)}</span>
                     </div>
                 </td>
                 <td>
-                    <span style="display:inline-flex; align-items:center; justify-content:center; min-height:28px; padding:4px 12px; border-radius:10px; border:1px solid rgba(173,162,146,0.35); background:#171a25; color:#ada292; font-weight:700;">${escShop(realmName)}</span>
+                    <span style="display:inline-flex; align-items:center; justify-content:center; min-height:28px; padding:4px 12px; border-radius:10px; border:1px solid rgba(173,162,146,0.35); background:#171a25; color:var(--text-secondary); font-weight:700;">${escShop(realmName)}</span>
                 </td>
                 <td>
-                    <span style="display:inline-flex; align-items:center; justify-content:center; min-width:66px; height:30px; padding:0 10px; border-radius:8px; background:#2a2d37; color:#ada292; border:1px solid rgba(173,162,146,0.35); font-weight:800;">${ratio.toFixed(2)}</span>
+                    <span style="display:inline-flex; align-items:center; justify-content:center; min-width:66px; height:30px; padding:0 10px; border-radius:8px; background:#2a2d37; color:var(--text-secondary); border:1px solid rgba(173,162,146,0.35); font-weight:800;">${ratio.toFixed(2)}</span>
                 </td>
                 <td style="text-align:center;">
                     ${actionBtn}
@@ -534,8 +534,8 @@ async function openShopItemDetailModal(itemID) {
                 <div style="display:flex; flex-direction:column; gap:16px; min-height:340px;">
                     <div style="display:flex; flex-direction:column; gap:10px;">
                         <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
-                            <span style="display:inline-flex; align-items:center; justify-content:center; padding:6px 10px; border-radius:999px; background:rgba(173,162,146,0.16); color:#f4ecdc; font-size:12px; font-weight:800;">${typeText}</span>
-                            <span style="color:#f4ecdc; font-size:1.05rem; font-weight:800;">${shopPointWithIcon(item.price_points || 0)}</span>
+                            <span style="display:inline-flex; align-items:center; justify-content:center; padding:6px 10px; border-radius:999px; background:rgba(173,162,146,0.16); color:var(--surface-2); font-size:12px; font-weight:800;">${typeText}</span>
+                            <span style="color:var(--surface-2); font-size:1.05rem; font-weight:800;">${shopPointWithIcon(item.price_points || 0)}</span>
                         </div>
                         <div style="font-size:1.5rem; line-height:1.3; color:#f6efdf; font-weight:900;">${itemName}</div>
                     </div>
@@ -545,11 +545,11 @@ async function openShopItemDetailModal(itemID) {
                     <div style="display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:12px; margin-top:auto;">
                         <div style="padding:14px 16px; border-radius:16px; background:rgba(7,10,21,0.72); border:1px solid rgba(173,162,146,0.14);">
                             <div style="font-size:12px; color:rgba(221,214,202,0.72); margin-bottom:6px;">재고</div>
-                            <div style="font-size:15px; color:#f4ecdc; font-weight:800;">${stockText}</div>
+                            <div style="font-size:15px; color:var(--surface-2); font-weight:800;">${stockText}</div>
                         </div>
                         <div style="padding:14px 16px; border-radius:16px; background:rgba(7,10,21,0.72); border:1px solid rgba(173,162,146,0.14);">
                             <div style="font-size:12px; color:rgba(221,214,202,0.72); margin-bottom:6px;">상품 유형</div>
-                            <div style="font-size:15px; color:#f4ecdc; font-weight:800;">${typeText}</div>
+                            <div style="font-size:15px; color:var(--surface-2); font-weight:800;">${typeText}</div>
                         </div>
                     </div>
                 </div>
@@ -864,13 +864,13 @@ function onShopGiftItemChange() {
     const c = shopGiftClassify(item);
     hint.style.display = 'block';
     if (c.accountBound) {
-        hint.style.background = '#eef2ff'; hint.style.color = '#3730a3';
+        hint.style.background = 'rgba(201,162,74,0.13)'; hint.style.color = '#a39d92';
         hint.innerHTML = '<i class="fas fa-user-shield"></i> <b>계정 귀속</b> 상품입니다. 입력한 캐릭터의 <b>계정</b>에 적용됩니다.';
     } else if (c.isGame) {
         hint.style.background = '#ecfeff'; hint.style.color = '#155e75';
         hint.innerHTML = '<i class="fas fa-user"></i> <b>캐릭터 귀속</b> 인게임 아이템입니다. 입력한 <b>캐릭터 우편함</b>으로 발송됩니다.';
     } else {
-        hint.style.background = '#fff7ed'; hint.style.color = '#9a3412';
+        hint.style.background = 'rgba(201,162,74,0.12)'; hint.style.color = '#c9a24a';
         hint.innerHTML = '<i class="fas fa-bolt"></i> <b>캐릭터 기능</b> 상품입니다. 입력한 캐릭터에 적용되며 <b>월드서버가 가동 중</b>이어야 합니다.';
     }
 }
@@ -983,7 +983,7 @@ function renderShopAdminItemsTable(items, startIndex = 0) {
             <td style="text-align:center;">
                 <div style="display:flex; justify-content:center; gap:6px;">
                     <button class="btn btn-primary" style="padding:6px 8px;" onclick="editShopAdminItem(${item.id})">수정</button>
-                    <button class="btn" style="padding:6px 8px; background:#ef4444; color:#fff;" onclick="toggleShopAdminDelete(${item.id})">삭제</button>
+                    <button class="btn" style="padding:6px 8px; background:var(--danger-color); color:#fff;" onclick="toggleShopAdminDelete(${item.id})">삭제</button>
                 </div>
             </td>
             <td style="text-align:center;">
@@ -1065,7 +1065,7 @@ function openShopItemModal(item = null) {
     const itemSearchQ = document.getElementById('shop-admin-item-search-query');
     if (itemSearchQ) itemSearchQ.value = '';
     const itemSearchBody = document.getElementById('shop-admin-item-search-body');
-    if (itemSearchBody) itemSearchBody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:#64748b;">검색어를 입력하세요.</td></tr>';
+    if (itemSearchBody) itemSearchBody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:var(--text-secondary);">검색어를 입력하세요.</td></tr>';
     document.getElementById('shop-admin-item-visible').checked = item ? !!item.is_visible : true;
 
     const type = item && item.item_type === 'function' ? 'function' : 'game';
@@ -1097,16 +1097,16 @@ async function searchShopGameItems() {
     const tbody = document.getElementById('shop-admin-item-search-body');
     if (!tbody) return;
     if (q.length < 2) {
-        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:#64748b;">2글자 이상 입력하세요.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:var(--text-secondary);">2글자 이상 입력하세요.</td></tr>';
         return;
     }
-    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:#64748b;">검색 중...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:var(--text-secondary);">검색 중...</td></tr>';
     try {
         const res = await fetch(`/api/content/item/search?q=${encodeURIComponent(q)}`);
         if (!res.ok) throw new Error('HTTP');
         const items = await res.json();
         if (!Array.isArray(items) || !items.length) {
-            tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:#64748b;">검색 결과가 없습니다.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:var(--text-secondary);">검색 결과가 없습니다.</td></tr>';
             return;
         }
         tbody.innerHTML = items.slice(0, 20).map(item => `
@@ -1117,7 +1117,7 @@ async function searchShopGameItems() {
             </tr>
         `).join('');
     } catch (e) {
-        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:#ef4444;">검색에 실패했습니다.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:var(--danger-color);">검색에 실패했습니다.</td></tr>';
     }
 }
 
@@ -1191,7 +1191,7 @@ async function openShopIconPickerModal() {
             return filtered.slice(0, 800).map(i => {
                 const active = selected === i.path;
                 return `
-                    <button type="button" class="shop-icon-cell ${active ? 'active' : ''}" data-path="${escShop(i.path)}" style="width:74px; height:86px; border:1px solid ${active ? '#3b82f6' : '#d1d5db'}; border-radius:10px; background:${active ? '#eff6ff' : '#fff'}; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; cursor:pointer;">
+                    <button type="button" class="shop-icon-cell ${active ? 'active' : ''}" data-path="${escShop(i.path)}" style="width:74px; height:86px; border:1px solid ${active ? '#c9a24a' : '#d1d5db'}; border-radius:10px; background:${active ? 'rgba(201,162,74,0.13)' : '#fff'}; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; cursor:pointer;">
                         <img src="${escShop(i.path)}" style="width:40px; height:40px; border-radius:8px; object-fit:cover;" onerror="this.style.display='none';">
                         <span style="font-size:10px; line-height:1.1; max-width:66px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escShop(i.name || '')}</span>
                     </button>
@@ -1204,9 +1204,9 @@ async function openShopIconPickerModal() {
             width: 920,
             html: `
                 <div style="display:flex; flex-direction:column; gap:10px;">
-                    <div style="display:flex; gap:8px; padding:4px; background:#e2e8f0; border-radius:12px; width:fit-content;">
-                        <button type="button" id="shop-icon-tab-picker" class="btn" style="padding:8px 14px; background:#ada292; color:#111827;">아이콘 선택</button>
-                        <button type="button" id="shop-icon-tab-upload" class="btn" style="padding:8px 14px; background:transparent; color:#475569;">파일 업로드</button>
+                    <div style="display:flex; gap:8px; padding:4px; background:var(--surface-2); border-radius:12px; width:fit-content;">
+                        <button type="button" id="shop-icon-tab-picker" class="btn" style="padding:8px 14px; background:var(--text-secondary); color:var(--text-primary);">아이콘 선택</button>
+                        <button type="button" id="shop-icon-tab-upload" class="btn" style="padding:8px 14px; background:transparent; color:var(--text-secondary);">파일 업로드</button>
                     </div>
                     <div id="shop-icon-pane-picker" style="display:flex; flex-direction:column; gap:10px;">
                         <input id="shop-icon-search" class="input-premium" placeholder="파일명 검색">
@@ -1214,7 +1214,7 @@ async function openShopIconPickerModal() {
                     </div>
                     <div id="shop-icon-pane-upload" style="display:none; flex-direction:column; gap:10px; text-align:left;">
                         <input id="shop-icon-upload-file" type="file" class="input-premium" accept=".jpg,.jpeg,.png,.gif,.webp,.avif,.bmp">
-                        <div style="font-size:12px; color:#64748b;">이미지 파일을 업로드하면 경로가 자동으로 입력됩니다.</div>
+                        <div style="font-size:12px; color:var(--text-secondary);">이미지 파일을 업로드하면 경로가 자동으로 입력됩니다.</div>
                     </div>
                 </div>
             `,

@@ -201,7 +201,7 @@ function renderBoardAuthor(authorName, isStaff, hasEnhancedStone) {
     const safeName = escapeHtml(authorName || '');
     let prefix = '';
     if (hasEnhancedStone === true) {
-        prefix += `<i class="fas fa-gem" title="빛나는 영웅석 구독" style="color:#7c3aed; font-size:0.95em;"></i>`;
+        prefix += `<i class="fas fa-gem" title="빛나는 영웅석 구독" style="color:var(--primary-color); font-size:0.95em;"></i>`;
     }
     if (isStaff) {
         prefix += `<img src="/img/Battlenet_2021_icon.svg" alt="staff" style="width:1em; height:1em; object-fit:contain;">`;
@@ -214,7 +214,7 @@ function renderPostTitleWithCommentCount(title, commentCount) {
     const safeTitle = escapeHtml(title || '');
     const count = Number(commentCount || 0);
     if (count <= 0) return safeTitle;
-    return `${safeTitle} <span style="color:#3b82f6; font-weight:700;">[${count}]</span>`;
+    return `${safeTitle} <span style="color:var(--primary-color); font-weight:700;">[${count}]</span>`;
 }
 
 function extractBoardThumbnail(post) {
@@ -245,7 +245,7 @@ function stripBoardHtml(html) {
 function getPostContentHtml(content) {
     const value = (content == null) ? '' : String(content).trim();
     if (!value || value === 'undefined' || value === 'null' || value === '<p><br></p>') {
-        return '<div style="color:#94a3b8;">입력된 내용이 없습니다.</div>';
+        return '<div style="color:var(--text-dim);">입력된 내용이 없습니다.</div>';
     }
     return value;
 }
@@ -360,9 +360,9 @@ function renderPromotionUrlList() {
     if (!Array.isArray(g_promotionWriteUrls) || g_promotionWriteUrls.length === 0) g_promotionWriteUrls = [''];
     list.innerHTML = g_promotionWriteUrls.map((u, idx) => `
         <div style="display:flex; gap:8px; align-items:center;">
-            <span style="min-width:28px; text-align:right; font-weight:700; color:#475569;">${idx + 1}.</span>
+            <span style="min-width:28px; text-align:right; font-weight:700; color:var(--text-secondary);">${idx + 1}.</span>
             <input type="text" class="input-premium board-promotion-url-input" data-index="${idx}" value="${escapeHtml(u || '')}" placeholder="https://example.com/promotion">
-            <button type="button" class="btn" style="padding:6px 10px; background:#e2e8f0; color:#334155;" onclick="removePromotionUrlInput(${idx})">삭제</button>
+            <button type="button" class="btn" style="padding:6px 10px; background:var(--surface-2); color:var(--text-primary);" onclick="removePromotionUrlInput(${idx})">삭제</button>
         </div>
     `).join('');
 }
@@ -550,13 +550,13 @@ function renderInquiryCategoryBadge(category) {
     const label = getInquiryCategoryLabel(category);
     const safe = escapeHtml(label);
     const map = {
-        '건의': { icon: 'fa-lightbulb', bg: '#fef3c7', fg: '#92400e', bd: '#fcd34d' },
-        '질문': { icon: 'fa-circle-question', bg: '#dbeafe', fg: '#1e40af', bd: '#93c5fd' },
-        '후원': { icon: 'fa-hand-holding-heart', bg: '#dcfce7', fg: '#166534', bd: '#86efac' },
-        '게임 오류': { icon: 'fa-gamepad', bg: '#fee2e2', fg: '#991b1b', bd: '#fecaca' },
-        '웹 오류': { icon: 'fa-globe', bg: '#e0f2fe', fg: '#075985', bd: '#bae6fd' },
-        '계정/접속': { icon: 'fa-user-lock', bg: '#ede9fe', fg: '#5b21b6', bd: '#ddd6fe' },
-        '기타': { icon: 'fa-folder-open', bg: '#f1f5f9', fg: '#334155', bd: '#cbd5e1' }
+        '건의': { icon: 'fa-lightbulb', bg: 'rgba(231,193,112,0.16)', fg: '#e7c170', bd: 'rgba(231,193,112,0.45)' },
+        '질문': { icon: 'fa-circle-question', bg: 'rgba(201,162,74,0.16)', fg: '#c9a24a', bd: 'rgba(201,162,74,0.45)' },
+        '후원': { icon: 'fa-hand-holding-heart', bg: 'rgba(95,174,126,0.16)', fg: '#5fae7e', bd: 'rgba(95,174,126,0.45)' },
+        '게임 오류': { icon: 'fa-gamepad', bg: 'rgba(210,118,107,0.16)', fg: '#d2766b', bd: 'rgba(210,118,107,0.45)' },
+        '웹 오류': { icon: 'fa-globe', bg: 'rgba(163,157,146,0.16)', fg: '#a39d92', bd: 'rgba(163,157,146,0.4)' },
+        '계정/접속': { icon: 'fa-user-lock', bg: 'rgba(178,155,216,0.15)', fg: '#b29bd8', bd: 'rgba(178,155,216,0.4)' },
+        '기타': { icon: 'fa-folder-open', bg: 'var(--surface-2)', fg: 'var(--text-secondary)', bd: 'var(--border-color)' }
     };
     const style = map[label] || map['기타'];
     return `<span style="display:inline-flex; align-items:center; gap:6px; background:${style.bg}; color:${style.fg}; border:1px solid ${style.bd}; padding:4px 10px; border-radius:999px; font-size:0.8rem; font-weight:700; white-space:nowrap;"><i class="fas ${style.icon}"></i>${safe}</span>`;
@@ -573,10 +573,10 @@ function getInquiryStatusLabel(status) {
 function renderInquiryStatusBadge(status) {
     const v = String(status || '').toLowerCase().trim();
     const map = {
-        'received': { label: '접수', bg: '#e0e7ff', fg: '#3730a3', bd: '#c7d2fe', icon: 'fa-inbox' },
-        'in_progress': { label: '진행중', bg: '#fef3c7', fg: '#92400e', bd: '#fcd34d', icon: 'fa-person-digging' },
-        'done': { label: '완료', bg: '#dcfce7', fg: '#166534', bd: '#86efac', icon: 'fa-circle-check' },
-        'point_paid': { label: '지급완료', bg: '#ffedd5', fg: '#9a3412', bd: '#fdba74', icon: 'fa-coins' }
+        'received': { label: '접수', bg: 'rgba(163,157,146,0.16)', fg: '#a39d92', bd: 'rgba(163,157,146,0.4)', icon: 'fa-inbox' },
+        'in_progress': { label: '진행중', bg: 'rgba(231,193,112,0.16)', fg: '#e7c170', bd: 'rgba(231,193,112,0.45)', icon: 'fa-person-digging' },
+        'done': { label: '완료', bg: 'rgba(95,174,126,0.16)', fg: '#5fae7e', bd: 'rgba(95,174,126,0.45)', icon: 'fa-circle-check' },
+        'point_paid': { label: '지급완료', bg: 'rgba(201,162,74,0.16)', fg: '#c9a24a', bd: 'rgba(201,162,74,0.45)', icon: 'fa-coins' }
     };
     const style = map[v] || map['received'];
     return `<span style="display:inline-flex; align-items:center; gap:6px; background:${style.bg}; color:${style.fg}; border:1px solid ${style.bd}; padding:4px 10px; border-radius:999px; font-size:0.8rem; font-weight:700; white-space:nowrap;"><i class="fas ${style.icon}"></i>${style.label}</span>`;
@@ -826,7 +826,7 @@ async function loadPosts(page, options) {
     if (!g_currentBoard) {
         const container = document.getElementById('board-posts-container');
         if (container) {
-            container.innerHTML = `<div style="text-align:center; padding:3rem; color:#94a3b8;">표시할 게시판이 없습니다.</div>`;
+            container.innerHTML = `<div style="text-align:center; padding:3rem; color:var(--text-dim);">표시할 게시판이 없습니다.</div>`;
         }
         return;
     }
@@ -883,7 +883,7 @@ async function loadPosts(page, options) {
                 const authMessage = res.status === 401
                     ? '로그인 후 이용할 수 있는 게시판입니다.'
                     : `게시글을 불러오지 못했습니다. (${res.status})`;
-                container.innerHTML = `<div style="text-align:center; padding:3rem; color:#ef4444;">${authMessage}</div>`;
+                container.innerHTML = `<div style="text-align:center; padding:3rem; color:var(--danger-color);">${authMessage}</div>`;
             }
             return;
         }
@@ -902,7 +902,7 @@ async function loadPosts(page, options) {
         }
     } catch (e) {
         console.error('Failed to load posts:', e);
-        if (container) container.innerHTML = `<div style="text-align:center; padding:3rem; color:#ef4444;">오류 발생: ${e.message}</div>`;
+        if (container) container.innerHTML = `<div style="text-align:center; padding:3rem; color:var(--danger-color);">오류 발생: ${e.message}</div>`;
     }
 }
 
@@ -917,7 +917,7 @@ function renderPostList(posts, total) {
     const type = board ? (board.type || 'normal') : 'normal';
 
     if (posts.length === 0 && type !== 'normal') {
-        container.innerHTML = '<div style="text-align:center; padding: 3rem; color: #94a3b8;">게시글이 없습니다.</div>';
+        container.innerHTML = '<div style="text-align:center; padding: 3rem; color:var(--text-dim);">게시글이 없습니다.</div>';
         return;
     }
 
@@ -938,7 +938,7 @@ function renderNormalBoard(container, posts, total) {
 
     if (isMobile) {
         if (!posts.length) {
-            container.innerHTML = '<div style="text-align:center; padding: 3rem; color: #94a3b8;">게시글이 없습니다.</div>';
+            container.innerHTML = '<div style="text-align:center; padding: 3rem; color:var(--text-dim);">게시글이 없습니다.</div>';
             return;
         }
         container.innerHTML = `
@@ -973,36 +973,36 @@ function renderNormalBoard(container, posts, total) {
     } else {
         container.innerHTML = `
             <table style="width: 100%; border-collapse: collapse;">
-                <thead style="position: sticky; top: 0; background: #f8fafc; z-index: 10;">
+                <thead style="position: sticky; top: 0; background: var(--surface-2); z-index: 10;">
                     <tr>
-                        <th style="padding: 12px; text-align: center; color: #64748b; font-weight: 600; width: 60px;">번호</th>
-                        ${isInquiry ? '<th style="padding: 12px; text-align: center; color: #64748b; font-weight: 600; width: 120px;">카테고리</th>' : ''}
-                        ${isInquiry ? '<th style="padding: 12px; text-align: center; color: #64748b; font-weight: 600; width: 120px;">상태</th>' : ''}
-                        <th style="padding: 12px; text-align: left; color: #64748b; font-weight: 600;">제목</th>
-                        <th style="padding: 12px; text-align: center; color: #64748b; font-weight: 600; width: 120px;">작성자</th>
-                        ${isPromotion ? '<th style="padding: 12px; text-align: center; color: #64748b; font-weight: 600; width: 110px;">심사 결과</th>' : ''}
-                        ${isPromotion ? '<th style="padding: 12px; text-align: center; color: #64748b; font-weight: 600; width: 120px;">보상 지급</th>' : ''}
-                        <th style="padding: 12px; text-align: center; color: #64748b; font-weight: 600; width: 150px;">작성일</th>
-                        <th style="padding: 12px; text-align: center; color: #64748b; font-weight: 600; width: 80px;">조회</th>
+                        <th style="padding: 12px; text-align: center; color:var(--text-secondary); font-weight: 600; width: 60px;">번호</th>
+                        ${isInquiry ? '<th style="padding: 12px; text-align: center; color:var(--text-secondary); font-weight: 600; width: 120px;">카테고리</th>' : ''}
+                        ${isInquiry ? '<th style="padding: 12px; text-align: center; color:var(--text-secondary); font-weight: 600; width: 120px;">상태</th>' : ''}
+                        <th style="padding: 12px; text-align: left; color:var(--text-secondary); font-weight: 600;">제목</th>
+                        <th style="padding: 12px; text-align: center; color:var(--text-secondary); font-weight: 600; width: 120px;">작성자</th>
+                        ${isPromotion ? '<th style="padding: 12px; text-align: center; color:var(--text-secondary); font-weight: 600; width: 110px;">심사 결과</th>' : ''}
+                        ${isPromotion ? '<th style="padding: 12px; text-align: center; color:var(--text-secondary); font-weight: 600; width: 120px;">보상 지급</th>' : ''}
+                        <th style="padding: 12px; text-align: center; color:var(--text-secondary); font-weight: 600; width: 150px;">작성일</th>
+                        <th style="padding: 12px; text-align: center; color:var(--text-secondary); font-weight: 600; width: 80px;">조회</th>
                     </tr>
                 </thead>
                 <tbody>
                     ${posts.length ? posts.map((post, idx) => {
                         const virtualNum = total - ((g_currentBoardPage - 1) * pageSize) - idx;
                         return `
-                        <tr onclick="viewPost(${post.id})" style="cursor:pointer; border-bottom: 1px solid #f1f5f9; transition: background 0.2s;">
-                            <td style="padding: 12px; text-align:center; color:#94a3b8;">${virtualNum}</td>
-                            ${isInquiry ? `<td style="padding: 12px; text-align:center; color:#334155;">${renderInquiryCategoryBadge(post.category)}</td>` : ''}
-                            ${isInquiry ? `<td style="padding: 12px; text-align:center; color:#334155;">${renderInquiryStatusBadge(post.inquiry_status)}</td>` : ''}
-                            <td style="padding: 12px; font-weight:500; color: #334155;">${renderPostTitleWithCommentCount(post.title, post.comment_count)}</td>
-                            <td style="padding: 12px; text-align:center; color: #475569;">${renderBoardAuthor(post.author_name, post.is_staff_author === true, post.has_enhanced_stone === true)}</td>
+                        <tr onclick="viewPost(${post.id})" style="cursor:pointer; border-bottom: 1px solid var(--border-color); transition: background 0.2s;">
+                            <td style="padding: 12px; text-align:center; color:var(--text-dim);">${virtualNum}</td>
+                            ${isInquiry ? `<td style="padding: 12px; text-align:center; color:var(--text-primary);">${renderInquiryCategoryBadge(post.category)}</td>` : ''}
+                            ${isInquiry ? `<td style="padding: 12px; text-align:center; color:var(--text-primary);">${renderInquiryStatusBadge(post.inquiry_status)}</td>` : ''}
+                            <td style="padding: 12px; font-weight:500; color:var(--text-primary);">${renderPostTitleWithCommentCount(post.title, post.comment_count)}</td>
+                            <td style="padding: 12px; text-align:center; color:var(--text-secondary);">${renderBoardAuthor(post.author_name, post.is_staff_author === true, post.has_enhanced_stone === true)}</td>
                             ${isPromotion ? `<td style="padding: 12px; text-align:center;">${renderPromotionReviewBadge(post.review_status)}</td>` : ''}
                             ${isPromotion ? `<td style="padding: 12px; text-align:center;">${renderPromotionRewardBadge(post.reward_paid)}</td>` : ''}
-                            <td style="padding: 12px; text-align:center; font-size:0.85rem; color:#64748b;">${post.created_at}</td>
-                            <td style="padding: 12px; text-align:center; color: #64748b;">${post.views || 0}</td>
+                            <td style="padding: 12px; text-align:center; font-size:0.85rem; color:var(--text-secondary);">${post.created_at}</td>
+                            <td style="padding: 12px; text-align:center; color:var(--text-secondary);">${post.views || 0}</td>
                         </tr>
                     `;
-                    }).join('') : `<tr><td colspan="${isInquiry ? 7 : (isPromotion ? 7 : 5)}" style="padding: 24px; text-align:center; color:#94a3b8;">게시글이 없습니다.</td></tr>`}
+                    }).join('') : `<tr><td colspan="${isInquiry ? 7 : (isPromotion ? 7 : 5)}" style="padding: 24px; text-align:center; color:var(--text-dim);">게시글이 없습니다.</td></tr>`}
                 </tbody>
             </table>
         `;
@@ -1015,7 +1015,7 @@ function renderPromotionReviewBadge(status) {
         return '<span class="badge active">승인</span>';
     }
     if (v === 'rejected') {
-        return '<span class="badge" style="background:#fee2e2; color:#991b1b;">반려</span>';
+        return '<span class="badge" style="background:var(--surface-2); color:var(--danger-color);">반려</span>';
     }
     return '<span class="badge">대기</span>';
 }
@@ -1077,7 +1077,7 @@ function renderUpdateBoard(container, posts) {
                             <div style="display: flex; align-items: center; gap: 12px; width: 100%;">
                                 ${versionHtml}
                                 <div class="update-title">${renderPostTitleWithCommentCount(post.title, post.comment_count)}</div>
-                                <span class="update-date" style="margin-left: auto; font-size: 0.8rem; color: #94a3b8; white-space: nowrap;">${post.created_at ? post.created_at.split(' ')[0] : ''}</span>
+                                <span class="update-date" style="margin-left: auto; font-size: 0.8rem; color:var(--text-dim); white-space: nowrap;">${post.created_at ? post.created_at.split(' ')[0] : ''}</span>
                             </div>
                         </div>
                         <div class="update-toggle-icon">
@@ -1086,12 +1086,12 @@ function renderUpdateBoard(container, posts) {
                     </div>
                     <div class="update-content-box">
                         <div class="update-full-content">
-                            <div style="margin-bottom: 1rem; color: #94a3b8; font-size: 0.85rem; display: flex; gap: 10px;">
+                            <div style="margin-bottom: 1rem; color:var(--text-dim); font-size: 0.85rem; display: flex; gap: 10px;">
                                 <span><i class="fas fa-user-circle"></i> ${renderBoardAuthor(post.author_name, post.is_staff_author === true, post.has_enhanced_stone === true)}</span>
                                 <span><i class="far fa-calendar-alt"></i> ${post.created_at}</span>
                             </div>
                             ${getPostContentHtml(post.content)}
-                            <div style="margin-top: 2rem; padding-top: 1rem; border-top: 1px dashed #e2e8f0; display: flex; justify-content: flex-end; gap: 8px;">
+                            <div style="margin-top: 2rem; padding-top: 1rem; border-top: 1px dashed var(--border-color); display: flex; justify-content: flex-end; gap: 8px;">
                                 ${ ( () => {
                                     const currentUserId = g_currentUser ? (g_currentUser.accountID || g_currentUser.id) : null;
                                     const postAuthorId = post.account_id || post.accountID;
@@ -1106,7 +1106,7 @@ function renderUpdateBoard(container, posts) {
                                         삭제
                                     </button>
                                 ` : '' }
-                                <button onclick="event.stopPropagation(); viewPost(${post.id})" class="btn" style="font-size: 0.85rem; padding: 6px 12px; background: #f1f5f9; color: #475569;">
+                                <button onclick="event.stopPropagation(); viewPost(${post.id})" class="btn" style="font-size: 0.85rem; padding: 6px 12px; background: var(--surface-2); color:var(--text-secondary);">
                                     <i class="fas fa-external-link-alt"></i> 상세 페이지로 보기
                                 </button>
                             </div>
@@ -1203,35 +1203,35 @@ async function viewPost(id, pushHistory) {
 
         detailView.innerHTML = `
             <div style="display: flex; justify-content: space-between; margin-bottom: 1.5rem; align-items: center;">
-                <button onclick="showBoardListView()" class="btn" style="background: #e2e8f0; color: #475569; padding: 8px 16px; border-radius: 8px; font-weight: 600;">
+                <button onclick="showBoardListView()" class="btn" style="background: var(--surface-2); color:var(--text-secondary); padding: 8px 16px; border-radius: 8px; font-weight: 600;">
                     <i class="fas fa-arrow-left" style="margin-right: 6px;"></i> 목록으로
                 </button>
                 <div style="display: flex; gap: 0.5rem;">
-                    <button onclick="copyBoardPostUrl(${id})" class="btn" style="background: #0ea5e9; color: white; padding: 8px 16px; border-radius: 8px;">주소복사</button>
+                    <button onclick="copyBoardPostUrl(${id})" class="btn" style="background: var(--surface-2); color: var(--text-primary); padding: 8px 16px; border-radius: 8px;">주소복사</button>
                     ${canEdit ? `<button onclick="openPostEdit(${id})" class="btn" style="background: var(--primary-color); color: white; padding: 8px 16px; border-radius: 8px;">수정</button>` : ''}
                     ${canDelete ? `<button onclick="deletePost(${id})" class="btn btn-stop" style="padding: 8px 16px; border-radius: 8px;">삭제</button>` : ''}
                 </div>
             </div>
 
-            <div style="border-bottom: 1px solid #e2e8f0; padding-bottom: 1.5rem; margin-bottom: 1.5rem;">
-                ${post.version ? `<div style="margin-bottom: 0.75rem;"><span style="background: rgba(16,185,129,0.1); color: #059669; border: 1px solid rgba(16,185,129,0.2); padding: 4px 12px; border-radius: 6px; font-size: 0.8rem; font-weight: 700;">v${escapeHtml(post.version)}</span></div>` : ''}
+            <div style="border-bottom: 1px solid var(--border-color); padding-bottom: 1.5rem; margin-bottom: 1.5rem;">
+                ${post.version ? `<div style="margin-bottom: 0.75rem;"><span style="background: rgba(16,185,129,0.1); color: var(--success-color); border: 1px solid rgba(16,185,129,0.2); padding: 4px 12px; border-radius: 6px; font-size: 0.8rem; font-weight: 700;">v${escapeHtml(post.version)}</span></div>` : ''}
                 ${isInquiryPost ? `<div style="margin-bottom: 0.75rem; display:flex; gap:8px; flex-wrap:wrap;">
                     ${renderInquiryCategoryBadge(post.category)}
                     ${renderInquiryStatusBadge(post.inquiry_status)}
                 </div>` : ''}
-                <h2 style="margin: 0 0 1rem 0; font-size: 1.5rem; color: #1e293b; font-weight: 800; line-height: 1.4;">${escapeHtml(post.title)}</h2>
-                <div style="display: flex; gap: 1rem; color: #64748b; font-size: 0.9rem; flex-wrap: wrap;">
+                <h2 style="margin: 0 0 1rem 0; font-size: 1.5rem; color:var(--text-primary); font-weight: 800; line-height: 1.4;">${escapeHtml(post.title)}</h2>
+                <div style="display: flex; gap: 1rem; color:var(--text-secondary); font-size: 0.9rem; flex-wrap: wrap;">
                     <span style="display: flex; align-items: center; gap: 6px;"><i class="fas fa-user-circle" style="color: var(--primary-color);"></i> ${renderBoardAuthor(post.author_name, post.is_staff_author === true, post.has_enhanced_stone === true)}</span>
-                    <span style="display: flex; align-items: center; gap: 6px; color: #94a3b8;">|</span>
+                    <span style="display: flex; align-items: center; gap: 6px; color:var(--text-dim);">|</span>
                     <span style="display: flex; align-items: center; gap: 6px;"><i class="far fa-clock"></i> ${post.created_at}</span>
-                    <span style="display: flex; align-items: center; gap: 6px; color: #94a3b8;">|</span>
+                    <span style="display: flex; align-items: center; gap: 6px; color:var(--text-dim);">|</span>
                     <span style="display: flex; align-items: center; gap: 6px;"><i class="far fa-eye"></i> ${post.views || 0}</span>
                 </div>
             </div>
 
-            <div style="min-height: 200px; line-height: 1.8; color: #334155; font-size: 1.05rem;">${post.content}</div>
+            <div style="min-height: 200px; line-height: 1.8; color:var(--text-primary); font-size: 1.05rem;">${post.content}</div>
 
-            <hr style="margin: 3rem 0; border: 0; border-top: 1px solid #e2e8f0;">
+            <hr style="margin: 3rem 0; border: 0; border-top: 1px solid var(--border-color);">
 
             <div class="comments-section">
                 <h4 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 8px;">
@@ -1244,13 +1244,13 @@ async function viewPost(id, pushHistory) {
 
                 ${
                     isInquiryPost
-                        ? `<div style="margin-top:2rem; background:#f8fafc; padding:1.25rem 1.5rem; border-radius:12px; border:1px solid #e2e8f0; color:#64748b; font-size:0.95rem;">
-                            <i class="fas fa-circle-info" style="margin-right:6px; color:#2563eb;"></i>
+                        ? `<div style="margin-top:2rem; background:var(--surface-2); padding:1.25rem 1.5rem; border-radius:12px; border:1px solid var(--border-color); color:var(--text-secondary); font-size:0.95rem;">
+                            <i class="fas fa-circle-info" style="margin-right:6px; color:var(--primary-color);"></i>
                             답변 등록은 ${isBugReportPost ? '버그리포트 관리' : '문의관리'}에서만 가능합니다.
                            </div>`
-                        : `<div style="margin-top: 2rem; background: #f8fafc; padding: 1.5rem; border-radius: 12px; border: 1px solid #e2e8f0;">
+                        : `<div style="margin-top: 2rem; background: var(--surface-2); padding: 1.5rem; border-radius: 12px; border: 1px solid var(--border-color);">
                             <textarea id="comment-input" placeholder="댓글을 남겨주세요..."
-                                style="width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; min-height: 80px; resize: vertical; margin-bottom: 1rem; font-size: 0.95rem; box-sizing: border-box;"></textarea>
+                                style="width: 100%; padding: 12px; border: 1px solid var(--text-dim); border-radius: 8px; min-height: 80px; resize: vertical; margin-bottom: 1rem; font-size: 0.95rem; box-sizing: border-box;"></textarea>
                             <div style="display: flex; justify-content: flex-end;">
                                 <button onclick="submitComment(${id})" class="btn btn-primary" style="padding: 10px 24px; font-weight: 600; border-radius: 8px;">댓글 작성</button>
                             </div>
@@ -1274,30 +1274,30 @@ window.viewPost = viewPost;
 function renderComments(comments, isInquiryPost) {
     if (isInquiryPost) {
         if (!comments || comments.length === 0) {
-            return '<div style="text-align:center; padding: 2rem; color: #94a3b8;">등록된 문의/답변이 없습니다.</div>';
+            return '<div style="text-align:center; padding: 2rem; color:var(--text-dim);">등록된 문의/답변이 없습니다.</div>';
         }
         return comments.map((m) => {
             const role = String(m.role || '').toLowerCase() === 'staff' ? 'staff' : 'user';
             const roleBadge = role === 'staff'
-                ? '<span style="display:inline-flex;align-items:center;gap:4px;background:#dbeafe;color:#1e40af;border:1px solid #93c5fd;padding:2px 8px;border-radius:999px;font-size:0.75rem;font-weight:700;"><i class="fas fa-user-shield"></i>답변</span>'
-                : '<span style="display:inline-flex;align-items:center;gap:4px;background:#f1f5f9;color:#334155;border:1px solid #cbd5e1;padding:2px 8px;border-radius:999px;font-size:0.75rem;font-weight:700;"><i class="fas fa-circle-question"></i>문의</span>';
+                ? '<span style="display:inline-flex;align-items:center;gap:4px;background:var(--surface-2);color:var(--primary-color);border:1px solid var(--accent-color);padding:2px 8px;border-radius:999px;font-size:0.75rem;font-weight:700;"><i class="fas fa-user-shield"></i>답변</span>'
+                : '<span style="display:inline-flex;align-items:center;gap:4px;background:var(--surface-2);color:var(--text-primary);border:1px solid var(--text-dim);padding:2px 8px;border-radius:999px;font-size:0.75rem;font-weight:700;"><i class="fas fa-circle-question"></i>문의</span>';
             return `
-                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:1rem;">
+                <div style="background:var(--surface-2); border:1px solid var(--border-color); border-radius:12px; padding:1rem;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem; gap:8px;">
-                        <span style="font-weight:600; color:#1e293b; font-size:0.9rem;">${renderBoardAuthor(m.author_name, m.is_staff_author === true, m.has_enhanced_stone === true)}</span>
+                        <span style="font-weight:600; color:var(--text-primary); font-size:0.9rem;">${renderBoardAuthor(m.author_name, m.is_staff_author === true, m.has_enhanced_stone === true)}</span>
                         <div style="display:flex; align-items:center; gap:8px;">
                             ${roleBadge}
-                            <span style="font-size:0.8rem; color:#94a3b8;">${m.created_at || ''}</span>
+                            <span style="font-size:0.8rem; color:var(--text-dim);">${m.created_at || ''}</span>
                         </div>
                     </div>
-                    <div style="color:#334155; line-height:1.6; white-space:pre-wrap;">${escapeHtml(m.content || '')}</div>
+                    <div style="color:var(--text-primary); line-height:1.6; white-space:pre-wrap;">${escapeHtml(m.content || '')}</div>
                 </div>
             `;
         }).join('');
     }
 
     if (!comments || comments.length === 0) {
-        return '<div style="text-align:center; padding: 2rem; color: #94a3b8;">첫 번째 댓글을 남겨보세요!</div>';
+        return '<div style="text-align:center; padding: 2rem; color:var(--text-dim);">첫 번째 댓글을 남겨보세요!</div>';
     }
 
     // Build Tree Structure
@@ -1328,23 +1328,23 @@ function renderCommentTree(nodes) {
         const marginLeft = depth * 20; // Indentation
 
         let html = `
-            <div id="comment-${comment.id}" data-comment-id="${comment.id}" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1rem; margin-left: ${marginLeft}px; margin-bottom: 10px;">
+            <div id="comment-${comment.id}" data-comment-id="${comment.id}" style="background: var(--surface-2); border: 1px solid var(--border-color); border-radius: 12px; padding: 1rem; margin-left: ${marginLeft}px; margin-bottom: 10px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                    <span style="font-weight: 600; color: #1e293b; font-size: 0.9rem;">
-                        ${depth > 0 ? '<i class="fas fa-reply" style="transform: rotate(180deg); margin-right:4px; color:#94a3b8;"></i>' : ''}
+                    <span style="font-weight: 600; color:var(--text-primary); font-size: 0.9rem;">
+                        ${depth > 0 ? '<i class="fas fa-reply" style="transform: rotate(180deg); margin-right:4px; color:var(--text-dim);"></i>' : ''}
                         ${renderBoardAuthor(comment.author_name, comment.is_staff_author === true, comment.has_enhanced_stone === true)}
                     </span>
                     <div style="display: flex; align-items: center; gap: 0.5rem;">
-                        <span style="font-size: 0.8rem; color: #94a3b8;">${comment.created_at}</span>
-                        <button onclick="openReplyForm(${comment.id})" style="background:none; border:none; color:#3b82f6; cursor:pointer; font-size:0.8rem; margin-left:8px;">${isSupportBoardActive() ? '문의/답변' : '답글'}</button>
-                        ${canDelete ? `<button onclick="deleteComment(${comment.id})" style="background:none; border:none; color:#ef4444; cursor:pointer; font-size:0.8rem;">삭제</button>` : ''}
+                        <span style="font-size: 0.8rem; color:var(--text-dim);">${comment.created_at}</span>
+                        <button onclick="openReplyForm(${comment.id})" style="background:none; border:none; color:var(--primary-color); cursor:pointer; font-size:0.8rem; margin-left:8px;">${isSupportBoardActive() ? '문의/답변' : '답글'}</button>
+                        ${canDelete ? `<button onclick="deleteComment(${comment.id})" style="background:none; border:none; color:var(--danger-color); cursor:pointer; font-size:0.8rem;">삭제</button>` : ''}
                     </div>
                 </div>
-                <div style="color: #334155; line-height: 1.6; white-space: pre-wrap;">${escapeHtml(comment.content)}</div>
+                <div style="color:var(--text-primary); line-height: 1.6; white-space: pre-wrap;">${escapeHtml(comment.content)}</div>
                 
                 <!-- Reply Form -->
-                <div id="reply-form-${comment.id}" style="display:none; margin-top:10px; padding-top:10px; border-top:1px dashed #e2e8f0;">
-                    <textarea id="reply-input-${comment.id}" placeholder="${isSupportBoardActive() ? '문의/답변 내용을 입력하세요...' : '답글을 입력하세요...'}" style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px; min-height:60px;"></textarea>
+                <div id="reply-form-${comment.id}" style="display:none; margin-top:10px; padding-top:10px; border-top:1px dashed var(--border-color);">
+                    <textarea id="reply-input-${comment.id}" placeholder="${isSupportBoardActive() ? '문의/답변 내용을 입력하세요...' : '답글을 입력하세요...'}" style="width:100%; padding:8px; border:1px solid var(--text-dim); border-radius:6px; min-height:60px;"></textarea>
                     <div style="text-align:right; margin-top:6px;">
                         <button onclick="submitReply(${g_currentPostId}, ${comment.id})" class="btn btn-primary" style="padding:4px 12px; font-size:0.8rem;">등록</button>
                     </div>
@@ -1377,8 +1377,8 @@ function focusBoardComment(commentId) {
     const originalBoxShadow = target.style.boxShadow || '';
     const originalBorderColor = target.style.borderColor || '';
     target.style.transition = 'box-shadow 0.25s ease, border-color 0.25s ease';
-    target.style.borderColor = '#2563eb';
-    target.style.boxShadow = '0 0 0 3px rgba(37, 99, 235, 0.2)';
+    target.style.borderColor = '#c9a24a';
+    target.style.boxShadow = '0 0 0 3px rgba(201, 162, 74, 0.2)';
     setTimeout(() => {
         target.style.boxShadow = originalBoxShadow;
         target.style.borderColor = originalBorderColor;
@@ -2047,7 +2047,7 @@ async function loadBugReportAdminPage(page = 1, keepDetail = false) {
         const message = e && e.status === 401
             ? '로그인 후 이용할 수 있습니다.'
             : (e && e.status === 403 ? '버그리포트 관리 권한이 없습니다.' : '버그 리포트를 불러오지 못했습니다.');
-        list.innerHTML = `<div class="bug-admin-empty" style="color:#dc2626;">${message}</div>`;
+        list.innerHTML = `<div class="bug-admin-empty" style="color:var(--danger-color);">${message}</div>`;
     }
 }
 window.loadBugReportAdminPage = loadBugReportAdminPage;
@@ -2159,7 +2159,7 @@ async function openBugReportAdminDetail(postId, options = {}) {
                     </div>
                 </div>
 
-                <div class="kb-report-content">${post.content || '<span style="color:#94a3b8;">내용이 없습니다.</span>'}</div>
+                <div class="kb-report-content">${post.content || '<span style="color:var(--text-dim);">내용이 없습니다.</span>'}</div>
 
                 <div class="comments-section kb-report-comments">
                     <h4>
@@ -2206,7 +2206,7 @@ async function openBugReportAdminDetail(postId, options = {}) {
         if (activeItem) activeItem.classList.add('active');
     } catch (e) {
         console.error('Failed to load bug report detail:', e);
-        detail.innerHTML = '<div class="bug-admin-detail-empty" style="color:#dc2626;">상세 내용을 불러오지 못했습니다.</div>';
+        detail.innerHTML = '<div class="bug-admin-detail-empty" style="color:var(--danger-color);">상세 내용을 불러오지 못했습니다.</div>';
     }
 }
 window.openBugReportAdminDetail = openBugReportAdminDetail;
@@ -2300,8 +2300,8 @@ function renderBugReportAdminMessage(message, index) {
     const role = String(message.role || '').toLowerCase() === 'staff' ? 'staff' : 'user';
     const isFollowup = Number(index || 0) > 0;
     const roleBadge = role === 'staff'
-        ? '<span style="display:inline-flex;align-items:center;gap:4px;background:#dbeafe;color:#1e40af;border:1px solid #93c5fd;padding:2px 8px;border-radius:999px;font-size:0.75rem;font-weight:700;"><i class="fas fa-user-shield"></i>답변</span>'
-        : '<span style="display:inline-flex;align-items:center;gap:4px;background:#f1f5f9;color:#334155;border:1px solid #cbd5e1;padding:2px 8px;border-radius:999px;font-size:0.75rem;font-weight:700;"><i class="fas fa-bug"></i>리포트</span>';
+        ? '<span style="display:inline-flex;align-items:center;gap:4px;background:var(--surface-2);color:var(--primary-color);border:1px solid var(--accent-color);padding:2px 8px;border-radius:999px;font-size:0.75rem;font-weight:700;"><i class="fas fa-user-shield"></i>답변</span>'
+        : '<span style="display:inline-flex;align-items:center;gap:4px;background:var(--surface-2);color:var(--text-primary);border:1px solid var(--text-dim);padding:2px 8px;border-radius:999px;font-size:0.75rem;font-weight:700;"><i class="fas fa-bug"></i>리포트</span>';
     const contentHtml = role === 'staff'
         ? getPostContentHtml(message.content || '')
         : escapeHtml(message.content || '');
@@ -2672,16 +2672,16 @@ async function loadBoardOrderList() {
         const adminBoards = boards.filter(b => (b.min_web_read > 0 || ['report', 'bug'].includes(b.id)));
 
         const renderItem = (b) => `
-            <div class="order-item" data-id="${b.id}" style="display:flex; align-items:center; padding:12px 16px; background:white; border:1px solid #e2e8f0; border-radius:8px; margin-bottom:8px; cursor:grab; transition: all 0.2s;">
-                <i class="fas fa-grip-vertical" style="color:#94a3b8; margin-right:16px;"></i>
-                <span style="font-weight:600; color:#1e293b; min-width:100px;">${b.id}</span>
-                <span style="color:#64748b;">${escapeHtml(b.name)}</span>
+            <div class="order-item" data-id="${b.id}" style="display:flex; align-items:center; padding:12px 16px; background:var(--surface); border:1px solid var(--border-color); border-radius:8px; margin-bottom:8px; cursor:grab; transition: all 0.2s;">
+                <i class="fas fa-grip-vertical" style="color:var(--text-dim); margin-right:16px;"></i>
+                <span style="font-weight:600; color:var(--text-primary); min-width:100px;">${b.id}</span>
+                <span style="color:var(--text-secondary);">${escapeHtml(b.name)}</span>
             </div>
         `;
 
         userContainer.innerHTML = userBoards.length
             ? userBoards.map(renderItem).join('')
-            : '<div style="text-align:center; padding:20px; color:#94a3b8;">유저 게시판이 없습니다.</div>';
+            : '<div style="text-align:center; padding:20px; color:var(--text-dim);">유저 게시판이 없습니다.</div>';
 
         const contentMenuIds = new Set(['connect-guide', 'carddraw', 'shop']);
         const userMenuIds = new Set(['mailbox', 'calendar', 'auction']);
@@ -2710,46 +2710,46 @@ async function loadBoardOrderList() {
 
         const userBoardHtml = userBoards.length
             ? userBoards.map(renderItem).join('')
-            : '<div style="text-align:center; padding:12px; color:#94a3b8;">유저 게시판이 없습니다.</div>';
+            : '<div style="text-align:center; padding:12px; color:var(--text-dim);">유저 게시판이 없습니다.</div>';
         const contentListHtml = contentItems.length
             ? contentItems.map(item => `
                 <div class="order-item order-item-user-content"
                     data-id="${item.id}"
                     data-menu-group="${contentMenuIds.has(String(item.id || '')) ? 'content' : 'user'}"
-                    style="display:flex; align-items:center; padding:12px 16px; background:white; border:1px solid #e2e8f0; border-radius:8px; margin-bottom:8px; cursor:grab; transition: all 0.2s;">
-                    <i class="fas fa-grip-vertical" style="color:#94a3b8; margin-right:16px;"></i>
-                    <span style="font-weight:600; color:#1e293b; min-width:130px;">${escapeHtml(item.id)}</span>
-                    <span style="color:#64748b; flex:1;">${escapeHtml(item.name)}</span>
-                    <span style="font-size:0.75rem; font-weight:700; color:#475569; background:#f1f5f9; border:1px solid #e2e8f0; border-radius:999px; padding:4px 10px;">${escapeHtml(item.badge)}</span>
+                    style="display:flex; align-items:center; padding:12px 16px; background:var(--surface); border:1px solid var(--border-color); border-radius:8px; margin-bottom:8px; cursor:grab; transition: all 0.2s;">
+                    <i class="fas fa-grip-vertical" style="color:var(--text-dim); margin-right:16px;"></i>
+                    <span style="font-weight:600; color:var(--text-primary); min-width:130px;">${escapeHtml(item.id)}</span>
+                    <span style="color:var(--text-secondary); flex:1;">${escapeHtml(item.name)}</span>
+                    <span style="font-size:0.75rem; font-weight:700; color:var(--text-secondary); background:var(--surface-2); border:1px solid var(--border-color); border-radius:999px; padding:4px 10px;">${escapeHtml(item.badge)}</span>
                 </div>
             `).join('')
-            : '<div style="text-align:center; padding:12px; color:#94a3b8;">컨텐츠 메뉴가 없습니다.</div>';
+            : '<div style="text-align:center; padding:12px; color:var(--text-dim);">컨텐츠 메뉴가 없습니다.</div>';
 
         userContainer.innerHTML = `
-            <div style="margin-bottom:10px; font-weight:700; color:#334155;">게시판</div>
+            <div style="margin-bottom:10px; font-weight:700; color:var(--text-primary);">게시판</div>
             <div id="board-order-list-user-boards" style="margin-bottom:16px;">${userBoardHtml}</div>
-            <div style="margin-bottom:10px; font-weight:700; color:#334155;">컨텐츠</div>
-            <div style="margin-bottom:10px; font-size:0.84rem; color:#64748b;">알림함, 캘린더, 경매장, 접속방법, 카드뽑기, 선술집 메뉴를 드래그하여 정렬할 수 있습니다.</div>
+            <div style="margin-bottom:10px; font-weight:700; color:var(--text-primary);">컨텐츠</div>
+            <div style="margin-bottom:10px; font-size:0.84rem; color:var(--text-secondary);">알림함, 캘린더, 경매장, 접속방법, 카드뽑기, 선술집 메뉴를 드래그하여 정렬할 수 있습니다.</div>
             <div id="board-order-list-user-content">${contentListHtml}</div>
         `;
 
         const adminBoardHtml = adminBoards.length
             ? adminBoards.map(renderItem).join('')
-            : '<div style="text-align:center; padding:12px; color:#94a3b8;">관리자 게시판이 없습니다.</div>';
+            : '<div style="text-align:center; padding:12px; color:var(--text-dim);">관리자 게시판이 없습니다.</div>';
         const adminMenuHtml = managerMenus.length
             ? managerMenus.map(m => `
-                <div class="order-item order-item-admin-menu" data-menu-id="${m.id}" style="display:flex; align-items:center; padding:12px 16px; background:white; border:1px solid #e2e8f0; border-radius:8px; margin-bottom:8px; cursor:grab; transition: all 0.2s;">
-                    <i class="fas fa-grip-vertical" style="color:#94a3b8; margin-right:16px;"></i>
-                    <span style="font-weight:600; color:#1e293b; min-width:130px;">${m.id}</span>
-                    <span style="color:#64748b;">${escapeHtml(m.name || m.id)}</span>
+                <div class="order-item order-item-admin-menu" data-menu-id="${m.id}" style="display:flex; align-items:center; padding:12px 16px; background:var(--surface); border:1px solid var(--border-color); border-radius:8px; margin-bottom:8px; cursor:grab; transition: all 0.2s;">
+                    <i class="fas fa-grip-vertical" style="color:var(--text-dim); margin-right:16px;"></i>
+                    <span style="font-weight:600; color:var(--text-primary); min-width:130px;">${m.id}</span>
+                    <span style="color:var(--text-secondary);">${escapeHtml(m.name || m.id)}</span>
                 </div>
             `).join('')
-            : '<div style="text-align:center; padding:12px; color:#94a3b8;">관리자 메뉴가 없습니다.</div>';
+            : '<div style="text-align:center; padding:12px; color:var(--text-dim);">관리자 메뉴가 없습니다.</div>';
 
         adminContainer.innerHTML = `
-            <div style="margin-bottom:10px; font-weight:700; color:#334155;">관리자 게시판</div>
+            <div style="margin-bottom:10px; font-weight:700; color:var(--text-primary);">관리자 게시판</div>
             <div id="board-order-list-admin-boards" style="margin-bottom:14px;">${adminBoardHtml}</div>
-            <div style="margin-bottom:10px; font-weight:700; color:#334155;">관리자 메뉴</div>
+            <div style="margin-bottom:10px; font-weight:700; color:var(--text-primary);">관리자 메뉴</div>
             <div id="board-order-list-admin-menus">${adminMenuHtml}</div>
         `;
 

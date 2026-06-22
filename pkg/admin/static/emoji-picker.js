@@ -21,8 +21,8 @@ function createEmojiPicker() {
         right: 20px;
         width: 350px;
         max-height: 400px;
-        background: white;
-        border: 1px solid #e2e8f0;
+        background:var(--surface);
+        border: 1px solid var(--border-color);
         border-radius: 12px;
         box-shadow: 0 10px 40px rgba(0,0,0,0.15);
         display: none;
@@ -36,7 +36,7 @@ function createEmojiPicker() {
         display: flex;
         gap: 5px;
         padding: 10px;
-        border-bottom: 1px solid #e2e8f0;
+        border-bottom: 1px solid var(--border-color);
         overflow-x: auto;
     `;
 
@@ -46,8 +46,8 @@ function createEmojiPicker() {
         tab.style.cssText = `
             padding: 5px 10px;
             border: none;
-            background: ${index === 0 ? '#3b82f6' : '#f1f5f9'};
-            color: ${index === 0 ? 'white' : '#64748b'};
+            background: ${index === 0 ? 'var(--primary-color)' : 'var(--surface-2)'};
+            color: ${index === 0 ? '#0e0d11' : 'var(--text-secondary)'};
             border-radius: 6px;
             cursor: pointer;
             font-size: 16px;
@@ -55,11 +55,11 @@ function createEmojiPicker() {
         `;
         tab.onclick = () => {
             document.querySelectorAll('#emoji-picker button').forEach(b => {
-                b.style.background = '#f1f5f9';
-                b.style.color = '#64748b';
+                b.style.background = 'var(--surface-2)';
+                b.style.color = 'var(--text-secondary)';
             });
-            tab.style.background = '#3b82f6';
-            tab.style.color = 'white';
+            tab.style.background = 'var(--primary-color)';
+            tab.style.color = '#0e0d11';
             showEmojiCategory(category);
         };
         header.appendChild(tab);
@@ -104,7 +104,7 @@ function showEmojiCategory(category) {
             border-radius: 6px;
             transition: background 0.2s;
         `;
-        btn.onmouseover = () => btn.style.background = '#f1f5f9';
+        btn.onmouseover = () => btn.style.background = 'var(--surface-2)';
         btn.onmouseout = () => btn.style.background = 'transparent';
         btn.onclick = () => insertEmoji(emoji);
         grid.appendChild(btn);

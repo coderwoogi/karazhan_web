@@ -1,11 +1,17 @@
 ﻿:root {
-    --bg-color: #f8fafc;
-    --card-bg: #ffffff;
-    --text-primary: #0f172a;
-    --text-secondary: #475569;
-    --border-color: #e2e8f0;
-    --primary-color: #3b5bdb;
-    --primary-hover: #2f4bc7;
+    /* Karazhan 오퍼레이터 콘솔 디자인 시스템 (웜다크 + 골드) */
+    --bg-color: #0e0d11;
+    --card-bg: #13121a;
+    --text-primary: #f4f0e8;
+    --text-secondary: #a39d92;
+    --border-color: rgba(255, 255, 255, 0.09);
+    --primary-color: #c9a24a;
+    --primary-hover: #e7c170;
+    --surface-2: #1a1820;
+    --danger-color: #d2766b;
+    --success-color: #5fae7e;
+    --warning-color: #e7c170;
+    --gold-tint: rgba(201, 162, 74, 0.13);
 }
 
 * {
@@ -34,7 +40,7 @@ body {
     background: var(--card-bg);
     border: 1px solid var(--border-color);
     border-radius: 16px;
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    box-shadow: 0 1px 2px rgba(0,0,0, 0.04);
     overflow: hidden;
 }
 
@@ -42,7 +48,7 @@ body {
     display: flex;
     align-items: center;
     padding: 1rem 1.25rem;
-    background: #ffffff;
+    background: var(--card-bg);
     border-bottom: 1px solid var(--border-color);
 }
 
@@ -63,7 +69,7 @@ body {
     display: flex;
     gap: 0.5rem;
     flex-wrap: wrap;
-    background: #f1f5f9;
+    background: var(--surface-2);
     padding: 0.25rem;
     border-radius: 12px;
     width: fit-content;
@@ -85,14 +91,14 @@ body {
 }
 
 .update-tab-btn:hover {
-    color: #0f172a;
-    background: rgba(255, 255, 255, 0.5);
+    color: var(--text-primary);
+    background: rgba(255,255,255,0.06);
 }
 
 .update-tab-btn.active {
-    background-color: #ffffff;
+    background-color: #0e0d11;
     color: var(--primary-color);
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+    box-shadow: 0 1px 2px rgba(0,0,0, 0.08);
 }
 
 .filter-bar {
@@ -100,7 +106,7 @@ body {
     gap: 0.75rem;
     align-items: flex-end;
     flex-wrap: wrap;
-    background: #fff;
+    background: var(--card-bg);
     border: 1px solid var(--border-color);
     border-radius: 12px;
     padding: 1rem;
@@ -138,13 +144,13 @@ body {
     padding: 0.7rem 0.85rem;
     font-size: 0.92rem;
     color: var(--text-primary);
-    background: #fff;
+    background: var(--card-bg);
 }
 
 .text-input:focus {
     outline: none;
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(59, 91, 219, 0.12);
+    box-shadow: 0 0 0 3px rgba(201,162,74, 0.12);
 }
 
 input[type="file"] {
@@ -158,7 +164,7 @@ input[type="file"] {
     min-height: 44px;
     padding: 0.65rem 0.9rem;
     border: 1px solid var(--border-color);
-    background: #f8fafc;
+    background: var(--surface-2);
     border-radius: 8px;
     cursor: pointer;
     font-weight: 600;
@@ -185,7 +191,7 @@ input[type="file"] {
 
 .search-btn {
     background: var(--primary-color);
-    color: #fff;
+    color: #0e0d11;
     border-color: var(--primary-color);
 }
 
@@ -194,8 +200,8 @@ input[type="file"] {
 }
 
 .refresh-btn {
-    background: #f1f5f9;
-    color: #64748b;
+    background: var(--surface-2);
+    color: var(--text-secondary);
 }
 
 .scroll-table.premium-table {
@@ -210,7 +216,7 @@ input[type="file"] {
     border: 1px solid var(--border-color);
     border-radius: 10px;
     padding: 0.75rem 0.85rem;
-    background: #f8fafc;
+    background: var(--surface-2);
 }
 
 .upload-progress-head {
@@ -218,7 +224,7 @@ input[type="file"] {
     align-items: center;
     justify-content: space-between;
     font-size: 0.82rem;
-    color: #334155;
+    color: var(--text-secondary);
     font-weight: 700;
     margin-bottom: 0.5rem;
 }
@@ -226,7 +232,7 @@ input[type="file"] {
 .upload-progress-track {
     width: 100%;
     height: 10px;
-    background: #e2e8f0;
+    background: var(--border-color);
     border-radius: 999px;
     overflow: hidden;
 }
@@ -234,7 +240,7 @@ input[type="file"] {
 .upload-progress-bar {
     width: 0%;
     height: 100%;
-    background: linear-gradient(90deg, #3b82f6, #6366f1);
+    background: linear-gradient(90deg, var(--primary-color), var(--primary-color));
     transition: width 0.15s ease;
 }
 
@@ -256,7 +262,7 @@ input[type="file"] {
 .compare-result-card {
     border: 1px solid var(--border-color);
     border-radius: 12px;
-    background: #f8fafc;
+    background: var(--surface-2);
     padding: 1rem;
     display: flex;
     flex-direction: column;
@@ -280,7 +286,7 @@ input[type="file"] {
 .compare-result-card code {
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     font-size: 0.82rem;
-    color: #334155;
+    color: var(--text-secondary);
     word-break: break-all;
 }
 
@@ -296,23 +302,23 @@ input[type="file"] {
 }
 
 .compare-status-badge.neutral {
-    background: #e2e8f0;
-    color: #334155;
+    background: var(--border-color);
+    color: var(--text-secondary);
 }
 
 .compare-status-badge.match {
-    background: #dcfce7;
-    color: #166534;
+    background: rgba(95,174,126,0.16);
+    color: var(--success-color);
 }
 
 .compare-status-badge.mismatch {
-    background: #fef3c7;
-    color: #92400e;
+    background: rgba(231,193,112,0.16);
+    color: var(--warning-color);
 }
 
 .compare-status-badge.error {
-    background: #fee2e2;
-    color: #b91c1c;
+    background: rgba(210,118,107,0.16);
+    color: var(--danger-color);
 }
 
 .compare-meta,
@@ -332,8 +338,8 @@ table {
 }
 
 thead th {
-    background: #f8fafc;
-    color: #334155;
+    background: var(--surface-2);
+    color: var(--text-secondary);
     font-weight: 700;
     text-align: left;
     padding: 0.8rem 1rem;
@@ -353,7 +359,7 @@ tbody tr:last-child td {
 }
 
 tbody tr:nth-child(even) {
-    background: #fcfdff;
+    background: rgba(255,255,255,0.02);
 }
 
 .action-cell {
@@ -364,7 +370,7 @@ tbody tr:nth-child(even) {
 .action-btn {
     border: 1px solid var(--border-color);
     border-radius: 8px;
-    background: #fff;
+    background: var(--card-bg);
     padding: 0.35rem 0.6rem;
     font-size: 0.8rem;
     font-weight: 700;
@@ -373,15 +379,15 @@ tbody tr:nth-child(even) {
 }
 
 .edit-btn {
-    color: #2563eb;
-    border-color: #bfdbfe;
-    background: #eff6ff;
+    color: var(--primary-color);
+    border-color: var(--gold-tint);
+    background: var(--gold-tint);
 }
 
 .delete-btn {
-    color: #dc2626;
-    border-color: #fecaca;
-    background: #fef2f2;
+    color: var(--danger-color);
+    border-color: rgba(210,118,107,0.16);
+    background: rgba(210,118,107,0.16);
 }
 
 @media (max-width: 768px) {

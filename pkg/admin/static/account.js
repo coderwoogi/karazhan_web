@@ -104,7 +104,7 @@ async function loadAccountList(page = 1) {
                     <td>${u.id}</td>
                     <td style="font-weight:700;">
                         ${u.username}
-                        ${u.online == 1 ? '<span class="badge online" style="margin-left:5px; background:#10b981; color:white; font-size:0.7rem;">Online</span>' : ''}
+                        ${u.online == 1 ? '<span class="badge online" style="margin-left:5px; background:var(--success-color); color:white; font-size:0.7rem;">Online</span>' : ''}
                     </td>
                     <td style="color:var(--text-secondary);">${u.email}</td>
                     <td style="color:var(--text-secondary); white-space:nowrap;">${u.joinDate || '-'}</td>
@@ -115,13 +115,13 @@ async function loadAccountList(page = 1) {
                     <td style="text-align:center;">
                         <span class="badge ${webRankColors[u.webRank] || 'user'}">${webRankNames[u.webRank] || `일반 (${u.webRank})`}</span>
                     </td>
-                    <td style="text-align:right; font-weight:600; color:#f59e0b;">
-                        <button class="btn-action" style="background:none; border:none; color:#f59e0b; font-weight:800; cursor:pointer; padding:0; text-decoration:underline;" onclick="event.stopPropagation(); openPointModal(${u.id}, '${u.username}', ${u.points || 0})">
+                    <td style="text-align:right; font-weight:600; color:var(--warning-color);">
+                        <button class="btn-action" style="background:none; border:none; color:var(--warning-color); font-weight:800; cursor:pointer; padding:0; text-decoration:underline;" onclick="event.stopPropagation(); openPointModal(${u.id}, '${u.username}', ${u.points || 0})">
                             ${(u.points || 0).toLocaleString()}
                         </button>
                     </td>
-                    <td style="text-align:right; font-weight:600; color:#3b82f6;">
-                        <button class="btn-action" style="background:none; border:none; color:#3b82f6; font-weight:800; cursor:pointer; padding:0; text-decoration:underline;" onclick="event.stopPropagation(); openCarddrawCountModal(${u.id}, '${u.username}', ${u.carddrawCount || 0})">
+                    <td style="text-align:right; font-weight:600; color:var(--primary-color);">
+                        <button class="btn-action" style="background:none; border:none; color:var(--primary-color); font-weight:800; cursor:pointer; padding:0; text-decoration:underline;" onclick="event.stopPropagation(); openCarddrawCountModal(${u.id}, '${u.username}', ${u.carddrawCount || 0})">
                             ${(u.carddrawCount || 0).toLocaleString()}
                         </button>
                     </td>
@@ -134,11 +134,11 @@ async function loadAccountList(page = 1) {
                         </button>
                     </td>
                     <td style="text-align: center;">
-                        <button class="btn-action btn-edit" style="width:auto; display:inline-block; padding: 4px 12px; white-space:nowrap; background-color:#3b82f6; color:#ffffff; margin-right: 4px;" onclick="event.stopPropagation(); openPasswordModal(${u.id}, '${u.username}')">
+                        <button class="btn-action btn-edit" style="width:auto; display:inline-block; padding: 4px 12px; white-space:nowrap; background-color:var(--primary-color); color:#ffffff; margin-right: 4px;" onclick="event.stopPropagation(); openPasswordModal(${u.id}, '${u.username}')">
                             <i class="fas fa-key"></i> 비번 초기화
                         </button>
                         ${u.is_banned
-                            ? `<button class="btn-action btn-delete" style="width:auto; display:inline-block; padding: 4px 12px; white-space:nowrap; background-color:#10b981; color:#ffffff;" onclick="event.stopPropagation(); submitUnban(${u.id})"><i class="fas fa-unlock"></i> 해제</button>`
+                            ? `<button class="btn-action btn-delete" style="width:auto; display:inline-block; padding: 4px 12px; white-space:nowrap; background-color:var(--success-color); color:#ffffff;" onclick="event.stopPropagation(); submitUnban(${u.id})"><i class="fas fa-unlock"></i> 해제</button>`
                             : `<button class="btn-action btn-delete" style="width:auto; display:inline-block; padding: 4px 12px; white-space:nowrap;" onclick="event.stopPropagation(); openBanModal(${u.id}, '${u.username}')"><i class="fas fa-ban"></i> 밴</button>`
                         }
                     </td>
@@ -255,7 +255,7 @@ async function openAccountDetail(id) {
         document.getElementById('acc-detail-id').textContent = id;
     }
 
-    document.getElementById('acc-detail-char-list').innerHTML = '<tr><td colspan="4" style="text-align:center; padding:40px; color:#64748b;"><i class="fas fa-circle-notch fa-spin"></i> 캐릭터 정보를 불러오는 중...</td></tr>';
+    document.getElementById('acc-detail-char-list').innerHTML = '<tr><td colspan="4" style="text-align:center; padding:40px; color:var(--text-secondary);"><i class="fas fa-circle-notch fa-spin"></i> 캐릭터 정보를 불러오는 중...</td></tr>';
 
     showAccountCharList();
     modal.style.display = 'flex';
@@ -455,11 +455,11 @@ function renderAccountCharItemRows(items, emptyMessage) {
             const enchants = item.enchantments && item.enchantments.length > 0 ? item.enchantments.join(', ') : '-';
             return `
                 <tr>
-                    <td style="font-size:0.85rem; color:#64748b;">${escapeAccountDetailHtml(slotName)}</td>
+                    <td style="font-size:0.85rem; color:var(--text-secondary);">${escapeAccountDetailHtml(slotName)}</td>
                     <td style="font-weight:600;">${escapeAccountDetailHtml(item.name || '알 수 없는 아이템')}</td>
-                    <td style="text-align:center; color:#94a3b8; font-size:0.8rem;">${escapeAccountDetailHtml(item.entry)}</td>
+                    <td style="text-align:center; color:var(--text-dim); font-size:0.8rem;">${escapeAccountDetailHtml(item.entry)}</td>
                     <td style="text-align:center; font-weight:700; color:var(--primary-color);">${escapeAccountDetailHtml(item.count)}</td>
-                    <td style="font-size:0.8rem; color:#64748b;">${escapeAccountDetailHtml(enchants)}</td>
+                    <td style="font-size:0.8rem; color:var(--text-secondary);">${escapeAccountDetailHtml(enchants)}</td>
                 </tr>
             `;
         })
@@ -756,9 +756,9 @@ async function loadAdminPointHistory(page = 1) {
 
                     return `
                     <tr>
-                        <td style="font-size:0.8rem; color:#64748b; white-space:nowrap; padding-left: 15px;">${log.createdAt || '-'}</td>
+                        <td style="font-size:0.8rem; color:var(--text-secondary); white-space:nowrap; padding-left: 15px;">${log.createdAt || '-'}</td>
                         <td style="text-align:right; font-weight:700; color:${color}; white-space:nowrap; padding-right: 15px;">${prefix}${(log.amount || 0).toLocaleString()}</td>
-                        <td style="text-align:center; font-size:0.85rem; color:#64748b;">${log.admin || 'System'}</td>
+                        <td style="text-align:center; font-size:0.85rem; color:var(--text-secondary);">${log.admin || 'System'}</td>
                         <td style="font-size:0.85rem; word-break:break-all; padding-left: 15px;">${log.reason || '-'}</td>
                     </tr>
                 `;

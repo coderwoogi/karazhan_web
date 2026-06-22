@@ -38,7 +38,7 @@ async function openCharacterItemsModal(characterName, characterGuid) {
                 </div>
                 <div class="info-item">
                     <span class="info-label">소지금</span>
-                    <span class="info-value" style="color:#f59e0b;">${data.character.gold.toLocaleString()}g</span>
+                    <span class="info-value" style="color:var(--warning-color);">${data.character.gold.toLocaleString()}g</span>
                 </div>
             </div>
         `;

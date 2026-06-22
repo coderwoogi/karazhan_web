@@ -21,10 +21,10 @@ var GMManager = {
         const label = String(category || '').trim() || '-';
         const safe = window.escapeHtml ? window.escapeHtml(label) : label;
         const map = {
-            '건의': { icon: 'fa-lightbulb', bg: '#fef3c7', fg: '#92400e', bd: '#fcd34d' },
-            '질문': { icon: 'fa-circle-question', bg: '#dbeafe', fg: '#1e40af', bd: '#93c5fd' },
-            '후원': { icon: 'fa-hand-holding-heart', bg: '#dcfce7', fg: '#166534', bd: '#86efac' },
-            '기타': { icon: 'fa-folder-open', bg: '#f1f5f9', fg: '#334155', bd: '#cbd5e1' }
+            '건의': { icon: 'fa-lightbulb', bg: 'rgba(231,193,112,0.16)', fg: '#e7c170', bd: 'rgba(231,193,112,0.45)' },
+            '질문': { icon: 'fa-circle-question', bg: 'rgba(201,162,74,0.13)', fg: '#c9a24a', bd: '#c9a24a' },
+            '후원': { icon: 'fa-hand-holding-heart', bg: 'rgba(95,174,126,0.16)', fg: '#5fae7e', bd: 'rgba(95,174,126,0.45)' },
+            '기타': { icon: 'fa-folder-open', bg: 'var(--border-color)', fg: '#334155', bd: 'rgba(255,255,255,0.18)' }
         };
         const style = map[label] || map['기타'];
         return `<span style="display:inline-flex; align-items:center; gap:6px; background:${style.bg}; color:${style.fg}; border:1px solid ${style.bd}; padding:4px 10px; border-radius:999px; font-size:0.8rem; font-weight:700; white-space:nowrap;"><i class="fas ${style.icon}"></i>${safe}</span>`;
@@ -32,10 +32,10 @@ var GMManager = {
     renderInquiryStatusBadge(status) {
         const v = String(status || '').toLowerCase().trim();
         const map = {
-            'received': { label: '접수', bg: '#e0e7ff', fg: '#3730a3', bd: '#c7d2fe', icon: 'fa-inbox' },
-            'in_progress': { label: '진행중', bg: '#fef3c7', fg: '#92400e', bd: '#fcd34d', icon: 'fa-person-digging' },
-            'done': { label: '완료', bg: '#dcfce7', fg: '#166534', bd: '#86efac', icon: 'fa-circle-check' },
-            'point_paid': { label: '지급완료', bg: '#ffedd5', fg: '#9a3412', bd: '#fdba74', icon: 'fa-coins' }
+            'received': { label: '접수', bg: 'rgba(163,157,146,0.16)', fg: '#a39d92', bd: 'rgba(163,157,146,0.4)', icon: 'fa-inbox' },
+            'in_progress': { label: '진행중', bg: 'rgba(231,193,112,0.16)', fg: '#e7c170', bd: 'rgba(231,193,112,0.45)', icon: 'fa-person-digging' },
+            'done': { label: '완료', bg: 'rgba(95,174,126,0.16)', fg: '#5fae7e', bd: 'rgba(95,174,126,0.45)', icon: 'fa-circle-check' },
+            'point_paid': { label: '지급완료', bg: 'rgba(201,162,74,0.16)', fg: '#c9a24a', bd: 'rgba(201,162,74,0.45)', icon: 'fa-coins' }
         };
         const style = map[v] || map['received'];
         return `<span style="display:inline-flex; align-items:center; gap:6px; background:${style.bg}; color:${style.fg}; border:1px solid ${style.bd}; padding:4px 10px; border-radius:999px; font-size:0.8rem; font-weight:700; white-space:nowrap;"><i class="fas ${style.icon}"></i>${style.label}</span>`;
@@ -143,8 +143,8 @@ var GMManager = {
                         const events = (data || []).map(item => ({
                             title: item.title || item.content, // Events use title, Todos use content
                             start: item.target_date,
-                            color: mode === 'events' ? '#8b5cf6' : (item.is_completed ? '#cbd5e1' : '#3b82f6'),
-                            borderColor: mode === 'events' ? '#7c3aed' : (item.is_completed ? '#cbd5e1' : '#3b82f6'),
+                            color: mode === 'events' ? '#c9a24a' : (item.is_completed ? 'rgba(255,255,255,0.18)' : '#c9a24a'),
+                            borderColor: mode === 'events' ? '#c9a24a' : (item.is_completed ? 'rgba(255,255,255,0.18)' : '#c9a24a'),
                             textColor: 'white',
                             extendedProps: { ...item, type: mode }
                         }));
@@ -169,7 +169,7 @@ var GMManager = {
                 this.selectDate(info.dateStr, mode);
                 // Visual Highlight
                 document.querySelectorAll('.fc-daygrid-day').forEach(el => el.style.backgroundColor = '');
-                if(info.dayEl) info.dayEl.style.backgroundColor = '#eff6ff';
+                if(info.dayEl) info.dayEl.style.backgroundColor = 'rgba(201,162,74,0.13)';
             },
             eventClick: (info) => {
                 this.selectDate(info.event.startStr.split('T')[0], mode);
@@ -200,7 +200,7 @@ var GMManager = {
         
         document.querySelectorAll('.fc-daygrid-day').forEach(el => el.style.backgroundColor = '');
         const dayEl = document.querySelector(`.fc-daygrid-day[data-date="${dateStr}"]`);
-        if(dayEl) dayEl.style.backgroundColor = '#eff6ff';
+        if(dayEl) dayEl.style.backgroundColor = 'rgba(201,162,74,0.13)';
     },
 
     renderTodoList(mode = 'todos') {
@@ -210,7 +210,7 @@ var GMManager = {
         if (title) {
             const d = new Date(this.selectedDate);
             const dayName = ['일', '월', '화', '수', '목', '금', '토'][d.getDay()];
-            title.innerHTML = `<span style="color:${mode === 'events' ? '#8b5cf6' : '#3b82f6'};">${d.getMonth() + 1}월 ${d.getDate()}일</span> <span style="font-weight:normal; color:#64748b;">(${dayName})</span> ${mode === 'events' ? '일정' : '업무'}`;
+            title.innerHTML = `<span style="color:${mode === 'events' ? '#c9a24a' : '#c9a24a'};">${d.getMonth() + 1}월 ${d.getDate()}일</span> <span style="font-weight:normal; color:var(--text-secondary);">(${dayName})</span> ${mode === 'events' ? '일정' : '업무'}`;
         }
 
         if (!container) return;
@@ -219,7 +219,7 @@ var GMManager = {
         const items = this.monthData[this.selectedDate] || [];
 
         if (items.length === 0) {
-            container.innerHTML = `<div style="text-align:center; padding:40px 20px; color:#cbd5e1;">      
+            container.innerHTML = `<div style="text-align:center; padding:40px 20px; color:var(--text-dim);">      
                 <i class="far fa-calendar-${mode === 'events' ? 'alt' : 'times'}" style="font-size:2rem; margin-bottom:10px;"></i>
                 <div style="font-size:0.9rem;">등록된 ${mode === 'events' ? '일정이' : '업무가'} 없습니다.</div>
             </div>`;
@@ -229,24 +229,24 @@ var GMManager = {
         items.forEach(item => {
             const el = document.createElement('div');
             el.className = 'todo-item-card';
-            el.style = `background:white; border:1px solid #e2e8f0; border-radius:8px; padding:12px; margin-bottom:10px; opacity:${item.is_completed ? 0.6 : 1}; transition:all 0.2s; box-shadow:0 1px 2px rgba(0,0,0,0.02);`;
+            el.style = `background:var(--surface); border:1px solid var(--border-color); border-radius:8px; padding:12px; margin-bottom:10px; opacity:${item.is_completed ? 0.6 : 1}; transition:all 0.2s; box-shadow:0 1px 2px rgba(0,0,0,0.02);`;
             
             if (mode === 'events') {
                 // Event Rendering
                 const formattedContent = (item.content || '').replace(/\n/g, '<br>');
                 el.innerHTML = `
                     <div style="display:flex; justify-content:space-between; margin-bottom:8px; align-items:flex-start;">
-                         <div style="font-weight:700; color:#1e293b; font-size:1rem;">${item.title}</div>
-                         <button onclick="GMManager.deleteEvent(${item.id})" style="border:none; background:none; cursor:pointer; color:#ef4444; opacity:0.6;" title="삭제" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.6">
+                         <div style="font-weight:700; color:var(--text-primary); font-size:1rem;">${item.title}</div>
+                         <button onclick="GMManager.deleteEvent(${item.id})" style="border:none; background:none; cursor:pointer; color:var(--danger-color); opacity:0.6;" title="삭제" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.6">
                             <i class="fas fa-trash"></i>
                          </button>
                     </div>
-                    <div style="font-size:0.85rem; color:#64748b; margin-bottom:6px;">
+                    <div style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:6px;">
                         <i class="far fa-clock"></i> ${item.start_time ? item.start_time.substring(0,5) : '?섎（ 醫낆씪'} 
-                        <span style="margin:0 4px; color:#cbd5e1;">|</span>
+                        <span style="margin:0 4px; color:var(--text-dim);">|</span>
                         <i class="fas fa-user-edit"></i> ${item.author}
                     </div>
-                    <div style="font-size:0.95rem; color:#334155; line-height:1.5;">${formattedContent}</div>
+                    <div style="font-size:0.95rem; color:var(--text-primary); line-height:1.5;">${formattedContent}</div>
                 `;
             } else {
                 // Todo Rendering
@@ -254,19 +254,19 @@ var GMManager = {
                 el.innerHTML = `
                     <div style="display:flex; justify-content:space-between; margin-bottom:8px; align-items:flex-start;">
                         <div style="display:flex; align-items:center; gap:8px;">
-                            <span style="font-weight:600; font-size:0.9rem; color:#1e293b; background:#f1f5f9; padding:2px 6px; border-radius:4px;">${item.author}</span>
-                            ${item.participants ? `<span style="font-size:0.8rem; color:#0284c7; background:#e0f2fe; padding:2px 6px; border-radius:4px;">@${item.participants}</span>` : ''}
+                            <span style="font-weight:600; font-size:0.9rem; color:var(--text-primary); background:var(--surface-2); padding:2px 6px; border-radius:4px;">${item.author}</span>
+                            ${item.participants ? `<span style="font-size:0.8rem; color:#a39d92; background:rgba(163,157,146,0.16); padding:2px 6px; border-radius:4px;">@${item.participants}</span>` : ''}
                         </div>
                         <div style="display:flex; gap:8px;">
-                             <button onclick="GMManager.toggleTodo(${item.id}, ${!item.is_completed})" style="border:none; background:none; cursor:pointer; color:${item.is_completed ? '#10b981' : '#cbd5e1'};" title="${item.is_completed ? '?꾨즺 痍⑥냼' : '?꾨즺 泥섎━'}">
+                             <button onclick="GMManager.toggleTodo(${item.id}, ${!item.is_completed})" style="border:none; background:none; cursor:pointer; color:${item.is_completed ? '#10b981' : 'rgba(255,255,255,0.18)'};" title="${item.is_completed ? '?꾨즺 痍⑥냼' : '?꾨즺 泥섎━'}">
                                 <i class="fas fa-check-circle fa-lg"></i>
                              </button>
-                            <button onclick="GMManager.deleteTodo(${item.id})" style="border:none; background:none; cursor:pointer; color:#ef4444; opacity:0.6;" title="삭제" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.6">
+                            <button onclick="GMManager.deleteTodo(${item.id})" style="border:none; background:none; cursor:pointer; color:var(--danger-color); opacity:0.6;" title="삭제" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.6">
                                 <i class="fas fa-trash"></i>
                              </button>
                         </div>
                     </div>
-                    <div style="font-size:0.95rem; color:#334155; line-height:1.5; ${item.is_completed ? 'text-decoration:line-through; color:#94a3b8;' : ''}">${formattedContent}</div>
+                    <div style="font-size:0.95rem; color:var(--text-primary); line-height:1.5; ${item.is_completed ? 'text-decoration:line-through; color:var(--text-dim);' : ''}">${formattedContent}</div>
                 `;
             }
             container.appendChild(el);
@@ -369,21 +369,21 @@ var GMManager = {
         modal.className = 'modal active';
         modal.innerHTML = `
             <div class="modal-content" style="max-width:500px; padding:24px;">
-                <h3 style="margin-bottom:20px; font-size:1.25rem; color:#1e293b;"><i class="fas fa-calendar-plus"></i> 할 일 추가 (${date})</h3>
+                <h3 style="margin-bottom:20px; font-size:1.25rem; color:var(--text-primary);"><i class="fas fa-calendar-plus"></i> 할 일 추가 (${date})</h3>
                 
                 <div style="display:flex; gap:15px; margin-bottom:15px;">
                     <div style="flex:1;">
-                        <label style="display:block; font-size:0.9rem; color:#64748b; margin-bottom:5px;">작성자</label>
+                        <label style="display:block; font-size:0.9rem; color:var(--text-secondary); margin-bottom:5px;">작성자</label>
                         <input type="text" id="todo-author" class="input-premium" style="width:100%;" placeholder="예: GM 팀장" value="GM">
                     </div>
                     <div style="flex:1;">
-                        <label style="display:block; font-size:0.9rem; color:#64748b; margin-bottom:5px;">참여자</label>
+                        <label style="display:block; font-size:0.9rem; color:var(--text-secondary); margin-bottom:5px;">참여자</label>
                         <input type="text" id="todo-participants" class="input-premium" style="width:100%;" placeholder="예: 개발자, 기획자">
                     </div>
                 </div>
                 
                 <div style="margin-bottom:24px;">
-                    <label style="display:block; font-size:0.9rem; color:#64748b; margin-bottom:5px;">업무 내용</label>
+                    <label style="display:block; font-size:0.9rem; color:var(--text-secondary); margin-bottom:5px;">업무 내용</label>
                     <textarea id="todo-content" class="input-premium" style="width:100%; min-height:120px; resize:vertical;" placeholder="업무 내용을 자세히 입력하세요."></textarea>
                 </div>
                 
@@ -547,11 +547,11 @@ var GMManager = {
         const safeRelated = String(data.related_url || '').replace(/'/g, "\\'");
         const sourcePreview = sourceFiles.slice(0, 10).map(file => {
             const safe = window.escapeHtml ? window.escapeHtml(file) : file;
-            return `<div style="padding:8px 10px; border:1px solid #e2e8f0; border-radius:8px; background:#fff; font-family:'JetBrains Mono', monospace; font-size:0.8rem; color:var(--text-secondary);">${safe}</div>`;
+            return `<div style="padding:8px 10px; border:1px solid var(--border-color); border-radius:8px; background:var(--surface); font-family:'JetBrains Mono', monospace; font-size:0.8rem; color:var(--text-secondary);">${safe}</div>`;
         }).join('');
         const sqlPreview = sqlFiles.slice(0, 10).map(file => {
             const safe = window.escapeHtml ? window.escapeHtml(file) : file;
-            return `<div style="padding:8px 10px; border:1px solid #e2e8f0; border-radius:8px; background:#fff; font-family:'JetBrains Mono', monospace; font-size:0.8rem; color:var(--text-secondary);">${safe}</div>`;
+            return `<div style="padding:8px 10px; border:1px solid var(--border-color); border-radius:8px; background:var(--surface); font-family:'JetBrains Mono', monospace; font-size:0.8rem; color:var(--text-secondary);">${safe}</div>`;
         }).join('');
 
         view.innerHTML = `
@@ -560,9 +560,9 @@ var GMManager = {
                     <div>
                         <h2 style="font-size:1.5rem; font-weight:700; color:var(--text-primary); margin-bottom:8px; display:flex; align-items:center; gap:10px;">
                             ${safeModuleName}
-                            <span style="font-size:0.8rem; background:#e0f2fe; color:#0369a1; padding:4px 8px; border-radius:6px; font-weight:600;">MODULE</span>
+                            <span style="font-size:0.8rem; background:rgba(163,157,146,0.16); color:#a39d92; padding:4px 8px; border-radius:6px; font-weight:600;">MODULE</span>
                         </h2>
-                        <div style="font-family:'JetBrains Mono', monospace; font-size:0.85rem; color:var(--text-secondary); background:#f1f5f9; padding:6px 10px; border-radius:6px; display:inline-block;">
+                        <div style="font-family:'JetBrains Mono', monospace; font-size:0.85rem; color:var(--text-secondary); background:var(--surface-2); padding:6px 10px; border-radius:6px; display:inline-block;">
                             ${safeModulePath}
                         </div>
                     </div>
@@ -573,7 +573,7 @@ var GMManager = {
                         ${data.related_url ? `<button onclick="window.location.href='${safeRelated}'" class="btn-action" style="background:#f0fdfa; color:#0d9488; border:1px solid #ccfbf1;"><i class="fas fa-external-link-alt"></i> 이동</button>` : ''}
                     </div>
                 </div>
-                ${data.manual_description ? `<div style="margin-top:16px; background:#fffbeb; padding:12px; border-radius:8px; border:1px solid #fcd34d; color:#92400e; font-size:0.9rem;"><i class="fas fa-sticky-note" style="margin-right:6px;"></i> ${window.escapeHtml ? window.escapeHtml(data.manual_description) : data.manual_description}</div>` : ''}
+                ${data.manual_description ? `<div style="margin-top:16px; background:var(--surface-2); padding:12px; border-radius:8px; border:1px solid var(--warning-color); color:var(--warning-color); font-size:0.9rem;"><i class="fas fa-sticky-note" style="margin-right:6px;"></i> ${window.escapeHtml ? window.escapeHtml(data.manual_description) : data.manual_description}</div>` : ''}
             </div>
 
             <div class="log-sub-tabs" style="margin-bottom:20px;">
@@ -585,25 +585,25 @@ var GMManager = {
             </div>
 
             <div id="mod-tab-info" class="mod-tab-content active">
-                <div class="card-body" style="background:white; border-radius:12px; border:1px solid var(--border-color); padding:24px;">
-                    <div style="padding:18px; border:1px solid #e2e8f0; border-radius:12px; background:linear-gradient(180deg,#ffffff 0%,#f8fafc 100%); margin-bottom:18px;">
+                <div class="card-body" style="background:var(--surface); border-radius:12px; border:1px solid var(--border-color); padding:24px;">
+                    <div style="padding:18px; border:1px solid var(--border-color); border-radius:12px; background:linear-gradient(180deg,#ffffff 0%,#f8fafc 100%); margin-bottom:18px;">
                         <h3 style="margin:0 0 10px; font-size:1.3rem; color:var(--text-primary);">${safeModuleName} 분석</h3>
                         <p style="margin:0; color:var(--text-secondary); line-height:1.7;">모듈 설명, 사용 데이터베이스, 테이블, 명령어, 핵심 파일 위치를 한 화면에서 확인할 수 있도록 정리한 분석 화면입니다.</p>
                     </div>
                     <div style="display:grid; grid-template-columns:repeat(2, minmax(260px, 1fr)); gap:16px;">
-                        <div style="padding:16px; border:1px solid var(--border-color); border-radius:12px; background:#fff;">
+                        <div style="padding:16px; border:1px solid var(--border-color); border-radius:12px; background:var(--surface);">
                             <div style="font-size:0.78rem; font-weight:800; color:#b7791f; margin-bottom:8px; letter-spacing:0.04em;">모듈명</div>
                             <div style="font-size:1rem; color:var(--text-primary); line-height:1.6;"><code>${safeModuleName}</code></div>
                         </div>
-                        <div style="padding:16px; border:1px solid var(--border-color); border-radius:12px; background:#fff;">
+                        <div style="padding:16px; border:1px solid var(--border-color); border-radius:12px; background:var(--surface);">
                             <div style="font-size:0.78rem; font-weight:800; color:#b7791f; margin-bottom:8px; letter-spacing:0.04em;">설명</div>
                             <div style="font-size:1rem; color:var(--text-primary); line-height:1.6;">${window.escapeHtml ? window.escapeHtml(moduleDesc) : moduleDesc}</div>
                         </div>
-                        <div style="padding:16px; border:1px solid var(--border-color); border-radius:12px; background:#fff;">
+                        <div style="padding:16px; border:1px solid var(--border-color); border-radius:12px; background:var(--surface);">
                             <div style="font-size:0.78rem; font-weight:800; color:#b7791f; margin-bottom:8px; letter-spacing:0.04em;">사용 데이터베이스</div>
                             <div style="font-size:1rem; color:var(--text-primary); line-height:1.6;">${databases.length ? databases.map(db => `<code style="margin-right:8px;">${window.escapeHtml ? window.escapeHtml(db) : db}</code>`).join('') : '분석된 데이터베이스가 없습니다.'}</div>
                         </div>
-                        <div style="padding:16px; border:1px solid var(--border-color); border-radius:12px; background:#fff;">
+                        <div style="padding:16px; border:1px solid var(--border-color); border-radius:12px; background:var(--surface);">
                             <div style="font-size:0.78rem; font-weight:800; color:#b7791f; margin-bottom:8px; letter-spacing:0.04em;">요약 수치</div>
                             <div style="font-size:1rem; color:var(--text-primary); line-height:1.8;">테이블 ${Number(meta.tableCount || tableRows.length)}개 / 명령어 ${Number(meta.commandCount || commandRows.length)}개 / 소스 ${Number(meta.sourceCount || sourceFiles.length)}개 / SQL ${Number(meta.sqlCount || sqlFiles.length)}개</div>
                         </div>
@@ -612,7 +612,7 @@ var GMManager = {
             </div>
 
             <div id="mod-tab-tables" class="mod-tab-content" style="display:none;">
-                <div class="card-body" style="background:white; border-radius:12px; border:1px solid var(--border-color); padding:24px;">
+                <div class="card-body" style="background:var(--surface); border-radius:12px; border:1px solid var(--border-color); padding:24px;">
                     <h4 style="font-size:1.1rem; margin-bottom:10px;">사용 테이블</h4>
                     <p style="margin:0 0 18px; color:var(--text-secondary);">모듈이 SQL 파일 또는 소스 코드 쿼리에서 참조하는 테이블 목록입니다.</p>
                     ${this.renderModuleReferenceTable(['데이터베이스', '테이블명', '유형', '설명', '세부 내용', '파일 위치'], tableRows.map(row => ({
@@ -627,7 +627,7 @@ var GMManager = {
             </div>
 
             <div id="mod-tab-commands" class="mod-tab-content" style="display:none;">
-                <div class="card-body" style="background:white; border-radius:12px; border:1px solid var(--border-color); padding:24px;">
+                <div class="card-body" style="background:var(--surface); border-radius:12px; border:1px solid var(--border-color); padding:24px;">
                     <h4 style="font-size:1.1rem; margin-bottom:10px;">명령어</h4>
                     <p style="margin:0 0 18px; color:var(--text-secondary);">ChatCommandTable 또는 소스 코드에서 확인된 명령어 목록입니다.</p>
                     ${this.renderModuleReferenceTable(['실행 환경', '명령어', '유형', '설명', '권한/세부', '파일 위치'], commandRows.map(row => ({
@@ -642,7 +642,7 @@ var GMManager = {
             </div>
 
             <div id="mod-tab-files" class="mod-tab-content" style="display:none;">
-                <div class="card-body" style="background:white; border-radius:12px; border:1px solid var(--border-color); padding:24px;">
+                <div class="card-body" style="background:var(--surface); border-radius:12px; border:1px solid var(--border-color); padding:24px;">
                     <h4 style="font-size:1.1rem; margin-bottom:10px;">파일 위치</h4>
                     <p style="margin:0 0 18px; color:var(--text-secondary);">핵심 소스 파일과 SQL 파일을 우선 노출합니다.</p>
                     <div style="display:grid; grid-template-columns:repeat(2, minmax(280px, 1fr)); gap:18px;">
@@ -715,7 +715,7 @@ var GMManager = {
                  tree.children.forEach(child => {
                      if (child.type === 'dir') {
                          html += `
-                            <div class="tree-item"><i class="far fa-folder" style="color:#f59e0b;"></i> ${child.name}</div>
+                            <div class="tree-item"><i class="far fa-folder" style="color:var(--warning-color);"></i> ${child.name}</div>
                             <div class="tree-children" style="padding-left:20px;">
                                 ${this.renderFileTree(child)}
                             </div>`;
@@ -737,9 +737,9 @@ var GMManager = {
                         <i class="fas fa-user-circle"></i> ${memo.user_name}
                     </div>
                     <div class="memo-actions">
-                        <button onclick="GMManager.togglePin(${memo.id}, ${!memo.is_pinned})" title="고정"><i class="fas fa-thumbtack" style="${memo.is_pinned ? 'color:#d97706;' : ''}"></i></button>
-                        <button onclick="GMManager.toggleComplete(${memo.id}, ${!memo.is_completed})" title="완료"><i class="fas fa-check" style="${memo.is_completed ? 'color:#059669;' : ''}"></i></button>
-                        <button onclick="GMManager.deleteMemo(${memo.id})" title="삭제"><i class="fas fa-trash-alt" style="color:#ef4444;"></i></button>
+                        <button onclick="GMManager.togglePin(${memo.id}, ${!memo.is_pinned})" title="고정"><i class="fas fa-thumbtack" style="${memo.is_pinned ? 'color:var(--warning-color);' : ''}"></i></button>
+                        <button onclick="GMManager.toggleComplete(${memo.id}, ${!memo.is_completed})" title="완료"><i class="fas fa-check" style="${memo.is_completed ? 'color:var(--success-color);' : ''}"></i></button>
+                        <button onclick="GMManager.deleteMemo(${memo.id})" title="삭제"><i class="fas fa-trash-alt" style="color:var(--danger-color);"></i></button>
                     </div>
                 </div>
                 <div class="memo-content">${memo.content}</div>
@@ -776,7 +776,7 @@ var GMManager = {
         const search = [author, title].filter(Boolean).join(' ').trim();
         const colSpan = canGrantPoints ? 10 : 9;
 
-        tbody.innerHTML = `<tr><td colspan="${colSpan}" style="text-align:center; padding:20px; color:#64748b;">불러오는 중...</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="${colSpan}" style="text-align:center; padding:20px; color:var(--text-secondary);">불러오는 중...</td></tr>`;
         try {
             const params = new URLSearchParams({
                 board_id: 'inquiry',
@@ -787,14 +787,14 @@ var GMManager = {
             if (category) params.set('category', category);
             const res = await fetch(`/api/board/posts?${params.toString()}`);
             if (!res.ok) {
-                tbody.innerHTML = `<tr><td colspan="${colSpan}" style="text-align:center; padding:20px; color:#ef4444;">문의 목록을 불러오지 못했습니다. (${res.status})</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="${colSpan}" style="text-align:center; padding:20px; color:var(--danger-color);">문의 목록을 불러오지 못했습니다. (${res.status})</td></tr>`;
                 if (pager) pager.innerHTML = '';
                 return;
             }
             const data = await res.json();
             const posts = Array.isArray(data.posts) ? data.posts : [];
             if (!posts.length) {
-                tbody.innerHTML = `<tr><td colspan="${colSpan}" style="text-align:center; padding:20px; color:#64748b;">문의 내역이 없습니다.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="${colSpan}" style="text-align:center; padding:20px; color:var(--text-secondary);">문의 내역이 없습니다.</td></tr>`;
             } else {
                 tbody.innerHTML = posts.map((p, idx) => {
                     const number = (data.total || 0) - ((this.inquiryPage - 1) * 10) - idx;
@@ -823,12 +823,12 @@ var GMManager = {
                                 <button class="btn btn-primary" style="padding:4px 10px; font-size:0.8rem;" onclick="GMManager.replyInquiry(${Number(p.id || 0)})">답변</button>
                             </td>
                             <td style="text-align:center; ${canGrantPoints ? '' : 'display:none;'}">
-                                <button class="btn" style="padding:4px 10px; font-size:0.8rem; background:${isPointPaid ? '#cbd5e1' : '#f59e0b'}; color:${isPointPaid ? '#64748b' : 'white'}; cursor:${isPointPaid ? 'not-allowed' : 'pointer'}; opacity:${isPointPaid ? '0.75' : '1'};" ${isPointPaid ? 'disabled' : ''} onclick="${isPointPaid ? '' : `GMManager.grantInquiryPoints(${accountId}, '${rawAuthorName.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}', ${Number(p.id || 0)}, '${String(p.category || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'")}')`}">${isPointPaid ? '지급완료' : '지급'}</button>
+                                <button class="btn" style="padding:4px 10px; font-size:0.8rem; background:${isPointPaid ? 'rgba(255,255,255,0.18)' : '#f59e0b'}; color:${isPointPaid ? '#64748b' : 'white'}; cursor:${isPointPaid ? 'not-allowed' : 'pointer'}; opacity:${isPointPaid ? '0.75' : '1'};" ${isPointPaid ? 'disabled' : ''} onclick="${isPointPaid ? '' : `GMManager.grantInquiryPoints(${accountId}, '${rawAuthorName.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}', ${Number(p.id || 0)}, '${String(p.category || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'")}')`}">${isPointPaid ? '지급완료' : '지급'}</button>
                             </td>
                             <td style="text-align:center;">
                                 <div style="display:flex; align-items:center; gap:6px; justify-content:center;">
                                     <input id="inq-memo-${Number(p.id || 0)}" type="text" class="input-premium" value="${window.escapeHtml ? window.escapeHtml(p.inquiry_memo || '') : (p.inquiry_memo || '')}" placeholder="메모 입력" style="min-width:170px; max-width:220px; padding:4px 8px; font-size:0.78rem;">
-                                    <button class="btn" style="padding:4px 8px; font-size:0.75rem; background:#e2e8f0; color:#334155;" onclick="GMManager.saveInquiryMemo(${Number(p.id || 0)})">저장</button>
+                                    <button class="btn" style="padding:4px 8px; font-size:0.75rem; background:var(--surface-2); color:var(--text-primary);" onclick="GMManager.saveInquiryMemo(${Number(p.id || 0)})">저장</button>
                                 </div>
                             </td>
                         </tr>
@@ -845,7 +845,7 @@ var GMManager = {
                 }
             }
         } catch (e) {
-            tbody.innerHTML = `<tr><td colspan="${colSpan}" style="text-align:center; padding:20px; color:#ef4444;">문의 목록 조회 중 오류가 발생했습니다.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="${colSpan}" style="text-align:center; padding:20px; color:var(--danger-color);">문의 목록 조회 중 오류가 발생했습니다.</td></tr>`;
             if (pager) pager.innerHTML = '';
         }
     },
@@ -1253,7 +1253,7 @@ var GMManager = {
         const pager = document.getElementById('gm-promotion-pagination');
         if (!tbody) return;
         const search = String(document.getElementById('gm-promotion-search')?.value || '').trim();
-        tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding:20px; color:#64748b;">불러오는 중...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding:20px; color:var(--text-secondary);">불러오는 중...</td></tr>';
         try {
             const params = new URLSearchParams({
                 page: String(this.promotionPage),
@@ -1262,7 +1262,7 @@ var GMManager = {
             if (search) params.set('search', search);
             const res = await fetch(`/api/board/promotion/admin/list?${params.toString()}`);
             if (!res.ok) {
-                tbody.innerHTML = `<tr><td colspan="11" style="text-align:center; padding:20px; color:#ef4444;">홍보 목록을 불러오지 못했습니다. (${res.status})</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="11" style="text-align:center; padding:20px; color:var(--danger-color);">홍보 목록을 불러오지 못했습니다. (${res.status})</td></tr>`;
                 if (pager) pager.innerHTML = '';
                 return;
             }
@@ -1273,7 +1273,7 @@ var GMManager = {
             const allCheck = document.getElementById('gm-promotion-check-all');
             if (allCheck) allCheck.checked = allChecked;
             if (!posts.length) {
-                tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding:20px; color:#64748b;">홍보 글이 없습니다.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding:20px; color:var(--text-secondary);">홍보 글이 없습니다.</td></tr>';
             } else {
                 tbody.innerHTML = posts.map((p, idx) => {
                     const number = (data.total || 0) - ((this.promotionPage - 1) * 10) - idx;
@@ -1291,7 +1291,7 @@ var GMManager = {
                     const checked = this.promotionSelectedIds.has(postID) ? 'checked' : '';
                     const reviewBadge = reviewStatus === 'approved'
                         ? '<span class="badge active">승인</span>'
-                        : (reviewStatus === 'rejected' ? '<span class="badge" style="background:#fee2e2; color:#991b1b;">반려</span>' : '<span class="badge">대기</span>');
+                        : (reviewStatus === 'rejected' ? '<span class="badge" style="background:var(--surface-2); color:var(--danger-color);">반려</span>' : '<span class="badge">대기</span>');
                     return `
                         <tr>
                             <td style="text-align:center;"><input type="checkbox" ${checked} onchange="GMManager.togglePromotionRow(${postID}, this.checked)"></td>
@@ -1300,18 +1300,18 @@ var GMManager = {
                             <td>${title}</td>
                             <td style="max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${firstUrl ? `<a href="${firstUrlSafe}" target="_blank" rel="noopener noreferrer">${firstUrlSafe}</a>` : '-'}</td>
                             <td style="text-align:center;" title="${window.escapeHtml ? window.escapeHtml(verifyTitle) : verifyTitle}">
-                                ${verifyTitle ? (verifyOk ? '<i class="fas fa-circle-check" style="color:#16a34a;"></i>' : '<i class="fas fa-circle-xmark" style="color:#ef4444;"></i>') : '<i class="fas fa-circle-minus" style="color:#94a3b8;"></i>'}
+                                ${verifyTitle ? (verifyOk ? '<i class="fas fa-circle-check" style="color:var(--success-color);"></i>' : '<i class="fas fa-circle-xmark" style="color:var(--danger-color);"></i>') : '<i class="fas fa-circle-minus" style="color:var(--text-dim);"></i>'}
                             </td>
-                            <td style="text-align:center; font-weight:700; color:#334155;">${passCount}/${totalCount}</td>
+                            <td style="text-align:center; font-weight:700; color:var(--text-primary);">${passCount}/${totalCount}</td>
                             <td style="text-align:center;">${reviewBadge}</td>
                             <td style="text-align:center;">${window.escapeHtml ? window.escapeHtml(String(p.created_at || '')) : String(p.created_at || '')}</td>
                             <td style="text-align:center;">${paid ? '<span class="badge active">지급완료</span>' : '<span class="badge">미지급</span>'}</td>
                             <td style="text-align:center;">
                                 <div style="display:flex; gap:6px; justify-content:center; flex-wrap:wrap;">
-                                    <button class="btn" style="padding:4px 10px; font-size:0.8rem; background:#f1f5f9; color:#0f172a;" onclick="GMManager.openPromotionDetail(${idx})">상세</button>
-                                    <button class="btn" style="padding:4px 10px; font-size:0.8rem; background:#e2e8f0; color:#334155;" onclick="GMManager.verifyPromotion(${postID})">검사</button>
-                                    <button class="btn" style="padding:4px 10px; font-size:0.8rem; background:#dbeafe; color:#1e40af;" onclick="GMManager.reviewPromotion(${postID}, 'approved')">승인</button>
-                                    <button class="btn" style="padding:4px 10px; font-size:0.8rem; background:#fee2e2; color:#991b1b;" onclick="GMManager.reviewPromotion(${postID}, 'rejected')">반려</button>
+                                    <button class="btn" style="padding:4px 10px; font-size:0.8rem; background:var(--surface-2); color:var(--text-primary);" onclick="GMManager.openPromotionDetail(${idx})">상세</button>
+                                    <button class="btn" style="padding:4px 10px; font-size:0.8rem; background:var(--surface-2); color:var(--text-primary);" onclick="GMManager.verifyPromotion(${postID})">검사</button>
+                                    <button class="btn" style="padding:4px 10px; font-size:0.8rem; background:var(--surface-2); color:var(--primary-color);" onclick="GMManager.reviewPromotion(${postID}, 'approved')">승인</button>
+                                    <button class="btn" style="padding:4px 10px; font-size:0.8rem; background:var(--surface-2); color:var(--danger-color);" onclick="GMManager.reviewPromotion(${postID}, 'rejected')">반려</button>
                                     <button class="btn btn-primary" style="padding:4px 10px; font-size:0.8rem; ${(paid || reviewStatus !== 'approved') ? 'opacity:0.6; cursor:not-allowed;' : ''}" ${(paid || reviewStatus !== 'approved') ? 'disabled' : ''} onclick="GMManager.payPromotionReward(${postID})">${paid ? '지급완료' : '지급'}</button>
                                 </div>
                             </td>
@@ -1326,7 +1326,7 @@ var GMManager = {
                 }, (nextPage) => this.loadPromotions(nextPage));
             }
         } catch (e) {
-            tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding:20px; color:#ef4444;">홍보 목록 조회 중 오류가 발생했습니다.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding:20px; color:var(--danger-color);">홍보 목록 조회 중 오류가 발생했습니다.</td></tr>';
             if (pager) pager.innerHTML = '';
         }
     },
@@ -1369,19 +1369,19 @@ var GMManager = {
         modal.style.zIndex = '30000';
         modal.style.padding = '16px';
         modal.innerHTML = `
-            <div class="modal-content" style="position:relative; max-width:1200px; width:96vw; max-height:90vh; overflow:auto; padding:20px; background:#fff; border-radius:16px; box-shadow:0 28px 60px rgba(2,6,23,0.35);">
+            <div class="modal-content" style="position:relative; max-width:1200px; width:96vw; max-height:90vh; overflow:auto; padding:20px; background:var(--surface); border-radius:16px; box-shadow:0 28px 60px rgba(2,6,23,0.35);">
                 <div id="gm-promotion-detail-loading" style="display:none; position:fixed; inset:0; background:rgba(255,255,255,0.72); z-index:39999; align-items:center; justify-content:center;">
-                    <div style="display:flex; flex-direction:column; align-items:center; gap:8px; color:#0f172a;">
+                    <div style="display:flex; flex-direction:column; align-items:center; gap:8px; color:var(--text-primary);">
                         <i class="fas fa-spinner fa-spin" style="font-size:1.4rem;"></i>
                         <div id="gm-promotion-detail-loading-text" style="font-size:0.92rem; font-weight:600;">검사 중...</div>
-                        <div style="width:280px; height:10px; border-radius:999px; background:#e2e8f0; overflow:hidden; border:1px solid #cbd5e1;">
-                            <div id="gm-promotion-detail-loading-bar" style="width:0%; height:100%; background:linear-gradient(90deg, #3b82f6, #60a5fa); transition:width .2s ease;"></div>
+                        <div style="width:280px; height:10px; border-radius:999px; background:var(--surface-2); overflow:hidden; border:1px solid var(--text-dim);">
+                            <div id="gm-promotion-detail-loading-bar" style="width:0%; height:100%; background:linear-gradient(90deg, var(--primary-color), var(--accent-color)); transition:width .2s ease;"></div>
                         </div>
-                        <div id="gm-promotion-detail-loading-percent" style="font-size:0.82rem; color:#334155; font-weight:700;">0%</div>
+                        <div id="gm-promotion-detail-loading-percent" style="font-size:0.82rem; color:var(--text-primary); font-weight:700;">0%</div>
                     </div>
                 </div>
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-                    <h3 style="margin:0; font-size:1.1rem; color:#0f172a;">홍보 게시물 상세</h3>
+                    <h3 style="margin:0; font-size:1.1rem; color:var(--text-primary);">홍보 게시물 상세</h3>
                     <button class="btn" type="button" onclick="GMManager.backToPromotionList()">닫기</button>
                 </div>
                 <div id="gm-promotion-detail-summary" style="font-size:0.9rem; color:var(--text-secondary); margin-bottom:10px;">불러오는 중...</div>
@@ -1404,7 +1404,7 @@ var GMManager = {
                             </tr>
                         </thead>
                         <tbody id="gm-promotion-detail-links">
-                            <tr><td colspan="6" style="text-align:center; padding:18px; color:#64748b;">불러오는 중...</td></tr>
+                            <tr><td colspan="6" style="text-align:center; padding:18px; color:var(--text-secondary);">불러오는 중...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -1452,13 +1452,13 @@ var GMManager = {
         wrap.style.background = 'rgba(255,255,255,0.72)';
         wrap.style.zIndex = '40000';
         wrap.innerHTML = `
-            <div style="display:flex; flex-direction:column; align-items:center; gap:8px; color:#0f172a; background:#ffffff; border:1px solid #cbd5e1; border-radius:14px; padding:16px 18px; box-shadow:0 18px 44px rgba(15,23,42,.24); min-width:320px;">
+            <div style="display:flex; flex-direction:column; align-items:center; gap:8px; color:var(--text-primary); background:var(--surface); border:1px solid var(--text-dim); border-radius:14px; padding:16px 18px; box-shadow:0 18px 44px rgba(15,23,42,.24); min-width:320px;">
                 <i class="fas fa-spinner fa-spin" style="font-size:1.35rem;"></i>
                 <div id="gm-promotion-bulk-loading-text" style="font-size:0.92rem; font-weight:700;">일괄 검사 중...</div>
-                <div style="width:100%; height:10px; border-radius:999px; background:#e2e8f0; overflow:hidden; border:1px solid #cbd5e1;">
-                    <div id="gm-promotion-bulk-loading-bar" style="width:0%; height:100%; background:linear-gradient(90deg, #3b82f6, #60a5fa); transition:width .2s ease;"></div>
+                <div style="width:100%; height:10px; border-radius:999px; background:var(--surface-2); overflow:hidden; border:1px solid var(--text-dim);">
+                    <div id="gm-promotion-bulk-loading-bar" style="width:0%; height:100%; background:linear-gradient(90deg, var(--primary-color), var(--accent-color)); transition:width .2s ease;"></div>
                 </div>
-                <div id="gm-promotion-bulk-loading-percent" style="font-size:0.82rem; color:#334155; font-weight:700;">0%</div>
+                <div id="gm-promotion-bulk-loading-percent" style="font-size:0.82rem; color:var(--text-primary); font-weight:700;">0%</div>
             </div>
         `;
         document.body.appendChild(wrap);
@@ -1484,20 +1484,20 @@ var GMManager = {
         const summaryEl = document.getElementById('gm-promotion-detail-summary');
         const linksEl = document.getElementById('gm-promotion-detail-links');
         if (summaryEl) summaryEl.textContent = '상세 정보를 불러오는 중...';
-        if (linksEl) linksEl.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:18px; color:#64748b;">불러오는 중...</td></tr>';
+        if (linksEl) linksEl.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:18px; color:var(--text-secondary);">불러오는 중...</td></tr>';
         try {
             const res = await fetch(`/api/board/promotion/admin/detail?id=${pid}`);
             if (!res.ok) {
                 const msg = await res.text();
                 if (summaryEl) summaryEl.textContent = msg || '상세 정보를 불러오지 못했습니다.';
-                if (linksEl) linksEl.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:18px; color:#ef4444;">상세 정보를 불러오지 못했습니다. (${res.status})</td></tr>`;
+                if (linksEl) linksEl.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:18px; color:var(--danger-color);">상세 정보를 불러오지 못했습니다. (${res.status})</td></tr>`;
                 return;
             }
             const data = await res.json();
             this.renderPromotionDetail(data);
         } catch (e) {
             if (summaryEl) summaryEl.textContent = '상세 정보를 불러오지 못했습니다.';
-            if (linksEl) linksEl.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:18px; color:#ef4444;">상세 조회 중 오류가 발생했습니다.</td></tr>';
+            if (linksEl) linksEl.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:18px; color:var(--danger-color);">상세 조회 중 오류가 발생했습니다.</td></tr>';
         }
     },
 
@@ -1538,7 +1538,7 @@ var GMManager = {
 
         if (!linksEl) return;
         if (!links.length) {
-            linksEl.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:18px; color:#64748b;">등록된 URL이 없습니다.</td></tr>';
+            linksEl.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:18px; color:var(--text-secondary);">등록된 URL이 없습니다.</td></tr>';
             return;
         }
         linksEl.innerHTML = links.map((link, idx) => {
@@ -1549,21 +1549,21 @@ var GMManager = {
             const linkStatus = String(link.review_status || 'pending').toLowerCase();
             const statusBadge = linkStatus === 'approved'
                 ? '<span class="badge active">승인</span>'
-                : (linkStatus === 'rejected' ? '<span class="badge" style="background:#fee2e2; color:#991b1b;">거절</span>' : '<span class="badge">대기</span>');
+                : (linkStatus === 'rejected' ? '<span class="badge" style="background:var(--surface-2); color:var(--danger-color);">거절</span>' : '<span class="badge">대기</span>');
             const verifyIcon = verifyMessage
-                ? (verifyOk ? '<i class="fas fa-circle-check" style="color:#16a34a;"></i>' : '<i class="fas fa-circle-xmark" style="color:#ef4444;"></i>')
-                : '<i class="fas fa-circle-minus" style="color:#94a3b8;"></i>';
+                ? (verifyOk ? '<i class="fas fa-circle-check" style="color:var(--success-color);"></i>' : '<i class="fas fa-circle-xmark" style="color:var(--danger-color);"></i>')
+                : '<i class="fas fa-circle-minus" style="color:var(--text-dim);"></i>';
             return `
                 <tr>
                     <td style="text-align:center;">${idx + 1}</td>
                     <td style="word-break:break-all;"><a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a></td>
                     <td style="text-align:center;">${verifyIcon}</td>
                     <td style="text-align:center;">${statusBadge}</td>
-                    <td style="font-size:0.85rem; color:#334155;">${verifyMessage || '-'}</td>
+                    <td style="font-size:0.85rem; color:var(--text-primary);">${verifyMessage || '-'}</td>
                     <td style="text-align:center;">
                         <div style="display:flex; gap:6px; justify-content:center;">
-                            <button class="btn" style="padding:4px 8px; font-size:0.78rem; background:#dbeafe; color:#1e40af;" onclick="GMManager.reviewPromotionLink(${lid}, 'approved')">승인</button>
-                            <button class="btn" style="padding:4px 8px; font-size:0.78rem; background:#fee2e2; color:#991b1b;" onclick="GMManager.reviewPromotionLink(${lid}, 'rejected')">거절</button>
+                            <button class="btn" style="padding:4px 8px; font-size:0.78rem; background:var(--surface-2); color:var(--primary-color);" onclick="GMManager.reviewPromotionLink(${lid}, 'approved')">승인</button>
+                            <button class="btn" style="padding:4px 8px; font-size:0.78rem; background:var(--surface-2); color:var(--danger-color);" onclick="GMManager.reviewPromotionLink(${lid}, 'rejected')">거절</button>
                         </div>
                     </td>
                 </tr>
@@ -1811,7 +1811,7 @@ var GMManager = {
                 </div>
                 <div style="margin-bottom:8px;"><b>제목:</b> ${window.escapeHtml ? window.escapeHtml(post.title || '') : (post.title || '')}</div>
                 <div style="margin-bottom:8px;"><b>기존 답변:</b> ${comments.length}개</div>
-                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px; color:#334155; max-height:140px; overflow:auto;">
+                <div style="background:var(--surface-2); border:1px solid var(--border-color); border-radius:8px; padding:10px; color:var(--text-primary); max-height:140px; overflow:auto;">
                     <b>문의 내용</b><br>${window.escapeHtml ? window.escapeHtml(plainContent || '') : (plainContent || '')}
                 </div>
             `;
@@ -1877,7 +1877,7 @@ var GMManager = {
         fields.innerHTML = `
             <div class="form-group-premium">
                 <label class="label-premium">내용</label>
-                <textarea id="gm-memo-content" class="input-premium" style="min-height:150px; resize:vertical; background:white;" placeholder="메모 내용을 입력하세요."></textarea>
+                <textarea id="gm-memo-content" class="input-premium" style="min-height:150px; resize:vertical; background:var(--surface);" placeholder="메모 내용을 입력하세요."></textarea>
             </div>
         `;
 
@@ -1895,12 +1895,12 @@ var GMManager = {
         fields.innerHTML = `
             <div class="form-group-premium">
                 <label class="label-premium">기능 바로가기 URL</label>
-                <input type="text" id="gm-link-url" class="input-premium" value="${currentUrl}" placeholder="/content/blackmarket" style="background:white;">
-                <p style="font-size:0.75rem; color:#94a3b8; margin-top:4px;">해당 모듈과 연결할 웹 화면의 경로를 입력하세요.</p>
+                <input type="text" id="gm-link-url" class="input-premium" value="${currentUrl}" placeholder="/content/blackmarket" style="background:var(--surface);">
+                <p style="font-size:0.75rem; color:var(--text-dim); margin-top:4px;">해당 모듈과 연결할 웹 화면의 경로를 입력하세요.</p>
             </div>
             <div class="form-group-premium">
                 <label class="label-premium">GM 노트 (추가 설명)</label>
-                <textarea id="gm-link-desc" class="input-premium" style="min-height:100px; background:white;">${currentDesc}</textarea>
+                <textarea id="gm-link-desc" class="input-premium" style="min-height:100px; background:var(--surface);">${currentDesc}</textarea>
             </div>
         `;
 
@@ -2024,7 +2024,7 @@ var GMManager = {
         if (!tbody) return;
         const rows = Array.isArray(this.homeSliderItems) ? this.homeSliderItems : [];
         if (!rows.length) {
-            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:18px; color:#64748b;">등록된 슬라이더가 없습니다.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:18px; color:var(--text-secondary);">등록된 슬라이더가 없습니다.</td></tr>';
             return;
         }
         tbody.innerHTML = rows.map((item, idx) => {
@@ -2036,7 +2036,7 @@ var GMManager = {
                 <tr>
                     <td style="text-align:center;">${idx + 1}</td>
                     <td style="text-align:center;">
-                        <img src="${image}" alt="slider" style="width:88px; height:42px; object-fit:cover; border-radius:6px; border:1px solid #e2e8f0;" onerror="this.style.opacity='0.35'">
+                        <img src="${image}" alt="slider" style="width:88px; height:42px; object-fit:cover; border-radius:6px; border:1px solid var(--border-color);" onerror="this.style.opacity='0.35'">
                     </td>
                     <td>${title || '-'}</td>
                     <td style="max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${image}">${image}</td>
@@ -2065,7 +2065,7 @@ var GMManager = {
             this.homeSliderItems = Array.isArray(data) ? data : [];
             this.renderHomeSliderAdminList();
         } catch (e) {
-            if (tbody) tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:18px; color:#ef4444;">목록을 불러오지 못했습니다.</td></tr>';
+            if (tbody) tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:18px; color:var(--danger-color);">목록을 불러오지 못했습니다.</td></tr>';
             ModalUtils.handleError(e, '홈슬라이더');
         }
     },

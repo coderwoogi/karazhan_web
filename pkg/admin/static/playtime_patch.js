@@ -50,7 +50,7 @@ async function loadPlaytimeLogs(page = 1, clearFilters = false) {
                 <td style="font-weight:700;">${log.character}</td>
                 <td style="font-weight:600;">${log.item}</td>
                 <td style="text-align:center;">
-                    <span style="display:inline-flex; align-items:center; gap:4px; color:#3b82f6; font-weight:800;">
+                    <span style="display:inline-flex; align-items:center; gap:4px; color:var(--primary-color); font-weight:800;">
                         <i class="fas fa-layer-group" style="font-size:0.7rem; opacity:0.5;"></i> ${log.quantity}
                     </span>
                 </td>

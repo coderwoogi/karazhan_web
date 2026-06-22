@@ -80,12 +80,12 @@ function updateNotificationUI(notifications, unreadCount) {
 
 function getNotificationIcon(type) {
     switch (type) {
-        case 'comment': return '<i class="fas fa-comment-dots" style="color:#3b82f6;"></i>';
-        case 'point': return '<i class="fas fa-coins" style="color:#f59e0b;"></i>';
-        case 'admin_msg': return '<i class="fas fa-envelope" style="color:#8b5cf6;"></i>';
-        case 'success': return '<i class="fas fa-check-circle" style="color:#10b981;"></i>';
+        case 'comment': return '<i class="fas fa-comment-dots" style="color:var(--primary-color);"></i>';
+        case 'point': return '<i class="fas fa-coins" style="color:var(--warning-color);"></i>';
+        case 'admin_msg': return '<i class="fas fa-envelope" style="color:var(--primary-color);"></i>';
+        case 'success': return '<i class="fas fa-check-circle" style="color:var(--success-color);"></i>';
         case 'warning': return '<i class="fas fa-exclamation-triangle" style="color:#f97316;"></i>';
-        default: return '<i class="fas fa-bell" style="color:#64748b;"></i>';
+        default: return '<i class="fas fa-bell" style="color:var(--text-secondary);"></i>';
     }
 }
 
@@ -242,7 +242,7 @@ function renderMailboxList(notifications, currentPage, totalPages) {
         const sender = n.sender_name ? escapeHtmlNotif(normalizeNotifText(n.sender_name)) : '시스템';
         const checked = selectedMailboxIds.has(n.id) ? 'checked' : '';
         return `
-        <tr class="${n.is_read ? 'read-row' : 'unread-row'}" style="cursor:pointer; ${n.is_read ? '' : 'font-weight:700; background:#f8fafc;'}" onclick='showMailboxDetail(${safe})'>
+        <tr class="${n.is_read ? 'read-row' : 'unread-row'}" style="cursor:pointer; ${n.is_read ? '' : 'font-weight:700; background:var(--surface-2);'}" onclick='showMailboxDetail(${safe})'>
             <td style="text-align:center;" onclick="event.stopPropagation();">
                 <input type="checkbox" ${checked} onchange="toggleMailboxSelection(${n.id}, this.checked)" onclick="event.stopPropagation();">
             </td>
@@ -250,8 +250,8 @@ function renderMailboxList(notifications, currentPage, totalPages) {
                 <i class="fas ${n.is_read ? 'fa-envelope-open' : 'fa-envelope'}"></i>
             </td>
             <td>${getNotificationIcon(n.type)}</td>
-            <td style="font-weight:600; color:#334155; white-space:nowrap;">${sender}</td>
-            <td style="color:#0f172a; text-overflow:ellipsis; overflow:hidden; white-space:nowrap; max-width:460px;">
+            <td style="font-weight:600; color:var(--text-primary); white-space:nowrap;">${sender}</td>
+            <td style="color:var(--text-primary); text-overflow:ellipsis; overflow:hidden; white-space:nowrap; max-width:460px;">
                 ${escapeHtmlNotif(normalizeNotifText(n.title || '알림'))}
             </td>
             <td><span class="lvl-badge">${notificationTypeLabel(n.type)}</span></td>
@@ -470,9 +470,9 @@ function renderSelectedNotifUsers() {
         return;
     }
     container.innerHTML = selectedNotifUsers.map(u => `
-        <div style="display:flex; justify-content:space-between; align-items:center; border:1px solid #e2e8f0; border-radius:6px; padding:6px 8px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; border:1px solid var(--border-color); border-radius:6px; padding:6px 8px;">
             <span>${escapeHtmlNotif(u.username)} (ID: ${u.id})</span>
-            <button type="button" onclick="removeNotifSelectedUser(${u.id})" class="btn" style="padding:2px 8px; background:#fee2e2; color:#b91c1c;">삭제</button>
+            <button type="button" onclick="removeNotifSelectedUser(${u.id})" class="btn" style="padding:2px 8px; background:var(--surface-2); color:var(--danger-color);">삭제</button>
         </div>
     `).join('');
 }
@@ -523,7 +523,7 @@ async function searchUserForNotification() {
         }
 
         resultDiv.innerHTML = users.map(u =>
-            `<a href="#" onclick="selectNotifUser(${u.id}, '${String(u.username).replace(/'/g, '&#39;')}'); return false;" style="display:block; padding:4px 0; color:#334155;">- ${escapeHtmlNotif(u.username)} (ID: ${u.id})</a>`
+            `<a href="#" onclick="selectNotifUser(${u.id}, '${String(u.username).replace(/'/g, '&#39;')}'); return false;" style="display:block; padding:4px 0; color:var(--text-primary);">- ${escapeHtmlNotif(u.username)} (ID: ${u.id})</a>`
         ).join('');
     } catch (e) {
         console.error(e);
@@ -537,7 +537,7 @@ function selectNotifUser(id, username) {
     const result = document.getElementById('notif-user-result');
     if (targetUser) targetUser.value = username;
     if (targetID) targetID.value = id;
-    if (result) result.innerHTML = `<span style="color:#10b981;"><i class="fas fa-check"></i> 선택됨: <b>${escapeHtmlNotif(username)}</b> (ID: ${id})</span>`;
+    if (result) result.innerHTML = `<span style="color:var(--success-color);"><i class="fas fa-check"></i> 선택됨: <b>${escapeHtmlNotif(username)}</b> (ID: ${id})</span>`;
     const exists = selectedNotifUsers.some(u => parseInt(u.id, 10) === parseInt(id, 10));
     if (!exists) {
         selectedNotifUsers.push({ id: parseInt(id, 10), username: username || String(id) });

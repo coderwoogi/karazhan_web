@@ -97,9 +97,9 @@
     const copper = n % 100;
     return `
       <span style="white-space:nowrap; display:inline-flex; align-items:center; gap:3px;">
-        <b style="color:#f59e0b;">${gold.toLocaleString()}</b><img src="/img/gold_emoji.png" alt="골드" style="width:14px; height:14px;">
-        <b style="color:#94a3b8;">${silver}</b><img src="/img/silver_emoji.png" alt="실버" style="width:14px; height:14px;">
-        <b style="color:#b45309;">${copper}</b><img src="/img/copper_emoji.png" alt="코퍼" style="width:14px; height:14px;">
+        <b style="color:var(--warning-color);">${gold.toLocaleString()}</b><img src="/img/gold_emoji.png" alt="골드" style="width:14px; height:14px;">
+        <b style="color:var(--text-dim);">${silver}</b><img src="/img/silver_emoji.png" alt="실버" style="width:14px; height:14px;">
+        <b style="color:var(--warning-color);">${copper}</b><img src="/img/copper_emoji.png" alt="코퍼" style="width:14px; height:14px;">
       </span>
     `;
   }
@@ -117,7 +117,7 @@
   }
 
   function getAuctionFallbackIcon() {
-    return '<span style="display:inline-flex; width:28px; height:28px; align-items:center; justify-content:center; border-radius:6px; background:#e2e8f0; color:#64748b;"><i class="fas fa-cube"></i></span>';
+    return '<span style="display:inline-flex; width:28px; height:28px; align-items:center; justify-content:center; border-radius:6px; background:var(--surface-2); color:var(--text-secondary);"><i class="fas fa-cube"></i></span>';
   }
 
   async function loadAuctionIcon(entry, containerId) {
@@ -137,7 +137,7 @@
 
   function remainText(endUnix) {
     const diff = Number(endUnix || 0) - Math.floor(Date.now() / 1000);
-    if (diff <= 0) return '<span style="color:#ef4444;">종료</span>';
+    if (diff <= 0) return '<span style="color:var(--danger-color);">종료</span>';
     const h = Math.floor(diff / 3600);
     const m = Math.floor((diff % 3600) / 60);
     if (h >= 24) {
@@ -182,7 +182,7 @@
     const tbody = document.getElementById('auction-list-body');
     if (!tbody) return;
     if (!Array.isArray(rows) || rows.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="13" style="text-align:center; color:#64748b;">검색 결과가 없습니다.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="13" style="text-align:center; color:var(--text-secondary);">검색 결과가 없습니다.</td></tr>';
       return;
     }
     tbody.innerHTML = rows.map((row, idx) => {
@@ -205,7 +205,7 @@
           <td>
             <div style="display:flex; gap:6px; justify-content:center;">
               <button class="btn btn-primary" style="padding:5px 8px;" onclick="openAuctionBuyoutModal(${Number(row.id || 0)})">즉구</button>
-              <button class="btn" style="padding:5px 8px; background:#e2e8f0; color:#1e293b;" onclick="openAuctionBidModal(${Number(row.id || 0)})">입찰</button>
+              <button class="btn" style="padding:5px 8px; background:var(--surface-2); color:var(--text-primary);" onclick="openAuctionBidModal(${Number(row.id || 0)})">입찰</button>
             </div>
           </td>
         </tr>
@@ -219,7 +219,7 @@
     const tbody = document.getElementById('auction-my-list-body');
     if (!tbody) return;
     if (!Array.isArray(rows) || rows.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#64748b;">등록한 경매가 없습니다.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:var(--text-secondary);">등록한 경매가 없습니다.</td></tr>';
       return;
     }
     tbody.innerHTML = rows.map((row, idx) => {
@@ -233,7 +233,7 @@
           <td>${formatCoins(currentBid)}</td>
           <td>${formatCoins(row.buyout_price)}</td>
           <td>${remainText(row.end_unix)}</td>
-          <td><button class="btn" style="background:#fee2e2; color:#b91c1c; border:1px solid #fecaca; padding:5px 10px;" onclick="cancelAuctionItem(${Number(row.id || 0)})"><i class="fas fa-trash"></i> 삭제</button></td>
+          <td><button class="btn" style="background:var(--surface-2); color:var(--danger-color); border:1px solid var(--surface-2); padding:5px 10px;" onclick="cancelAuctionItem(${Number(row.id || 0)})"><i class="fas fa-trash"></i> 삭제</button></td>
         </tr>
       `;
     }).join('');
@@ -276,7 +276,7 @@
   window.loadAuctionList = async function (page = 1) {
     state.listPage = Math.max(1, Number(page || 1));
     const tbody = document.getElementById('auction-list-body');
-    if (tbody) tbody.innerHTML = '<tr><td colspan="13" style="text-align:center; color:#64748b;">불러오는 중...</td></tr>';
+    if (tbody) tbody.innerHTML = '<tr><td colspan="13" style="text-align:center; color:var(--text-secondary);">불러오는 중...</td></tr>';
     try {
       const params = readFilters();
       params.set('page', String(state.listPage));
@@ -288,14 +288,14 @@
       mountPagination('auction-pagination', state.listPage, state.listTotalPages, p => window.loadAuctionList(p));
     } catch (e) {
       if (typeof window.ModalUtils?.showAlert === 'function') window.ModalUtils.showAlert(e.message || '경매 목록을 불러오지 못했습니다.');
-      if (tbody) tbody.innerHTML = `<tr><td colspan="13" style="text-align:center; color:#ef4444;">${esc(e.message || '경매 목록을 불러오지 못했습니다.')}</td></tr>`;
+      if (tbody) tbody.innerHTML = `<tr><td colspan="13" style="text-align:center; color:var(--danger-color);">${esc(e.message || '경매 목록을 불러오지 못했습니다.')}</td></tr>`;
     }
   };
 
   window.loadAuctionMyList = async function (page = 1) {
     state.myPage = Math.max(1, Number(page || 1));
     const tbody = document.getElementById('auction-my-list-body');
-    if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#64748b;">불러오는 중...</td></tr>';
+    if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:var(--text-secondary);">불러오는 중...</td></tr>';
     try {
       const data = await apiGet(`/api/auction/my-list?page=${state.myPage}`);
       state.myRows = Array.isArray(data.rows) ? data.rows.slice() : [];
@@ -305,7 +305,7 @@
       mountPagination('auction-my-pagination', state.myPage, state.myTotalPages, p => window.loadAuctionMyList(p));
     } catch (e) {
       if (typeof window.ModalUtils?.showAlert === 'function') window.ModalUtils.showAlert(e.message || '내 경매 목록을 불러오지 못했습니다.');
-      if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:#ef4444;">${esc(e.message || '내 경매 목록을 불러오지 못했습니다.')}</td></tr>`;
+      if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--danger-color);">${esc(e.message || '내 경매 목록을 불러오지 못했습니다.')}</td></tr>`;
     }
   };
 
@@ -400,16 +400,16 @@
     const c = state.myChars.find(x => Number(x.guid) === charGuid);
     if (goldEl && c) goldEl.innerHTML = formatCoins(c.money || 0);
     if (!charGuid) {
-      body.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#64748b;">캐릭터를 선택하세요.</td></tr>';
+      body.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--text-secondary);">캐릭터를 선택하세요.</td></tr>';
       return;
     }
-    body.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#64748b;">불러오는 중...</td></tr>';
+    body.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--text-secondary);">불러오는 중...</td></tr>';
     try {
       const data = await apiGet(`/api/auction/my-items?char_guid=${charGuid}`);
       state.createItems = Array.isArray(data.items) ? data.items : [];
       renderCreateItems(state.createItems);
     } catch (e) {
-      body.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#ef4444;">${esc(e.message || '아이템을 불러오지 못했습니다.')}</td></tr>`;
+      body.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--danger-color);">${esc(e.message || '아이템을 불러오지 못했습니다.')}</td></tr>`;
     }
   };
 
@@ -417,7 +417,7 @@
     const body = document.getElementById('auction-create-items-body');
     if (!body) return;
     if (!Array.isArray(items) || items.length === 0) {
-      body.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#64748b;">등록 가능한 아이템이 없습니다.</td></tr>';
+      body.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--text-secondary);">등록 가능한 아이템이 없습니다.</td></tr>';
       return;
     }
     body.innerHTML = items.map((item, idx) => {
@@ -534,8 +534,8 @@
       title: isBid ? '입찰하기' : '즉시구매',
       html: `
         <div style="text-align:left; font-size:0.92rem;">
-          <div style="margin-bottom:8px; color:#475569;">대상: <b>${esc(target.item_name || `아이템 ${target.item_entry}`)}</b></div>
-          <div style="margin-bottom:12px; color:#475569;">${isBid ? '최소 입찰가' : '즉시구매가'}: ${formatCoins(isBid ? minBid : target.buyout_price)}</div>
+          <div style="margin-bottom:8px; color:var(--text-secondary);">대상: <b>${esc(target.item_name || `아이템 ${target.item_entry}`)}</b></div>
+          <div style="margin-bottom:12px; color:var(--text-secondary);">${isBid ? '최소 입찰가' : '즉시구매가'}: ${formatCoins(isBid ? minBid : target.buyout_price)}</div>
           <label style="display:block; margin-bottom:6px;">구매/입찰 캐릭터</label>
           <select id="auction-action-char" class="swal2-input" style="margin:0; width:100%;">${charOptions}</select>
           ${isBid ? `
@@ -545,7 +545,7 @@
             <div style="display:flex; align-items:center; gap:6px;"><input id="auction-bid-s" type="number" min="0" max="99" value="0" class="swal2-input" style="margin:0; width:100%;"><img src="/img/silver_emoji.png" style="width:18px; height:18px;"></div>
             <div style="display:flex; align-items:center; gap:6px;"><input id="auction-bid-c" type="number" min="0" max="99" value="0" class="swal2-input" style="margin:0; width:100%;"><img src="/img/copper_emoji.png" style="width:18px; height:18px;"></div>
           </div>
-          <div style="font-size:0.8rem; color:#64748b; margin-top:6px;">최소 입찰: ${formatCoins(minBid)}</div>
+          <div style="font-size:0.8rem; color:var(--text-secondary); margin-top:6px;">최소 입찰: ${formatCoins(minBid)}</div>
           ` : ''}
         </div>
       `,

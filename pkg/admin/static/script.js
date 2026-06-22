@@ -1,5 +1,5 @@
 ﻿// Console security notice
-console.log('%c✦ KΛRΛZHΛN ✦', 'color:#7c3aed;font-weight:900;font-size:36px;text-shadow:0 0 8px rgba(124,58,237,.45);');
+console.log('%c✦ KΛRΛZHΛN ✦', 'color:var(--primary-color);font-weight:900;font-size:36px;text-shadow:0 0 8px rgba(124,58,237,.45);');
 console.warn('잘못된 접근은 영구정지 사유입니다.');
 
 // Global State
@@ -487,11 +487,11 @@ function renderServerItemTooltipHtml(data) {
 
     return `
         <div style="font-weight:800; color:${titleColor}; margin-bottom:6px;">${escItemTooltip(data.name || `Item ${data.entry}`)}</div>
-        ${lines.length ? `<div style="margin-bottom:7px; color:#d1d5db;">${lines.join('')}</div>` : ''}
-        ${stats.length ? `<div style="margin-bottom:7px; color:#93c5fd;">${stats.map(s => `<div>${escItemTooltip(s)}</div>`).join('')}</div>` : ''}
+        ${lines.length ? `<div style="margin-bottom:7px; color:var(--border-color);">${lines.join('')}</div>` : ''}
+        ${stats.length ? `<div style="margin-bottom:7px; color:var(--accent-color);">${stats.map(s => `<div>${escItemTooltip(s)}</div>`).join('')}</div>` : ''}
         ${spells.length ? `<div style="margin-bottom:7px; color:#fca5a5;">${spells.map(s => `<div>${escItemTooltip(s)}</div>`).join('')}</div>` : ''}
-        ${desc ? `<div style="margin-bottom:7px; color:#cbd5e1; white-space:pre-wrap;">${escItemTooltip(desc)}</div>` : ''}
-        <div style="display:flex; gap:10px; color:#fde68a;">
+        ${desc ? `<div style="margin-bottom:7px; color:var(--text-dim); white-space:pre-wrap;">${escItemTooltip(desc)}</div>` : ''}
+        <div style="display:flex; gap:10px; color:var(--warning-color);">
             <span>구매가: ${formatItemMoney(data.buy_price)}</span>
             <span>판매가: ${formatItemMoney(data.sell_price)}</span>
         </div>
@@ -567,7 +567,7 @@ window.showServerItemTooltip = async function (ev, entry) {
     const itemEntry = Number(entry || 0);
     if (itemEntry <= 0) return;
     const el = ensureServerItemTooltipEl();
-    el.innerHTML = '<div style="color:#cbd5e1;">아이템 정보를 불러오는 중...</div>';
+    el.innerHTML = '<div style="color:var(--text-dim);">아이템 정보를 불러오는 중...</div>';
     el.style.display = 'block';
     positionServerItemTooltip(ev);
     try {
@@ -1071,7 +1071,7 @@ async function loadChatLogs(page = 1) {
         listEl.scrollTop = 0;
         renderPagination(pgEl, data, (p) => loadChatLogs(p));
     } catch (err) {
-        listEl.innerHTML = `<div class="chat-log-empty" style="color:#dc2626;">${escapeHtml(err.message || '채팅 로그를 불러오지 못했습니다.')}</div>`;
+        listEl.innerHTML = `<div class="chat-log-empty" style="color:var(--danger-color);">${escapeHtml(err.message || '채팅 로그를 불러오지 못했습니다.')}</div>`;
     }
 }
 
@@ -1125,16 +1125,16 @@ function formatCoinsHtml(totalCopper) {
     const c = splitCoins(totalCopper);
     return `
         <span style="display:inline-flex; align-items:center; gap:6px;">
-            <span style="display:inline-flex; align-items:center; gap:3px;"><b style="color:#f59e0b;">${c.gold.toLocaleString()}</b><img src="/img/gold_emoji.png" alt="골드" style="width:14px; height:14px;"></span>
-            <span style="display:inline-flex; align-items:center; gap:3px;"><b style="color:#94a3b8;">${c.silver}</b><img src="/img/silver_emoji.png" alt="실버" style="width:14px; height:14px;"></span>
-            <span style="display:inline-flex; align-items:center; gap:3px;"><b style="color:#b45309;">${c.copper}</b><img src="/img/copper_emoji.png" alt="코퍼" style="width:14px; height:14px;"></span>
+            <span style="display:inline-flex; align-items:center; gap:3px;"><b style="color:var(--warning-color);">${c.gold.toLocaleString()}</b><img src="/img/gold_emoji.png" alt="골드" style="width:14px; height:14px;"></span>
+            <span style="display:inline-flex; align-items:center; gap:3px;"><b style="color:var(--text-dim);">${c.silver}</b><img src="/img/silver_emoji.png" alt="실버" style="width:14px; height:14px;"></span>
+            <span style="display:inline-flex; align-items:center; gap:3px;"><b style="color:var(--warning-color);">${c.copper}</b><img src="/img/copper_emoji.png" alt="코퍼" style="width:14px; height:14px;"></span>
         </span>
     `;
 }
 
 function statsPalette(alpha = 0.85) {
     return [
-        `rgba(59,130,246,${alpha})`,   // blue
+        `rgba(201, 162, 74,${alpha})`,   // blue
         `rgba(16,185,129,${alpha})`,   // emerald
         `rgba(245,158,11,${alpha})`,   // amber
         `rgba(236,72,153,${alpha})`,   // pink
@@ -1143,7 +1143,7 @@ function statsPalette(alpha = 0.85) {
         `rgba(251,113,133,${alpha})`,  // rose
         `rgba(34,197,94,${alpha})`,    // green
         `rgba(249,115,22,${alpha})`,   // orange
-        `rgba(99,102,241,${alpha})`,   // indigo
+        `rgba(201, 162, 74,${alpha})`,   // indigo
         `rgba(234,179,8,${alpha})`,    // yellow
         `rgba(6,182,212,${alpha})`     // cyan
     ];
@@ -1218,7 +1218,7 @@ function renderStatsSubTab(tabName) {
             d.account?.daily?.labels || [],
             d.account?.daily?.values || [],
             '계정 생성 수',
-            'rgba(37, 99, 235, 0.9)'
+            'rgba(201, 162, 74, 0.9)'
         );
         renderStatsChart(
             'stats-account-post-rank-chart',
@@ -1227,7 +1227,7 @@ function renderStatsSubTab(tabName) {
             d.account?.postRank?.labels || [],
             d.account?.postRank?.values || [],
             '작성 글 수',
-            'rgba(99, 102, 241, 0.85)',
+            'rgba(201, 162, 74, 0.85)',
             true
         );
         renderStatsChart(
@@ -1270,7 +1270,7 @@ function renderStatsSubTab(tabName) {
             d.character?.raceDist?.labels || [],
             d.character?.raceDist?.values || [],
             '종족 분포',
-            'rgba(59, 130, 246, 0.9)',
+            'rgba(201, 162, 74, 0.9)',
             true
         );
         renderStatsChart(
@@ -1310,7 +1310,7 @@ function renderStatsSubTab(tabName) {
             d.gold?.bracket?.labels || [],
             d.gold?.bracket?.values || [],
             '골드 구간 분포',
-            'rgba(59, 130, 246, 0.9)',
+            'rgba(201, 162, 74, 0.9)',
             true
         );
         renderStatsChart(
@@ -1348,7 +1348,7 @@ function renderStatsSubTab(tabName) {
         );
     } else if (tabName === 'retention') {
         setStatsSummary('stats-retention-summary', d.summary);
-        renderStatsChart('stats-retention-rate-chart', 'retRate', 'bar', d.retentionRate?.labels || [], d.retentionRate?.values || [], '잔존율(%)', 'rgba(37,99,235,0.85)');
+        renderStatsChart('stats-retention-rate-chart', 'retRate', 'bar', d.retentionRate?.labels || [], d.retentionRate?.values || [], '잔존율(%)', 'rgba(201, 162, 74,0.85)');
         renderStatsChart('stats-retention-dormancy-chart', 'retDormancy', 'doughnut', d.dormancy?.labels || [], d.dormancy?.values || [], '계정 수', '', true);
         renderStatsChart('stats-retention-alt-chart', 'retAlt', 'bar', d.altCount?.labels || [], d.altCount?.values || [], '계정 수', 'rgba(139,92,246,0.85)', true);
         renderStatsChart('stats-retention-playtime-chart', 'retPlaytime', 'bar', d.playtime?.labels || [], d.playtime?.values || [], '캐릭터 수', 'rgba(16,185,129,0.85)', true);
@@ -1357,12 +1357,12 @@ function renderStatsSubTab(tabName) {
         setStatsSummary('stats-economy-summary', d.summary);
         renderStatsChart('stats-economy-gold-daily-chart', 'ecoGold', 'line', d.goldDaily?.labels || [], d.goldDaily?.values || [], '골드 이동', 'rgba(234,179,8,0.9)', false, formatCoinsText);
         renderStatsChart('stats-economy-receivers-chart', 'ecoRecv', 'bar', d.goldReceivers?.labels || [], d.goldReceivers?.values || [], '수령 골드', 'rgba(245,158,11,0.85)', true, formatCoinsText);
-        renderStatsChart('stats-economy-mail-chart', 'ecoMail', 'line', d.mailDaily?.labels || [], d.mailDaily?.values || [], '우편 건수', 'rgba(59,130,246,0.9)');
+        renderStatsChart('stats-economy-mail-chart', 'ecoMail', 'line', d.mailDaily?.labels || [], d.mailDaily?.values || [], '우편 건수', 'rgba(201, 162, 74,0.9)');
         renderStatsChart('stats-economy-coinmarket-chart', 'ecoCoin', 'line', d.coinMarketDaily?.labels || [], d.coinMarketDaily?.values || [], '거래 골드량', 'rgba(16,185,129,0.9)', false, formatCoinsText);
     } else if (tabName === 'revenue') {
         setStatsSummary('stats-revenue-summary', d.summary);
         renderStatsChart('stats-revenue-point-daily-chart', 'revPoint', 'line', d.pointSpentDaily?.labels || [], d.pointSpentDaily?.values || [], '포인트 소비', 'rgba(236,72,153,0.9)');
-        renderStatsChart('stats-revenue-shop-daily-chart', 'revShop', 'line', d.shopRevenueDaily?.labels || [], d.shopRevenueDaily?.values || [], '매출(pt)', 'rgba(37,99,235,0.9)');
+        renderStatsChart('stats-revenue-shop-daily-chart', 'revShop', 'line', d.shopRevenueDaily?.labels || [], d.shopRevenueDaily?.values || [], '매출(pt)', 'rgba(201, 162, 74,0.9)');
         renderStatsChart('stats-revenue-products-chart', 'revProd', 'bar', d.topProducts?.labels || [], d.topProducts?.values || [], '판매 수량', 'rgba(139,92,246,0.85)', true);
         renderStatsChart('stats-revenue-orderstatus-chart', 'revStatus', 'doughnut', d.orderStatus?.labels || [], d.orderStatus?.values || [], '주문 수', '', true);
         renderStatsChart('stats-revenue-subs-chart', 'revSubs', 'bar', d.activeSubs?.labels || [], d.activeSubs?.values || [], '활성 구독', 'rgba(16,185,129,0.85)', true);
@@ -1372,7 +1372,7 @@ function renderStatsSubTab(tabName) {
         renderStatsChart('stats-content-rarity-chart', 'conRarity', 'doughnut', d.drawRarity?.labels || [], d.drawRarity?.values || [], '뽑기 수', '', true);
         renderStatsChart('stats-content-encounter-chart', 'conEnc', 'line', d.encounterDaily?.labels || [], d.encounterDaily?.values || [], '클리어 수', 'rgba(245,158,11,0.9)');
         renderStatsChart('stats-content-pvp-chart', 'conPvp', 'line', d.pvpDaily?.labels || [], d.pvpDaily?.values || [], '전장 수', 'rgba(239,68,68,0.9)');
-        renderStatsChart('stats-content-guild-chart', 'conGuild', 'bar', d.guildTop?.labels || [], d.guildTop?.values || [], '인원', 'rgba(59,130,246,0.9)', true);
+        renderStatsChart('stats-content-guild-chart', 'conGuild', 'bar', d.guildTop?.labels || [], d.guildTop?.values || [], '인원', 'rgba(201, 162, 74,0.9)', true);
         renderStatsChart('stats-content-board-chart', 'conBoard', 'line', d.boardDaily?.labels || [], d.boardDaily?.values || [], '게시글', 'rgba(20,184,166,0.9)');
     } else if (tabName === 'security') {
         setStatsSummary('stats-security-summary', d.summary);
@@ -1380,7 +1380,7 @@ function renderStatsSubTab(tabName) {
         renderStatsChart('stats-security-sanctions-chart', 'secSanc', 'bar', d.sanctions?.labels || [], d.sanctions?.values || [], '건수', 'rgba(245,158,11,0.85)', true);
         renderStatsChart('stats-security-ban-daily-chart', 'secBan', 'line', d.banDaily?.labels || [], d.banDaily?.values || [], '신규 밴', 'rgba(239,68,68,0.9)');
         renderStatsChart('stats-security-failed-chart', 'secFail', 'bar', d.failedLogins?.labels || [], d.failedLogins?.values || [], '실패 횟수', 'rgba(236,72,153,0.85)', true);
-        renderStatsChart('stats-security-recovery-chart', 'secRecov', 'line', d.recoveryDaily?.labels || [], d.recoveryDaily?.values || [], '복구 요청', 'rgba(59,130,246,0.9)');
+        renderStatsChart('stats-security-recovery-chart', 'secRecov', 'line', d.recoveryDaily?.labels || [], d.recoveryDaily?.values || [], '복구 요청', 'rgba(201, 162, 74,0.9)');
         renderStatsChart('stats-security-downtime-chart', 'secDown', 'doughnut', d.downtime?.labels || [], d.downtime?.values || [], '횟수', '', true);
     }
 }
@@ -1772,9 +1772,9 @@ async function loadMenuPermissions() {
              if (rType === 'menu') {
                  currentParentId = p.resource_id;
                  html += `
-                    <tr class="menu-parent-row" data-target="group-${p.resource_id}" onclick="toggleMenuGroup('${p.resource_id}')" style="background-color: #f8fafc; border-bottom: 2px solid #e2e8f0; cursor: pointer;">
-                        <td style="font-weight: 700; color: #1e293b; font-size: 1.05rem; padding: 12px 16px;">
-                            <span class="menu-toggle-icon" id="icon-${p.resource_id}" style="display:inline-block; width:24px; text-align:center; margin-right:8px; color:#3b82f6;"><i class="fas fa-folder-open"></i></span>
+                    <tr class="menu-parent-row" data-target="group-${p.resource_id}" onclick="toggleMenuGroup('${p.resource_id}')" style="background-color: var(--surface-2); border-bottom: 2px solid var(--border-color); cursor: pointer;">
+                        <td style="font-weight: 700; color:var(--text-primary); font-size: 1.05rem; padding: 12px 16px;">
+                            <span class="menu-toggle-icon" id="icon-${p.resource_id}" style="display:inline-block; width:24px; text-align:center; margin-right:8px; color:var(--primary-color);"><i class="fas fa-folder-open"></i></span>
                             ${safeName}
                         </td>
                         <td style="color: var(--text-secondary);">${p.resource_id}</td>
@@ -1782,15 +1782,15 @@ async function loadMenuPermissions() {
                              <div style="display:flex; justify-content:center; gap:20px;">
                                 <label style="display:flex; align-items:center; gap:8px; cursor:pointer;" onclick="event.stopPropagation();">
                                     <input type="checkbox" id="perm-rank1-${p.resource_type}-${p.resource_id}" data-rtype="${p.resource_type}" data-rid="${p.resource_id}" data-rank="1" ${p.rank_1 ? 'checked' : ''} style="width:18px; height:18px;"> 
-                                    <span style="font-weight:600; color:#475569;">유저</span>
+                                    <span style="font-weight:600; color:var(--text-secondary);">유저</span>
                                 </label>
                                 <label style="display:flex; align-items:center; gap:8px; cursor:pointer;" onclick="event.stopPropagation();">
                                     <input type="checkbox" id="perm-rank2-${p.resource_type}-${p.resource_id}" data-rtype="${p.resource_type}" data-rid="${p.resource_id}" data-rank="2" ${p.rank_2 ? 'checked' : ''} style="width:18px; height:18px;">
-                                    <span style="font-weight:600; color:#475569;">GM</span>
+                                    <span style="font-weight:600; color:var(--text-secondary);">GM</span>
                                 </label>
                                 <label style="display:flex; align-items:center; gap:8px; opacity:0.6;" onclick="event.stopPropagation();">
                                     <input type="checkbox" checked disabled style="width:18px; height:18px;">
-                                    <span style="font-weight:600; color:#94a3b8;">관리자</span>
+                                    <span style="font-weight:600; color:var(--text-dim);">관리자</span>
                                 </label>
                             </div>
                         </td>
@@ -1804,9 +1804,9 @@ async function loadMenuPermissions() {
              } else {
                  const parentGroupClass = currentParentId ? `group-${currentParentId}` : '';
                  html += `
-                    <tr class="menu-child-row ${parentGroupClass}" style="background-color: #ffffff; border-bottom: 1px solid #f1f5f9;">
-                        <td style="color: #475569; padding: 12px 16px;">
-                            <span style="display:inline-block; width:24px; text-align:center; margin-right:8px; margin-left:24px; color:#94a3b8;"><i class="fas fa-turn-up fa-rotate-90"></i></span>
+                    <tr class="menu-child-row ${parentGroupClass}" style="background-color: var(--surface); border-bottom: 1px solid var(--border-color);">
+                        <td style="color:var(--text-secondary); padding: 12px 16px;">
+                            <span style="display:inline-block; width:24px; text-align:center; margin-right:8px; margin-left:24px; color:var(--text-dim);"><i class="fas fa-turn-up fa-rotate-90"></i></span>
                             ${safeName}
                         </td>
                         <td style="color: var(--text-secondary);">${p.resource_id}</td>
@@ -1814,15 +1814,15 @@ async function loadMenuPermissions() {
                             <div style="display:flex; justify-content:center; gap:20px;">
                                 <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
                                     <input type="checkbox" id="perm-rank1-${p.resource_type}-${p.resource_id}" data-rtype="${p.resource_type}" data-rid="${p.resource_id}" data-rank="1" ${p.rank_1 ? 'checked' : ''} style="width:18px; height:18px;">
-                                    <span style="font-weight:600; color:#475569;">유저</span>
+                                    <span style="font-weight:600; color:var(--text-secondary);">유저</span>
                                 </label>
                                 <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
                                     <input type="checkbox" id="perm-rank2-${p.resource_type}-${p.resource_id}" data-rtype="${p.resource_type}" data-rid="${p.resource_id}" data-rank="2" ${p.rank_2 ? 'checked' : ''} style="width:18px; height:18px;">
-                                    <span style="font-weight:600; color:#475569;">GM</span>
+                                    <span style="font-weight:600; color:var(--text-secondary);">GM</span>
                                 </label>
                                 <label style="display:flex; align-items:center; gap:8px; opacity:0.6;">
                                     <input type="checkbox" checked disabled style="width:18px; height:18px;">
-                                    <span style="font-weight:600; color:#94a3b8;">관리자</span>
+                                    <span style="font-weight:600; color:var(--text-dim);">관리자</span>
                                 </label>
                             </div>
                         </td>
@@ -1843,12 +1843,12 @@ async function loadMenuPermissions() {
                  const safeName = (typeof escapeHtmlAccount === 'function') ? escapeHtmlAccount(p.resource_name || '') : (p.resource_name || '');
                  // Determine read/write label
                  const typeLabel = p.resource_type === 'board_read' ? 
-                    '<span style="font-size:0.75rem; background:#dbeafe; color:#1d4ed8; padding:2px 6px; border-radius:4px; margin-left:6px;">읽기</span>' : 
-                    '<span style="font-size:0.75rem; background:#fef3c7; color:#92400e; padding:2px 6px; border-radius:4px; margin-left:6px;">쓰기</span>';
+                    '<span style="font-size:0.75rem; background:var(--surface-2); color:var(--primary-color); padding:2px 6px; border-radius:4px; margin-left:6px;">읽기</span>' : 
+                    '<span style="font-size:0.75rem; background:var(--surface-2); color:var(--warning-color); padding:2px 6px; border-radius:4px; margin-left:6px;">쓰기</span>';
 
                  return `
-                    <tr style="background-color: #ffffff; border-bottom: 1px solid #f1f5f9;">
-                        <td style="font-weight: 600; color: #1e293b; padding: 12px 16px;">
+                    <tr style="background-color: var(--surface); border-bottom: 1px solid var(--border-color);">
+                        <td style="font-weight: 600; color:var(--text-primary); padding: 12px 16px;">
                             ${safeName} ${typeLabel}
                         </td>
                         <td style="color: var(--text-secondary);">${p.resource_id}</td>
@@ -1856,15 +1856,15 @@ async function loadMenuPermissions() {
                             <div style="display:flex; justify-content:center; gap:20px;">
                                 <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
                                     <input type="checkbox" id="perm-rank1-${p.resource_type}-${p.resource_id}" data-rtype="${p.resource_type}" data-rid="${p.resource_id}" data-rank="1" ${p.rank_1 ? 'checked' : ''} style="width:18px; height:18px;">
-                                    <span style="font-weight:600; color:#475569;">유저</span>
+                                    <span style="font-weight:600; color:var(--text-secondary);">유저</span>
                                 </label>
                                 <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
                                     <input type="checkbox" id="perm-rank2-${p.resource_type}-${p.resource_id}" data-rtype="${p.resource_type}" data-rid="${p.resource_id}" data-rank="2" ${p.rank_2 ? 'checked' : ''} style="width:18px; height:18px;">
-                                    <span style="font-weight:600; color:#475569;">GM</span>
+                                    <span style="font-weight:600; color:var(--text-secondary);">GM</span>
                                 </label>
                                 <label style="display:flex; align-items:center; gap:8px; opacity:0.6;">
                                     <input type="checkbox" checked disabled style="width:18px; height:18px;">
-                                    <span style="font-weight:600; color:#94a3b8;">관리자</span>
+                                    <span style="font-weight:600; color:var(--text-dim);">관리자</span>
                                 </label>
                             </div>
                         </td>
@@ -2069,7 +2069,7 @@ async function loadCharacterList(page = 1, clearFilters = false) {
         tbody.innerHTML = characters.map(char => `
             <tr>
                 <td style="font-weight:700;" class="text-ellipsis">
-                    <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background-color:${char.online ? '#10b981' : '#cbd5e1'}; margin-right:8px;"></span>
+                    <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background-color:${char.online ? '#10b981' : 'rgba(255,255,255,0.18)'}; margin-right:8px;"></span>
                     ${char.name}
                 </td>
                 <td style="text-align:center;">
@@ -2078,7 +2078,7 @@ async function loadCharacterList(page = 1, clearFilters = false) {
                 <td style="font-size:0.85rem; color: var(--text-secondary);">
                     ${char.race}/${char.class}
                 </td>
-                <td style="color:#f59e0b; font-weight:700;">${(char.gold / 10000).toFixed(2)} Gold</td>
+                <td style="color:var(--warning-color); font-weight:700;">${(char.gold / 10000).toFixed(2)} Gold</td>
                 <td style="font-family:monospace; opacity:0.7;">${char.account}</td>
                 <td style="text-align:center;">
                     <button onclick="openCharacterItemsModal('${char.name}', ${char.guid})" class="btn-action btn-edit" title="아이템 보기">
@@ -2205,7 +2205,7 @@ async function loadBlackMarketLogs(page = 1, clearFilters = false) {
                         <span class="item-name-placeholder">${log.item}</span>
                     </div>
                 </td>
-                <td style="color:#f59e0b; font-weight:700;">${log.price.toLocaleString()}g</td>
+                <td style="color:var(--warning-color); font-weight:700;">${log.price.toLocaleString()}g</td>
                 <td style="color: var(--text-secondary); font-size:0.85rem;">${log.purchase_date}</td>
             </tr>
         `).join('');
@@ -2287,7 +2287,7 @@ async function loadKarazhanLogs(page = 1, clearFilters = false) {
                     <td style="font-weight:700;">${log.character}</td>
                     <td style="font-weight:600;">${log.item}</td>
                     <td style="text-align:center;">
-                        <span class="lvl-badge" style="background:#f5f3ff; color:#7c3aed;">+${log.level}</span>
+                        <span class="lvl-badge" style="background:var(--surface-2); color:var(--primary-color);">+${log.level}</span>
                     </td>
                     <td style="text-align:center;">
                         <span style="display:inline-flex; align-items:center; gap:4px; padding:0.25rem 0.6rem; border-radius:100px; background:${statusBg}; color:${statusColor}; font-weight:700; font-size:0.75rem;">
@@ -2362,7 +2362,7 @@ async function loadPlaytimeLogs(page = 1, clearFilters = false) {
                 <td style="font-weight:700;">${log.character}</td>
                 <td style="font-weight:600;">${log.item}</td>
                 <td style="text-align:center;">
-                    <span style="display:inline-flex; align-items:center; gap:4px; color:#3b82f6; font-weight:800;">
+                    <span style="display:inline-flex; align-items:center; gap:4px; color:var(--primary-color); font-weight:800;">
                         <i class="fas fa-layer-group" style="font-size:0.7rem; opacity:0.5;"></i> ${log.quantity}
                     </span>
                 </td>
@@ -2449,7 +2449,7 @@ async function loadSchedule(page = 1) {
 
         tbody.innerHTML = list.map(item => {
             const isProcessed = item.processed === 1;
-            const statusBg = isProcessed ? '#ecfdf5' : '#fff7ed';
+            const statusBg = isProcessed ? '#ecfdf5' : 'rgba(201,162,74,0.12)';
             const statusColor = isProcessed ? '#10b981' : '#f59e0b';
             const statusIcon = isProcessed ? 'fa-check-circle' : 'fa-clock';
 
@@ -2725,7 +2725,7 @@ async function loadAnnouncementHistory() {
         });
     } catch (e) {
         console.error('Failed to load announcement history', e);
-        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:#ef4444;">전송 이력을 불러오지 못했습니다.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:var(--danger-color);">전송 이력을 불러오지 못했습니다.</td></tr>';
     }
 }
 
@@ -3010,7 +3010,7 @@ async function loadBanList(accPage = 1, ipPage = 1) {
                 <td style="color: var(--text-secondary);">${b.reason}</td>
                 <td style="font-size:0.85rem; color: var(--text-secondary);">${b.unbandate}</td>
                 <td style="text-align:center;">
-                    ${b.active ? `<button onclick="removeBan('account', ${b.id})" class="btn-action btn-edit"><i class="fas fa-unlock"></i> 해제</button>` : '<span style="color:#cbd5e1; font-weight:600;"><i class="fas fa-check"></i> 해제됨</span>'}
+                    ${b.active ? `<button onclick="removeBan('account', ${b.id})" class="btn-action btn-edit"><i class="fas fa-unlock"></i> 해제</button>` : '<span style="color:var(--text-dim); font-weight:600;"><i class="fas fa-check"></i> 해제됨</span>'}
                 </td>
             </tr>
         `).join('');
@@ -3177,7 +3177,7 @@ async function loadOnlineCount() {
     } catch (e) { 
         console.error("Online count load failed", e);
         if (countEl) countEl.textContent = '0';
-        listContainer.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px; color:#ef4444;">접속자 정보를 불러오지 못했습니다.</td></tr>';
+        listContainer.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px; color:var(--danger-color);">접속자 정보를 불러오지 못했습니다.</td></tr>';
     }
 }
 window.saveRolePermissions = saveRolePermissions;
@@ -3327,7 +3327,7 @@ async function loadMailLogs(page = 1, clearFilters = false) {
                     <div id="mail-log-item-${log.id}" class="log-item-container" data-entry="${log.item_entry}">
                         <div style="display:flex; flex-direction:column; gap:2px;">
                             <span style="font-weight:600;">${log.item}</span>
-                            <span style="font-size:0.85rem; color:#f59e0b; font-weight:700;"><i class="fas fa-coins" style="font-size:0.7rem;"></i> ${log.gold.toLocaleString()}g</span>
+                            <span style="font-size:0.85rem; color:var(--warning-color); font-weight:700;"><i class="fas fa-coins" style="font-size:0.7rem;"></i> ${log.gold.toLocaleString()}g</span>
                         </div>
                     </div>
                 </td>
@@ -3451,7 +3451,7 @@ async function searchContentSettingItems() {
     const query = String(document.getElementById('content-item-search-query')?.value || '').trim();
     if (!tbody) return;
     if (query.length < 2) {
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:24px; color:#64748b;">검색어를 2글자 이상 입력해주세요.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:24px; color:var(--text-secondary);">검색어를 2글자 이상 입력해주세요.</td></tr>';
         return;
     }
 
@@ -3462,7 +3462,7 @@ async function searchContentSettingItems() {
         const items = await res.json().catch(() => ([]));
         if (!res.ok) throw new Error('아이템 검색에 실패했습니다.');
         if (!Array.isArray(items) || !items.length) {
-            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:24px; color:#64748b;">검색 결과가 없습니다.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:24px; color:var(--text-secondary);">검색 결과가 없습니다.</td></tr>';
             return;
         }
 
@@ -3491,7 +3491,7 @@ async function searchContentSettingItems() {
         await hydrateTrialEntryIcons(tbody);
         refreshWowheadTooltips();
     } catch (err) {
-        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:24px; color:#dc2626;">${dropEsc(err.message || '아이템 검색에 실패했습니다.')}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:24px; color:var(--danger-color);">${dropEsc(err.message || '아이템 검색에 실패했습니다.')}</td></tr>`;
     } finally {
         tbody.style.opacity = '1';
     }
@@ -3502,7 +3502,7 @@ function resetContentSettingItems() {
     if (input) input.value = '';
     const tbody = document.getElementById('content-item-search-list');
     if (tbody) {
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:24px; color:#64748b;">검색어를 입력한 뒤 아이템을 찾아주세요.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:24px; color:var(--text-secondary);">검색어를 입력한 뒤 아이템을 찾아주세요.</td></tr>';
     }
 }
 
@@ -3618,7 +3618,7 @@ async function loadContentItemDetail(entry) {
         renderContentItemDetail(data);
     } catch (err) {
         clearContentItemDetail();
-        if (empty) empty.innerHTML = `<span style="color:#dc2626;">${dropEsc(err.message || '아이템 정보를 불러오지 못했습니다.')}</span>`;
+        if (empty) empty.innerHTML = `<span style="color:var(--danger-color);">${dropEsc(err.message || '아이템 정보를 불러오지 못했습니다.')}</span>`;
     }
 }
 
@@ -3721,7 +3721,7 @@ async function loadBlackMarketItems(page = 1) {
                 </td>
                 <td>${item.item_entry}</td>
                 <td style="font-weight:700;">${wrapWithWowheadItemLink(item.item_entry, String(item.name || ''))}</td>
-                <td style="color:#f59e0b; font-weight:700;">${item.price_gold.toLocaleString()}g</td>
+                <td style="color:var(--warning-color); font-weight:700;">${item.price_gold.toLocaleString()}g</td>
                 <td>${item.weight}</td>
                 <td>${item.max_per_spawn}</td>
                 <td>
@@ -3916,8 +3916,8 @@ function renderCarddrawIcon(iconName, itemEntry, containerId) {
     return `
         <div id="${containerId}" style="width:30px; height:30px; display:inline-flex; align-items:center; justify-content:center;">
             ${src
-                ? `<img src="${src}" alt="item-${entry}" style="width:30px; height:30px; border-radius:3px; border:1px solid #cbd5e1; object-fit:cover;" onerror="this.remove()">`
-                : '<span style="color:#94a3b8;">-</span>'}
+                ? `<img src="${src}" alt="item-${entry}" style="width:30px; height:30px; border-radius:3px; border:1px solid var(--text-dim); object-fit:cover;" onerror="this.remove()">`
+                : '<span style="color:var(--text-dim);">-</span>'}
         </div>
     `;
 }
@@ -3933,7 +3933,7 @@ async function loadCarddrawIconByEntry(entry, containerId) {
         const data = await res.json().catch(() => ({}));
         const url = String(data && data.url ? data.url : '').trim();
         if (!url) return;
-        container.innerHTML = `<img src="${url}" alt="item-${itemEntry}" style="width:30px; height:30px; border-radius:3px; border:1px solid #cbd5e1; object-fit:cover;" onerror="this.remove()">`;
+        container.innerHTML = `<img src="${url}" alt="item-${itemEntry}" style="width:30px; height:30px; border-radius:3px; border:1px solid var(--text-dim); object-fit:cover;" onerror="this.remove()">`;
     } catch (_) {
         // keep fallback
     }
@@ -3989,7 +3989,7 @@ async function loadCarddrawContentItems(page = 1) {
                 </td>
                 <td>${Number(item.chance_percent || 0).toFixed(2)}%</td>
                 <td>${Number(item.max_count || 1).toLocaleString()}</td>
-                <td>${Number(item.is_active) === 1 ? '<span style="color:#16a34a; font-weight:700;">활성</span>' : '<span style="color:#64748b;">비활성</span>'}</td>
+                <td>${Number(item.is_active) === 1 ? '<span style="color:var(--success-color); font-weight:700;">활성</span>' : '<span style="color:var(--text-secondary);">비활성</span>'}</td>
                 <td>
                     <div style="display:flex; gap:8px; justify-content:center;">
                         <button onclick="openCarddrawContentModal(${Number(item.id)}, ${Number(item.item_entry)}, '${String(item.rarity || 'common')}', ${Number(item.chance_percent || 0)}, ${Number(item.max_count || 1)}, ${Number(item.is_active || 0)}, decodeURIComponent('${encodeURIComponent(String(item.item_name || ''))}'))" class="btn-action btn-edit"><i class="fas fa-edit"></i> 수정</button>
@@ -4148,7 +4148,7 @@ async function loadDropCreatures(page = 1) {
         if (!res.ok) throw new Error(data.message || '크리처 목록을 불러오지 못했습니다.');
         const items = Array.isArray(data.items) ? data.items : [];
         if (!items.length) {
-            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:24px; color:#64748b;">검색 결과가 없습니다.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:24px; color:var(--text-secondary);">검색 결과가 없습니다.</td></tr>';
             renderPagination(pg, data, (p) => loadDropCreatures(p));
             return;
         }
@@ -4160,8 +4160,8 @@ async function loadDropCreatures(page = 1) {
                 <tr class="${active}">
                     <td style="font-weight:700;">${entry}</td>
                     <td>
-                        <div style="font-weight:800; color:#0f172a;">${dropEsc(name)}</div>
-                        ${item.sub_name ? `<div style="font-size:0.82rem; color:#64748b;">${dropEsc(item.sub_name)}</div>` : ''}
+                        <div style="font-weight:800; color:var(--text-primary);">${dropEsc(name)}</div>
+                        ${item.sub_name ? `<div style="font-size:0.82rem; color:var(--text-secondary);">${dropEsc(item.sub_name)}</div>` : ''}
                     </td>
                     <td>${Number(item.min_level || 0)} ~ ${Number(item.max_level || 0)}</td>
                     <td style="text-align:center;">
@@ -4172,7 +4172,7 @@ async function loadDropCreatures(page = 1) {
         }).join('');
         renderPagination(pg, data, (p) => loadDropCreatures(p));
     } catch (e) {
-        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:20px; color:#dc2626;">${dropEsc(e.message)}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:20px; color:var(--danger-color);">${dropEsc(e.message)}</td></tr>`;
     } finally {
         tbody.style.opacity = '1';
     }
@@ -4211,7 +4211,7 @@ async function loadDropLoot(entry) {
     const tbody = document.getElementById('drop-loot-list');
     if (!tbody) return;
     if (Number(entry || 0) <= 0) {
-        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:24px; color:#64748b;">크리처를 먼저 선택해주세요.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:24px; color:var(--text-secondary);">크리처를 먼저 선택해주세요.</td></tr>';
         return;
     }
     tbody.style.opacity = '0.45';
@@ -4222,7 +4222,7 @@ async function loadDropLoot(entry) {
         if (!res.ok) throw new Error(data.message || '드랍 정보를 불러오지 못했습니다.');
         const items = Array.isArray(data.items) ? data.items : [];
         if (!items.length) {
-            tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:24px; color:#64748b;">등록된 드랍 정보가 없습니다.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:24px; color:var(--text-secondary);">등록된 드랍 정보가 없습니다.</td></tr>';
             return;
         }
         tbody.innerHTML = items.map((item) => {
@@ -4235,10 +4235,10 @@ async function loadDropLoot(entry) {
                 ? '<span class="drop-type-badge ref">참조 묶음</span>'
                 : '<span class="drop-type-badge item">직접 드랍</span>';
             const targetCell = isReference
-                ? `<div style="font-weight:800; color:#4338ca;">참조 묶음 #${referenceEntry}</div><div style="font-size:0.82rem; color:#64748b;">reference_loot_template 내부 목록을 사용합니다.</div>`
+                ? `<div style="font-weight:800; color:var(--primary-color);">참조 묶음 #${referenceEntry}</div><div style="font-size:0.82rem; color:var(--text-secondary);">reference_loot_template 내부 목록을 사용합니다.</div>`
                 : wrapWithWowheadItemLink(itemEntry, `<span class="${dropQualityClass(item.item_quality)}">${dropEsc(itemName)}</span>`, itemName);
             const iconCell = isReference
-                ? `<span style="display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; border-radius:6px; background:#eef2ff; color:#4338ca;"><i class="fas fa-layer-group"></i></span><span>${referenceEntry}</span>`
+                ? `<span style="display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; border-radius:6px; background:var(--surface-2); color:var(--primary-color);"><i class="fas fa-layer-group"></i></span><span>${referenceEntry}</span>`
                 : `<div class="trial-entry-icon" data-entry="${itemEntry}" data-size="30" style="width:30px; height:30px;"></div><span>${itemEntry}</span>`;
             return `
                 <tr>
@@ -4267,7 +4267,7 @@ async function loadDropLoot(entry) {
         hydrateTrialEntryIcons(tbody);
         refreshWowheadTooltips();
     } catch (e) {
-        tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:20px; color:#dc2626;">${dropEsc(e.message)}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:20px; color:var(--danger-color);">${dropEsc(e.message)}</td></tr>`;
     } finally {
         tbody.style.opacity = '1';
     }
@@ -4460,7 +4460,7 @@ async function loadDropReferenceItems(referenceEntry) {
         if (!res.ok) throw new Error(data.message || '참조 묶음 정보를 불러오지 못했습니다.');
         const items = Array.isArray(data.items) ? data.items : [];
         if (!items.length) {
-            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:24px; color:#64748b;">묶음 내부 아이템이 없습니다.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:24px; color:var(--text-secondary);">묶음 내부 아이템이 없습니다.</td></tr>';
             return;
         }
         tbody.innerHTML = items.map((item) => {
@@ -4470,14 +4470,14 @@ async function loadDropReferenceItems(referenceEntry) {
             const isReference = !!item.is_reference || Number(item.reference || 0) > 0;
             const reference = Number(item.reference || 0);
             const target = isReference
-                ? `<span style="font-weight:800; color:#4338ca;">하위 참조 묶음 #${reference}</span>`
+                ? `<span style="font-weight:800; color:var(--primary-color);">하위 참조 묶음 #${reference}</span>`
                 : wrapWithWowheadItemLink(itemEntry, `<span class="${dropQualityClass(item.item_quality)}">${dropEsc(itemName)}</span>`, itemName);
             return `
                 <tr>
                     <td>
                         <div style="display:flex; align-items:center; gap:8px;">
                             ${isReference
-                                ? `<span style="display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; border-radius:6px; background:#eef2ff; color:#4338ca;"><i class="fas fa-layer-group"></i></span><span>${reference}</span>`
+                                ? `<span style="display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; border-radius:6px; background:var(--surface-2); color:var(--primary-color);"><i class="fas fa-layer-group"></i></span><span>${reference}</span>`
                                 : `<div class="trial-entry-icon" data-entry="${itemEntry}" data-size="30" style="width:30px; height:30px;"></div><span>${itemEntry}</span>`}
                         </div>
                     </td>
@@ -4500,7 +4500,7 @@ async function loadDropReferenceItems(referenceEntry) {
         hydrateTrialEntryIcons(tbody);
         refreshWowheadTooltips();
     } catch (e) {
-        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:20px; color:#dc2626;">${dropEsc(e.message)}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:20px; color:var(--danger-color);">${dropEsc(e.message)}</td></tr>`;
     }
 }
 
@@ -4619,7 +4619,7 @@ async function loadVendorCreatures(page = 1) {
         if (!res.ok) throw new Error(data.message || 'NPC 목록을 불러오지 못했습니다.');
         const items = Array.isArray(data.items) ? data.items : [];
         if (!items.length) {
-            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:24px; color:#64748b;">검색 결과가 없습니다.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:24px; color:var(--text-secondary);">검색 결과가 없습니다.</td></tr>';
             renderPagination(pg, data, (p) => loadVendorCreatures(p));
             return;
         }
@@ -4631,8 +4631,8 @@ async function loadVendorCreatures(page = 1) {
                 <tr class="${active}">
                     <td style="font-weight:700;">${entry}</td>
                     <td>
-                        <div style="font-weight:800; color:#0f172a;">${dropEsc(name)}</div>
-                        ${item.sub_name ? `<div style="font-size:0.82rem; color:#64748b;">${dropEsc(item.sub_name)}</div>` : ''}
+                        <div style="font-weight:800; color:var(--text-primary);">${dropEsc(name)}</div>
+                        ${item.sub_name ? `<div style="font-size:0.82rem; color:var(--text-secondary);">${dropEsc(item.sub_name)}</div>` : ''}
                     </td>
                     <td>${Number(item.min_level || 0)} ~ ${Number(item.max_level || 0)}</td>
                     <td style="text-align:center;">
@@ -4643,7 +4643,7 @@ async function loadVendorCreatures(page = 1) {
         }).join('');
         renderPagination(pg, data, (p) => loadVendorCreatures(p));
     } catch (e) {
-        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:20px; color:#dc2626;">${dropEsc(e.message)}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:20px; color:var(--danger-color);">${dropEsc(e.message)}</td></tr>`;
     } finally {
         tbody.style.opacity = '1';
     }
@@ -4680,7 +4680,7 @@ async function loadVendorItems(entry) {
     const tbody = document.getElementById('vendor-item-list');
     if (!tbody) return;
     if (Number(entry || 0) <= 0) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:24px; color:#64748b;">NPC를 먼저 선택해주세요.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:24px; color:var(--text-secondary);">NPC를 먼저 선택해주세요.</td></tr>';
         return;
     }
     tbody.style.opacity = '0.45';
@@ -4691,7 +4691,7 @@ async function loadVendorItems(entry) {
         if (!res.ok) throw new Error(data.message || '판매 정보를 불러오지 못했습니다.');
         const items = Array.isArray(data.items) ? data.items : [];
         if (!items.length) {
-            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:24px; color:#64748b;">등록된 판매 정보가 없습니다.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:24px; color:var(--text-secondary);">등록된 판매 정보가 없습니다.</td></tr>';
             return;
         }
         tbody.innerHTML = items.map((item) => {
@@ -4725,7 +4725,7 @@ async function loadVendorItems(entry) {
         hydrateTrialEntryIcons(tbody);
         refreshWowheadTooltips();
     } catch (e) {
-        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:20px; color:#dc2626;">${dropEsc(e.message)}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:20px; color:var(--danger-color);">${dropEsc(e.message)}</td></tr>`;
     } finally {
         tbody.style.opacity = '1';
     }
@@ -4890,17 +4890,17 @@ function getTrialResultLabel(code, label) {
 
 function getTrialResultBadge(code, label) {
     const text = getTrialResultLabel(code, label);
-    let bg = '#e2e8f0';
+    let bg = 'var(--border-color)';
     let color = '#475569';
     if (Number(code) === 1) {
-        bg = '#dcfce7';
-        color = '#166534';
+        bg = 'rgba(95,174,126,0.16)';
+        color = '#5fae7e';
     } else if (Number(code) === 2) {
-        bg = '#fee2e2';
-        color = '#991b1b';
+        bg = 'rgba(210,118,107,0.16)';
+        color = '#d2766b';
     } else if (Number(code) === 3) {
-        bg = '#fef3c7';
-        color = '#b45309';
+        bg = 'rgba(231,193,112,0.16)';
+        color = '#e7c170';
     }
     return `<span class="badge" style="background:${bg}; color:${color};">${trialEsc(text)}</span>`;
 }
@@ -4918,13 +4918,13 @@ function getTrialRankPresetByValue(value) {
 function getTrialRankBadge(label, value) {
     const preset = label ? getTrialRankPresetByLabel(label) : getTrialRankPresetByValue(value);
     const tone = {
-        S: ['#fef3c7', '#92400e'],
-        A: ['#dcfce7', '#166534'],
-        B: ['#dbeafe', '#1d4ed8'],
-        C: ['#ede9fe', '#6d28d9'],
-        D: ['#fee2e2', '#991b1b'],
-        F: ['#e2e8f0', '#475569']
-    }[preset.label] || ['#e2e8f0', '#475569'];
+        S: ['rgba(231,193,112,0.16)', '#e7c170'],
+        A: ['rgba(95,174,126,0.16)', '#5fae7e'],
+        B: ['rgba(201,162,74,0.13)', '#c9a24a'],
+        C: ['rgba(178,155,216,0.15)', '#b29bd8'],
+        D: ['rgba(210,118,107,0.16)', '#d2766b'],
+        F: ['var(--border-color)', '#475569']
+    }[preset.label] || ['var(--border-color)', '#475569'];
     return `<span class="badge" style="background:${tone[0]}; color:${tone[1]};">${trialEsc(preset.text)}</span>`;
 }
 
@@ -4986,8 +4986,8 @@ function trialIconHtml(entry, iconName, size = 32) {
         else src = `https://wow.zamimg.com/images/wow/icons/large/${icon.toLowerCase()}.jpg`;
     }
     const img = src
-        ? `<img src="${src}" alt="item-${itemEntry}" style="width:${size}px; height:${size}px; border-radius:4px; border:1px solid #cbd5e1; object-fit:cover;" onerror="this.onerror=null; this.src='/img/default.png';">`
-        : `<div class="trial-entry-icon" data-entry="${itemEntry}" data-size="${size}" style="width:${size}px; height:${size}px; border-radius:4px; border:1px solid #cbd5e1; background:#f8fafc;"></div>`;
+        ? `<img src="${src}" alt="item-${itemEntry}" style="width:${size}px; height:${size}px; border-radius:4px; border:1px solid var(--text-dim); object-fit:cover;" onerror="this.onerror=null; this.src='/img/default.png';">`
+        : `<div class="trial-entry-icon" data-entry="${itemEntry}" data-size="${size}" style="width:${size}px; height:${size}px; border-radius:4px; border:1px solid var(--text-dim); background:var(--surface-2);"></div>`;
     return itemEntry > 0 ? wrapWithWowheadItemLink(itemEntry, img, `아이템 ${itemEntry}`) : img;
 }
 
@@ -5019,7 +5019,7 @@ async function hydrateTrialEntryIcons(scope = document) {
             const data = await res.json().catch(() => ({}));
             const url = String(data.url || '').trim();
             if (!url) return;
-            node.innerHTML = `<img src="${url}" alt="item-${entry}" style="width:${size}px; height:${size}px; border-radius:4px; border:1px solid #cbd5e1; object-fit:cover;" onerror="this.remove()">`;
+            node.innerHTML = `<img src="${url}" alt="item-${entry}" style="width:${size}px; height:${size}px; border-radius:4px; border:1px solid var(--text-dim); object-fit:cover;" onerror="this.remove()">`;
         } catch (_) {
             // ignore
         }
@@ -5097,7 +5097,7 @@ async function loadTrialStages(page = 1) {
                 <td>${Number(item.caster_target_gs || 0)}</td>
                 <td>${Number(item.caster_health || 0).toLocaleString()}</td>
                 <td>${Number(item.move_speed_rate || 0).toFixed(2)}</td>
-                <td>${Number(item.enabled) === 1 ? '<span style="color:#16a34a; font-weight:700;">활성</span>' : '<span style="color:#64748b;">비활성</span>'}</td>
+                <td>${Number(item.enabled) === 1 ? '<span style="color:var(--success-color); font-weight:700;">활성</span>' : '<span style="color:var(--text-secondary);">비활성</span>'}</td>
                 <td style="text-align:center;">
                     <div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
                         <button onclick="openTrialStageEditModal(${Number(item.stage_id)})" class="btn-action btn-edit"><i class="fas fa-sliders-h"></i> 능력치 수정</button>
@@ -5315,8 +5315,8 @@ function buildTrialRewardRow(row = {}) {
                 <div class="trial-reward-item-cell" style="display:flex; align-items:center; gap:10px;">
                     <div class="trial-reward-item-icon">${trialIconHtml(itemEntry, itemIcon, 34)}</div>
                     <div style="min-width:0; flex:1;">
-                        <div class="trial-reward-item-name" style="font-weight:700; color:#1e293b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${trialEsc(itemName)}</div>
-                        <div class="trial-reward-item-entry-text" style="font-size:0.8rem; color:#64748b;">${itemEntry > 0 ? `Entry ${itemEntry}` : '아직 선택되지 않았습니다.'}</div>
+                        <div class="trial-reward-item-name" style="font-weight:700; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${trialEsc(itemName)}</div>
+                        <div class="trial-reward-item-entry-text" style="font-size:0.8rem; color:var(--text-secondary);">${itemEntry > 0 ? `Entry ${itemEntry}` : '아직 선택되지 않았습니다.'}</div>
                     </div>
                     <button type="button" class="btn-action btn-edit" onclick="openTrialRewardItemPicker(this)">변경</button>
                 </div>
@@ -5468,7 +5468,7 @@ async function openTrialStageRewardModal(stageId, stageName) {
         const items = data.items || [];
         tbody.innerHTML = '';
         if (!items.length) {
-            tbody.innerHTML = '<tr class="trial-stage-reward-empty"><td colspan="10" style="text-align:center; padding:24px; color:#64748b;">등록된 보상이 없습니다. 상단의 보상 추가 버튼으로 보상 행을 추가하세요.</td></tr>';
+            tbody.innerHTML = '<tr class="trial-stage-reward-empty"><td colspan="10" style="text-align:center; padding:24px; color:var(--text-secondary);">등록된 보상이 없습니다. 상단의 보상 추가 버튼으로 보상 행을 추가하세요.</td></tr>';
             return;
         }
         renderTrialRewardRows(items);
@@ -5624,9 +5624,9 @@ function renderTrialCharacterSummary(character) {
         ['최고 단계', `${Number(character.highest_stage_cleared || 0)}단계`]
     ];
     container.innerHTML = cards.map(([label, value]) => `
-        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:14px; padding:14px;">
-            <div style="font-size:0.82rem; color:#64748b; margin-bottom:6px;">${trialEsc(label)}</div>
-            <div style="font-size:1.02rem; font-weight:700; color:#0f172a;">${trialEsc(value)}</div>
+        <div style="background:var(--surface-2); border:1px solid var(--border-color); border-radius:14px; padding:14px;">
+            <div style="font-size:0.82rem; color:var(--text-secondary); margin-bottom:6px;">${trialEsc(label)}</div>
+            <div style="font-size:1.02rem; font-weight:700; color:var(--text-primary);">${trialEsc(value)}</div>
         </div>
     `).join('');
 }
@@ -5639,7 +5639,7 @@ function renderTrialCharacterRecords(records = []) {
         summary.textContent = `기록 ${records.length}건`;
     }
     if (!records.length) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:24px; color:#64748b;">등록된 단계 기록이 없습니다. 상단의 기록 추가 버튼으로 직접 입력할 수 있습니다.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:24px; color:var(--text-secondary);">등록된 단계 기록이 없습니다. 상단의 기록 추가 버튼으로 직접 입력할 수 있습니다.</td></tr>';
         return;
     }
     tbody.innerHTML = records.map((record) => `
@@ -5668,8 +5668,8 @@ async function openTrialCharacterModal(guid) {
     const summary = document.getElementById('trial-character-summary');
     const tbody = document.getElementById('trial-character-record-list');
     if (title) title.textContent = '시련 캐릭터 관리';
-    if (summary) summary.innerHTML = '<div style="grid-column:1 / -1; text-align:center; padding:24px; color:#64748b;">캐릭터 정보를 불러오는 중...</div>';
-    if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:24px; color:#64748b;">기록을 불러오는 중...</td></tr>';
+    if (summary) summary.innerHTML = '<div style="grid-column:1 / -1; text-align:center; padding:24px; color:var(--text-secondary);">캐릭터 정보를 불러오는 중...</div>';
+    if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:24px; color:var(--text-secondary);">기록을 불러오는 중...</td></tr>';
     modal.style.display = 'flex';
     try {
         await loadTrialCharacterDetail(guid);
@@ -6115,10 +6115,10 @@ async function loadMyPage() {
                 const raceName = getRaceName(char.race);
                 const className = getClassName(char.class);
                 const enhancedIcon = data.enhancedStoneActive === true
-                    ? `<i class="fas fa-gem" title="빛나는 영웅석 구독" style="color:#7c3aed; font-size:0.95em; margin-right:4px;"></i>`
+                    ? `<i class="fas fa-gem" title="빛나는 영웅석 구독" style="color:var(--primary-color); font-size:0.95em; margin-right:4px;"></i>`
                     : '';
                 
-                mainCharText.innerHTML = `${enhancedIcon}<span style="color:#eab308; font-weight:bold;">Lv.${char.level}</span> ${raceName} ${className} <span style="color:#10b981; font-weight:bold;">${char.name}</span>`;
+                mainCharText.innerHTML = `${enhancedIcon}<span style="color:#eab308; font-weight:bold;">Lv.${char.level}</span> ${raceName} ${className} <span style="color:var(--success-color); font-weight:bold;">${char.name}</span>`;
                 
                 // Update Points in Header
                 if (data.points !== undefined) {
@@ -6550,9 +6550,12 @@ async function checkAdminAccess() {
                 // 관리자 콘솔 다크모드 (유저 화면 라이트와 분리)
                 document.body.classList.add('admin-dark');
                 if (typeof Chart !== 'undefined') {
-                    Chart.defaults.color = '#9aa6c0';               // 축/범례 글자
+                    Chart.defaults.color = '#a39d92';               // 축/범례 글자
                     Chart.defaults.borderColor = 'rgba(255,255,255,0.08)'; // 격자선
                 }
+                // 라인 아이콘(Lucide) 변환 — 시안의 stroke 라인 아이콘과 일치
+                if (window.lucide) { initLineIcons(); } else { window.addEventListener('load', initLineIcons); }
+                setTimeout(initLineIcons, 1200);
                 const dash = document.getElementById('admin-dashboard');
                 if (dash) { dash.style.display = 'block'; loadAdminDashboard(); }
                 // 관리자 홈은 대시보드로 대체 — 유저용 공지/슬라이더는 숨김
@@ -6577,7 +6580,7 @@ function updateWelcomeMsg(name, points, hasEnhancedStone = null) {
     const activeStone = hasEnhancedStone === null
         ? (g_sessionUser && g_sessionUser.enhancedStoneActive === true)
         : (hasEnhancedStone === true);
-    const gem = activeStone ? '<i class="fas fa-gem" style="color:#7c3aed; font-size:0.9em; margin-right:6px;" title="빛나는 영웅석"></i>' : '';
+    const gem = activeStone ? '<i class="fas fa-gem" style="color:var(--primary-color); font-size:0.9em; margin-right:6px;" title="빛나는 영웅석"></i>' : '';
     const safeName = displayName
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
@@ -6627,11 +6630,11 @@ async function applyAdminMenuOrder() {
         const byDb = (ids) => [...ids].sort((a, b) =>
             (rank.has(a) ? rank.get(a) : 9999) - (rank.has(b) ? rank.get(b) : 9999));
 
-        const makeHeader = (title) => {
+        const makeHeader = (title, num) => {
             const h = document.createElement('div');
             h.className = 'admin-group-header';
-            h.textContent = title;
-            h.style.cssText = 'margin:14px 0 6px 0; padding-left:15px; font-size:0.7rem; color:#64748b; font-weight:700; text-transform:uppercase; letter-spacing:0.05em;';
+            h.textContent = `${num} — ${title}`;
+            h.style.cssText = "margin:16px 0 0; padding:0 18px 8px; font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:9.5px; color:#5a564f; font-weight:400; letter-spacing:1.9px;";
             return h;
         };
 
@@ -6639,13 +6642,14 @@ async function applyAdminMenuOrder() {
         nav.querySelectorAll('.admin-group-header').forEach(el => el.remove());
 
         const frag = document.createDocumentFragment();
+        let gnum = 0;
         GROUPS.forEach(group => {
             const btns = byDb(group.ids)
                 .map(id => document.getElementById(`tab-btn-${id}`))
                 .filter(Boolean);
             if (!btns.length) return;
             // 그룹 내 표시 가능한 버튼이 하나도 없으면 헤더 생략(버튼은 이동/숨김 상태 유지).
-            if (btns.some(b => b.style.display !== 'none')) frag.appendChild(makeHeader(group.title));
+            if (btns.some(b => b.style.display !== 'none')) { gnum++; frag.appendChild(makeHeader(group.title, String(gnum).padStart(2, '0'))); }
             btns.forEach(b => frag.appendChild(b));
         });
 
@@ -6654,6 +6658,63 @@ async function applyAdminMenuOrder() {
         // ignore ordering errors
     }
 }
+
+// ════════ FA → Lucide 라인 아이콘 변환 (admin-dark 전용) ════════
+window.__FA2LU = {
+    search: 'search', undo: 'rotate-ccw', plus: 'plus', trash: 'trash-2', clock: 'clock',
+    'calendar-alt': 'calendar', save: 'save', gem: 'gem', edit: 'square-pen', 'user-shield': 'shield',
+    user: 'user', sync: 'refresh-cw', 'sync-alt': 'refresh-cw', times: 'x', 'times-circle': 'circle-x',
+    check: 'check', 'check-circle': 'circle-check', 'circle-check': 'circle-check', 'user-circle': 'circle-user',
+    envelope: 'mail', 'envelope-open': 'mail-open', 'envelope-open-text': 'mail-open', bullhorn: 'megaphone',
+    'paper-plane': 'send', 'folder-open': 'folder-open', folder: 'folder', dungeon: 'castle', coins: 'coins',
+    'calendar-check': 'calendar-check', 'arrow-left': 'arrow-left', 'arrow-right': 'arrow-right',
+    'users-cog': 'users', 'user-cog': 'user-cog', users: 'users', pen: 'pen', pencil: 'pencil',
+    'layer-group': 'layers', gavel: 'gavel', cubes: 'boxes', cube: 'box', comments: 'messages-square',
+    'comment-dots': 'message-circle', 'chevron-right': 'chevron-right', 'chevron-left': 'chevron-left',
+    bug: 'bug', store: 'store', 'store-alt': 'store', image: 'image', images: 'images', home: 'house',
+    'file-alt': 'file-text', 'file-code': 'file-code', 'clipboard-list': 'clipboard-list',
+    'circle-question': 'circle-help', 'chart-line': 'chart-line', 'box-open': 'package-open',
+    unlock: 'lock-open', lock: 'lock', server: 'server', 'network-wired': 'network',
+    'map-marker-alt': 'map-pin', magic: 'wand-sparkles', 'hourglass-half': 'hourglass',
+    'grip-vertical': 'grip-vertical', gift: 'gift', bell: 'bell', ban: 'ban', 'user-tag': 'user',
+    'user-check': 'user-check', tools: 'wrench', 'sign-out-alt': 'log-out', 'person-digging': 'hard-hat',
+    key: 'key', 'info-circle': 'info', inbox: 'inbox', history: 'history', heading: 'heading',
+    'hand-holding-heart': 'heart-handshake', globe: 'globe', gamepad: 'gamepad-2',
+    'external-link-alt': 'external-link', crown: 'crown', headset: 'headset', 'gauge-high': 'gauge',
+    link: 'link', 'list-ul': 'list', list: 'list', eye: 'eye', 'eye-slash': 'eye-off',
+    download: 'download', upload: 'upload', filter: 'filter', star: 'star', fire: 'flame',
+    cog: 'settings', gear: 'settings', 'chart-bar': 'chart-column', 'chart-pie': 'chart-pie',
+    'dollar-sign': 'dollar-sign', dragon: 'flame', 'circle-info': 'info', 'circle-check': 'circle-check'
+};
+function applyLineIcons(root) {
+    if (!document.body.classList.contains('admin-dark') || !window.lucide) return;
+    const scope = (root && root.querySelectorAll) ? root : document;
+    let changed = false;
+    scope.querySelectorAll('i[class*="fa-"]').forEach(i => {
+        const m = (i.className.match(/fa-([a-z0-9-]+)/) || [])[1];
+        const name = window.__FA2LU[m];
+        if (!name) return; // 매핑 없으면 FA 유지(안전)
+        i.className = i.className.replace(/\bfas\b|\bfar\b|\bfab\b|\bfa\b|fa-[a-z0-9-]+/g, ' ').replace(/\s+/g, ' ').trim();
+        i.setAttribute('data-lucide', name);
+        i.classList.add('lu-ic');
+        changed = true;
+    });
+    if (changed) { try { window.lucide.createIcons({ attrs: { 'stroke-width': 1.7 } }); } catch (e) { } }
+}
+let __iconObs = null;
+function startIconObserver() {
+    if (__iconObs || !window.MutationObserver) return;
+    let pending = false;
+    __iconObs = new MutationObserver(muts => {
+        if (pending) return;
+        if (muts.some(m => m.addedNodes && m.addedNodes.length)) {
+            pending = true;
+            requestAnimationFrame(() => { pending = false; applyLineIcons(document); });
+        }
+    });
+    __iconObs.observe(document.body, { childList: true, subtree: true });
+}
+function initLineIcons() { applyLineIcons(document); startIconObserver(); }
 
 // 일별 시계열 여러 개를 공통 날짜축으로 정렬 (Chart.js는 index 매핑이라 날짜 합집합 필요)
 function mergeDailySeries(seriesArr) {
@@ -6736,22 +6797,30 @@ async function loadAdminDashboard() {
     const cd = (o) => (o && Array.isArray(o.labels)) ? o : { labels: [], values: [] };
     const shortLabels = (arr) => (arr || []).map(l => (typeof l === 'string' && l.length >= 10) ? l.slice(5) : l);
     const esc = (s) => String(s).replace(/"/g, '&quot;');
+    const EB = "font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:0.64rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--text-dim);";
+    const MONO = "font-family:'IBM Plex Mono',ui-monospace,monospace; font-variant-numeric:tabular-nums;";
+    const KLBL = "font-family:'Pretendard',sans-serif; font-size:11px; font-weight:600; letter-spacing:0.22px; color:#8a857b;";
+    const now = new Date();
+    const wd = ['일', '월', '화', '수', '목', '금', '토'][now.getDay()];
+    const pad = (x) => String(x).padStart(2, '0');
+    const dateStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} (${wd})`;
+    const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
 
-    // ── KPI 8 ──
+    // ── KPI 8 (헤어라인 그리드 · mono 숫자 · 의미색) ──
     const kpiDefs = [
-        { v: fmt(kpi.online),        k: '현재 접속' },
+        { v: fmt(kpi.online),        k: '현재 접속',  c: '#5fae7e' },
         { v: fmt(kpi.signupToday),   k: '오늘 가입' },
-        { v: fmt(kpi.revenueToday),  k: '오늘 매출(P)' },
-        { v: fmt(kpi.revenue30),     k: '30일 매출(P)' },
+        { v: fmt(kpi.revenueToday),  k: '오늘 매출',  s: 'P' },
+        { v: fmt(kpi.revenue30),     k: '30일 매출',  s: 'P', c: '#c9a24a' },
         { v: fmt(kpi.activeSubs),    k: '활성 구독' },
         { v: fmt(kpi.accountsTotal), k: '누적 계정' },
-        { v: (kpi.retentionD7 != null ? kpi.retentionD7 : 0) + '%', k: 'D7 리텐션' },
-        { v: fmt(kpi.sanctionsActive), k: '활성 제재' },
+        { v: (kpi.retentionD7 != null ? kpi.retentionD7 : 0), k: 'D7 리텐션', s: '%', c: '#c9a24a' },
+        { v: fmt(kpi.sanctionsActive), k: '활성 제재', c: (Number(kpi.sanctionsActive) > 0 ? '#d2766b' : '') },
     ];
     const kpiHtml = kpiDefs.map(d => `
-        <div class="card" style="margin:0; padding:13px 15px;">
-            <div style="font-size:1.4rem; font-weight:800; color:var(--text-primary); line-height:1.05;">${d.v}</div>
-            <div style="font-size:0.76rem; color:var(--text-secondary); margin-top:3px;">${d.k}</div>
+        <div style="background:var(--bg-main); padding:15px 16px 13px;">
+            <div style="${KLBL} margin-bottom:9px;">${d.k}</div>
+            <div style="${MONO} font-size:1.6rem; font-weight:700; line-height:1; color:${d.c || 'var(--text-primary)'};">${d.v}${d.s ? `<span style="font-size:0.72rem; color:var(--text-dim); margin-left:3px;">${d.s}</span>` : ''}</div>
         </div>`).join('');
 
     // ── 처리 대기 5 ──
@@ -6766,17 +6835,17 @@ async function loadAdminDashboard() {
         const n = Number(d.n || 0);
         const al = n > 0;
         return `
-        <div class="card" onclick="${esc(d.act)}" style="margin:0; padding:13px 15px; cursor:pointer; position:relative; opacity:${al ? '1' : '0.6'}; ${al ? 'border-color:rgba(224,82,74,0.5); background:linear-gradient(180deg, rgba(224,82,74,0.08), transparent);' : ''}">
-            <div style="font-size:1.5rem; font-weight:800; color:${al ? '#e0524a' : 'var(--text-secondary)'}; line-height:1;">${n}</div>
-            <div style="font-size:0.78rem; color:var(--text-secondary); margin-top:4px;">${d.t}</div>
-            <i class="fas fa-arrow-right" style="position:absolute; top:12px; right:13px; font-size:0.7rem; color:var(--text-secondary); opacity:0.6;"></i>
+        <div onclick="${esc(d.act)}" style="background:var(--bg-main); padding:15px 16px; cursor:pointer; position:relative;">
+            <div style="${MONO} font-size:1.5rem; font-weight:700; line-height:1; color:${al ? 'var(--danger-color)' : 'var(--text-dim)'};">${n}</div>
+            <div style="${KLBL} margin-top:9px;">${d.t}</div>
+            <i class="fas fa-arrow-right" style="position:absolute; top:14px; right:14px; font-size:0.66rem; color:var(--text-dim);"></i>
         </div>`;
     }).join('');
 
     // ── 인기 상품 TOP5 (HTML 막대) ──
     const tp = cd(c.topProducts);
     const tpMax = Math.max(1, ...(tp.values.length ? tp.values.map(Number) : [1]));
-    const tpColors = ['#7c8cff', '#8f9cff', '#a3adff', '#c0c7ff', '#d4d9ff'];
+    const tpColors = ['#c9a24a', '#b8923f', '#a3823a', '#8f7333', '#7a632c'];
     const tpHtml = tp.labels.length
         ? tp.labels.slice(0, 5).map((lab, i) => {
             const v = Number(tp.values[i] || 0);
@@ -6798,20 +6867,24 @@ async function loadAdminDashboard() {
         </div>`;
     };
     const retentionHtml = `<div style="display:flex; justify-content:space-around; gap:8px; padding-top:6px;">
-        ${ring(ret.d1, '#34d399', 'D1')}${ring(ret.d7, '#7c8cff', 'D7')}${ring(ret.d30, '#fbbf24', 'D30')}
+        ${ring(ret.d1, '#5fae7e', 'D1')}${ring(ret.d7, '#c9a24a', 'D7')}${ring(ret.d30, '#e7c170', 'D30')}
     </div>`;
 
-    const cardTop = (title) => `<div style="font-size:0.86rem; font-weight:700; color:var(--text-primary); margin-bottom:8px;">${title}</div>`;
+    const cardTop = (title) => `<div style="${EB} margin-bottom:11px;">${title}</div>`;
 
     wrap.innerHTML = `
-        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
-            <div style="font-size:1.05rem; font-weight:800; color:var(--text-primary);"><i class="fas fa-gauge-high"></i> 운영 대시보드</div>
-            <button class="refresh-btn" style="padding:4px 10px; font-size:0.78rem;" onclick="loadAdminDashboard()">새로고침</button>
+        <div style="${EB} margin-bottom:6px;">OVERVIEW — 운영 현황</div>
+        <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:12px; border-bottom:1px solid var(--border-color); padding-bottom:14px; margin-bottom:18px;">
+            <h1 style="font-size:30px; font-weight:800; color:var(--text-primary); margin:0; letter-spacing:-0.6px;">대시보드</h1>
+            <div style="text-align:right; ${MONO}">
+                <div style="font-size:0.78rem; color:var(--text-secondary);">${dateStr}</div>
+                <div style="${EB} margin-top:5px; cursor:pointer;" onclick="loadAdminDashboard()" title="새로고침">↻ 데이터 동기화 ${timeStr}</div>
+            </div>
         </div>
-        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(120px, 1fr)); gap:10px; margin-bottom:16px;">${kpiHtml}</div>
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:1px; background:var(--border-color); border:1px solid var(--border-color); border-radius:6px; overflow:hidden; margin-bottom:22px;">${kpiHtml}</div>
 
-        <div style="font-size:0.78rem; color:var(--text-secondary); font-weight:700; letter-spacing:0.03em; margin-bottom:8px;">⚡ 처리 대기 <span style="font-weight:400; opacity:0.7;">(클릭 시 해당 관리 화면으로 이동)</span></div>
-        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:10px; margin-bottom:16px;">${queueHtml}</div>
+        <div style="${EB} margin-bottom:10px; color:var(--danger-color);">ACTION REQUIRED — 처리 대기열 <span style="color:var(--text-dim);">· 클릭 시 이동</span></div>
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:1px; background:var(--border-color); border:1px solid var(--border-color); border-radius:6px; overflow:hidden; margin-bottom:22px;">${queueHtml}</div>
 
         <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:12px; margin-bottom:12px;">
             <div class="card" style="margin:0; padding:13px 15px;">${cardTop('최근 14일 매출 (P)')}<div style="height:170px;"><canvas id="dash-rev"></canvas></div></div>
@@ -6834,25 +6907,25 @@ async function loadAdminDashboard() {
     // ── 단일 시리즈 차트 (renderStatsChart 재사용) ──
     if (typeof renderStatsChart === 'function') {
         const rev = cd(c.revenueDaily);
-        renderStatsChart('dash-rev', 'dashRev', 'line', shortLabels(rev.labels), rev.values, '매출(P)', '#7c8cff', false, (v) => fmt(v) + ' P');
+        renderStatsChart('dash-rev', 'dashRev', 'line', shortLabels(rev.labels), rev.values, '매출(P)', '#c9a24a', false, (v) => fmt(v) + ' P');
         const draw = cd(c.drawDaily);
-        renderStatsChart('dash-draw', 'dashDraw', 'bar', shortLabels(draw.labels), draw.values, '뽑기', '#a78bfa');
+        renderStatsChart('dash-draw', 'dashDraw', 'bar', shortLabels(draw.labels), draw.values, '뽑기', '#c9a24a');
         const hr = cd(c.hourly);
-        renderStatsChart('dash-hourly', 'dashHourly', 'bar', hr.labels, hr.values, '접속', '#22d3ee');
+        renderStatsChart('dash-hourly', 'dashHourly', 'bar', hr.labels, hr.values, '접속', '#9c7b34');
     }
     // 카드 등급 분포 (시안 색상 도넛)
     const rar = cd(c.drawRarity);
-    renderDashDoughnut('dash-rarity', 'dashRarity', rar.labels, rar.values, ['#5d6b8a', '#60a5fa', '#a78bfa', '#fbbf24', '#f87171', '#22d3ee']);
+    renderDashDoughnut('dash-rarity', 'dashRarity', rar.labels, rar.values, ['#c9a24a', '#e7c170', '#a39d92', '#5fae7e', '#d2766b', '#645f57']);
 
     // ── 멀티라인 (가입·로그인 / 골드·암시장) ──
     const uf = mergeDailySeries([
-        { label: '로그인', color: '#34d399', labels: cd(c.loginDaily).labels, values: cd(c.loginDaily).values },
-        { label: '가입',   color: '#60a5fa', labels: cd(c.signupDaily).labels, values: cd(c.signupDaily).values },
+        { label: '로그인', color: '#5fae7e', labels: cd(c.loginDaily).labels, values: cd(c.loginDaily).values },
+        { label: '가입',   color: '#e7c170', labels: cd(c.signupDaily).labels, values: cd(c.signupDaily).values },
     ]);
     renderDashMultiLine('dash-userflow', 'dashUser', shortLabels(uf.labels), uf.datasets);
     const eco = mergeDailySeries([
-        { label: '골드 이동', color: '#fbbf24', labels: cd(c.goldDaily).labels, values: cd(c.goldDaily).values },
-        { label: '암시장',   color: '#22d3ee', labels: cd(c.coinMarketDaily).labels, values: cd(c.coinMarketDaily).values },
+        { label: '골드 이동', color: '#c9a24a', labels: cd(c.goldDaily).labels, values: cd(c.goldDaily).values },
+        { label: '암시장',   color: '#a39d92', labels: cd(c.coinMarketDaily).labels, values: cd(c.coinMarketDaily).values },
     ]);
     renderDashMultiLine('dash-economy', 'dashEco', shortLabels(eco.labels), eco.datasets, (v) => fmt(v));
 
@@ -6908,7 +6981,7 @@ class ModalUtils {
             style.id = 'modal-utils-fallback-style';
             style.textContent = `
                 .mu-overlay{position:fixed;inset:0;z-index:20000;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(7,7,13,.72);backdrop-filter:blur(6px)}
-                .mu-panel{width:min(460px,calc(100vw - 32px));background:linear-gradient(180deg,rgba(22,16,35,.96),rgba(13,10,20,.98));border:1px solid rgba(218,183,109,.28);border-radius:18px;box-shadow:0 24px 90px rgba(0,0,0,.45);padding:24px;color:#f4ecdc}
+                .mu-panel{width:min(460px,calc(100vw - 32px));background:linear-gradient(180deg,rgba(22,16,35,.96),rgba(13,10,20,.98));border:1px solid rgba(218,183,109,.28);border-radius:18px;box-shadow:0 24px 90px rgba(0,0,0,.45);padding:24px;color:var(--surface-2)}
                 .mu-title{margin:0 0 10px;font-size:22px;font-weight:800;color:#f3dfab}
                 .mu-message{white-space:pre-wrap;line-height:1.7;color:#ddd3bf}
                 .mu-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}
@@ -7217,7 +7290,7 @@ function renderHomeSlider() {
     const items = Array.isArray(HomeSliderState.items) ? HomeSliderState.items : [];
 
     if (!items.length) {
-        track.innerHTML = `<div class="home-slide-item" style="display:flex; align-items:center; justify-content:center; background:linear-gradient(135deg, #0f172a, #1e293b); color:#cbd5e1;">등록된 슬라이더 이미지가 없습니다.</div>`;
+        track.innerHTML = `<div class="home-slide-item" style="display:flex; align-items:center; justify-content:center; background:linear-gradient(135deg, #0f172a, #1e293b); color:var(--text-dim);">등록된 슬라이더 이미지가 없습니다.</div>`;
         dots.innerHTML = '';
         track.style.transform = 'translateX(0%)';
         return;
@@ -7429,8 +7502,8 @@ function initHomeCalendar(element) {
                         events.push({
                             title: item.title,
                             start: item.target_date, // Or construct from date + time
-                            color: '#8b5cf6',
-                            borderColor: '#7c3aed',
+                            color: '#c9a24a',
+                            borderColor: '#c9a24a',
                             textColor: 'white',
                             extendedProps: { ...item, type: 'server' }
                         });
@@ -7522,19 +7595,19 @@ function renderHomeEvents(dateStr) {
         let timeStr = '';
         let content = '';
         let author = '';
-        let borderColor = '#e2e8f0'; // Default gray
+        let borderColor = 'var(--border-color)'; // Default gray
         let titleColor = '#1e293b';
 
         if (type === 'server') {
             borderColor = '#e9d5ff'; // Light Purple
-            titleColor = '#7c3aed';
+            titleColor = '#c9a24a';
             
             timeStr = (props.start_time && props.start_time !== '00:00:00') ? 
-            `<span style="color:#64748b; font-size:0.85rem; background:#f1f5f9; padding:2px 8px; border-radius:99px;">${props.start_time.substring(0,5)} ~ ${props.end_time ? props.end_time.substring(0,5) : ''}</span>` : 
-            `<span style="color:#64748b; font-size:0.85rem; background:#f1f5f9; padding:2px 8px; border-radius:99px;">하루 종일</span>`;
+            `<span style="color:var(--text-secondary); font-size:0.85rem; background:var(--surface-2); padding:2px 8px; border-radius:99px;">${props.start_time.substring(0,5)} ~ ${props.end_time ? props.end_time.substring(0,5) : ''}</span>` : 
+            `<span style="color:var(--text-secondary); font-size:0.85rem; background:var(--surface-2); padding:2px 8px; border-radius:99px;">하루 종일</span>`;
             
             content = props.content ? props.content.replace(/\n/g, '<br>') : '';
-            author = `<div style="margin-top:10px; padding-top:10px; border-top:1px solid #f1f5f9; font-size:0.8rem; color:#94a3b8; text-align:right;">작성자: ${props.author || 'GM'}</div>`;
+            author = `<div style="margin-top:10px; padding-top:10px; border-top:1px solid var(--border-color); font-size:0.8rem; color:var(--text-dim); text-align:right;">작성자: ${props.author || 'GM'}</div>`;
         
         } else if (type === 'game') {
             borderColor = '#bbf7d0'; // Light Green
@@ -7542,17 +7615,17 @@ function renderHomeEvents(dateStr) {
             
             // Format start/end for display if needed, or just show Title
             // Game events often span days, so showing time might be redundant if checking specific day.
-            timeStr = `<span style="color:#059669; font-size:0.85rem; background:#ecfdf5; padding:2px 8px; border-radius:99px; font-weight:600;">게임 이벤트</span>`;
-            content = `<div style="font-size:0.9rem; color:#64748b;">이벤트 기간:<br>${fullEvent.start.replace('T', ' ')} ~ ${fullEvent.end.replace('T', ' ')}</div>`;
+            timeStr = `<span style="color:var(--success-color); font-size:0.85rem; background:var(--surface-2); padding:2px 8px; border-radius:99px; font-weight:600;">게임 이벤트</span>`;
+            content = `<div style="font-size:0.9rem; color:var(--text-secondary);">이벤트 기간:<br>${fullEvent.start.replace('T', ' ')} ~ ${fullEvent.end.replace('T', ' ')}</div>`;
         }
 
         html += `
-            <div class="event-card-premium" style="background:white; border:1px solid ${borderColor}; border-left: 4px solid ${titleColor}; border-radius:12px; padding:1.25rem; margin-bottom:1rem; box-shadow:0 2px 4px rgba(0,0,0,0.02); transition:transform 0.2s;">
+            <div class="event-card-premium" style="background:var(--surface); border:1px solid ${borderColor}; border-left: 4px solid ${titleColor}; border-radius:12px; padding:1.25rem; margin-bottom:1rem; box-shadow:0 2px 4px rgba(0,0,0,0.02); transition:transform 0.2s;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
                     <div style="font-weight:700; font-size:1.05rem; color:${titleColor};">${fullEvent.title}</div>
                     ${timeStr}
                 </div>
-                <div style="color:#475569; line-height:1.6; font-size:0.95rem;">${content}</div>
+                <div style="color:var(--text-secondary); line-height:1.6; font-size:0.95rem;">${content}</div>
                 ${author}
             </div>
         `;
@@ -7680,8 +7753,8 @@ function initUserCalendarTab() {
                     (list || []).forEach((item) => {
                         const d = String(item.target_date || '').split('T')[0];
                         if (!d) return;
-                        const color = item.category === '자유' ? '#2563eb'
-                            : item.category === '레이드' ? '#8b5cf6'
+                        const color = item.category === '자유' ? '#c9a24a'
+                            : item.category === '레이드' ? '#c9a24a'
                             : item.category === '영던' ? '#16a34a'
                             : '#64748b';
                         const startDate = d;
@@ -7722,7 +7795,7 @@ function initUserCalendarTab() {
             UserCalendarState.selectedDate = info.dateStr;
             renderUserCalendarEvents(info.dateStr);
             document.querySelectorAll('#calendar-page .fc-daygrid-day').forEach(el => { el.style.backgroundColor = ''; });
-            if (info.dayEl) info.dayEl.style.backgroundColor = '#eff6ff';
+            if (info.dayEl) info.dayEl.style.backgroundColor = 'rgba(201,162,74,0.13)';
         },
         eventClick: (info) => {
             const dateStr = String(info.event.startStr || '').split('T')[0];
@@ -7790,22 +7863,22 @@ function renderUserCalendarEvents(dateStr) {
     const d = new Date(dateStr);
     const dayName = ['일', '월', '화', '수', '목', '금', '토'][d.getDay()];
     if (calendarRightTab === 'day') {
-        titleContainer.innerHTML = `<span style="color:#2563eb;">${d.getMonth() + 1}월 ${d.getDate()}일</span> <span style="font-weight:normal; color:#64748b;">(${dayName}) 일정</span>`;
+        titleContainer.innerHTML = `<span style="color:var(--primary-color);">${d.getMonth() + 1}월 ${d.getDate()}일</span> <span style="font-weight:normal; color:var(--text-secondary);">(${dayName}) 일정</span>`;
     }
 
     const events = UserCalendarState.monthData[dateStr] || [];
     if (!events.length) {
-        listContainer.innerHTML = `<div style="text-align:center; padding:40px 20px; color:#94a3b8;"><i class="far fa-calendar-times" style="font-size:2rem; margin-bottom:10px;"></i><div>등록된 일정이 없습니다.</div></div>`;
+        listContainer.innerHTML = `<div style="text-align:center; padding:40px 20px; color:var(--text-dim);"><i class="far fa-calendar-times" style="font-size:2rem; margin-bottom:10px;"></i><div>등록된 일정이 없습니다.</div></div>`;
         return;
     }
 
     const categoryBadge = (cat) => {
         const c = String(cat || '').trim() || '기타';
         const map = {
-            '자유': { bg: '#dbeafe', fg: '#1d4ed8' },
-            '레이드': { bg: '#ede9fe', fg: '#6d28d9' },
-            '영던': { bg: '#dcfce7', fg: '#166534' },
-            '기타': { bg: '#e2e8f0', fg: '#334155' }
+            '자유': { bg: 'rgba(201,162,74,0.13)', fg: '#c9a24a' },
+            '레이드': { bg: 'rgba(178,155,216,0.15)', fg: '#b29bd8' },
+            '영던': { bg: 'rgba(95,174,126,0.16)', fg: '#5fae7e' },
+            '기타': { bg: 'var(--border-color)', fg: '#334155' }
         };
         const s = map[c] || map['기타'];
         return `<span style="display:inline-flex; align-items:center; padding:3px 10px; border-radius:999px; background:${s.bg}; color:${s.fg}; font-size:0.8rem; font-weight:700;">${escapeCalendarText(c)}</span>`;
@@ -7832,31 +7905,31 @@ function renderUserCalendarEvents(dateStr) {
         }
         if (item.can_delete === true) {
             actionButtons.push(`
-                <button class="refresh-btn" style="padding:4px 8px; background:#dbeafe; color:#1d4ed8; border:1px solid #bfdbfe;" onclick="openUserCalendarEditFromEncoded('${encodedItem}')">
+                <button class="refresh-btn" style="padding:4px 8px; background:var(--surface-2); color:var(--primary-color); border:1px solid var(--accent-color);" onclick="openUserCalendarEditFromEncoded('${encodedItem}')">
                     <i class="fas fa-edit"></i> 수정
                 </button>
             `);
             actionButtons.push(`
-                <button class="refresh-btn" style="padding:4px 8px; background:#fee2e2; color:#b91c1c; border:1px solid #fecaca;" onclick="deleteUserCalendarEvent(${Number(item.id || 0)})">
+                <button class="refresh-btn" style="padding:4px 8px; background:var(--surface-2); color:var(--danger-color); border:1px solid var(--surface-2);" onclick="deleteUserCalendarEvent(${Number(item.id || 0)})">
                     <i class="fas fa-trash"></i> 삭제
                 </button>
             `);
         }
         return `
-            <div style="background:white; border:1px solid #e2e8f0; border-radius:10px; padding:12px; margin-bottom:10px; box-shadow:0 1px 2px rgba(0,0,0,0.02);">
+            <div style="background:var(--surface); border:1px solid var(--border-color); border-radius:10px; padding:12px; margin-bottom:10px; box-shadow:0 1px 2px rgba(0,0,0,0.02);">
                 <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:8px;">
-                    <div style="font-weight:700; color:#1e293b;">${escapeCalendarText(item.title || '제목 없음')}</div>
+                    <div style="font-weight:700; color:var(--text-primary);">${escapeCalendarText(item.title || '제목 없음')}</div>
                     ${categoryBadge(item.category)}
                 </div>
-                <div style="font-size:0.84rem; color:#64748b; margin-bottom:8px;">
+                <div style="font-size:0.84rem; color:var(--text-secondary); margin-bottom:8px;">
                     <i class="far fa-calendar-alt"></i> ${startDate} ~ ${endDate}
-                    <span style="margin:0 6px; color:#cbd5e1;">|</span>
+                    <span style="margin:0 6px; color:var(--text-dim);">|</span>
                     <i class="far fa-clock"></i> ${startTime} ~ ${endTime}
                 </div>
-                <div style="font-size:0.92rem; color:#334155; line-height:1.6;">${content || '내용 없음'}</div>
-                ${participants ? `<div style="margin-top:8px; font-size:0.84rem; color:#475569;"><i class="fas fa-users"></i> 참여: ${escapeCalendarText(participants)}</div>` : ''}
-                <div style="margin-top:10px; padding-top:8px; border-top:1px solid #f1f5f9; display:flex; align-items:center; justify-content:space-between; gap:8px;">
-                    <div style="font-size:0.8rem; color:#94a3b8;">작성자: ${author}</div>
+                <div style="font-size:0.92rem; color:var(--text-primary); line-height:1.6;">${content || '내용 없음'}</div>
+                ${participants ? `<div style="margin-top:8px; font-size:0.84rem; color:var(--text-secondary);"><i class="fas fa-users"></i> 참여: ${escapeCalendarText(participants)}</div>` : ''}
+                <div style="margin-top:10px; padding-top:8px; border-top:1px solid var(--border-color); display:flex; align-items:center; justify-content:space-between; gap:8px;">
+                    <div style="font-size:0.8rem; color:var(--text-dim);">작성자: ${author}</div>
                     ${actionButtons.length ? `<div style="display:flex; align-items:center; gap:6px;">${actionButtons.join('')}</div>` : '<div></div>'}
                 </div>
             </div>
@@ -7895,7 +7968,7 @@ function switchUserCalendarRightTab(tabName) {
 async function loadMyUserCalendarEvents() {
     const el = document.getElementById('user-calendar-my-list');
     if (!el) return;
-    el.innerHTML = '<div style="padding:12px; color:#64748b;">불러오는 중...</div>';
+    el.innerHTML = '<div style="padding:12px; color:var(--text-secondary);">불러오는 중...</div>';
     try {
         const res = await fetch('/api/calendar/events/my');
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -7903,14 +7976,14 @@ async function loadMyUserCalendarEvents() {
         calendarMyEvents = Array.isArray(data) ? data : [];
         renderMyUserCalendarEvents();
     } catch (e) {
-        el.innerHTML = '<div style="padding:12px; color:#ef4444;">본인 일정을 불러오지 못했습니다.</div>';
+        el.innerHTML = '<div style="padding:12px; color:var(--danger-color);">본인 일정을 불러오지 못했습니다.</div>';
     }
 }
 
 async function loadDungeonPageEvents() {
     const el = document.getElementById('dungeon-event-list');
     if (!el) return;
-    el.innerHTML = '<div style="padding:12px; color:#64748b;">불러오는 중...</div>';
+    el.innerHTML = '<div style="padding:12px; color:var(--text-secondary);">불러오는 중...</div>';
     try {
         const res = await fetch('/api/calendar/events/list');
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -7922,7 +7995,7 @@ async function loadDungeonPageEvents() {
         });
         renderDungeonPageEvents();
     } catch (_) {
-        el.innerHTML = '<div style="padding:12px; color:#ef4444;">던전 일정을 불러오지 못했습니다.</div>';
+        el.innerHTML = '<div style="padding:12px; color:var(--danger-color);">던전 일정을 불러오지 못했습니다.</div>';
     }
 }
 
@@ -7930,7 +8003,7 @@ function renderDungeonPageEvents() {
     const el = document.getElementById('dungeon-event-list');
     if (!el) return;
     if (!calendarRaidHeroEvents.length) {
-        el.innerHTML = '<div style="padding:12px; color:#94a3b8;">던전 일정이 없습니다.</div>';
+        el.innerHTML = '<div style="padding:12px; color:var(--text-dim);">던전 일정이 없습니다.</div>';
         return;
     }
     el.innerHTML = calendarRaidHeroEvents.map((item) => {
@@ -7946,19 +8019,19 @@ function renderDungeonPageEvents() {
         const endTime = String(item.end_time || '00:00:00').substring(0, 5);
         const author = escapeCalendarText(item.author || 'SYSTEM');
         return `
-            <div style="background:white; border:1px solid #e2e8f0; border-radius:10px; padding:12px; margin-bottom:10px;">
+            <div style="background:var(--surface); border:1px solid var(--border-color); border-radius:10px; padding:12px; margin-bottom:10px;">
                 <div style="display:flex; justify-content:space-between; gap:8px; align-items:center; margin-bottom:8px;">
-                    <div style="font-weight:700; color:#1e293b;">${title}</div>
-                    <span style="display:inline-flex; align-items:center; padding:3px 10px; border-radius:999px; background:${category === '레이드' ? '#ede9fe' : '#dcfce7'}; color:${category === '레이드' ? '#6d28d9' : '#166534'}; font-size:0.8rem; font-weight:700;">${category}</span>
+                    <div style="font-weight:700; color:var(--text-primary);">${title}</div>
+                    <span style="display:inline-flex; align-items:center; padding:3px 10px; border-radius:999px; background:${category === '레이드' ? 'rgba(178,155,216,0.15)' : 'rgba(95,174,126,0.16)'}; color:${category === '레이드' ? '#b29bd8' : '#5fae7e'}; font-size:0.8rem; font-weight:700;">${category}</span>
                 </div>
-                <div style="font-size:0.84rem; color:#64748b; margin-bottom:8px;">
+                <div style="font-size:0.84rem; color:var(--text-secondary); margin-bottom:8px;">
                     <i class="far fa-calendar-alt"></i> ${startDate} ~ ${endDate}
-                    <span style="margin:0 6px; color:#cbd5e1;">|</span>
+                    <span style="margin:0 6px; color:var(--text-dim);">|</span>
                     <i class="far fa-clock"></i> ${startTime} ~ ${endTime}
                 </div>
-                <div style="font-size:0.9rem; color:#334155; line-height:1.6;">${content || '내용 없음'}</div>
-                <div style="margin-top:10px; padding-top:8px; border-top:1px solid #f1f5f9; display:flex; align-items:center; justify-content:space-between; gap:8px;">
-                    <div style="font-size:0.8rem; color:#94a3b8;">작성자: ${author}</div>
+                <div style="font-size:0.9rem; color:var(--text-primary); line-height:1.6;">${content || '내용 없음'}</div>
+                <div style="margin-top:10px; padding-top:8px; border-top:1px solid var(--border-color); display:flex; align-items:center; justify-content:space-between; gap:8px;">
+                    <div style="font-size:0.8rem; color:var(--text-dim);">작성자: ${author}</div>
                     ${participants ? `<button class="refresh-btn" style="padding:4px 8px;" onclick="openCalendarParticipantsModal('${encodeURIComponent(String(item.title || '일정'))}', '${encodeURIComponent(participants)}', '${participantsMetaEncoded}', '${encodeURIComponent(String(item.author || ''))}')"><i class="fas fa-list"></i> 참여목록</button>` : '<div></div>'}
                 </div>
             </div>
@@ -7970,17 +8043,17 @@ function renderMyUserCalendarEvents() {
     const el = document.getElementById('user-calendar-my-list');
     if (!el) return;
     if (!calendarMyEvents.length) {
-        el.innerHTML = '<div style="padding:12px; color:#94a3b8;">작성한 일정이 없습니다.</div>';
+        el.innerHTML = '<div style="padding:12px; color:var(--text-dim);">작성한 일정이 없습니다.</div>';
         return;
     }
 
     const badge = (cat) => {
         const c = String(cat || '').trim() || '기타';
         const map = {
-            '자유': { bg: '#dbeafe', fg: '#1d4ed8' },
-            '레이드': { bg: '#ede9fe', fg: '#6d28d9' },
-            '영던': { bg: '#dcfce7', fg: '#166534' },
-            '기타': { bg: '#e2e8f0', fg: '#334155' }
+            '자유': { bg: 'rgba(201,162,74,0.13)', fg: '#c9a24a' },
+            '레이드': { bg: 'rgba(178,155,216,0.15)', fg: '#b29bd8' },
+            '영던': { bg: 'rgba(95,174,126,0.16)', fg: '#5fae7e' },
+            '기타': { bg: 'var(--border-color)', fg: '#334155' }
         };
         const s = map[c] || map['기타'];
         return `<span style="display:inline-flex; align-items:center; padding:3px 10px; border-radius:999px; background:${s.bg}; color:${s.fg}; font-size:0.8rem; font-weight:700;">${escapeCalendarText(c)}</span>`;
@@ -7995,20 +8068,20 @@ function renderMyUserCalendarEvents() {
         const startTime = String(item.start_time || '00:00:00').substring(0, 5);
         const endTime = String(item.end_time || '00:00:00').substring(0, 5);
         return `
-            <div style="background:white; border:1px solid #e2e8f0; border-radius:10px; padding:12px; margin-bottom:10px;">
+            <div style="background:var(--surface); border:1px solid var(--border-color); border-radius:10px; padding:12px; margin-bottom:10px;">
                 <div style="display:flex; justify-content:space-between; gap:8px; align-items:center; margin-bottom:8px;">
-                    <div style="font-weight:700; color:#1e293b;">${title}</div>
+                    <div style="font-weight:700; color:var(--text-primary);">${title}</div>
                     ${badge(item.category)}
                 </div>
-                <div style="font-size:0.84rem; color:#64748b; margin-bottom:8px;">
+                <div style="font-size:0.84rem; color:var(--text-secondary); margin-bottom:8px;">
                     <i class="far fa-calendar-alt"></i> ${startDate} ~ ${endDate}
-                    <span style="margin:0 6px; color:#cbd5e1;">|</span>
+                    <span style="margin:0 6px; color:var(--text-dim);">|</span>
                     <i class="far fa-clock"></i> ${startTime} ~ ${endTime}
                 </div>
-                <div style="font-size:0.9rem; color:#334155; line-height:1.6;">${content || '내용 없음'}</div>
+                <div style="font-size:0.9rem; color:var(--text-primary); line-height:1.6;">${content || '내용 없음'}</div>
                 <div style="margin-top:10px; display:flex; justify-content:flex-end; gap:8px;">
-                    <button class="refresh-btn" style="padding:4px 10px; background:#dbeafe; color:#1d4ed8; border:1px solid #bfdbfe;" onclick="openUserCalendarEdit(${id})"><i class="fas fa-edit"></i> 수정</button>
-                    <button class="refresh-btn" style="padding:4px 10px; background:#fee2e2; color:#b91c1c; border:1px solid #fecaca;" onclick="deleteUserCalendarEvent(${id})"><i class="fas fa-trash"></i> 삭제</button>
+                    <button class="refresh-btn" style="padding:4px 10px; background:var(--surface-2); color:var(--primary-color); border:1px solid var(--accent-color);" onclick="openUserCalendarEdit(${id})"><i class="fas fa-edit"></i> 수정</button>
+                    <button class="refresh-btn" style="padding:4px 10px; background:var(--surface-2); color:var(--danger-color); border:1px solid var(--surface-2);" onclick="deleteUserCalendarEvent(${id})"><i class="fas fa-trash"></i> 삭제</button>
                 </div>
             </div>
         `;
@@ -8319,7 +8392,7 @@ async function searchCalendarCharacters() {
                     <img src="${classIcon}" alt="class" style="width:20px; height:20px; object-fit:contain;" onerror="this.src='https://warcraft.wiki.gg/wiki/Special:FilePath/ClassIcon_warrior.png'">
                     <div class="calendar-char-option-text">
                         <b>${escapeCalendarText(c.name || '')}</b>
-                        <span style="color:#64748b; margin-left:6px;">Lv.${Number(c.level || 1)}</span>
+                        <span style="color:var(--text-secondary); margin-left:6px;">Lv.${Number(c.level || 1)}</span>
                     </div>
                 </div>
                 <span class="calendar-char-option-add">추가</span>
@@ -8328,7 +8401,7 @@ async function searchCalendarCharacters() {
         }).join('');
         suggestEl.style.display = 'block';
     } catch (e) {
-        suggestEl.innerHTML = '<div class="calendar-char-msg" style="color:#ef4444;">검색에 실패했습니다.</div>';
+        suggestEl.innerHTML = '<div class="calendar-char-msg" style="color:var(--danger-color);">검색에 실패했습니다.</div>';
         suggestEl.style.display = 'block';
     }
 }
@@ -8423,20 +8496,20 @@ function renderCalendarSelectedParticipants() {
         return;
     }
     el.innerHTML = calendarWriteParticipants.map((p, idx) => `
-        <div style="display:flex; align-items:center; justify-content:space-between; gap:6px; border-bottom:1px solid #f1f5f9; padding:6px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:6px; border-bottom:1px solid var(--border-color); padding:6px;">
             <div style="display:flex; align-items:center; gap:8px; min-width:0;">
-                <span style="width:22px; height:22px; border-radius:50%; background:${p.isAuthor ? '#fef3c7' : '#eef2ff'}; color:${p.isAuthor ? '#b45309' : '#4338ca'}; display:inline-flex; align-items:center; justify-content:center; font-size:0.75rem; font-weight:800;">${idx + 1}</span>
+                <span style="width:22px; height:22px; border-radius:50%; background:${p.isAuthor ? 'rgba(231,193,112,0.16)' : 'rgba(201,162,74,0.13)'}; color:${p.isAuthor ? '#e7c170' : '#c9a24a'}; display:inline-flex; align-items:center; justify-content:center; font-size:0.75rem; font-weight:800;">${idx + 1}</span>
                 <img src="${getRaceImage(p.race, 0) || '/img/icons/faction_alliance.gif'}" alt="race" style="width:18px; height:18px; border-radius:50%; object-fit:cover;" onerror="this.src='/img/icons/faction_alliance.gif'">
                 <img src="${getClassImage(p.class) || 'https://warcraft.wiki.gg/wiki/Special:FilePath/ClassIcon_warrior.png'}" alt="class" style="width:18px; height:18px; object-fit:contain;" onerror="this.src='https://warcraft.wiki.gg/wiki/Special:FilePath/ClassIcon_warrior.png'">
                 <div style="font-size:0.85rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
-                    ${p.isAuthor ? '<i class="fas fa-crown" style="color:#f59e0b; margin-right:4px;" title="작성자"></i>' : ''}
+                    ${p.isAuthor ? '<i class="fas fa-crown" style="color:var(--warning-color); margin-right:4px;" title="작성자"></i>' : ''}
                     <b>${escapeCalendarText(p.name)}</b>
-                    <span style="color:#64748b; margin-left:6px;">Lv.${Number(p.level || 1)}</span>
+                    <span style="color:var(--text-secondary); margin-left:6px;">Lv.${Number(p.level || 1)}</span>
                 </div>
             </div>
             ${p.isAuthor
-                ? '<span style="font-size:0.78rem; color:#b45309; font-weight:700;">작성자</span>'
-                : `<button class="refresh-btn" style="padding:4px 8px; background:#fee2e2; color:#b91c1c; border:1px solid #fecaca;" onclick="removeCalendarParticipant(${Number(p.guid)})">삭제</button>`
+                ? '<span style="font-size:0.78rem; color:var(--warning-color); font-weight:700;">작성자</span>'
+                : `<button class="refresh-btn" style="padding:4px 8px; background:var(--surface-2); color:var(--danger-color); border:1px solid var(--surface-2);" onclick="removeCalendarParticipant(${Number(p.guid)})">삭제</button>`
             }
         </div>
     `).join('');
@@ -8489,14 +8562,14 @@ function openCalendarParticipantsModal(encodedTitle, encodedParticipants, encode
 
     titleEl.textContent = `${title} 참여 캐릭터`;
     if (!rows.length) {
-        listEl.innerHTML = '<div style="padding:10px; color:#94a3b8;">참여 캐릭터가 없습니다.</div>';
+        listEl.innerHTML = '<div style="padding:10px; color:var(--text-dim);">참여 캐릭터가 없습니다.</div>';
     } else {
         listEl.innerHTML = rows.map((p, idx) => `
-            <div style="display:flex; align-items:center; gap:10px; padding:8px 10px; border-bottom:1px solid #f1f5f9;">
-                <span style="width:22px; height:22px; border-radius:50%; background:${isAuthorRow(p.name) ? '#fef3c7' : '#eef2ff'}; color:${isAuthorRow(p.name) ? '#b45309' : '#4338ca'}; display:inline-flex; align-items:center; justify-content:center; font-size:0.75rem; font-weight:800;">${idx + 1}</span>
+            <div style="display:flex; align-items:center; gap:10px; padding:8px 10px; border-bottom:1px solid var(--border-color);">
+                <span style="width:22px; height:22px; border-radius:50%; background:${isAuthorRow(p.name) ? 'rgba(231,193,112,0.16)' : 'rgba(201,162,74,0.13)'}; color:${isAuthorRow(p.name) ? '#e7c170' : '#c9a24a'}; display:inline-flex; align-items:center; justify-content:center; font-size:0.75rem; font-weight:800;">${idx + 1}</span>
                 <img src="${getRaceImage(p.race, 0) || '/img/icons/faction_alliance.gif'}" alt="race" style="width:18px; height:18px; border-radius:50%; object-fit:cover;" onerror="this.src='/img/icons/faction_alliance.gif'">
                 <img src="${getClassImage(p.class) || 'https://warcraft.wiki.gg/wiki/Special:FilePath/ClassIcon_warrior.png'}" alt="class" style="width:18px; height:18px; object-fit:contain;" onerror="this.src='https://warcraft.wiki.gg/wiki/Special:FilePath/ClassIcon_warrior.png'">
-                <span style="font-size:0.9rem; color:#1e293b; font-weight:600;">${isAuthorRow(p.name) ? '<i class="fas fa-crown" style="color:#f59e0b; margin-right:4px;" title="작성자"></i>' : ''}${escapeCalendarText(p.name)}</span>
+                <span style="font-size:0.9rem; color:var(--text-primary); font-weight:600;">${isAuthorRow(p.name) ? '<i class="fas fa-crown" style="color:var(--warning-color); margin-right:4px;" title="작성자"></i>' : ''}${escapeCalendarText(p.name)}</span>
             </div>
         `).join('');
     }
@@ -8543,7 +8616,7 @@ async function loadPointHistory(page = 1) {
         tbody.innerHTML = '';
 
         if (!data.logs || data.logs.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:20px; color:#64748b;">포인트 이용 내역이 없습니다.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:20px; color:var(--text-secondary);">포인트 이용 내역이 없습니다.</td></tr>';
             if (pagination) pagination.innerHTML = '';
             return;
         }
@@ -8554,15 +8627,15 @@ async function loadPointHistory(page = 1) {
             // Format Amount (+/- color)
             let amountHtml = '';
             if (log.amount > 0) {
-                amountHtml = `<span style="color:#10b981; font-weight:bold;">+${log.amount.toLocaleString()}</span>`;
+                amountHtml = `<span style="color:var(--success-color); font-weight:bold;">+${log.amount.toLocaleString()}</span>`;
             } else {
-                amountHtml = `<span style="color:#ef4444; font-weight:bold;">${log.amount.toLocaleString()}</span>`;
+                amountHtml = `<span style="color:var(--danger-color); font-weight:bold;">${log.amount.toLocaleString()}</span>`;
             }
 
             row.innerHTML = `
                 <td>${amountHtml}</td>
-                <td style="color:#334155;">${log.reason || '-'}</td>
-                <td style="color:#64748b; font-size:0.9rem;">${log.createdAt}</td>
+                <td style="color:var(--text-primary);">${log.reason || '-'}</td>
+                <td style="color:var(--text-secondary); font-size:0.9rem;">${log.createdAt}</td>
             `;
             tbody.appendChild(row);
         });
@@ -8571,7 +8644,7 @@ async function loadPointHistory(page = 1) {
 
     } catch (e) {
         console.error("Error loading point history:", e);
-        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:20px; color:#ef4444;">내역을 불러오는데 실패했습니다.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:20px; color:var(--danger-color);">내역을 불러오는데 실패했습니다.</td></tr>';
     }
 }
 
