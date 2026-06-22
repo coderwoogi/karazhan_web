@@ -21,6 +21,7 @@ func handleAdminDashboardSummary(w http.ResponseWriter, r *http.Request) {
 	kpi := map[string]interface{}{}
 	queue := map[string]interface{}{}
 	charts := map[string]interface{}{}
+	ingame := map[string]interface{}{}
 	retention := map[string]interface{}{"d1": int64(0), "d7": int64(0), "d30": int64(0)}
 
 	// ── update DB: 매출/구독/주문/게시판 큐 + 매출·뽑기·암시장 추세 ──
@@ -111,6 +112,21 @@ func handleAdminDashboardSummary(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		charts["hourly"] = hourly
+
+		// ── 인게임 운영 지표 (월드 현황: 접속/캐릭터/진영/길드) ──
+		// 진영: 얼라이언스 race(1,3,4,7,11) / 호드 race(2,5,6,8,10) — 게임 종족 매핑 기준
+		ingame["online"] = statScalar(charDB, "SELECT COUNT(*) FROM characters WHERE online=1")
+		ingame["total"] = statScalar(charDB, "SELECT COUNT(*) FROM characters")
+		ingame["alliance"] = statScalar(charDB, "SELECT COUNT(*) FROM characters WHERE race IN (1,3,4,7,11)")
+		ingame["horde"] = statScalar(charDB, "SELECT COUNT(*) FROM characters WHERE race IN (2,5,6,8,10)")
+		maxLv := statScalar(charDB, "SELECT IFNULL(MAX(level),0) FROM characters")
+		ingame["maxLevel"] = maxLv
+		ingame["maxLevelChars"] = statScalar(charDB, "SELECT COUNT(*) FROM characters WHERE level >= ?", maxLv)
+		ingame["active7d"] = statScalar(charDB, "SELECT COUNT(*) FROM characters WHERE logout_time >= UNIX_TIMESTAMP(NOW() - INTERVAL 7 DAY)")
+		ingame["guilds"] = statScalar(charDB, "SELECT COUNT(*) FROM guild")
+		var avgLv float64
+		_ = charDB.QueryRow("SELECT IFNULL(AVG(level),0) FROM characters").Scan(&avgLv)
+		ingame["avgLevel"] = avgLv
 	}
 
 	writeStatsJSON(w, map[string]interface{}{
@@ -118,6 +134,7 @@ func handleAdminDashboardSummary(w http.ResponseWriter, r *http.Request) {
 		"kpi":       kpi,
 		"queue":     queue,
 		"charts":    charts,
+		"ingame":    ingame,
 		"retention": retention,
 	})
 }

@@ -6829,9 +6829,87 @@ function renderDashDoughnut(canvasId, key, labels, values, colors) {
 }
 
 // 관리자 홈 운영 대시보드 (표준/B): KPI8 + 처리대기5 + 추세3 + 분포3 + 운영·경제3
+// ── 대시보드 숫자 카운트업 / 링·막대 애니메이션 ──────────────────
+function prefersReducedMotion() {
+    try { return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; }
+    catch (_) { return false; }
+}
+
+// el 의 텍스트를 0(또는 from) → to 까지 부드럽게 카운트업한다.
+function animateValue(el, to, opts) {
+    opts = opts || {};
+    to = Number(to) || 0;
+    const dur = opts.duration || 750;
+    const dec = opts.decimals || 0;
+    const from = opts.from || 0;
+    const format = (v) => dec > 0 ? Number(v).toFixed(dec) : Math.round(v).toLocaleString();
+    // 모션 최소화 / 백그라운드 탭(rAF 정지) 에선 즉시 최종값 표시
+    if (prefersReducedMotion() || document.hidden || typeof requestAnimationFrame !== 'function' || typeof performance === 'undefined') {
+        el.textContent = format(to); return;
+    }
+    const startT = performance.now();
+    const ease = (t) => 1 - Math.pow(1 - t, 3); // easeOutCubic
+    function step(now) {
+        const p = Math.min(1, (now - startT) / dur);
+        el.textContent = format(from + (to - from) * ease(p));
+        if (p < 1) requestAnimationFrame(step);
+        else el.textContent = format(to);
+    }
+    requestAnimationFrame(step);
+}
+
+// data-count 를 가진 모든 숫자 요소를 카운트업
+function runDashCounters(root) {
+    (root || document).querySelectorAll('.dash-count[data-count]').forEach(el => {
+        animateValue(el, el.getAttribute('data-count'), { decimals: Number(el.getAttribute('data-decimals') || 0) });
+    });
+}
+
+// 리텐션 게이지(conic-gradient) 채움 애니메이션
+function runDashRings(root) {
+    (root || document).querySelectorAll('.dash-ring').forEach(el => {
+        const pct = Math.max(0, Math.min(100, Number(el.getAttribute('data-pct') || 0)));
+        const color = el.getAttribute('data-color') || 'var(--primary-color)';
+        const paint = (v) => { el.style.background = `conic-gradient(${color} 0 ${v}%, rgba(148,163,184,0.18) ${v}% 100%)`; };
+        if (prefersReducedMotion() || document.hidden || typeof requestAnimationFrame !== 'function' || typeof performance === 'undefined') { paint(pct); return; }
+        const startT = performance.now();
+        const dur = 900;
+        const ease = (t) => 1 - Math.pow(1 - t, 3);
+        function step(now) {
+            const p = Math.min(1, (now - startT) / dur);
+            paint(pct * ease(p));
+            if (p < 1) requestAnimationFrame(step);
+            else paint(pct);
+        }
+        requestAnimationFrame(step);
+    });
+}
+
+// 데이터 로딩 전 표시할 대시보드 스켈레톤
+function dashboardSkeletonHtml() {
+    const sk = (h, w, mb) => `<div class="skeleton-box" style="height:${h}px;${w ? `width:${w};` : ''}${mb ? `margin-bottom:${mb}px;` : ''}"></div>`;
+    const cell = () => `<div style="background:var(--bg-main); padding:15px 16px 13px;">${sk(11, '54px', 12)}${sk(24, '72%')}</div>`;
+    const grid = (n) => `<div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:1px; background:var(--border-color); border:1px solid var(--border-color); border-radius:6px; overflow:hidden; margin-bottom:22px;">${Array.from({ length: n }, cell).join('')}</div>`;
+    const card = () => `<div class="card" style="margin:0; padding:13px 15px;">${sk(12, '120px', 14)}${sk(170)}</div>`;
+    const cardRow = (n) => `<div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:12px; margin-bottom:12px;">${Array.from({ length: n }, card).join('')}</div>`;
+    return `
+        ${sk(10, '140px', 8)}
+        <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:12px; border-bottom:1px solid var(--border-color); padding-bottom:14px; margin-bottom:18px;">
+            ${sk(30, '180px')}${sk(28, '120px')}
+        </div>
+        ${grid(8)}
+        ${sk(10, '160px', 8)}
+        ${grid(8)}
+        ${sk(10, '220px', 10)}
+        ${grid(5)}
+        ${cardRow(3)}${cardRow(3)}${cardRow(3)}`;
+}
+
 async function loadAdminDashboard() {
     const wrap = document.getElementById('admin-dashboard');
     if (!wrap) return;
+    // 데이터 로딩 중 스켈레톤 즉시 표시
+    wrap.innerHTML = dashboardSkeletonHtml();
     let data;
     try {
         const res = await fetch('/api/admin/dashboard/summary');
@@ -6858,19 +6936,37 @@ async function loadAdminDashboard() {
 
     // ── KPI 8 (헤어라인 그리드 · mono 숫자 · 의미색) ──
     const kpiDefs = [
-        { v: fmt(kpi.online),        k: '현재 접속',  c: '#5fae7e' },
-        { v: fmt(kpi.signupToday),   k: '오늘 가입' },
-        { v: fmt(kpi.revenueToday),  k: '오늘 매출',  s: 'P' },
-        { v: fmt(kpi.revenue30),     k: '30일 매출',  s: 'P', c: '#c9a24a' },
-        { v: fmt(kpi.activeSubs),    k: '활성 구독' },
-        { v: fmt(kpi.accountsTotal), k: '누적 계정' },
-        { v: (kpi.retentionD7 != null ? kpi.retentionD7 : 0), k: 'D7 리텐션', s: '%', c: '#c9a24a' },
-        { v: fmt(kpi.sanctionsActive), k: '활성 제재', c: (Number(kpi.sanctionsActive) > 0 ? '#d2766b' : '') },
+        { n: Number(kpi.online || 0),        k: '현재 접속',  c: '#5fae7e' },
+        { n: Number(kpi.signupToday || 0),   k: '오늘 가입' },
+        { n: Number(kpi.revenueToday || 0),  k: '오늘 매출',  s: 'P' },
+        { n: Number(kpi.revenue30 || 0),     k: '30일 매출',  s: 'P', c: '#c9a24a' },
+        { n: Number(kpi.activeSubs || 0),    k: '활성 구독' },
+        { n: Number(kpi.accountsTotal || 0), k: '누적 계정' },
+        { n: (kpi.retentionD7 != null ? Number(kpi.retentionD7) : 0), k: 'D7 리텐션', s: '%', c: '#c9a24a' },
+        { n: Number(kpi.sanctionsActive || 0), k: '활성 제재', c: (Number(kpi.sanctionsActive) > 0 ? '#d2766b' : '') },
     ];
     const kpiHtml = kpiDefs.map(d => `
         <div style="background:var(--bg-main); padding:15px 16px 13px;">
             <div style="${KLBL} margin-bottom:9px;">${d.k}</div>
-            <div style="${MONO} font-size:1.6rem; font-weight:700; line-height:1; color:${d.c || 'var(--text-primary)'};">${d.v}${d.s ? `<span style="font-size:0.72rem; color:var(--text-dim); margin-left:3px;">${d.s}</span>` : ''}</div>
+            <div style="${MONO} font-size:1.6rem; font-weight:700; line-height:1; color:${d.c || 'var(--text-primary)'};"><span class="dash-count" data-count="${d.n}">0</span>${d.s ? `<span style="font-size:0.72rem; color:var(--text-dim); margin-left:3px;">${d.s}</span>` : ''}</div>
+        </div>`).join('');
+
+    // ── 인게임 지표 (2번째 줄: 월드 현황 · 진영/캐릭터/길드) ──
+    const ig = data.ingame || {};
+    const igDefs = [
+        { n: Number(ig.online || 0),        k: '인게임 접속', c: '#5fae7e' },
+        { n: Number(ig.total || 0),         k: '총 캐릭터' },
+        { n: Number(ig.alliance || 0),      k: '얼라이언스',  c: '#5a8fd6' },
+        { n: Number(ig.horde || 0),         k: '호드',        c: '#d2766b' },
+        { n: Number(ig.maxLevelChars || 0), k: `만렙(${Number(ig.maxLevel || 0)})` },
+        { n: Number(ig.active7d || 0),      k: '활성(7일)' },
+        { n: Number(ig.guilds || 0),        k: '길드 수' },
+        { n: Number(ig.avgLevel || 0),      k: '평균 레벨',   dec: 1 },
+    ];
+    const igHtml = igDefs.map(d => `
+        <div style="background:var(--bg-main); padding:15px 16px 13px;">
+            <div style="${KLBL} margin-bottom:9px;">${d.k}</div>
+            <div style="${MONO} font-size:1.6rem; font-weight:700; line-height:1; color:${d.c || 'var(--text-primary)'};"><span class="dash-count" data-count="${d.n}" data-decimals="${d.dec || 0}">0</span></div>
         </div>`).join('');
 
     // ── 처리 대기 5 ──
@@ -6886,7 +6982,7 @@ async function loadAdminDashboard() {
         const al = n > 0;
         return `
         <div onclick="${esc(d.act)}" style="background:var(--bg-main); padding:15px 16px; cursor:pointer; position:relative;">
-            <div style="${MONO} font-size:1.5rem; font-weight:700; line-height:1; color:${al ? 'var(--danger-color)' : 'var(--text-dim)'};">${n}</div>
+            <div style="${MONO} font-size:1.5rem; font-weight:700; line-height:1; color:${al ? 'var(--danger-color)' : 'var(--text-dim)'};"><span class="dash-count" data-count="${n}">0</span></div>
             <div style="${KLBL} margin-top:9px;">${d.t}</div>
             <i class="fas fa-arrow-right" style="position:absolute; top:14px; right:14px; font-size:0.66rem; color:var(--text-dim);"></i>
         </div>`;
@@ -6901,7 +6997,7 @@ async function loadAdminDashboard() {
             const v = Number(tp.values[i] || 0);
             return `<div style="margin:7px 0;">
                 <div style="display:flex; justify-content:space-between; font-size:0.78rem; color:var(--text-secondary); margin-bottom:3px;"><span>${esc(lab)}</span><span>${fmt(v)}</span></div>
-                <div style="height:8px; background:rgba(148,163,184,0.18); border-radius:6px; overflow:hidden;"><div style="height:100%; width:${Math.round(v / tpMax * 100)}%; background:${tpColors[i % tpColors.length]}; border-radius:6px;"></div></div>
+                <div style="height:8px; background:rgba(148,163,184,0.18); border-radius:6px; overflow:hidden;"><div class="dash-bar" data-w="${Math.round(v / tpMax * 100)}" style="height:100%; width:0%; background:${tpColors[i % tpColors.length]}; border-radius:6px; transition:width 0.9s cubic-bezier(0.16,1,0.3,1);"></div></div>
             </div>`;
         }).join('')
         : '<div style="color:var(--text-secondary); font-size:0.82rem; padding:8px 0;">데이터 없음</div>';
@@ -6910,8 +7006,8 @@ async function loadAdminDashboard() {
     const ring = (val, color, label) => {
         const v = Math.max(0, Math.min(100, Number(val || 0)));
         return `<div style="text-align:center;">
-            <div style="width:74px; height:74px; border-radius:50%; margin:0 auto; background:conic-gradient(${color} 0 ${v}%, rgba(148,163,184,0.18) ${v}% 100%); display:flex; align-items:center; justify-content:center;">
-                <div style="width:52px; height:52px; border-radius:50%; background:var(--card-bg, #ffffff); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:0.85rem; color:var(--text-primary);">${v}%</div>
+            <div class="dash-ring" data-pct="${v}" data-color="${color}" style="width:74px; height:74px; border-radius:50%; margin:0 auto; background:conic-gradient(${color} 0 0%, rgba(148,163,184,0.18) 0% 100%); display:flex; align-items:center; justify-content:center;">
+                <div style="width:52px; height:52px; border-radius:50%; background:var(--card-bg, #ffffff); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:0.85rem; color:var(--text-primary);"><span class="dash-count" data-count="${v}">0</span>%</div>
             </div>
             <div style="font-size:0.74rem; color:var(--text-secondary); margin-top:6px;">${label}</div>
         </div>`;
@@ -6931,7 +7027,10 @@ async function loadAdminDashboard() {
                 <div style="${EB} margin-top:5px; cursor:pointer;" onclick="loadAdminDashboard()" title="새로고침">↻ 데이터 동기화 ${timeStr}</div>
             </div>
         </div>
-        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:1px; background:var(--border-color); border:1px solid var(--border-color); border-radius:6px; overflow:hidden; margin-bottom:22px;">${kpiHtml}</div>
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:1px; background:var(--border-color); border:1px solid var(--border-color); border-radius:6px; overflow:hidden; margin-bottom:18px;">${kpiHtml}</div>
+
+        <div style="${EB} margin-bottom:8px;">IN-GAME — 월드 현황 <span style="color:var(--text-dim);">· 인게임 운영 지표</span></div>
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:1px; background:var(--border-color); border:1px solid var(--border-color); border-radius:6px; overflow:hidden; margin-bottom:22px;">${igHtml}</div>
 
         <div style="${EB} margin-bottom:10px; color:var(--danger-color);">ACTION REQUIRED — 처리 대기열 <span style="color:var(--text-dim);">· 클릭 시 이동</span></div>
         <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:1px; background:var(--border-color); border:1px solid var(--border-color); border-radius:6px; overflow:hidden; margin-bottom:22px;">${queueHtml}</div>
@@ -6949,10 +7048,16 @@ async function loadAdminDashboard() {
         </div>
 
         <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:12px;">
-            <div class="card" style="margin:0; padding:13px 15px;">${cardTop('서버 상태')}<div id="dash-server-status" style="font-size:0.85rem; color:var(--text-secondary);">불러오는 중...</div></div>
+            <div class="card" style="margin:0; padding:13px 15px;">${cardTop('서버 상태')}<div id="dash-server-status" style="font-size:0.85rem; color:var(--text-secondary);"><div class="skeleton-box" style="height:14px; margin:9px 0;"></div><div class="skeleton-box" style="height:14px; margin:9px 0; width:82%;"></div><div class="skeleton-box" style="height:14px; margin:9px 0; width:64%;"></div></div></div>
             <div class="card" style="margin:0; padding:13px 15px;">${cardTop('리텐션 (D1·D7·D30)')}${retentionHtml}</div>
             <div class="card" style="margin:0; padding:13px 15px;">${cardTop('경제 — 골드 · 암시장')}<div style="height:150px;"><canvas id="dash-economy"></canvas></div></div>
         </div>`;
+
+    // ── 숫자 카운트업 + 링/막대 채움 애니메이션 ──
+    runDashCounters(wrap);
+    runDashRings(wrap);
+    // 강제 reflow 후 너비 지정 → CSS transition 트리거(백그라운드 탭에서도 값은 반영)
+    wrap.querySelectorAll('.dash-bar').forEach(b => { void b.offsetWidth; b.style.width = (b.getAttribute('data-w') || 0) + '%'; });
 
     // ── 단일 시리즈 차트 (renderStatsChart 재사용) ──
     if (typeof renderStatsChart === 'function') {
