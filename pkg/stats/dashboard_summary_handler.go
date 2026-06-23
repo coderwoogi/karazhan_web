@@ -22,6 +22,10 @@ func handleAdminDashboardSummary(w http.ResponseWriter, r *http.Request) {
 	queue := map[string]interface{}{}
 	charts := map[string]interface{}{}
 	ingame := map[string]interface{}{}
+	goldSurges := []map[string]interface{}{}
+	goldRanking := []map[string]interface{}{}
+	var goldDist chartData
+	var goldDailyTotal chartData
 	retention := map[string]interface{}{"d1": int64(0), "d7": int64(0), "d30": int64(0)}
 
 	// ── update DB: 매출/구독/주문/게시판 큐 + 매출·뽑기·암시장 추세 ──
@@ -127,14 +131,26 @@ func handleAdminDashboardSummary(w http.ResponseWriter, r *http.Request) {
 		var avgLv float64
 		_ = charDB.QueryRow("SELECT IFNULL(AVG(level),0) FROM characters").Scan(&avgLv)
 		ingame["avgLevel"] = avgLv
+
+		// 골드 급증 감지 — 최근 7일, 최대 12건
+		goldSurges = recentGoldSurges(charDB, 7, 12)
+		// 골드 순위(GM 제외 TOP) + 유저 골드 소지량 분포(GM 제외)
+		goldRanking = goldRankingTop(charDB, 7)
+		goldDist = goldDistribution(charDB)
+		// 유저 전체 골드 소지량 일별 추이(최근 30일, GM 제외)
+		goldDailyTotal = dailyGoldTotals(charDB, 30)
 	}
 
 	writeStatsJSON(w, map[string]interface{}{
 		"status":    "success",
-		"kpi":       kpi,
-		"queue":     queue,
-		"charts":    charts,
-		"ingame":    ingame,
-		"retention": retention,
+		"kpi":        kpi,
+		"queue":      queue,
+		"charts":     charts,
+		"ingame":      ingame,
+		"goldSurges":  goldSurges,
+		"goldRanking": goldRanking,
+		"goldDist":    goldDist,
+		"goldDaily":   goldDailyTotal,
+		"retention":   retention,
 	})
 }

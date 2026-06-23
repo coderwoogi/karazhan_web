@@ -6902,6 +6902,9 @@ function dashboardSkeletonHtml() {
         ${grid(8)}
         ${sk(10, '220px', 10)}
         ${grid(5)}
+        <div class="card" style="margin:0 0 22px; padding:13px 16px;">${sk(12, '240px', 12)}${sk(72)}</div>
+        ${cardRow(2)}
+        <div class="card" style="margin:0 0 22px; padding:13px 16px;">${sk(12, '300px', 12)}${sk(200)}</div>
         ${cardRow(3)}${cardRow(3)}${cardRow(3)}`;
 }
 
@@ -7016,6 +7019,36 @@ async function loadAdminDashboard() {
         ${ring(ret.d1, '#5fae7e', 'D1')}${ring(ret.d7, '#c9a24a', 'D7')}${ring(ret.d30, '#e7c170', 'D30')}
     </div>`;
 
+    // ── 골드 급증 감지 (최근 7일, 잔액 스냅샷 직전 대비 +1,000골드↑) ──
+    const gs = Array.isArray(data.goldSurges) ? data.goldSurges : [];
+    const goldFmt = (copper) => fmt(Math.round(Number(copper || 0) / 10000));
+    const gsHtml = gs.length
+        ? gs.map(s => `<div style="display:flex; justify-content:space-between; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid var(--border-color);">
+            <div style="min-width:0;">
+                <span style="font-weight:700; color:var(--text-primary);">${esc(String(s.name || '?'))}</span>
+                <span style="color:var(--text-dim); font-size:0.74rem; ${MONO} margin-left:8px;">${esc(String(s.detected_at || '').slice(0, 16))}</span>
+            </div>
+            <div style="text-align:right; white-space:nowrap;">
+                <span style="color:var(--danger-color); font-weight:800; ${MONO}">+${goldFmt(s.delta)}</span><span style="color:var(--text-dim); font-size:0.72rem;"> 골드</span>
+                <div style="color:var(--text-dim); font-size:0.72rem; ${MONO}">${goldFmt(s.prev)} → ${goldFmt(s.new)}</div>
+            </div>
+        </div>`).join('')
+        : '<div style="color:var(--text-secondary); font-size:0.85rem; padding:10px 0;">최근 7일 내 1,000골드 이상 급증한 캐릭터가 없습니다.</div>';
+
+    // ── 골드 순위 (GM 제외 TOP) — 막대 ──
+    const grk = Array.isArray(data.goldRanking) ? data.goldRanking : [];
+    const grkMax = Math.max(1, ...(grk.length ? grk.map(r => Number(r.money) || 0) : [1]));
+    const grkColors = ['#c9a24a', '#b8923f', '#a3823a', '#8f7333', '#7a632c', '#6b5727', '#5c4a21'];
+    const grkHtml = grk.length
+        ? grk.map((r, i) => {
+            const g = Math.round(Number(r.money || 0) / 10000);
+            return `<div style="margin:7px 0;">
+                <div style="display:flex; justify-content:space-between; font-size:0.78rem; color:var(--text-secondary); margin-bottom:3px;"><span><span style="color:var(--text-dim); ${MONO} margin-right:6px;">${i + 1}</span>${esc(String(r.name || '?'))}</span><span style="${MONO}">${fmt(g)} G</span></div>
+                <div style="height:8px; background:rgba(148,163,184,0.18); border-radius:6px; overflow:hidden;"><div class="dash-bar" data-w="${Math.round(Number(r.money || 0) / grkMax * 100)}" style="height:100%; width:0%; background:${grkColors[i % grkColors.length]}; border-radius:6px; transition:width 0.9s cubic-bezier(0.16,1,0.3,1);"></div></div>
+            </div>`;
+        }).join('')
+        : '<div style="color:var(--text-secondary); font-size:0.82rem; padding:8px 0;">데이터 없음</div>';
+
     const cardTop = (title) => `<div style="${EB} margin-bottom:11px;">${title}</div>`;
 
     wrap.innerHTML = `
@@ -7034,6 +7067,18 @@ async function loadAdminDashboard() {
 
         <div style="${EB} margin-bottom:10px; color:var(--danger-color);">ACTION REQUIRED — 처리 대기열 <span style="color:var(--text-dim);">· 클릭 시 이동</span></div>
         <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:1px; background:var(--border-color); border:1px solid var(--border-color); border-radius:6px; overflow:hidden; margin-bottom:22px;">${queueHtml}</div>
+
+        <div class="card" style="margin:0 0 22px; padding:13px 16px;">
+            <div style="${EB} margin-bottom:10px; color:var(--danger-color);">GOLD SURGE — 골드 급증 감지 <span style="color:var(--text-dim);">· 최근 7일 · 직전 스냅샷 대비 +1,000골드 이상</span></div>
+            ${gsHtml}
+        </div>
+
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:12px; margin-bottom:22px;">
+            <div class="card" style="margin:0; padding:13px 15px;">${cardTop('골드 순위 (GM 제외 · TOP 7)')}${grkHtml}</div>
+            <div class="card" style="margin:0; padding:13px 15px;">${cardTop('유저 골드 소지량 분포 (GM 제외)')}<div style="height:200px;"><canvas id="dash-golddist"></canvas></div></div>
+        </div>
+
+        <div class="card" style="margin:0 0 22px; padding:13px 16px;">${cardTop('유저 전체 골드 소지량 (일자별 · GM 제외 · 매일 23:59 기준)')}<div style="height:200px;"><canvas id="dash-goldtotal"></canvas></div></div>
 
         <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:12px; margin-bottom:12px;">
             <div class="card" style="margin:0; padding:13px 15px;">${cardTop('최근 14일 매출 (P)')}<div style="height:170px;"><canvas id="dash-rev"></canvas></div></div>
@@ -7067,6 +7112,10 @@ async function loadAdminDashboard() {
         renderStatsChart('dash-draw', 'dashDraw', 'bar', shortLabels(draw.labels), draw.values, '뽑기', '#c9a24a');
         const hr = cd(c.hourly);
         renderStatsChart('dash-hourly', 'dashHourly', 'bar', hr.labels, hr.values, '접속', '#9c7b34');
+        const gd = cd(data.goldDist);
+        renderStatsChart('dash-golddist', 'dashGoldDist', 'bar', gd.labels, gd.values, '캐릭터 수', '#c9a24a');
+        const gt = cd(data.goldDaily);
+        renderStatsChart('dash-goldtotal', 'dashGoldTotal', 'line', shortLabels(gt.labels), gt.values, '전체 골드(G)', '#e7c170', false, (v) => fmt(v) + ' G');
     }
     // 카드 등급 분포 (시안 색상 도넛)
     const rar = cd(c.drawRarity);

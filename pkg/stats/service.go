@@ -141,6 +141,10 @@ func RegisterRoutes(mux *http.ServeMux) {
 	ensureStatsPermissionSeeds()
 	ensureRolePermissionDefaults()
 	ensureCarddrawPoolSchema()
+
+	// 골드 급증 감지(스냅샷 비교) — 스키마 생성 + 백그라운드 샘플러
+	ensureGoldSurgeSchema()
+	startGoldSurgeSampler()
 }
 
 func statsHandler(w http.ResponseWriter, r *http.Request) {
