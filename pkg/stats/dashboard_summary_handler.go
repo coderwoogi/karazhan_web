@@ -24,7 +24,6 @@ func handleAdminDashboardSummary(w http.ResponseWriter, r *http.Request) {
 	ingame := map[string]interface{}{}
 	goldSurges := []map[string]interface{}{}
 	goldRanking := []map[string]interface{}{}
-	var goldDist chartData
 	var goldDailyTotal chartData
 	retention := map[string]interface{}{"d1": int64(0), "d7": int64(0), "d30": int64(0)}
 
@@ -134,11 +133,11 @@ func handleAdminDashboardSummary(w http.ResponseWriter, r *http.Request) {
 
 		// 골드 급증 감지 — 최근 7일, 최대 12건
 		goldSurges = recentGoldSurges(charDB, 7, 12)
-		// 골드 순위(GM 제외 TOP) + 유저 골드 소지량 분포(GM 제외)
+		// 골드 순위(GM 제외 TOP)
 		goldRanking = goldRankingTop(charDB, 7)
-		goldDist = goldDistribution(charDB)
-		// 유저 전체 골드 소지량 일별 추이(최근 30일, GM 제외)
-		goldDailyTotal = dailyGoldTotals(charDB, 30)
+		// 유저 전체 골드 소지량 최근 7일 일별 추이(GM 제외) — 일자별 증감 표기용.
+		// 8일치를 받아 가장 오래된 표시일도 전일 대비 증감을 계산할 수 있게 한다.
+		goldDailyTotal = dailyGoldTotals(charDB, 7)
 	}
 
 	writeStatsJSON(w, map[string]interface{}{
@@ -149,7 +148,6 @@ func handleAdminDashboardSummary(w http.ResponseWriter, r *http.Request) {
 		"ingame":      ingame,
 		"goldSurges":  goldSurges,
 		"goldRanking": goldRanking,
-		"goldDist":    goldDist,
 		"goldDaily":   goldDailyTotal,
 		"retention":   retention,
 	})

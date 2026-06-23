@@ -6904,7 +6904,6 @@ function dashboardSkeletonHtml() {
         ${grid(5)}
         <div class="card" style="margin:0 0 22px; padding:13px 16px;">${sk(12, '240px', 12)}${sk(72)}</div>
         ${cardRow(2)}
-        <div class="card" style="margin:0 0 22px; padding:13px 16px;">${sk(12, '300px', 12)}${sk(200)}</div>
         ${cardRow(3)}${cardRow(3)}${cardRow(3)}`;
 }
 
@@ -7049,6 +7048,30 @@ async function loadAdminDashboard() {
         }).join('')
         : '<div style="color:var(--text-secondary); font-size:0.82rem; padding:8px 0;">데이터 없음</div>';
 
+    // ── 최근 7일 GM 제외 유저 전체 골드 — 일별 총량 + 전일 대비 증감(상승량) ──
+    const gdt = (data.goldDaily && Array.isArray(data.goldDaily.labels)) ? data.goldDaily : { labels: [], values: [] };
+    const gdtRows = [];
+    for (let i = 0; i < gdt.labels.length; i++) {
+        const total = Number(gdt.values[i] || 0);
+        const delta = i > 0 ? total - Number(gdt.values[i - 1] || 0) : null;
+        gdtRows.push({ date: String(gdt.labels[i] || ''), total: total, delta: delta });
+    }
+    const gdtView = gdtRows.slice(-7).reverse(); // 최근 7일, 최신이 위로
+    const gdtHtml = gdtView.length
+        ? gdtView.map(r => {
+            const dStr = (r.delta === null)
+                ? '<span style="color:var(--text-dim);">—</span>'
+                : (r.delta >= 0
+                    ? `<span style="color:#5fae7e;">▲ ${fmt(r.delta)}</span>`
+                    : `<span style="color:var(--danger-color);">▼ ${fmt(Math.abs(r.delta))}</span>`);
+            return `<div style="display:flex; justify-content:space-between; align-items:center; gap:8px; padding:9px 0; border-bottom:1px solid var(--border-color);">
+                <span style="color:var(--text-secondary); ${MONO} font-size:0.82rem;">${esc(r.date.slice(5))}</span>
+                <span style="${MONO} font-weight:700; color:var(--text-primary);">${fmt(r.total)} G</span>
+                <span style="${MONO} font-weight:700; font-size:0.82rem; text-align:right; min-width:92px;">${dStr}</span>
+            </div>`;
+        }).join('')
+        : '<div style="color:var(--text-secondary); font-size:0.85rem; padding:10px 0;">아직 일별 데이터가 없습니다. (매일 23:59 기준으로 적재되며, 며칠 누적되면 일별 상승량이 표시됩니다.)</div>';
+
     const cardTop = (title) => `<div style="${EB} margin-bottom:11px;">${title}</div>`;
 
     wrap.innerHTML = `
@@ -7075,10 +7098,8 @@ async function loadAdminDashboard() {
 
         <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:12px; margin-bottom:22px;">
             <div class="card" style="margin:0; padding:13px 15px;">${cardTop('골드 순위 (GM 제외 · TOP 7)')}${grkHtml}</div>
-            <div class="card" style="margin:0; padding:13px 15px;">${cardTop('유저 골드 소지량 분포 (GM 제외)')}<div style="height:200px;"><canvas id="dash-golddist"></canvas></div></div>
+            <div class="card" style="margin:0; padding:13px 15px;">${cardTop('최근 7일 전체 골드 (GM 제외 · 일별 + 전일比)')}${gdtHtml}</div>
         </div>
-
-        <div class="card" style="margin:0 0 22px; padding:13px 16px;">${cardTop('유저 전체 골드 소지량 (일자별 · GM 제외 · 매일 23:59 기준)')}<div style="height:200px;"><canvas id="dash-goldtotal"></canvas></div></div>
 
         <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:12px; margin-bottom:12px;">
             <div class="card" style="margin:0; padding:13px 15px;">${cardTop('최근 14일 매출 (P)')}<div style="height:170px;"><canvas id="dash-rev"></canvas></div></div>
@@ -7112,10 +7133,6 @@ async function loadAdminDashboard() {
         renderStatsChart('dash-draw', 'dashDraw', 'bar', shortLabels(draw.labels), draw.values, '뽑기', '#c9a24a');
         const hr = cd(c.hourly);
         renderStatsChart('dash-hourly', 'dashHourly', 'bar', hr.labels, hr.values, '접속', '#9c7b34');
-        const gd = cd(data.goldDist);
-        renderStatsChart('dash-golddist', 'dashGoldDist', 'bar', gd.labels, gd.values, '캐릭터 수', '#c9a24a');
-        const gt = cd(data.goldDaily);
-        renderStatsChart('dash-goldtotal', 'dashGoldTotal', 'line', shortLabels(gt.labels), gt.values, '전체 골드(G)', '#e7c170', false, (v) => fmt(v) + ' G');
     }
     // 카드 등급 분포 (시안 색상 도넛)
     const rar = cd(c.drawRarity);

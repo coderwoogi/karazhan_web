@@ -210,36 +210,3 @@ func goldRankingTop(db *sql.DB, limit int) []map[string]interface{} {
 	return out
 }
 
-// 유저 골드 소지량 분포 — GM 제외, copper 기준 구간별 캐릭터 수.
-func goldDistribution(db *sql.DB) chartData {
-	labels := []string{"0골드", "~100골드", "100~1천골드", "1천~1만골드", "1만~5만골드", "5만골드+"}
-	cd := chartData{Labels: labels, Values: make([]int64, len(labels))}
-	if db == nil {
-		return cd
-	}
-	rows, err := db.Query(`
-		SELECT b, COUNT(*) FROM (
-			SELECT CASE
-				WHEN c.money = 0 THEN 0
-				WHEN c.money < 1000000 THEN 1
-				WHEN c.money < 10000000 THEN 2
-				WHEN c.money < 100000000 THEN 3
-				WHEN c.money < 500000000 THEN 4
-				ELSE 5
-			END AS b
-			FROM characters c
-			LEFT JOIN acore_auth.account_access aa ON aa.id = c.account
-			WHERE aa.id IS NULL
-		) t GROUP BY b`)
-	if err != nil {
-		return cd
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var b, cnt int64
-		if rows.Scan(&b, &cnt) == nil && b >= 0 && int(b) < len(labels) {
-			cd.Values[b] = cnt
-		}
-	}
-	return cd
-}
