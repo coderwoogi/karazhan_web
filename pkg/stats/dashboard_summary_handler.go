@@ -96,7 +96,7 @@ func handleAdminDashboardSummary(w http.ResponseWriter, r *http.Request) {
 	if charDB, err := sql.Open("mysql", config.CharactersDSN()); err == nil {
 		defer charDB.Close()
 
-		kpi["online"] = statScalar(charDB, "SELECT COUNT(*) FROM characters WHERE online=1")
+		kpi["online"] = statScalar(charDB, "SELECT COUNT(*) FROM characters c LEFT JOIN acore_auth.account_access aa ON aa.id = c.account WHERE c.online=1 AND aa.id IS NULL")
 		charts["goldDaily"] = statDailyChart(charDB,
 			"SELECT DATE(date), IFNULL(SUM(money),0) FROM log_money WHERE date >= NOW() - INTERVAL 13 DAY GROUP BY DATE(date)")
 
@@ -118,7 +118,7 @@ func handleAdminDashboardSummary(w http.ResponseWriter, r *http.Request) {
 
 		// ── 인게임 운영 지표 (월드 현황: 접속/캐릭터/진영/길드) ──
 		// 진영: 얼라이언스 race(1,3,4,7,11) / 호드 race(2,5,6,8,10) — 게임 종족 매핑 기준
-		ingame["online"] = statScalar(charDB, "SELECT COUNT(*) FROM characters WHERE online=1")
+		ingame["online"] = statScalar(charDB, "SELECT COUNT(*) FROM characters c LEFT JOIN acore_auth.account_access aa ON aa.id = c.account WHERE c.online=1 AND aa.id IS NULL")
 		ingame["total"] = statScalar(charDB, "SELECT COUNT(*) FROM characters")
 		ingame["alliance"] = statScalar(charDB, "SELECT COUNT(*) FROM characters WHERE race IN (1,3,4,7,11)")
 		ingame["horde"] = statScalar(charDB, "SELECT COUNT(*) FROM characters WHERE race IN (2,5,6,8,10)")
