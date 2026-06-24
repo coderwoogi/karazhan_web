@@ -6828,6 +6828,50 @@ function renderDashDoughnut(canvasId, key, labels, values, colors) {
     });
 }
 
+// 최근 N일 전체 골드 추이 (콤보): 막대=전일比 증감(녹/적), 라인=전체 골드. x축 왼→오 시간순.
+function renderGoldTrendChart(canvasId, key, labels, totals, deltas) {
+    const el = document.getElementById(canvasId);
+    if (!el || typeof Chart === 'undefined') return;
+    window.__dashCharts = window.__dashCharts || {};
+    if (window.__dashCharts[key]) { try { window.__dashCharts[key].destroy(); } catch (e) { } }
+    const up = 'rgba(95,174,126,0.6)', down = 'rgba(210,118,107,0.6)';
+    const deltaBg = (deltas || []).map(d => (Number(d) >= 0 ? up : down));
+    const deltaBd = (deltas || []).map(d => (Number(d) >= 0 ? '#5fae7e' : '#d2766b'));
+    const num = (v) => Number(v || 0).toLocaleString();
+    window.__dashCharts[key] = new Chart(el.getContext('2d'), {
+        data: {
+            labels: labels || [],
+            datasets: [
+                { type: 'bar', label: '전일比 증감(G)', data: deltas || [], yAxisID: 'y1', order: 2,
+                  backgroundColor: deltaBg, borderColor: deltaBd, borderWidth: 1 },
+                { type: 'line', label: '전체 골드(G)', data: totals || [], yAxisID: 'y', order: 1,
+                  borderColor: '#e7c170', backgroundColor: 'transparent', borderWidth: 2, tension: 0.3, pointRadius: 2 }
+            ]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+                legend: { display: true, position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } },
+                tooltip: {
+                    callbacks: {
+                        label: (ctx) => {
+                            const v = Number(ctx.raw || 0);
+                            return ctx.dataset.yAxisID === 'y1'
+                                ? `전일比: ${v >= 0 ? '+' : ''}${num(v)} G`
+                                : `전체 골드: ${num(v)} G`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: { ticks: { font: { size: 9 } } },
+                y:  { position: 'left',  beginAtZero: false, ticks: { font: { size: 9 }, callback: (v) => num(v) } },
+                y1: { position: 'right', beginAtZero: true,  grid: { drawOnChartArea: false }, ticks: { font: { size: 9 }, callback: (v) => num(v) } }
+            }
+        }
+    });
+}
+
 // 관리자 홈 운영 대시보드 (표준/B): KPI8 + 처리대기5 + 추세3 + 분포3 + 운영·경제3
 // ── 대시보드 숫자 카운트업 / 링·막대 애니메이션 ──────────────────
 function prefersReducedMotion() {
@@ -7048,7 +7092,7 @@ async function loadAdminDashboard() {
         }).join('')
         : '<div style="color:var(--text-secondary); font-size:0.82rem; padding:8px 0;">데이터 없음</div>';
 
-    // ── 최근 7일 GM 제외 유저 전체 골드 — 일별 총량 + 전일 대비 증감(상승량) ──
+    // ── 최근 7일 GM 제외 유저 전체 골드 — 일별 총량 + 전일 대비 증감 (그래프: 왼→오 시간순) ──
     const gdt = (data.goldDaily && Array.isArray(data.goldDaily.labels)) ? data.goldDaily : { labels: [], values: [] };
     const gdtRows = [];
     for (let i = 0; i < gdt.labels.length; i++) {
@@ -7056,21 +7100,11 @@ async function loadAdminDashboard() {
         const delta = i > 0 ? total - Number(gdt.values[i - 1] || 0) : null;
         gdtRows.push({ date: String(gdt.labels[i] || ''), total: total, delta: delta });
     }
-    const gdtView = gdtRows.slice(-7).reverse(); // 최근 7일, 최신이 위로
-    const gdtHtml = gdtView.length
-        ? gdtView.map(r => {
-            const dStr = (r.delta === null)
-                ? '<span style="color:var(--text-dim);">—</span>'
-                : (r.delta >= 0
-                    ? `<span style="color:#5fae7e;">▲ ${fmt(r.delta)}</span>`
-                    : `<span style="color:var(--danger-color);">▼ ${fmt(Math.abs(r.delta))}</span>`);
-            return `<div style="display:flex; justify-content:space-between; align-items:center; gap:8px; padding:9px 0; border-bottom:1px solid var(--border-color);">
-                <span style="color:var(--text-secondary); ${MONO} font-size:0.82rem;">${esc(r.date.slice(5))}</span>
-                <span style="${MONO} font-weight:700; color:var(--text-primary);">${fmt(r.total)} G</span>
-                <span style="${MONO} font-weight:700; font-size:0.82rem; text-align:right; min-width:92px;">${dStr}</span>
-            </div>`;
-        }).join('')
-        : '<div style="color:var(--text-secondary); font-size:0.85rem; padding:10px 0;">아직 일별 데이터가 없습니다. (매일 23:59 기준으로 적재되며, 며칠 누적되면 일별 상승량이 표시됩니다.)</div>';
+    const gdtChart = gdtRows.slice(-7); // 최근 7일 · 오래된→최신(왼→오)
+    const gdtLabels = gdtChart.map(r => r.date.slice(5));
+    const gdtTotals = gdtChart.map(r => r.total);
+    const gdtDeltas = gdtChart.map(r => (r.delta === null ? 0 : r.delta));
+    const gdtHasData = gdtChart.length > 0;
 
     const cardTop = (title) => `<div style="${EB} margin-bottom:11px;">${title}</div>`;
 
@@ -7098,7 +7132,7 @@ async function loadAdminDashboard() {
 
         <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:12px; margin-bottom:22px;">
             <div class="card" style="margin:0; padding:13px 15px;">${cardTop('골드 순위 (GM 제외 · TOP 7)')}${grkHtml}</div>
-            <div class="card" style="margin:0; padding:13px 15px;">${cardTop('최근 7일 전체 골드 (GM 제외 · 일별 + 전일比)')}${gdtHtml}</div>
+            <div class="card" style="margin:0; padding:13px 15px;">${cardTop('최근 7일 전체 골드 (GM 제외 · 일별 + 전일比)')}${gdtHasData ? '<div style="height:200px;"><canvas id="dash-goldtrend"></canvas></div>' : '<div style="color:var(--text-secondary); font-size:0.85rem; padding:10px 0;">아직 일별 데이터가 없습니다. (매일 23:59 기준 적재 · 며칠 누적되면 표시)</div>'}</div>
         </div>
 
         <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:12px; margin-bottom:12px;">
@@ -7149,6 +7183,9 @@ async function loadAdminDashboard() {
         { label: '암시장',   color: '#a39d92', labels: cd(c.coinMarketDaily).labels, values: cd(c.coinMarketDaily).values },
     ]);
     renderDashMultiLine('dash-economy', 'dashEco', shortLabels(eco.labels), eco.datasets, (v) => fmt(v));
+
+    // 최근 7일 전체 골드 추이 (막대=전일比 · 라인=전체 골드, 왼→오)
+    if (gdtHasData) renderGoldTrendChart('dash-goldtrend', 'dashGoldTrend', gdtLabels, gdtTotals, gdtDeltas);
 
     // 서버 상태창
     loadDashServerStatus(kpi.online);
