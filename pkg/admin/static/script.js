@@ -7261,7 +7261,7 @@ function buildChatRooms() {
             <div style="padding:10px 12px; font-weight:700; color:var(--text-primary); border-bottom:1px solid var(--border-color); background:var(--surface-2); display:flex; align-items:center; gap:7px;">
                 <span style="width:8px; height:8px; border-radius:50%; background:${ingameChatTypeColor(r.types[0])};"></span>${r.label}
             </div>
-            <div id="ig-room-msgs-${r.key}" style="flex:1; overflow-y:auto; padding:12px; display:flex; flex-direction:column; gap:10px; background:var(--bg-main);"></div>
+            <div id="ig-room-msgs-${r.key}" class="ig-room-msgs" style="flex:1; overflow-y:auto; padding:12px; display:flex; flex-direction:column; gap:10px; background:var(--bg-main);"></div>
             <div style="padding:8px; border-top:1px solid var(--border-color); display:flex; flex-direction:column; gap:6px;">
                 ${r.needsTarget ? `<input class="input-premium" id="ig-room-target-${r.key}" placeholder="귓속말 대상 캐릭터" style="font-size:0.8rem; padding:6px 8px;">` : ''}
                 ${r.needsChannel ? `<input class="input-premium" id="ig-room-channel-${r.key}" placeholder="채널 이름" style="font-size:0.8rem; padding:6px 8px;">` : ''}
@@ -7304,6 +7304,9 @@ async function loadRoomRecent(room) {
         st.oldestId = Number(data.oldestId) || 0;
         st.noMore = !data.hasMore;
         if (data.lastId) IngameChat.lastId = Math.max(IngameChat.lastId, Number(data.lastId) || 0);
+        // 최신 메시지가 하단에 오도록 강제 스크롤(카카오톡 기본 뷰). 레이아웃 타이밍 대비 rAF 1회 더.
+        const box = document.getElementById('ig-room-msgs-' + room.key);
+        if (box) { box.scrollTop = box.scrollHeight; requestAnimationFrame(() => { box.scrollTop = box.scrollHeight; }); }
     } catch (e) { /* 무시 */ }
 }
 

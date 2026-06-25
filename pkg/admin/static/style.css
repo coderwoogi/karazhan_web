@@ -8325,3 +8325,6 @@ body.admin-dark .ql-snow .ql-picker-label:hover { color: var(--primary-color); }
 @media (prefers-reduced-motion: reduce) {
     .skeleton-box::after { animation: none; }
 }
+
+/* 인게임 채팅 대화방: 메시지를 하단부터 쌓기(카카오톡식). 적을 땐 하단 정렬, 넘치면 정상 스크롤 */
+.ig-room-msgs::before { content: ''; margin-top: auto; }
