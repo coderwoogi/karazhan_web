@@ -97,17 +97,49 @@ func webChatMainChar(accountID int) string {
 	return strings.TrimSpace(name)
 }
 
-// 수신 폴링: after 이후의 신규 채팅. after=0 이면 최신 limit건(오름차순)으로 초기 로드.
+// 채팅 표시 타입 화이트리스트(필터 SQL 주입 방지)
+var webChatDisplayTypes = map[string]bool{
+	"say": true, "yell": true, "whisper": true, "guild": true, "officer": true,
+	"party": true, "raid": true, "channel": true, "world": true, "system": true,
+}
+
+// type 파라미터(콤마구분)를 " AND chat_type IN (?,?...)" + args 로 변환. 유효 타입 없으면 빈 필터.
+func webChatTypeFilter(typeParam string) (string, []interface{}) {
+	typeParam = strings.ToLower(strings.TrimSpace(typeParam))
+	if typeParam == "" || typeParam == "all" {
+		return "", nil
+	}
+	placeholders := []string{}
+	args := []interface{}{}
+	for _, t := range strings.Split(typeParam, ",") {
+		t = strings.TrimSpace(t)
+		if webChatDisplayTypes[t] {
+			placeholders = append(placeholders, "?")
+			args = append(args, t)
+		}
+	}
+	if len(placeholders) == 0 {
+		return "", nil
+	}
+	return " AND chat_type IN (" + strings.Join(placeholders, ",") + ")", args
+}
+
+// 채팅 조회:
+//   before>0 : id < before 인 더 오래된 메시지 limit건(오름차순) — 위로 스크롤 시 과거 로딩
+//   after>0  : id > after 인 신규 메시지(오름차순) — 폴링
+//   둘 다 0  : 최신 limit건(오름차순) — 초기 로드
+// type(콤마구분)로 방별 타입 필터.
 func handleWebChatFetch(w http.ResponseWriter, r *http.Request) {
 	if !checkAdminAuth(w, r, 2) {
 		return
 	}
 	after := atoiDefault(r.URL.Query().Get("after"), 0)
+	before := atoiDefault(r.URL.Query().Get("before"), 0)
 	limit := atoiDefault(r.URL.Query().Get("limit"), 100)
 	if limit < 1 || limit > 300 {
 		limit = 100
 	}
-	ctype := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("type")))
+	typeClause, typeArgs := webChatTypeFilter(r.URL.Query().Get("type"))
 
 	db, err := sql.Open("mysql", config.CharactersDSN())
 	if err != nil {
@@ -116,32 +148,24 @@ func handleWebChatFetch(w http.ResponseWriter, r *http.Request) {
 	}
 	defer db.Close()
 
-	var rows *sql.Rows
-	typeFilter := ""
-	args := []interface{}{}
-	if ctype != "" && ctype != "all" {
-		typeFilter = " AND chat_type = ?"
+	base := "SELECT id, chat_type, channel_name, sender_name, sender_gm, target_name, message, created_at FROM web_ingame_chat WHERE 1=1" + typeClause
+	args := append([]interface{}{}, typeArgs...)
+	reverse := false // DESC로 받아 ASC로 뒤집어야 하는지
+	var q string
+	if before > 0 {
+		q = base + " AND id < ? ORDER BY id DESC LIMIT ?"
+		args = append(args, before, limit)
+		reverse = true
+	} else if after > 0 {
+		q = base + " AND id > ? ORDER BY id ASC LIMIT ?"
+		args = append(args, after, limit)
+	} else {
+		q = base + " ORDER BY id DESC LIMIT ?"
+		args = append(args, limit)
+		reverse = true
 	}
 
-	base := "SELECT id, chat_type, channel_name, sender_name, sender_gm, target_name, message, created_at FROM web_ingame_chat WHERE 1=1"
-	if after > 0 {
-		// 증분: id > after 오름차순
-		q := base + " AND id > ?" + typeFilter + " ORDER BY id ASC LIMIT ?"
-		args = append(args, after)
-		if typeFilter != "" {
-			args = append(args, ctype)
-		}
-		args = append(args, limit)
-		rows, err = db.Query(q, args...)
-	} else {
-		// 초기: 최신 limit건 → 이후 오름차순으로 뒤집어 반환
-		q := base + typeFilter + " ORDER BY id DESC LIMIT ?"
-		if typeFilter != "" {
-			args = append(args, ctype)
-		}
-		args = append(args, limit)
-		rows, err = db.Query(q, args...)
-	}
+	rows, err := db.Query(q, args...)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "조회 오류: " + err.Error()})
 		return
@@ -149,15 +173,18 @@ func handleWebChatFetch(w http.ResponseWriter, r *http.Request) {
 	defer rows.Close()
 
 	items := make([]map[string]interface{}, 0)
-	lastID := after
+	maxID, minID := after, 0
 	for rows.Next() {
 		var id, gm int
 		var ctypeV, channel, sender, target, msg, created string
 		if rows.Scan(&id, &ctypeV, &channel, &sender, &gm, &target, &msg, &created) != nil {
 			continue
 		}
-		if id > lastID {
-			lastID = id
+		if id > maxID {
+			maxID = id
+		}
+		if minID == 0 || id < minID {
+			minID = id
 		}
 		items = append(items, map[string]interface{}{
 			"id": id, "chat_type": ctypeV, "channel_name": channel,
@@ -165,15 +192,15 @@ func handleWebChatFetch(w http.ResponseWriter, r *http.Request) {
 			"message": msg, "created_at": created,
 		})
 	}
-	// 초기 로드(DESC)면 오름차순으로 뒤집어 표시
-	if after == 0 {
+	if reverse {
 		for l, rgt := 0, len(items)-1; l < rgt; l, rgt = l+1, rgt-1 {
 			items[l], items[rgt] = items[rgt], items[l]
 		}
 	}
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"status": "success", "items": items, "lastId": lastID,
+		"status": "success", "items": items,
+		"lastId": maxID, "oldestId": minID, "hasMore": len(items) == limit,
 	})
 }
 

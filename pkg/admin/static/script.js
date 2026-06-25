@@ -7230,62 +7230,130 @@ async function loadDashServerStatus(onlineCount) {
     el.innerHTML = html;
 }
 
-// ════════ 인게임 채팅 (웹 ↔ 인게임 브리지) ════════
-var IngameChat = { lastId: 0, timer: null, filter: 'all' };
+// ════════ 인게임 채팅 (웹 ↔ 인게임 브리지) — 카카오톡식 다중 대화방 ════════
+var IngameChat = { lastId: 0, timer: null, echoedIds: new Set(), myName: '' };
 
-function startIngameChat() {
+// 대화방(가로 컬럼) 정의. types: 이 방에 표시할 chat_type 들, sendType: 전송 시 타입.
+var CHAT_ROOMS = [
+    { key: 'world',   label: '월드',      sendType: 'world',   types: ['world'] },
+    { key: 'guild',   label: '길드',      sendType: 'guild',   types: ['guild', 'officer'] },
+    { key: 'channel', label: '채널',      sendType: 'channel', types: ['channel'], needsChannel: true },
+    { key: 'whisper', label: '귓속말',    sendType: 'whisper', types: ['whisper'], needsTarget: true },
+    { key: 'local',   label: '지역',      sendType: 'say',     types: ['say', 'yell'] },
+    { key: 'group',   label: '파티/공대', sendType: 'party',   types: ['party', 'raid'] }
+];
+
+function chatTypeToRoomKey(t) {
+    for (let i = 0; i < CHAT_ROOMS.length; i++) if (CHAT_ROOMS[i].types.indexOf(t) !== -1) return CHAT_ROOMS[i].key;
+    return 'world';
+}
+function chatRoomByKey(k) {
+    for (let i = 0; i < CHAT_ROOMS.length; i++) if (CHAT_ROOMS[i].key === k) return CHAT_ROOMS[i];
+    return null;
+}
+
+// 대화방 컬럼들을 가로로 동적 생성
+function buildChatRooms() {
+    const host = document.getElementById('ingame-chat-rooms');
+    if (!host) return;
+    host.innerHTML = CHAT_ROOMS.map(r => `
+        <div class="ig-room" data-room="${r.key}" style="flex:1 1 0; min-width:0; display:flex; flex-direction:column; background:var(--surface); border:1px solid var(--border-color); border-radius:12px; overflow:hidden;">
+            <div style="padding:10px 12px; font-weight:700; color:var(--text-primary); border-bottom:1px solid var(--border-color); background:var(--surface-2); display:flex; align-items:center; gap:7px;">
+                <span style="width:8px; height:8px; border-radius:50%; background:${ingameChatTypeColor(r.types[0])};"></span>${r.label}
+            </div>
+            <div id="ig-room-msgs-${r.key}" style="flex:1; overflow-y:auto; padding:12px; display:flex; flex-direction:column; gap:10px; background:var(--bg-main);"></div>
+            <div style="padding:8px; border-top:1px solid var(--border-color); display:flex; flex-direction:column; gap:6px;">
+                ${r.needsTarget ? `<input class="input-premium" id="ig-room-target-${r.key}" placeholder="귓속말 대상 캐릭터" style="font-size:0.8rem; padding:6px 8px;">` : ''}
+                ${r.needsChannel ? `<input class="input-premium" id="ig-room-channel-${r.key}" placeholder="채널 이름" style="font-size:0.8rem; padding:6px 8px;">` : ''}
+                <div style="display:flex; gap:6px;">
+                    <input class="input-premium" id="ig-room-input-${r.key}" placeholder="메시지" maxlength="512" style="flex:1; font-size:0.85rem; padding:6px 8px;" onkeypress="if(event.key==='Enter'){event.preventDefault();sendRoomChat('${r.key}');}">
+                    <button type="button" class="btn btn-primary" style="padding:6px 10px;" onclick="sendRoomChat('${r.key}')"><i class="fas fa-paper-plane"></i></button>
+                </div>
+            </div>
+        </div>`).join('');
+}
+
+const CHAT_PAGE_SIZE = 100; // 방별 1회 로드 건수(최근/과거)
+
+async function startIngameChat() {
     IngameChat.lastId = 0;
-    IngameChat.filter = IngameChat.filter || 'all';
     IngameChat.echoedIds = new Set();
-    const box = document.getElementById('ingame-chat-messages');
-    if (box) box.innerHTML = '';
-    const sel = document.getElementById('ingame-chat-type');
-    if (sel) sel.onchange = ingameChatToggleTarget;
-    ingameChatToggleTarget();
-    ingameChatFetch(true);
+    IngameChat.rooms = {}; // key -> { oldestId, loading, noMore }
+    buildChatRooms();
+    // 방별 최근 100건 로드(과거는 위로 스크롤 시 추가) + 스크롤 핸들러 연결
+    await Promise.all(CHAT_ROOMS.map(loadRoomRecent));
+    attachRoomScrollHandlers();
     if (IngameChat.timer) clearInterval(IngameChat.timer);
-    IngameChat.timer = setInterval(() => ingameChatFetch(false), 4000);
+    IngameChat.timer = setInterval(pollIngameChat, 4000);
 }
 
 function stopIngameChat() {
     if (IngameChat.timer) { clearInterval(IngameChat.timer); IngameChat.timer = null; }
 }
 
-function setIngameChatFilter(ch, btn) {
-    IngameChat.filter = ch || 'all';
-    document.querySelectorAll('#ingame-chat-filters .log-sub-tab-btn').forEach(b => b.classList.remove('active'));
-    if (btn) btn.classList.add('active');
-    IngameChat.lastId = 0;
-    IngameChat.echoedIds = new Set();
-    const box = document.getElementById('ingame-chat-messages');
-    if (box) box.innerHTML = '';
-    ingameChatFetch(true);
-}
-
-function ingameChatToggleTarget() {
-    const sel = document.getElementById('ingame-chat-type');
-    const tgt = document.getElementById('ingame-chat-target');
-    if (!sel || !tgt) return;
-    if (sel.value === 'whisper') { tgt.style.display = ''; tgt.placeholder = '귓속말 대상 캐릭터'; }
-    else if (sel.value === 'channel') { tgt.style.display = ''; tgt.placeholder = '채널 이름'; }
-    else { tgt.style.display = 'none'; tgt.value = ''; }
-}
-
-async function ingameChatFetch(initial) {
+// 방별 최근 100건 초기 로드(오름차순 append). global lastId 갱신.
+async function loadRoomRecent(room) {
+    IngameChat.rooms[room.key] = { oldestId: 0, loading: false, noMore: false };
     try {
-        const typeQ = (IngameChat.filter && IngameChat.filter !== 'all') ? `&type=${encodeURIComponent(IngameChat.filter)}` : '';
-        const res = await fetch(`/api/chat/ingame/fetch?after=${IngameChat.lastId}${typeQ}`);
+        const res = await fetch(`/api/chat/ingame/fetch?type=${encodeURIComponent(room.types.join(','))}&limit=${CHAT_PAGE_SIZE}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!data || !Array.isArray(data.items)) return;
+        data.items.forEach(appendChatBubble);
+        const st = IngameChat.rooms[room.key];
+        st.oldestId = Number(data.oldestId) || 0;
+        st.noMore = !data.hasMore;
+        if (data.lastId) IngameChat.lastId = Math.max(IngameChat.lastId, Number(data.lastId) || 0);
+    } catch (e) { /* 무시 */ }
+}
+
+// 신규 메시지 폴링(전체 타입) → 각 방 하단에 분배. echo 중복 제외.
+async function pollIngameChat() {
+    try {
+        const res = await fetch(`/api/chat/ingame/fetch?after=${IngameChat.lastId}`);
         if (!res.ok) return;
         const data = await res.json();
         if (!data || !Array.isArray(data.items)) return;
         if (data.lastId) IngameChat.lastId = Math.max(IngameChat.lastId, Number(data.lastId) || 0);
-        // 내가 방금 보내 낙관적으로 이미 표시한 메시지는 폴링에서 제외(중복 방지)
         const echoed = IngameChat.echoedIds;
         const fresh = (echoed && echoed.size)
             ? data.items.filter(it => { const k = Number(it.id); if (echoed.has(k)) { echoed.delete(k); return false; } return true; })
             : data.items;
-        if (fresh.length) renderIngameChat(fresh);
+        fresh.forEach(appendChatBubble);
     } catch (e) { /* 폴링 실패 무시 */ }
+}
+
+// 위로 스크롤 시 해당 방의 이전 메시지 100건 prepend(스크롤 위치 보존).
+async function loadRoomOlder(room) {
+    const st = IngameChat.rooms[room.key];
+    if (!st || st.loading || st.noMore || !st.oldestId) return;
+    const box = document.getElementById('ig-room-msgs-' + room.key);
+    if (!box) return;
+    st.loading = true;
+    try {
+        const res = await fetch(`/api/chat/ingame/fetch?before=${st.oldestId}&type=${encodeURIComponent(room.types.join(','))}&limit=${CHAT_PAGE_SIZE}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!data || !Array.isArray(data.items) || !data.items.length) { st.noMore = true; return; }
+        const prevH = box.scrollHeight;
+        const anchor = box.firstChild;
+        data.items.forEach(m => box.insertBefore(buildBubbleRow(m), anchor)); // ASC 순서로 위에 삽입
+        box.scrollTop += box.scrollHeight - prevH; // 보던 위치 유지
+        st.oldestId = Number(data.oldestId) || st.oldestId;
+        st.noMore = !data.hasMore;
+    } catch (e) { /* 무시 */ } finally {
+        st.loading = false;
+    }
+}
+
+// 각 방 메시지 박스에 스크롤-업 핸들러 연결(상단 근처에서 과거 로딩)
+function attachRoomScrollHandlers() {
+    CHAT_ROOMS.forEach(room => {
+        const box = document.getElementById('ig-room-msgs-' + room.key);
+        if (!box || box.__igScrollBound) return;
+        box.__igScrollBound = true;
+        box.addEventListener('scroll', () => { if (box.scrollTop < 48) loadRoomOlder(room); });
+    });
 }
 
 function ingameChatTypeLabel(t) {
@@ -7310,67 +7378,79 @@ function ingameChatNowStr() {
     return `0000-00-00 ${p(d.getHours())}:${p(d.getMinutes())}:00`;
 }
 
-// 카카오톡식 말풍선 1개 추가(내 메시지=오른쪽 골드, 상대=왼쪽)
-function appendChatBubble(m) {
-    const box = document.getElementById('ingame-chat-messages');
-    if (!box) return;
+// 말풍선 1개의 DOM(row)을 생성해 반환(append/prepend 공용)
+function buildBubbleRow(m) {
     const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
     const myName = ingameChatMyName();
     const mine = !!myName && String(m.sender_name || '').trim() === myName;
     const time = String(m.created_at || '').slice(11, 16);
-    const ch = m.channel_name ? (' ' + esc(m.channel_name)) : '';
-    const typeChip = `<span style="font-size:0.66rem; color:${ingameChatTypeColor(m.chat_type)}; font-weight:700;">[${ingameChatTypeLabel(m.chat_type)}${ch}]</span>`;
     const gm = Number(m.sender_gm) ? '<span style="color:var(--primary-color); font-weight:800;">&lt;GM&gt;</span> ' : '';
 
     const row = document.createElement('div');
     row.style.cssText = `display:flex; gap:6px; align-items:flex-end; ${mine ? 'flex-direction:row-reverse;' : 'flex-direction:row;'}`;
 
     const wrap = document.createElement('div');
-    wrap.style.cssText = 'max-width:74%; display:flex; flex-direction:column; gap:3px;';
+    wrap.style.cssText = 'max-width:82%; display:flex; flex-direction:column; gap:3px;';
 
-    let head;
+    let head = '';
     if (!mine) {
-        const who = (m.chat_type === 'whisper' && m.target_name)
-            ? `${esc(m.sender_name)} → ${esc(m.target_name)}`
-            : esc(m.sender_name);
-        head = `<div style="font-size:0.72rem; color:var(--text-secondary); margin-left:4px;">${gm}<b>${who}</b> ${typeChip}</div>`;
-    } else {
-        head = `<div style="font-size:0.72rem; text-align:right; margin-right:4px;">${typeChip}</div>`;
+        let who = esc(m.sender_name);
+        if (m.chat_type === 'whisper' && m.target_name) who = `${esc(m.sender_name)} → ${esc(m.target_name)}`;
+        const chTag = (m.chat_type === 'channel' && m.channel_name) ? ` <span style="color:var(--text-dim);">[${esc(m.channel_name)}]</span>` : '';
+        head = `<div style="font-size:0.72rem; color:var(--text-secondary); margin-left:4px;">${gm}<b>${who}</b>${chTag}</div>`;
+    } else if (m.chat_type === 'whisper' && m.target_name) {
+        head = `<div style="font-size:0.72rem; color:var(--text-secondary); text-align:right; margin-right:4px;">→ ${esc(m.target_name)}</div>`;
     }
 
     const bubbleStyle = mine
         ? 'background:var(--primary-color); color:#0e0d11; border-radius:14px 14px 4px 14px;'
         : 'background:var(--surface); color:var(--text-primary); border:1px solid var(--border-color); border-radius:14px 14px 14px 4px;';
-    wrap.innerHTML = `${head}<div style="${bubbleStyle} padding:8px 11px; font-size:0.9rem; line-height:1.45; word-break:break-word; white-space:pre-wrap;">${esc(m.message)}</div>`;
+    wrap.innerHTML = `${head}<div style="${bubbleStyle} padding:7px 10px; font-size:0.88rem; line-height:1.45; word-break:break-word; white-space:pre-wrap;">${esc(m.message)}</div>`;
 
     const timeEl = document.createElement('div');
-    timeEl.style.cssText = 'font-size:0.64rem; color:var(--text-dim); white-space:nowrap; padding-bottom:3px;';
+    timeEl.style.cssText = 'font-size:0.62rem; color:var(--text-dim); white-space:nowrap; padding-bottom:3px;';
     timeEl.textContent = time;
 
     row.appendChild(wrap);
     row.appendChild(timeEl);
-    box.appendChild(row);
+    return row;
 }
 
-function renderIngameChat(items) {
-    const box = document.getElementById('ingame-chat-messages');
+// 말풍선을 해당 채널 대화방 하단에 추가(맨 아래 보고 있으면 자동 스크롤)
+function appendChatBubble(m) {
+    const box = document.getElementById('ig-room-msgs-' + chatTypeToRoomKey(m.chat_type));
     if (!box) return;
     const atBottom = (box.scrollHeight - box.scrollTop - box.clientHeight) < 80;
-    items.forEach(m => appendChatBubble(m));
+    box.appendChild(buildBubbleRow(m));
     if (atBottom) box.scrollTop = box.scrollHeight;
 }
 
-async function sendIngameChat() {
-    const input = document.getElementById('ingame-chat-input');
+function renderIngameChat(items) {
+    items.forEach(m => appendChatBubble(m));
+}
+
+// 방별 전송 — 방의 sendType + (채널/귓속말 대상) 으로 송신, 낙관적 echo
+async function sendRoomChat(roomKey) {
+    const room = chatRoomByKey(roomKey);
+    if (!room) return;
+    const input = document.getElementById('ig-room-input-' + roomKey);
     if (!input) return;
     const message = input.value.trim();
     if (!message) return;
-    const sel = document.getElementById('ingame-chat-type');
-    const tgt = document.getElementById('ingame-chat-target');
-    const chat_type = sel ? sel.value : 'world';
+
+    const chat_type = room.sendType;
     let channel_name = '', target_name = '';
-    if (chat_type === 'channel') channel_name = tgt ? tgt.value.trim() : '';
-    if (chat_type === 'whisper') target_name = tgt ? tgt.value.trim() : '';
+    if (room.needsChannel) {
+        const c = document.getElementById('ig-room-channel-' + roomKey);
+        channel_name = c ? c.value.trim() : '';
+        if (!channel_name) { if (window.ModalUtils) ModalUtils.showAlert('채널 이름을 입력해주세요.'); return; }
+    }
+    if (room.needsTarget) {
+        const t = document.getElementById('ig-room-target-' + roomKey);
+        target_name = t ? t.value.trim() : '';
+        if (!target_name) { if (window.ModalUtils) ModalUtils.showAlert('귓속말 대상 캐릭터를 입력해주세요.'); return; }
+    }
+
     try {
         const res = await fetch('/api/chat/ingame/send', {
             method: 'POST',
@@ -7384,14 +7464,12 @@ async function sendIngameChat() {
             if (data.sender) IngameChat.myName = data.sender;
             // 영구화된 동일 메시지가 폴링으로 다시 와도 중복 표시되지 않도록 echo id 등록
             if (data.echoId) { IngameChat.echoedIds = IngameChat.echoedIds || new Set(); IngameChat.echoedIds.add(Number(data.echoId)); }
-            // 낙관적 echo — 내가 보낸 메시지를 즉시 오른쪽 말풍선으로 표시
+            // 낙관적 echo — 내가 보낸 메시지를 즉시 해당 방 오른쪽 말풍선으로 표시
             appendChatBubble({
                 chat_type: chat_type, channel_name: channel_name, target_name: target_name,
                 sender_name: data.sender || ingameChatMyName(), sender_gm: 1,
                 message: message, created_at: ingameChatNowStr()
             });
-            const box = document.getElementById('ingame-chat-messages');
-            if (box) box.scrollTop = box.scrollHeight;
         } else if (window.ModalUtils) {
             ModalUtils.showAlert(data.message || '전송에 실패했습니다.');
         }
