@@ -65,6 +65,10 @@ func RegisterRoutes(mux *http.ServeMux) {
 	// 관리자 홈(운영 대시보드) 요약 - KPI + 처리대기 큐 (webRank>=2)
 	mux.HandleFunc("/api/admin/dashboard/summary", handleAdminDashboardSummary)
 
+	// 웹 ↔ 인게임 채팅 브리지 (webRank>=2)
+	mux.HandleFunc("/api/chat/ingame/fetch", handleWebChatFetch)
+	mux.HandleFunc("/api/chat/ingame/send", handleWebChatSend)
+
 	// Content - BlackMarket
 	mux.HandleFunc("/api/content/blackmarket/list", handleBlackMarketItemList)
 	mux.HandleFunc("/api/content/blackmarket/add", handleBlackMarketItemAdd)
@@ -145,6 +149,9 @@ func RegisterRoutes(mux *http.ServeMux) {
 	// 골드 급증 감지(스냅샷 비교) — 스키마 생성 + 백그라운드 샘플러
 	ensureGoldSurgeSchema()
 	startGoldSurgeSampler()
+
+	// 웹 ↔ 인게임 채팅 브리지 — 스키마 생성
+	ensureWebChatSchema()
 }
 
 func statsHandler(w http.ResponseWriter, r *http.Request) {

@@ -580,6 +580,9 @@
                 style="display: none;">
                 <i class="fas fa-paper-plane"></i> 메시지 발신
             </div>
+            <div id="tab-btn-ingame-chat" class="nav-item tab-btn" onclick="openTab('ingame-chat')" style="display: none;">
+                <i class="fas fa-comments"></i> 인게임 채팅
+            </div>
             <div id="tab-btn-shop-admin" class="nav-item tab-btn" onclick="openTab('shop-admin')" style="display: none;">
                 <i class="fas fa-store-alt"></i> 선술집관리
             </div>
@@ -1291,6 +1294,47 @@
                 </div>
             </div>
 
+
+            <!-- 인게임 채팅 (웹 ↔ 인게임 브리지) -->
+            <div id="ingame-chat" class="tab-content">
+                <div class="card" style="margin:0;">
+                    <div class="card-header">
+                        <h2><i class="fas fa-comments"></i> 인게임 채팅</h2>
+                    </div>
+                    <div class="card-body" style="display:flex; flex-direction:column; gap:12px;">
+                        <div id="ingame-chat-filters" style="display:flex; gap:6px; flex-wrap:wrap;">
+                            <button type="button" class="log-sub-tab-btn active" data-ch="all" onclick="setIngameChatFilter('all', this)">전체</button>
+                            <button type="button" class="log-sub-tab-btn" data-ch="world" onclick="setIngameChatFilter('world', this)">월드</button>
+                            <button type="button" class="log-sub-tab-btn" data-ch="guild" onclick="setIngameChatFilter('guild', this)">길드</button>
+                            <button type="button" class="log-sub-tab-btn" data-ch="whisper" onclick="setIngameChatFilter('whisper', this)">귓속말</button>
+                            <button type="button" class="log-sub-tab-btn" data-ch="channel" onclick="setIngameChatFilter('channel', this)">채널</button>
+                            <button type="button" class="log-sub-tab-btn" data-ch="say" onclick="setIngameChatFilter('say', this)">지역</button>
+                        </div>
+                        <div id="ingame-chat-messages"
+                            style="height:48vh; min-height:320px; overflow-y:auto; border:1px solid var(--border-color); border-radius:10px; padding:14px; background:var(--bg-main); display:flex; flex-direction:column; gap:10px;">
+                        </div>
+                        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                            <select id="ingame-chat-type" class="input-premium" style="width:auto; min-width:120px;">
+                                <option value="world">월드</option>
+                                <option value="guild">길드</option>
+                                <option value="whisper">귓속말</option>
+                                <option value="channel">채널</option>
+                                <option value="say">지역(say)</option>
+                                <option value="yell">외침(yell)</option>
+                            </select>
+                            <input id="ingame-chat-target" class="input-premium" placeholder="귓속말 대상 / 채널명"
+                                style="width:170px; display:none;">
+                            <input id="ingame-chat-input" class="input-premium" placeholder="메시지 입력 후 Enter"
+                                style="flex:1; min-width:200px;" maxlength="512"
+                                onkeypress="if(event.key==='Enter'){event.preventDefault();sendIngameChat();}">
+                            <button type="button" class="btn btn-primary" onclick="sendIngameChat()"><i class="fas fa-paper-plane"></i> 전송</button>
+                        </div>
+                        <div style="font-size:0.78rem; color:var(--text-dim);">
+                            <i class="fas fa-circle-info"></i> 전송 메시지는 계정 <b>대표 캐릭터</b> 이름으로 <b style="color:var(--primary-color);">&lt;GM&gt;</b> 마크와 함께 인게임에 표시됩니다. (mod-web-chat 모듈 필요)
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             <!-- Board Tab (Restored) -->
             <div id="board" class="tab-content">
@@ -5072,7 +5116,7 @@
         </div>
 
         <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-        <script src="script.js?v=admin_fix_v61"></script>
+        <script src="script.js?v=admin_fix_v64"></script>
         <script src="notification.js?v=7"></script>
         <script src="shop.js?v=9"></script>
         <script src="auction.js?v=8"></script>

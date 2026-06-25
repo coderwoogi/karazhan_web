@@ -713,6 +713,8 @@ window.restoreInitialTab = restoreInitialTab;
 function openTab(tabName, options) {
     options = options || {};
     const trackHistory = options.trackHistory !== false;
+    // 탭 전환 시 인게임 채팅 폴링 중지(해당 탭 진입 시 재개)
+    if (tabName !== 'ingame-chat' && typeof stopIngameChat === 'function') stopIngameChat();
     const contents = document.querySelectorAll('.tab-content');
     contents.forEach(content => content.classList.remove('active'));
 
@@ -805,6 +807,8 @@ function openTab(tabName, options) {
         initUserCalendarTab();
     } else if (tabName === 'board') {
         if (typeof loadPosts === 'function') loadPosts(1, { trackHistory: trackHistory });
+    } else if (tabName === 'ingame-chat') {
+        if (typeof startIngameChat === 'function') startIngameChat();
     }
 
     // 새로고침 복원용: 현재 탭 저장 (shop 은 외부 페이지로 리다이렉트되므로 제외)
@@ -6673,7 +6677,7 @@ async function applyAdminMenuOrder() {
             { title: '분석·로그',      ids: ['stats', 'logs'] },
             { title: '콘텐츠·게시판',  ids: ['board-admin', 'content', 'bug-report-admin', 'public-home-admin'] },
             { title: '상점·보상·경제', ids: ['shop-admin', 'instance-bonus-admin'] },
-            { title: '운영·지원',      ids: ['remote', 'update', 'notification-admin', 'gm'] },
+            { title: '운영·지원',      ids: ['remote', 'update', 'notification-admin', 'ingame-chat', 'gm'] },
         ];
 
         const rank = new Map(dbOrder.map((id, i) => [id, i]));
@@ -7224,6 +7228,176 @@ async function loadDashServerStatus(onlineCount) {
     if (enh && enh.item) html += row('최근 강화 성공', `${e(enh.player)} · ${e(enh.item)} +${Number(enh.level || 0)}`);
     if (tr && (tr.player || tr.stage)) html += row('최근 시련 돌파', `${e(tr.player)}${tr.stage ? ' · ' + e(tr.stage) : ''}`);
     el.innerHTML = html;
+}
+
+// ════════ 인게임 채팅 (웹 ↔ 인게임 브리지) ════════
+var IngameChat = { lastId: 0, timer: null, filter: 'all' };
+
+function startIngameChat() {
+    IngameChat.lastId = 0;
+    IngameChat.filter = IngameChat.filter || 'all';
+    IngameChat.echoedIds = new Set();
+    const box = document.getElementById('ingame-chat-messages');
+    if (box) box.innerHTML = '';
+    const sel = document.getElementById('ingame-chat-type');
+    if (sel) sel.onchange = ingameChatToggleTarget;
+    ingameChatToggleTarget();
+    ingameChatFetch(true);
+    if (IngameChat.timer) clearInterval(IngameChat.timer);
+    IngameChat.timer = setInterval(() => ingameChatFetch(false), 4000);
+}
+
+function stopIngameChat() {
+    if (IngameChat.timer) { clearInterval(IngameChat.timer); IngameChat.timer = null; }
+}
+
+function setIngameChatFilter(ch, btn) {
+    IngameChat.filter = ch || 'all';
+    document.querySelectorAll('#ingame-chat-filters .log-sub-tab-btn').forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    IngameChat.lastId = 0;
+    IngameChat.echoedIds = new Set();
+    const box = document.getElementById('ingame-chat-messages');
+    if (box) box.innerHTML = '';
+    ingameChatFetch(true);
+}
+
+function ingameChatToggleTarget() {
+    const sel = document.getElementById('ingame-chat-type');
+    const tgt = document.getElementById('ingame-chat-target');
+    if (!sel || !tgt) return;
+    if (sel.value === 'whisper') { tgt.style.display = ''; tgt.placeholder = '귓속말 대상 캐릭터'; }
+    else if (sel.value === 'channel') { tgt.style.display = ''; tgt.placeholder = '채널 이름'; }
+    else { tgt.style.display = 'none'; tgt.value = ''; }
+}
+
+async function ingameChatFetch(initial) {
+    try {
+        const typeQ = (IngameChat.filter && IngameChat.filter !== 'all') ? `&type=${encodeURIComponent(IngameChat.filter)}` : '';
+        const res = await fetch(`/api/chat/ingame/fetch?after=${IngameChat.lastId}${typeQ}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!data || !Array.isArray(data.items)) return;
+        if (data.lastId) IngameChat.lastId = Math.max(IngameChat.lastId, Number(data.lastId) || 0);
+        // 내가 방금 보내 낙관적으로 이미 표시한 메시지는 폴링에서 제외(중복 방지)
+        const echoed = IngameChat.echoedIds;
+        const fresh = (echoed && echoed.size)
+            ? data.items.filter(it => { const k = Number(it.id); if (echoed.has(k)) { echoed.delete(k); return false; } return true; })
+            : data.items;
+        if (fresh.length) renderIngameChat(fresh);
+    } catch (e) { /* 폴링 실패 무시 */ }
+}
+
+function ingameChatTypeLabel(t) {
+    return ({ say: '지역', yell: '외침', whisper: '귓속말', guild: '길드', officer: '오피서', party: '파티', raid: '공대', channel: '채널', world: '월드', system: '시스템' })[t] || t;
+}
+function ingameChatTypeColor(t) {
+    return ({ whisper: '#b29bd8', guild: '#5fae7e', world: '#e7c170', channel: '#c9a24a', yell: '#d2766b', say: '#a39d92', party: '#5a8fd6', raid: '#5a8fd6' })[t] || 'var(--text-secondary)';
+}
+
+// 내 대표 캐릭터명(메시지 좌/우 정렬 판단용)
+function ingameChatMyName() {
+    return String(IngameChat.myName
+        || (window.currentUserMainChar && currentUserMainChar.name)
+        || (window.g_sessionUser && g_sessionUser.mainCharacter && g_sessionUser.mainCharacter.name)
+        || '').trim();
+}
+
+// 낙관적 echo용 현재시각 문자열(slice(11,16) → HH:MM)
+function ingameChatNowStr() {
+    const d = new Date();
+    const p = (n) => String(n).padStart(2, '0');
+    return `0000-00-00 ${p(d.getHours())}:${p(d.getMinutes())}:00`;
+}
+
+// 카카오톡식 말풍선 1개 추가(내 메시지=오른쪽 골드, 상대=왼쪽)
+function appendChatBubble(m) {
+    const box = document.getElementById('ingame-chat-messages');
+    if (!box) return;
+    const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    const myName = ingameChatMyName();
+    const mine = !!myName && String(m.sender_name || '').trim() === myName;
+    const time = String(m.created_at || '').slice(11, 16);
+    const ch = m.channel_name ? (' ' + esc(m.channel_name)) : '';
+    const typeChip = `<span style="font-size:0.66rem; color:${ingameChatTypeColor(m.chat_type)}; font-weight:700;">[${ingameChatTypeLabel(m.chat_type)}${ch}]</span>`;
+    const gm = Number(m.sender_gm) ? '<span style="color:var(--primary-color); font-weight:800;">&lt;GM&gt;</span> ' : '';
+
+    const row = document.createElement('div');
+    row.style.cssText = `display:flex; gap:6px; align-items:flex-end; ${mine ? 'flex-direction:row-reverse;' : 'flex-direction:row;'}`;
+
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'max-width:74%; display:flex; flex-direction:column; gap:3px;';
+
+    let head;
+    if (!mine) {
+        const who = (m.chat_type === 'whisper' && m.target_name)
+            ? `${esc(m.sender_name)} → ${esc(m.target_name)}`
+            : esc(m.sender_name);
+        head = `<div style="font-size:0.72rem; color:var(--text-secondary); margin-left:4px;">${gm}<b>${who}</b> ${typeChip}</div>`;
+    } else {
+        head = `<div style="font-size:0.72rem; text-align:right; margin-right:4px;">${typeChip}</div>`;
+    }
+
+    const bubbleStyle = mine
+        ? 'background:var(--primary-color); color:#0e0d11; border-radius:14px 14px 4px 14px;'
+        : 'background:var(--surface); color:var(--text-primary); border:1px solid var(--border-color); border-radius:14px 14px 14px 4px;';
+    wrap.innerHTML = `${head}<div style="${bubbleStyle} padding:8px 11px; font-size:0.9rem; line-height:1.45; word-break:break-word; white-space:pre-wrap;">${esc(m.message)}</div>`;
+
+    const timeEl = document.createElement('div');
+    timeEl.style.cssText = 'font-size:0.64rem; color:var(--text-dim); white-space:nowrap; padding-bottom:3px;';
+    timeEl.textContent = time;
+
+    row.appendChild(wrap);
+    row.appendChild(timeEl);
+    box.appendChild(row);
+}
+
+function renderIngameChat(items) {
+    const box = document.getElementById('ingame-chat-messages');
+    if (!box) return;
+    const atBottom = (box.scrollHeight - box.scrollTop - box.clientHeight) < 80;
+    items.forEach(m => appendChatBubble(m));
+    if (atBottom) box.scrollTop = box.scrollHeight;
+}
+
+async function sendIngameChat() {
+    const input = document.getElementById('ingame-chat-input');
+    if (!input) return;
+    const message = input.value.trim();
+    if (!message) return;
+    const sel = document.getElementById('ingame-chat-type');
+    const tgt = document.getElementById('ingame-chat-target');
+    const chat_type = sel ? sel.value : 'world';
+    let channel_name = '', target_name = '';
+    if (chat_type === 'channel') channel_name = tgt ? tgt.value.trim() : '';
+    if (chat_type === 'whisper') target_name = tgt ? tgt.value.trim() : '';
+    try {
+        const res = await fetch('/api/chat/ingame/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_type, channel_name, target_name, message })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (data.status === 'success') {
+            input.value = '';
+            input.focus();
+            if (data.sender) IngameChat.myName = data.sender;
+            // 영구화된 동일 메시지가 폴링으로 다시 와도 중복 표시되지 않도록 echo id 등록
+            if (data.echoId) { IngameChat.echoedIds = IngameChat.echoedIds || new Set(); IngameChat.echoedIds.add(Number(data.echoId)); }
+            // 낙관적 echo — 내가 보낸 메시지를 즉시 오른쪽 말풍선으로 표시
+            appendChatBubble({
+                chat_type: chat_type, channel_name: channel_name, target_name: target_name,
+                sender_name: data.sender || ingameChatMyName(), sender_gm: 1,
+                message: message, created_at: ingameChatNowStr()
+            });
+            const box = document.getElementById('ingame-chat-messages');
+            if (box) box.scrollTop = box.scrollHeight;
+        } else if (window.ModalUtils) {
+            ModalUtils.showAlert(data.message || '전송에 실패했습니다.');
+        }
+    } catch (e) {
+        if (window.ModalUtils) ModalUtils.showAlert('전송 중 오류가 발생했습니다.');
+    }
 }
 
 // Modal Utilities using SweetAlert2
