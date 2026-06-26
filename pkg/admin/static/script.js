@@ -7381,6 +7381,14 @@ function ingameChatNowStr() {
     return `0000-00-00 ${p(d.getHours())}:${p(d.getMinutes())}:00`;
 }
 
+// 종족 아이콘(로컬) — 발신 캐릭터 race/gender 기준
+function chatRaceIcon(race, gender) {
+    const slugs = { 1: 'human', 2: 'orc', 3: 'dwarf', 4: 'nightelf', 5: 'undead', 6: 'tauren', 7: 'gnome', 8: 'troll', 10: 'bloodelf', 11: 'draenei' };
+    const slug = slugs[Number(race)] || 'human';
+    const g = Number(gender) === 1 ? 'female' : 'male';
+    return `/img/icons/race_${slug}_${g}.gif`;
+}
+
 // 말풍선 1개의 DOM(row)을 생성해 반환(append/prepend 공용)
 function buildBubbleRow(m) {
     const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -7414,14 +7422,11 @@ function buildBubbleRow(m) {
     timeEl.style.cssText = 'font-size:0.62rem; color:var(--text-dim); white-space:nowrap; padding-bottom:3px;';
     timeEl.textContent = time;
 
-    // 상대 메시지: 말풍선 앞에 발신자 아이콘(GM=방패/골드, 일반=사람)
-    if (!mine) {
-        const isGm = Number(m.sender_gm);
-        const av = document.createElement('span');
-        av.style.cssText = `flex:0 0 30px; width:30px; height:30px; border-radius:50%; align-self:flex-start; display:flex; align-items:center; justify-content:center; font-size:0.82rem; border:1px solid var(--border-color); background:${isGm ? 'var(--primary-color)' : 'var(--surface-2)'}; color:${isGm ? '#0e0d11' : 'var(--text-secondary)'};`;
-        av.innerHTML = `<i class="fas ${isGm ? 'fa-user-shield' : 'fa-user'}"></i>`;
-        row.appendChild(av);
-    }
+    // 말풍선 앞에 발신 캐릭터 종족 아이콘(대표 캐릭터가 바뀌면 그 종족으로 바뀜)
+    const av = document.createElement('span');
+    av.style.cssText = 'flex:0 0 30px; width:30px; height:30px; border-radius:50%; align-self:flex-start; overflow:hidden; display:flex; align-items:center; justify-content:center; border:1px solid var(--border-color); background:var(--surface-2);';
+    av.innerHTML = `<img src="${chatRaceIcon(m.race, m.gender)}" alt="" style="width:100%; height:100%; object-fit:cover;" onerror="this.style.display='none'">`;
+    row.appendChild(av);
     row.appendChild(wrap);
     row.appendChild(timeEl);
     return row;
@@ -7479,6 +7484,8 @@ async function sendRoomChat(roomKey) {
             appendChatBubble({
                 chat_type: chat_type, channel_name: channel_name, target_name: target_name,
                 sender_name: data.sender || ingameChatMyName(), sender_gm: 1,
+                race: (window.currentUserMainChar && currentUserMainChar.race) || 0,
+                gender: (window.currentUserMainChar && currentUserMainChar.gender) || 0,
                 message: message, created_at: ingameChatNowStr()
             });
         } else if (window.ModalUtils) {

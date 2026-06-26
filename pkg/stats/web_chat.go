@@ -148,19 +148,21 @@ func handleWebChatFetch(w http.ResponseWriter, r *http.Request) {
 	}
 	defer db.Close()
 
-	base := "SELECT id, chat_type, channel_name, sender_name, sender_gm, target_name, message, created_at FROM web_ingame_chat WHERE 1=1" + typeClause
+	base := `SELECT w.id, w.chat_type, w.channel_name, w.sender_name, w.sender_gm, w.target_name, w.message, w.created_at, IFNULL(c.race,0), IFNULL(c.gender,0)
+		FROM web_ingame_chat w LEFT JOIN characters c ON c.name = w.sender_name
+		WHERE 1=1` + typeClause
 	args := append([]interface{}{}, typeArgs...)
 	reverse := false // DESC로 받아 ASC로 뒤집어야 하는지
 	var q string
 	if before > 0 {
-		q = base + " AND id < ? ORDER BY id DESC LIMIT ?"
+		q = base + " AND w.id < ? ORDER BY w.id DESC LIMIT ?"
 		args = append(args, before, limit)
 		reverse = true
 	} else if after > 0 {
-		q = base + " AND id > ? ORDER BY id ASC LIMIT ?"
+		q = base + " AND w.id > ? ORDER BY w.id ASC LIMIT ?"
 		args = append(args, after, limit)
 	} else {
-		q = base + " ORDER BY id DESC LIMIT ?"
+		q = base + " ORDER BY w.id DESC LIMIT ?"
 		args = append(args, limit)
 		reverse = true
 	}
@@ -175,9 +177,9 @@ func handleWebChatFetch(w http.ResponseWriter, r *http.Request) {
 	items := make([]map[string]interface{}, 0)
 	maxID, minID := after, 0
 	for rows.Next() {
-		var id, gm int
+		var id, gm, race, gender int
 		var ctypeV, channel, sender, target, msg, created string
-		if rows.Scan(&id, &ctypeV, &channel, &sender, &gm, &target, &msg, &created) != nil {
+		if rows.Scan(&id, &ctypeV, &channel, &sender, &gm, &target, &msg, &created, &race, &gender) != nil {
 			continue
 		}
 		if id > maxID {
@@ -189,7 +191,7 @@ func handleWebChatFetch(w http.ResponseWriter, r *http.Request) {
 		items = append(items, map[string]interface{}{
 			"id": id, "chat_type": ctypeV, "channel_name": channel,
 			"sender_name": sender, "sender_gm": gm, "target_name": target,
-			"message": msg, "created_at": created,
+			"message": msg, "created_at": created, "race": race, "gender": gender,
 		})
 	}
 	if reverse {
@@ -334,7 +336,7 @@ func handleGuildChatFetch(w http.ResponseWriter, r *http.Request) {
 		limit = 100
 	}
 
-	base := `SELECT w.id, w.chat_type, w.sender_name, w.sender_gm, w.message, w.created_at
+	base := `SELECT w.id, w.chat_type, w.sender_name, w.sender_gm, w.message, w.created_at, c.race, c.gender
 		FROM web_ingame_chat w
 		JOIN characters c ON c.name = w.sender_name
 		JOIN guild_member gm ON gm.guid = c.guid
@@ -365,9 +367,9 @@ func handleGuildChatFetch(w http.ResponseWriter, r *http.Request) {
 	items := make([]map[string]interface{}, 0)
 	maxID, minID := after, 0
 	for rows.Next() {
-		var id, gm int
+		var id, gm, race, gender int
 		var ctypeV, sender, msg, created string
-		if rows.Scan(&id, &ctypeV, &sender, &gm, &msg, &created) != nil {
+		if rows.Scan(&id, &ctypeV, &sender, &gm, &msg, &created, &race, &gender) != nil {
 			continue
 		}
 		if id > maxID {
@@ -378,7 +380,7 @@ func handleGuildChatFetch(w http.ResponseWriter, r *http.Request) {
 		}
 		items = append(items, map[string]interface{}{
 			"id": id, "chat_type": ctypeV, "sender_name": sender, "sender_gm": gm,
-			"message": msg, "created_at": created,
+			"message": msg, "created_at": created, "race": race, "gender": gender,
 		})
 	}
 	if reverse {
