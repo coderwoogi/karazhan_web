@@ -2610,6 +2610,11 @@ function App() {
                 <div key={`g-${m.id}`} className={`guild-msg${mine ? ' mine' : ''}`}>
                   {!mine ? <span className="guild-msg-name">{m.sender_name}{Number(m.sender_gm) ? ' <GM>' : ''}</span> : null}
                   <div className="guild-msg-row">
+                    {!mine ? (
+                      <span className={`guild-msg-avatar${Number(m.sender_gm) ? ' gm' : ''}`} aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 4-6.5 8-6.5s8 2.5 8 6.5" /></svg>
+                      </span>
+                    ) : null}
                     <span className="guild-msg-bubble">{m.message}</span>
                     {time ? <span className="guild-msg-time">{time}</span> : null}
                   </div>

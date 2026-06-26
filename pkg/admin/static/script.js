@@ -7414,6 +7414,14 @@ function buildBubbleRow(m) {
     timeEl.style.cssText = 'font-size:0.62rem; color:var(--text-dim); white-space:nowrap; padding-bottom:3px;';
     timeEl.textContent = time;
 
+    // 상대 메시지: 말풍선 앞에 발신자 아이콘(GM=방패/골드, 일반=사람)
+    if (!mine) {
+        const isGm = Number(m.sender_gm);
+        const av = document.createElement('span');
+        av.style.cssText = `flex:0 0 30px; width:30px; height:30px; border-radius:50%; align-self:flex-start; display:flex; align-items:center; justify-content:center; font-size:0.82rem; border:1px solid var(--border-color); background:${isGm ? 'var(--primary-color)' : 'var(--surface-2)'}; color:${isGm ? '#0e0d11' : 'var(--text-secondary)'};`;
+        av.innerHTML = `<i class="fas ${isGm ? 'fa-user-shield' : 'fa-user'}"></i>`;
+        row.appendChild(av);
+    }
     row.appendChild(wrap);
     row.appendChild(timeEl);
     return row;
