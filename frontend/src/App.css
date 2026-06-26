@@ -5419,3 +5419,81 @@ select.public-board-select {
 .guild-chat-composer input{flex:1;min-width:0;border:1px solid var(--kz-line);border-radius:10px;padding:9px 12px;font-size:14px;color:var(--kz-text);background:#fff;}
 .guild-chat-composer input:focus{outline:none;border-color:var(--kz-blue);}
 @media (max-width:560px){.guild-chat-drawer{width:100vw;}}
+
+/* ── 마이페이지 (시안: mobile-c1 SCREEN1 · 스톰윈드 라이트) ───────── */
+.mp1-shell{max-width:468px;margin:0 auto;}
+.mp-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.mp-head h2{font-size:19px;font-weight:900;color:var(--kz-ink);letter-spacing:-.4px;}
+.mp-ghost{font-size:12px;font-weight:700;color:var(--kz-blue);background:var(--kz-blue-soft);border:1px solid var(--kz-line);border-radius:18px;padding:6px 13px;cursor:pointer;font-family:inherit;}
+.mp-card{background:#fff;border:1px solid var(--kz-line);border-radius:18px;box-shadow:var(--kz-shadow);margin-bottom:14px;}
+.mp-profile{padding:20px 18px;text-align:center;background:linear-gradient(180deg,#f7fbff,#ffffff);}
+.mp-avatar{width:78px;height:78px;border-radius:50%;margin:0 auto 12px;overflow:hidden;border:3px solid #fff;box-shadow:0 8px 20px rgba(8,40,91,.3);background:linear-gradient(135deg,#5fa0f5,#0846a8);display:flex;align-items:center;justify-content:center;color:#fff;font-size:28px;font-weight:900;}
+.mp-avatar img{width:100%;height:100%;object-fit:cover;}
+.mp-name{font-size:20px;font-weight:900;color:var(--kz-ink);}
+.mp-badge-admin{display:inline-block;vertical-align:middle;margin-left:6px;font-size:11px;font-weight:700;color:#fff;background:linear-gradient(135deg,var(--kz-gold,#d8a84d),#bb8a35);padding:2px 9px;border-radius:12px;}
+.mp-email{font-size:12px;color:var(--kz-muted);margin-top:5px;}
+.mp-point-box{margin:16px 0 6px;padding:14px;background:linear-gradient(135deg,#fff8e9,#fdf0d2);border:1px solid #f0dcae;border-radius:14px;}
+.mp-plabel{font-size:12px;color:#9a7b35;font-weight:700;}
+.mp-pval{font-size:30px;font-weight:900;color:var(--kz-gold,#d8a84d);letter-spacing:-.5px;}
+.mp-info-grid{display:flex;border-top:1px solid var(--kz-line);margin-top:14px;}
+.mp-ig{flex:1;padding:12px 6px;text-align:center;}
+.mp-ig + .mp-ig{border-left:1px solid var(--kz-line);}
+.mp-ig small{display:block;font-size:11px;color:var(--kz-muted);margin-bottom:3px;}
+.mp-ig b{font-size:14px;color:var(--kz-text);font-weight:700;}
+.mp-menu{overflow:hidden;}
+.mp-menu-row{width:100%;display:flex;align-items:center;gap:12px;padding:15px 16px;border:0;border-bottom:1px solid var(--kz-line);cursor:pointer;background:#fff;text-align:left;font-family:inherit;}
+.mp-menu-row:last-child{border-bottom:none;}
+.mp-menu-row:hover{background:var(--kz-blue-soft);}
+.mp-mi{flex:0 0 34px;width:34px;height:34px;border-radius:10px;background:var(--kz-blue-soft);color:var(--kz-blue);display:flex;align-items:center;justify-content:center;font-size:16px;}
+.mp-mtxt{flex:1;font-size:14px;font-weight:500;color:var(--kz-text);}
+.mp-mchev{color:var(--kz-muted);font-size:16px;}
+.mp-block-title{font-size:13px;font-weight:700;color:var(--kz-ink);margin:4px 2px 10px;}
+.mp-point-prev{padding:0;}
+.mp-pr{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--kz-line);}
+.mp-pr:last-child{border-bottom:none;}
+.mp-pl b{font-size:13px;font-weight:500;color:var(--kz-text);}
+.mp-pl small{display:block;font-size:11px;color:var(--kz-muted);}
+.mp-amt{font-size:14px;font-weight:700;}
+.mp-amt.plus{color:var(--kz-green,#1f9d57);}
+.mp-amt.minus{color:#d23b3b;}
+.mp-empty{padding:18px 16px;text-align:center;color:var(--kz-muted);font-size:13px;}
+.mp-more{width:100%;padding:12px;border:0;border-top:1px solid var(--kz-line);background:#fff;color:var(--kz-blue);font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;}
+.mp-logout{width:100%;padding:14px;margin-top:2px;background:#fff;border:1px solid var(--kz-line);border-radius:14px;color:#d23b3b;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;}
+
+/* 마이페이지: PC 전용 데스크톱 레이아웃 (모바일 시안은 기본/세로 스택) */
+.mp-side{display:flex;flex-direction:column;}
+@media (min-width:860px){
+  .mp1-shell{
+    max-width:980px;
+    display:grid;
+    grid-template-columns:344px 1fr;
+    gap:20px;
+    align-items:start;
+  }
+  .mp-head{grid-column:1 / -1;margin-bottom:4px;}
+  .mp-head h2{font-size:22px;}
+  .mp-profile{margin-bottom:0;}
+  .mp-side{gap:0;}
+  .mp-block-title{font-size:14px;margin-top:6px;}
+  .mp-menu-row{padding:16px 18px;}
+  .mp-pr{padding:14px 18px;}
+}
+
+/* 길드 채팅 — 제재(모더레이션) UI */
+.guild-chat-penalty{display:flex;flex-direction:column;gap:2px;padding:10px 14px;background:#fdecec;border-bottom:1px solid #f3c9c9;color:#b3261e;font-size:12px;line-height:1.5;}
+.guild-chat-penalty strong{font-size:13px;font-weight:800;}
+.guild-chat-penalty-until{color:#8a4b16;}
+.guild-msg-avatar.mod-click{cursor:pointer;outline:none;}
+.guild-msg-avatar.mod-click:hover{box-shadow:0 0 0 2px var(--kz-blue,#075fd0);border-radius:50%;}
+.guild-msg-avatar.mod-click:focus-visible{box-shadow:0 0 0 2px var(--kz-blue,#075fd0);border-radius:50%;}
+.guild-mod-overlay{position:absolute;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(8,20,40,.45);}
+.guild-mod-panel{width:100%;max-width:300px;background:#fff;border:1px solid var(--kz-line,#d8e7fb);border-radius:16px;box-shadow:0 18px 50px rgba(8,40,91,.3);padding:16px;}
+.guild-mod-title{font-size:14px;color:var(--kz-ink,#08285b);margin-bottom:10px;}
+.guild-mod-title b{font-weight:800;}
+.guild-mod-reason{width:100%;min-height:56px;resize:vertical;border:1px solid var(--kz-line,#d8e7fb);border-radius:10px;padding:8px 10px;font-size:13px;font-family:inherit;color:var(--kz-text,#1a2a42);box-sizing:border-box;}
+.guild-mod-actions{display:flex;flex-direction:column;gap:8px;margin-top:12px;}
+.guild-mod-actions button{padding:10px;border:1px solid var(--kz-line,#d8e7fb);border-radius:10px;background:var(--kz-blue-soft,#eaf3ff);color:var(--kz-blue,#075fd0);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;}
+.guild-mod-actions button:hover{filter:brightness(.97);}
+.guild-mod-actions button.danger{background:#fdecec;border-color:#f3c9c9;color:#b3261e;}
+.guild-mod-actions button:disabled{opacity:.5;cursor:default;}
+.guild-mod-cancel{width:100%;margin-top:12px;padding:9px;border:0;background:none;color:var(--kz-muted,#6e7f96);font-size:13px;cursor:pointer;font-family:inherit;}

@@ -73,6 +73,13 @@ func RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/chat/guild/fetch", handleGuildChatFetch)
 	mux.HandleFunc("/api/chat/guild/send", handleGuildChatSend)
 
+	// 채팅 제재(GM/관리자) + 피제재 상태 조회
+	mux.HandleFunc("/api/chat/mod/delete", handleChatModDelete)
+	mux.HandleFunc("/api/chat/mod/penalize", handleChatModPenalize)
+	mux.HandleFunc("/api/chat/mod/lift", handleChatModLift)
+	mux.HandleFunc("/api/chat/mod/can", handleChatModCan)
+	mux.HandleFunc("/api/chat/penalty/me", handleChatPenaltyMe)
+
 	// Content - BlackMarket
 	mux.HandleFunc("/api/content/blackmarket/list", handleBlackMarketItemList)
 	mux.HandleFunc("/api/content/blackmarket/add", handleBlackMarketItemAdd)

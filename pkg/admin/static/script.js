@@ -7278,6 +7278,8 @@ const CHAT_PAGE_SIZE = 100; // 방별 1회 로드 건수(최근/과거)
 async function startIngameChat() {
     IngameChat.lastId = 0;
     IngameChat.echoedIds = new Set();
+    IngameChat.seenIds = new Set(); // 표시한 메시지 id 전체(멱등 중복방지)
+    IngameChat.sending = false;     // 전송 재진입(더블 POST) 가드
     IngameChat.rooms = {}; // key -> { oldestId, loading, noMore }
     buildChatRooms();
     // 방별 최근 100건 로드(과거는 위로 스크롤 시 추가) + 스크롤 핸들러 연결
@@ -7318,11 +7320,8 @@ async function pollIngameChat() {
         const data = await res.json();
         if (!data || !Array.isArray(data.items)) return;
         if (data.lastId) IngameChat.lastId = Math.max(IngameChat.lastId, Number(data.lastId) || 0);
-        const echoed = IngameChat.echoedIds;
-        const fresh = (echoed && echoed.size)
-            ? data.items.filter(it => { const k = Number(it.id); if (echoed.has(k)) { echoed.delete(k); return false; } return true; })
-            : data.items;
-        fresh.forEach(appendChatBubble);
+        // 멱등 dedup은 appendChatBubble(seenIds)이 담당 — 폴링은 그대로 흘려보냄
+        data.items.forEach(appendChatBubble);
     } catch (e) { /* 폴링 실패 무시 */ }
 }
 
@@ -7340,7 +7339,10 @@ async function loadRoomOlder(room) {
         if (!data || !Array.isArray(data.items) || !data.items.length) { st.noMore = true; return; }
         const prevH = box.scrollHeight;
         const anchor = box.firstChild;
-        data.items.forEach(m => box.insertBefore(buildBubbleRow(m), anchor)); // ASC 순서로 위에 삽입
+        data.items.forEach(m => { // ASC 순서로 위에 삽입
+            if (m.id != null && IngameChat.seenIds) IngameChat.seenIds.add(Number(m.id));
+            box.insertBefore(buildBubbleRow(m), anchor);
+        });
         box.scrollTop += box.scrollHeight - prevH; // 보던 위치 유지
         st.oldestId = Number(data.oldestId) || st.oldestId;
         st.noMore = !data.hasMore;
@@ -7398,6 +7400,7 @@ function buildBubbleRow(m) {
     const gm = Number(m.sender_gm) ? '<span style="color:var(--primary-color); font-weight:800;">&lt;GM&gt;</span> ' : '';
 
     const row = document.createElement('div');
+    if (m.id != null) row.dataset.msgId = String(m.id); // 삭제 시 DOM 탐색용
     row.style.cssText = `display:flex; gap:6px; align-items:flex-end; ${mine ? 'flex-direction:row-reverse;' : 'flex-direction:row;'}`;
 
     const wrap = document.createElement('div');
@@ -7426,16 +7429,84 @@ function buildBubbleRow(m) {
     const av = document.createElement('span');
     av.style.cssText = 'flex:0 0 30px; width:30px; height:30px; border-radius:50%; align-self:flex-start; overflow:hidden; display:flex; align-items:center; justify-content:center; border:1px solid var(--border-color); background:var(--surface-2);';
     av.innerHTML = `<img src="${chatRaceIcon(m.race, m.gender)}" alt="" style="width:100%; height:100%; object-fit:cover;" onerror="this.style.display='none'">`;
+    // 상대(내 메시지가 아닌) 아바타 클릭 → 제재 메뉴
+    if (!mine && (m.id || m.sender_name)) {
+        av.style.cursor = 'pointer';
+        av.title = '제재 메뉴 열기';
+        av.addEventListener('click', () => openChatModMenu(m));
+    }
     row.appendChild(av);
     row.appendChild(wrap);
     row.appendChild(timeEl);
     return row;
 }
 
+// 메시지 id로 모든 대화방의 해당 말풍선 제거(삭제 즉시 반영)
+function removeChatBubbleById(id) {
+    if (id == null) return;
+    document.querySelectorAll(`[data-msg-id="${id}"]`).forEach(el => el.remove());
+}
+
+// 상대 아바타 클릭 시 제재 메뉴(SweetAlert2) — 삭제/뮤트/웹밴 + 사유
+async function openChatModMenu(m) {
+    const sender = String(m.sender_name || '').trim();
+    const msgId = Number(m.id) || 0;
+    if (!sender && !msgId) return;
+    if (!ModalUtils.hasSwal()) { if (window.ModalUtils) ModalUtils.showAlert('제재 UI를 사용할 수 없습니다.'); return; }
+
+    const { value: form } = await Swal.fire({
+        title: `제재 — ${sender || '대상'}`,
+        html: `
+            <select id="ig-mod-action" class="swal2-select" style="display:block;width:100%;margin:0 0 8px;padding:8px;">
+                <option value="mute5">5분 대화 정지</option>
+                <option value="mute60">1시간 대화 정지</option>
+                <option value="mute1440">1일 대화 정지</option>
+                <option value="webban">웹밴 (영구)</option>
+                ${msgId ? '<option value="delete">이 메시지 삭제</option>' : ''}
+            </select>
+            <textarea id="ig-mod-reason" class="swal2-textarea" style="margin:0;" placeholder="사유 (선택 · 피제재자 화면에 표시)" maxlength="255"></textarea>`,
+        focusConfirm: false,
+        showCancelButton: true,
+        confirmButtonText: '적용',
+        cancelButtonText: '취소',
+        preConfirm: () => ({
+            action: (document.getElementById('ig-mod-action') || {}).value || 'mute5',
+            reason: ((document.getElementById('ig-mod-reason') || {}).value || '').trim()
+        })
+    });
+    if (!form) return;
+
+    try {
+        let res;
+        if (form.action === 'delete') {
+            res = await fetch('/api/chat/mod/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: msgId, reason: form.reason }) });
+        } else {
+            const body = { target: sender, reason: form.reason };
+            if (form.action === 'webban') body.kind = 'webban';
+            else { body.kind = 'mute'; body.minutes = form.action === 'mute60' ? 60 : form.action === 'mute1440' ? 1440 : 5; }
+            res = await fetch('/api/chat/mod/penalize', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        }
+        const data = await res.json().catch(() => ({}));
+        if (data.status === 'success') {
+            if (form.action === 'delete' && msgId) removeChatBubbleById(msgId);
+            if (window.ModalUtils) ModalUtils.showAlert(form.action === 'delete' ? '메시지를 삭제했습니다.' : '제재를 적용했습니다.');
+        } else if (window.ModalUtils) {
+            ModalUtils.showAlert(data.message || '처리에 실패했습니다.');
+        }
+    } catch (e) {
+        if (window.ModalUtils) ModalUtils.showAlert('처리 중 오류가 발생했습니다.');
+    }
+}
+
 // 말풍선을 해당 채널 대화방 하단에 추가(맨 아래 보고 있으면 자동 스크롤)
 function appendChatBubble(m) {
     const box = document.getElementById('ig-room-msgs-' + chatTypeToRoomKey(m.chat_type));
     if (!box) return;
+    if (m && m.id != null && IngameChat.seenIds) { // 멱등 중복 차단
+        const k = Number(m.id);
+        if (IngameChat.seenIds.has(k)) return;
+        IngameChat.seenIds.add(k);
+    }
     const atBottom = (box.scrollHeight - box.scrollTop - box.clientHeight) < 80;
     box.appendChild(buildBubbleRow(m));
     if (atBottom) box.scrollTop = box.scrollHeight;
@@ -7467,6 +7538,8 @@ async function sendRoomChat(roomKey) {
         if (!target_name) { if (window.ModalUtils) ModalUtils.showAlert('귓속말 대상 캐릭터를 입력해주세요.'); return; }
     }
 
+    if (IngameChat.sending) return; // 더블 전송 방지
+    IngameChat.sending = true;
     try {
         const res = await fetch('/api/chat/ingame/send', {
             method: 'POST',
@@ -7479,7 +7552,7 @@ async function sendRoomChat(roomKey) {
             input.focus();
             if (data.sender) IngameChat.myName = data.sender;
             // 영구화된 동일 메시지가 폴링으로 다시 와도 중복 표시되지 않도록 echo id 등록
-            if (data.echoId) { IngameChat.echoedIds = IngameChat.echoedIds || new Set(); IngameChat.echoedIds.add(Number(data.echoId)); }
+            if (data.echoId) { IngameChat.seenIds = IngameChat.seenIds || new Set(); IngameChat.seenIds.add(Number(data.echoId)); }
             // 낙관적 echo — 내가 보낸 메시지를 즉시 해당 방 오른쪽 말풍선으로 표시
             appendChatBubble({
                 chat_type: chat_type, channel_name: channel_name, target_name: target_name,
@@ -7493,6 +7566,8 @@ async function sendRoomChat(roomKey) {
         }
     } catch (e) {
         if (window.ModalUtils) ModalUtils.showAlert('전송 중 오류가 발생했습니다.');
+    } finally {
+        IngameChat.sending = false;
     }
 }
 

@@ -1069,8 +1069,14 @@ function App() {
   const [guildMyName, setGuildMyName] = useState('')
   const [guildInput, setGuildInput] = useState('')
   const guildLastIdRef = useRef(0)
-  const guildEchoRef = useRef(new Set())
+  const guildSeenRef = useRef(new Set()) // 표시한 메시지 id 전체(멱등 중복방지)
+  const guildSendingRef = useRef(false)  // 전송 재진입(더블 POST) 가드
   const guildListRef = useRef(null)
+  const [guildIsMod, setGuildIsMod] = useState(false)        // GM/관리자 여부(제재 메뉴 노출)
+  const [guildPenalty, setGuildPenalty] = useState(null)     // 내 활성 제재 { kind, reason, expiresAt, message }
+  const [guildModTarget, setGuildModTarget] = useState(null) // 제재 대상 { name, msgId }
+  const [guildModReason, setGuildModReason] = useState('')
+  const [guildModBusy, setGuildModBusy] = useState(false)
   const [commentHighlightRequest, setCommentHighlightRequest] = useState({ tick: 0, fallbackLatest: false })
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [userLoaded, setUserLoaded] = useState(false)
@@ -1621,44 +1627,90 @@ function App() {
       const newLast = Number(data.lastId) || 0
       guildLastIdRef.current = initial ? newLast : Math.max(guildLastIdRef.current, newLast)
       const items = asArray(data.items)
+      const seen = guildSeenRef.current
       if (initial) {
-        guildEchoRef.current = new Set()
+        seen.clear()
+        items.forEach((it) => { if (it && it.id != null) seen.add(Number(it.id)) })
         setGuildMessages(items)
       } else if (items.length) {
-        const echo = guildEchoRef.current
-        const fresh = items.filter((it) => { const k = Number(it.id); if (echo.has(k)) { echo.delete(k); return false } return true })
+        // 본 적 있는 id는 무조건 제외(멱등) — echo/폴링 중복 모두 차단
+        const fresh = items.filter((it) => { const k = Number(it.id); if (seen.has(k)) return false; seen.add(k); return true })
         if (fresh.length) setGuildMessages((prev) => [...prev, ...fresh])
       }
     } catch (e) { /* 폴링 실패 무시 */ }
   }, [])
 
-  // 길드 채팅: 전송(대표 캐릭터, GM 아님) + 낙관적 echo
+  // 길드 채팅: 전송(대표 캐릭터, GM 아님) + 낙관적 echo + 재진입/제재 처리
   const sendGuildChat = useCallback(async () => {
+    if (guildSendingRef.current) return // 더블 전송 방지
     const message = guildInput.trim()
     if (!message) return
+    guildSendingRef.current = true
     try {
       const data = await apiFetch('/api/chat/guild/send', { method: 'POST', body: JSON.stringify({ message }) })
       if (data && data.status === 'success') {
         setGuildInput('')
         if (data.sender) setGuildMyName(data.sender)
-        if (data.echoId) guildEchoRef.current.add(Number(data.echoId))
+        const echoId = Number(data.echoId) || 0
+        if (echoId) guildSeenRef.current.add(echoId) // 폴링 재수신 시 중복 방지
         const sender = data.sender || guildMyName
-        setGuildMessages((prev) => [...prev, { id: `echo-${data.echoId || Date.now()}`, chat_type: 'guild', sender_name: sender, sender_gm: 0, race: user?.mainCharacter?.race || 0, gender: user?.mainCharacter?.gender || 0, message, created_at: '' }])
+        setGuildMessages((prev) => [...prev, { id: echoId || `echo-${Date.now()}`, chat_type: 'guild', sender_name: sender, sender_gm: 0, race: user?.mainCharacter?.race || 0, gender: user?.mainCharacter?.gender || 0, message, created_at: '' }])
       }
     } catch (e) {
       let msg = '전송에 실패했습니다.'
+      try {
+        const j = JSON.parse(e?.message || '{}')
+        if (j.message) msg = j.message
+        if (j.penalized) setGuildPenalty({ kind: j.kind, reason: j.reason, expiresAt: j.expiresAt, message: j.message }) // 제재 배너 갱신
+      } catch (_) { /* keep */ }
+      await showAlert(msg)
+    } finally {
+      guildSendingRef.current = false
+    }
+  }, [guildInput, guildMyName, showAlert, user])
+
+  // 길드 채팅: 모더레이터 권한 + 내 제재상태 로드(드로어 열 때)
+  const loadGuildModState = useCallback(async () => {
+    try { const can = await apiFetch('/api/chat/mod/can'); setGuildIsMod(!!(can && can.moderator)) } catch (_) { setGuildIsMod(false) }
+    try {
+      const pen = await apiFetch('/api/chat/penalty/me')
+      setGuildPenalty(pen && pen.penalized ? { kind: pen.kind, reason: pen.reason, expiresAt: pen.expiresAt, message: pen.message } : null)
+    } catch (_) { /* ignore */ }
+  }, [])
+
+  // 길드 채팅: 제재 실행(삭제/뮤트/웹밴)
+  const runGuildModAction = useCallback(async (action) => {
+    if (!guildModTarget || guildModBusy) return
+    const reason = guildModReason.trim()
+    setGuildModBusy(true)
+    try {
+      if (action === 'delete') {
+        const r = await apiFetch('/api/chat/mod/delete', { method: 'POST', body: JSON.stringify({ id: Number(guildModTarget.msgId) || 0, reason }) })
+        if (r && r.status === 'success') setGuildMessages((prev) => prev.filter((m) => Number(m.id) !== Number(guildModTarget.msgId)))
+      } else {
+        const body = { target: guildModTarget.name, reason }
+        if (action === 'webban') { body.kind = 'webban' } else { body.kind = 'mute'; body.minutes = action === 'mute60' ? 60 : action === 'mute1440' ? 1440 : 5 }
+        await apiFetch('/api/chat/mod/penalize', { method: 'POST', body: JSON.stringify(body) })
+      }
+      setGuildModTarget(null)
+      setGuildModReason('')
+    } catch (e) {
+      let msg = '처리에 실패했습니다.'
       try { const j = JSON.parse(e?.message || '{}'); if (j.message) msg = j.message } catch (_) { /* keep */ }
       await showAlert(msg)
+    } finally {
+      setGuildModBusy(false)
     }
-  }, [guildInput, guildMyName, showAlert])
+  }, [guildModTarget, guildModReason, guildModBusy, showAlert])
 
   // 길드 채팅 드로어 열림 시 초기 로드 + 4초 폴링
   useEffect(() => {
     if (!guildChatOpen || !user) return undefined
     loadGuildChat(true)
+    loadGuildModState()
     const t = setInterval(() => loadGuildChat(false), 4000)
     return () => clearInterval(t)
-  }, [guildChatOpen, user, loadGuildChat])
+  }, [guildChatOpen, user, loadGuildChat, loadGuildModState])
 
   // 새 메시지 시 하단으로 스크롤
   useEffect(() => {
@@ -2598,6 +2650,13 @@ function App() {
             <strong>길드 채팅</strong>
             <button type="button" className="button-reset guild-chat-close" aria-label="닫기" onClick={() => setGuildChatOpen(false)}>✕</button>
           </div>
+          {guildPenalty ? (
+            <div className="guild-chat-penalty">
+              <strong>{guildPenalty.kind === 'webban' ? '웹 채팅 이용정지' : '채팅 정지'}</strong>
+              <span>{guildPenalty.reason ? `사유: ${guildPenalty.reason}` : '사유 미기재'}</span>
+              {guildPenalty.expiresAt ? <span className="guild-chat-penalty-until">해제 예정: {guildPenalty.expiresAt}</span> : null}
+            </div>
+          ) : null}
           <div className="guild-chat-body" ref={guildListRef}>
             {!guildHasGuild ? (
               <div className="guild-chat-empty">가입된 길드가 없습니다.<br />대표 캐릭터가 길드에 가입하면 이용할 수 있어요.</div>
@@ -2606,11 +2665,20 @@ function App() {
             ) : guildMessages.map((m) => {
               const mine = guildMyName && String(m.sender_name || '') === guildMyName
               const time = String(m.created_at || '').slice(11, 16)
+              const canMod = guildIsMod && !mine && !!m.sender_name
               return (
                 <div key={`g-${m.id}`} className={`guild-msg${mine ? ' mine' : ''}`}>
                   {!mine ? <span className="guild-msg-name">{m.sender_name}{Number(m.sender_gm) ? ' <GM>' : ''}</span> : null}
                   <div className="guild-msg-row">
-                    <span className="guild-msg-avatar" aria-hidden="true">
+                    <span
+                      className={`guild-msg-avatar${canMod ? ' mod-click' : ''}`}
+                      role={canMod ? 'button' : undefined}
+                      tabIndex={canMod ? 0 : undefined}
+                      aria-label={canMod ? `${m.sender_name} 제재 메뉴` : undefined}
+                      aria-hidden={canMod ? undefined : true}
+                      title={canMod ? '제재 메뉴 열기' : undefined}
+                      onClick={canMod ? (() => { setGuildModReason(''); setGuildModTarget({ name: m.sender_name, msgId: m.id }) }) : undefined}
+                    >
                       <img src={getRaceIcon(m.race, m.gender)} alt="" onError={(e) => { e.currentTarget.style.display = 'none' }} />
                     </span>
                     <span className="guild-msg-bubble">{m.message}</span>
@@ -2625,13 +2693,35 @@ function App() {
               type="text"
               value={guildInput}
               maxLength={512}
-              placeholder={guildHasGuild ? '길드 채팅 입력' : '길드 없음'}
-              disabled={!guildHasGuild}
+              placeholder={guildPenalty ? '채팅이 정지되어 있습니다' : (guildHasGuild ? '길드 채팅 입력' : '길드 없음')}
+              disabled={!guildHasGuild || !!guildPenalty}
               onChange={(e) => setGuildInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); sendGuildChat() } }}
             />
-            <button type="button" className="btn" disabled={!guildHasGuild} onClick={sendGuildChat}>전송</button>
+            <button type="button" className="btn" disabled={!guildHasGuild || !!guildPenalty} onClick={sendGuildChat}>전송</button>
           </div>
+          {guildModTarget ? (
+            <div className="guild-mod-overlay" onClick={() => { if (!guildModBusy) setGuildModTarget(null) }}>
+              <div className="guild-mod-panel" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+                <div className="guild-mod-title">제재 — <b>{guildModTarget.name}</b></div>
+                <textarea
+                  className="guild-mod-reason"
+                  placeholder="사유 (선택, 피제재자에게 표시됩니다)"
+                  maxLength={255}
+                  value={guildModReason}
+                  onChange={(e) => setGuildModReason(e.target.value)}
+                />
+                <div className="guild-mod-actions">
+                  <button type="button" disabled={guildModBusy} onClick={() => runGuildModAction('delete')}>이 메시지 삭제</button>
+                  <button type="button" disabled={guildModBusy} onClick={() => runGuildModAction('mute5')}>5분 정지</button>
+                  <button type="button" disabled={guildModBusy} onClick={() => runGuildModAction('mute60')}>1시간 정지</button>
+                  <button type="button" disabled={guildModBusy} onClick={() => runGuildModAction('mute1440')}>1일 정지</button>
+                  <button type="button" className="danger" disabled={guildModBusy} onClick={() => runGuildModAction('webban')}>웹밴(영구)</button>
+                </div>
+                <button type="button" className="guild-mod-cancel" disabled={guildModBusy} onClick={() => setGuildModTarget(null)}>닫기</button>
+              </div>
+            </div>
+          ) : null}
         </aside>
       ) : null}
       {mobileNavOpen ? <button type="button" className="nav-mobile-overlay button-reset" aria-label="모바일 메뉴 닫기" onClick={() => setMobileNavOpen(false)} /> : null}
@@ -3355,170 +3445,54 @@ function App() {
 
         {!boardId && screen === 'mypage' && user ? (
           <section className="section">
-            <div className="mypage-shell">
-              <div className="mypage-head">
-                <div>
-                  <div className="mypage-overline">내 정보</div>
-                  <h2>마이페이지</h2>
+            <div className="mp1-shell">
+              <div className="mp-head">
+                <h2>내 정보 / 마이페이지</h2>
+                <button type="button" className="mp-ghost" onClick={goHome}>{TEXT.home}</button>
+              </div>
+
+              <div className="mp-card mp-profile">
+                <div className="mp-avatar">
+                  {myPageMainCharacter
+                    ? <img src={getRaceIcon(myPageMainCharacter.race, myPageMainCharacter.gender)} alt="대표 캐릭터" />
+                    : <span>{String(user.username || welcomeName || '?').slice(0, 1)}</span>}
                 </div>
-                <div className="public-board-toolbar">
-                  <button className="btn" type="button" onClick={goHome}>{TEXT.home}</button>
+                <div className="mp-name">{user.username || welcomeName}{isAdmin(user) ? <span className="mp-badge-admin">관리자</span> : null}</div>
+                <div className="mp-email">{user.email || '등록된 이메일이 없습니다.'}</div>
+                <div className="mp-point-box">
+                  <div className="mp-plabel">웹 포인트</div>
+                  <div className="mp-pval">{Number(user.points || 0).toLocaleString()} P</div>
+                </div>
+                <div className="mp-info-grid">
+                  <div className="mp-ig"><small>대표 캐릭터</small><b>{myPageMainCharacter?.name || '미설정'}</b></div>
+                  <div className="mp-ig"><small>종족 / 직업</small><b>{myPageMainCharacter ? `${getRaceName(myPageMainCharacter.race)} / ${getClassName(myPageMainCharacter.class)}` : '-'}</b></div>
                 </div>
               </div>
 
-              <div className="mypage-grid">
-                <section id="mypage-profile" className="mypage-card mypage-profile-card">
-                  <div className="mypage-profile-main">
-                    <div className="mypage-avatar-frame">
-                      <img src={getRaceIcon(myPageMainCharacter?.race, myPageMainCharacter?.gender)} alt={`${welcomeName} 대표 캐릭터`} />
-                    </div>
-                    <div className="mypage-profile-copy">
-                      <div className="mypage-name-row">
-                        <strong>{user.username || welcomeName}</strong>
-                        {isAdmin(user) ? <span className="mypage-badge">관리자</span> : null}
-                      </div>
-                      <div className="mypage-mobile-cls">{myPageMainCharacter ? `${myPageMainCharacter.level} 레벨 · ${getClassName(myPageMainCharacter.class)}` : '대표 캐릭터 미설정'}</div>
-                      <p>{user.email || '등록된 이메일이 없습니다.'}</p>
-                      <div className="mypage-point-box">
-                        <span>웹 포인트</span>
-                        <strong>{Number(user.points || 0).toLocaleString()} P</strong>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="mypage-profile-summary">
-                    <div className="mypage-summary-item">
-                      <span>대표 캐릭터</span>
-                      <strong>{myPageMainCharacter?.name || user.username || '미설정'}</strong>
-                    </div>
-                    <div className="mypage-summary-item">
-                      <span>종족 / 직업</span>
-                      <strong>{myPageMainCharacter ? `${getRaceName(myPageMainCharacter.race)} / ${getClassName(myPageMainCharacter.class)}` : '-'}</strong>
-                    </div>
-                    <div className="mypage-summary-item">
-                      <span>레벨</span>
-                      <strong>{myPageMainCharacter ? `Lv.${myPageMainCharacter.level}` : '-'}</strong>
-                    </div>
-                  </div>
-                </section>
+              <div className="mp-side">
+              <div className="mp-card mp-menu">
+                <button type="button" className="mp-menu-row" onClick={() => navigate('/?view=characters')}><span className="mp-mi" aria-hidden="true">⚔</span><span className="mp-mtxt">캐릭터 관리</span><span className="mp-mchev" aria-hidden="true">›</span></button>
+                <button type="button" className="mp-menu-row" onClick={() => navigate('/?view=points')}><span className="mp-mi" aria-hidden="true">✦</span><span className="mp-mtxt">포인트 내역</span><span className="mp-mchev" aria-hidden="true">›</span></button>
+                <button type="button" className="mp-menu-row" onClick={() => navigate('/?view=mynoti')}><span className="mp-mi" aria-hidden="true">🔔</span><span className="mp-mtxt">알림함</span><span className="mp-mchev" aria-hidden="true">›</span></button>
+                <button type="button" className="mp-menu-row" onClick={() => navigate('/?view=myinquiries')}><span className="mp-mi" aria-hidden="true">📜</span><span className="mp-mtxt">문의 내역</span><span className="mp-mchev" aria-hidden="true">›</span></button>
+              </div>
 
-                <nav className="mypage-mobile-menu" aria-label="마이페이지 메뉴">
-                  <button type="button" className="mp-row" onClick={() => navigate('/?view=myinfo')}><span className="ic" aria-hidden="true">👤</span>내 정보<span className="cv" aria-hidden="true">›</span></button>
-                  <button type="button" className="mp-row" onClick={() => navigate('/?view=characters')}><span className="ic" aria-hidden="true">🛡</span>캐릭터 관리<span className="cv" aria-hidden="true">›</span></button>
-                  <button type="button" className="mp-row" onClick={() => navigate('/?view=points')}><span className="ic" aria-hidden="true">◈</span>포인트 내역<span className="cv" aria-hidden="true">›</span></button>
-                  <button type="button" className="mp-row" onClick={() => navigate('/?view=mynoti')}><span className="ic" aria-hidden="true">🔔</span>알림함<span className="cv" aria-hidden="true">›</span></button>
-                  <button type="button" className="mp-row" onClick={() => navigate('/?view=myinquiries')}><span className="ic" aria-hidden="true">✉</span>문의 내역<span className="cv" aria-hidden="true">›</span></button>
-                </nav>
-
-                <section id="mypage-characters" className="mypage-card mypage-character-section">
-                  <div className="mypage-section-head">
-                    <h3>대표 캐릭터 설정</h3>
-                    <span className="public-board-status">{myPageCharactersLoading ? '불러오는 중...' : `${myPageCharacters.length}명`}</span>
+              <div className="mp-block-title">포인트 내역</div>
+              <div className="mp-card mp-point-prev">
+                {myPagePointLogs.length ? myPagePointLogs.slice(0, 4).map((log, index) => (
+                  <div className="mp-pr" key={`mpp-${log.createdAt || 'pt'}-${index}`}>
+                    <div className="mp-pl"><b>{log.reason || '-'}</b><small>{formatDate(log.createdAt).slice(0, 10).replace(/-/g, '.')}</small></div>
+                    <div className={`mp-amt ${Number(log.amount || 0) >= 0 ? 'plus' : 'minus'}`}>{Number(log.amount || 0) >= 0 ? '+' : ''}{Number(log.amount || 0).toLocaleString()} P</div>
                   </div>
-                  {myPageCharactersLoading ? <div className="mypage-empty">캐릭터 목록을 불러오는 중입니다.</div> : null}
-                  {!myPageCharactersLoading && !myPageCharacters.length ? <div className="mypage-empty">등록된 캐릭터가 없습니다.</div> : null}
-                  {!myPageCharactersLoading && myPageCharacters.length ? (
-                    <div className="mypage-character-grid">
-                      {myPageCharacters.map((character) => {
-                        const active = Number(character.guid) === Number(myPageMainCharacter?.guid || 0)
-                        return (
-                          <button key={character.guid} type="button" className={`mypage-character-card${active ? ' active' : ''}`} onClick={() => handleSetMainCharacter(character)}>
-                            <div className="mypage-character-top">
-                              <img src={getRaceIcon(character.race, character.gender)} alt={`${character.name} 종족`} className="mypage-character-avatar" />
-                              <div className="mypage-character-copy">
-                                <strong>{character.name}</strong>
-                                <span>Lv.{character.level} {getRaceName(character.race)} / {getClassName(character.class)}</span>
-                              </div>
-                            </div>
-                            <div className="mypage-character-meta">
-                              <span>{getZoneName(character.map)}</span>
-                              <span>{active ? '대표 캐릭터' : '대표로 설정'}</span>
-                            </div>
-                          </button>
-                        )
-                      })}
-                    </div>
-                  ) : null}
-                </section>
+                )) : (
+                  <div className="mp-empty">{myPagePointLoading ? '불러오는 중...' : '포인트 이용 내역이 없습니다.'}</div>
+                )}
+                {myPagePointLogs.length > 4 ? (
+                  <button type="button" className="mp-more" onClick={() => navigate('/?view=points')}>포인트 내역 전체 보기 ›</button>
+                ) : null}
+              </div>
 
-                <section id="mypage-points" className="mypage-card mypage-points-card">
-                  <div className="mypage-section-head">
-                    <h3>포인트 이용 내역</h3>
-                    <span className="public-board-status">
-                      {myPagePointLoading ? '불러오는 중...' : `페이지 ${myPagePointPage} / ${myPagePointTotalPages}`}
-                    </span>
-                  </div>
-                  <ul className="mypage-mobile-points">
-                    {myPagePointLogs.length ? myPagePointLogs.slice(0, 4).map((log, index) => (
-                      <li key={`mp-${log.createdAt || 'pt'}-${index}`} className="pt-row">
-                        <div className="pt-info">
-                          <div className="rs">{log.reason || '-'}</div>
-                          <div className="dt">{formatDate(log.createdAt).slice(0, 10).replace(/-/g, '.')}</div>
-                        </div>
-                        <div className={`am ${Number(log.amount || 0) >= 0 ? 'plus' : 'minus'}`}>
-                          {Number(log.amount || 0) >= 0 ? '+' : ''}{Number(log.amount || 0).toLocaleString()} P
-                        </div>
-                      </li>
-                    )) : (
-                      <li className="pt-row pt-empty">{myPagePointLoading ? '포인트 내역을 불러오는 중입니다.' : '포인트 이용 내역이 없습니다.'}</li>
-                    )}
-                  </ul>
-                  {myPagePointLogs.length > 4 ? (
-                    <button type="button" className="mypage-points-more" onClick={() => navigate('/?view=points')}>포인트 내역 전체 보기 ›</button>
-                  ) : null}
-                  <div className="mypage-point-table-wrap">
-                    <table className="mypage-point-table">
-                      <thead>
-                        <tr><th>변동</th><th>사유</th><th>시간</th></tr>
-                      </thead>
-                      <tbody>
-                        {myPagePointLogs.length ? (
-                          <>
-                            {myPagePointLogs.map((log, index) => (
-                              <tr key={`${log.createdAt || 'point'}-${index}`}>
-                                <td className={Number(log.amount || 0) >= 0 ? 'mypage-point-plus' : 'mypage-point-minus'}>
-                                  {Number(log.amount || 0) >= 0 ? '+' : ''}{Number(log.amount || 0).toLocaleString()}
-                                </td>
-                                <td>{log.reason || '-'}</td>
-                                <td>{formatDate(log.createdAt)}</td>
-                              </tr>
-                            ))}
-                            {Array.from({ length: myPagePointFillCount }).map((_, index) => (
-                              <tr key={`point-fill-${index}`} className="mypage-point-filler-row" aria-hidden="true">
-                                <td>&nbsp;</td>
-                                <td>&nbsp;</td>
-                                <td>&nbsp;</td>
-                              </tr>
-                            ))}
-                          </>
-                        ) : myPagePointLoading ? (
-                          <tr><td colSpan={3} className="empty-cell">포인트 내역을 불러오는 중입니다.</td></tr>
-                        ) : (
-                          <>
-                            <tr><td colSpan={3} className="empty-cell">포인트 이용 내역이 없습니다.</td></tr>
-                            {Array.from({ length: 19 }).map((_, index) => (
-                              <tr key={`point-empty-fill-${index}`} className="mypage-point-filler-row" aria-hidden="true">
-                                <td>&nbsp;</td>
-                                <td>&nbsp;</td>
-                                <td>&nbsp;</td>
-                              </tr>
-                            ))}
-                          </>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                  {myPagePointTotalPages > 1 ? (
-                    <div className="public-board-pager">
-                      <button type="button" disabled={myPagePointLoading || myPagePointPage <= 1} onClick={() => setMyPagePointPage((prev) => Math.max(1, prev - 1))}>{TEXT.previous}</button>
-                      <button type="button" disabled>{myPagePointPage} / {myPagePointTotalPages}</button>
-                      <button type="button" disabled={myPagePointLoading || myPagePointPage >= myPagePointTotalPages} onClick={() => setMyPagePointPage((prev) => Math.min(myPagePointTotalPages, prev + 1))}>{TEXT.next}</button>
-                    </div>
-                  ) : null}
-                </section>
-
-                <div className="mypage-mobile-logout">
-                  <button type="button" className="btn mypage-logout-btn" onClick={handleLogout}>로그아웃</button>
-                </div>
+              <button type="button" className="mp-logout" onClick={handleLogout}>로그아웃</button>
               </div>
             </div>
           </section>
