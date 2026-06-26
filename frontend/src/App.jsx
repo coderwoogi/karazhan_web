@@ -2650,6 +2650,10 @@ function App() {
             <strong>길드 채팅</strong>
             <button type="button" className="button-reset guild-chat-close" aria-label="닫기" onClick={() => setGuildChatOpen(false)}>✕</button>
           </div>
+          <div className="guild-chat-notice" role="note">
+            <span className="guild-chat-notice-ic" aria-hidden="true">🔗</span>
+            <span>해당 채팅은 인게임 길드채팅과 연동돼있습니다.</span>
+          </div>
           {guildPenalty ? (
             <div className="guild-chat-penalty">
               <strong>{guildPenalty.kind === 'webban' ? '웹 채팅 이용정지' : '채팅 정지'}</strong>
