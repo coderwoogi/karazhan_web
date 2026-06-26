@@ -389,6 +389,14 @@ function BellIcon() {
   )
 }
 
+function ChatIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+    </svg>
+  )
+}
+
 function formatAuctionCoins(value) {
   const amount = Math.max(0, Number(value || 0))
   const gold = Math.floor(amount / 10000)
@@ -1054,6 +1062,15 @@ function App() {
   const [notificationSearch, setNotificationSearch] = useState('')
   const [notificationCategory, setNotificationCategory] = useState('')
   const [notificationCenterLoading, setNotificationCenterLoading] = useState(false)
+  // 길드 채팅(우측 드로어)
+  const [guildChatOpen, setGuildChatOpen] = useState(false)
+  const [guildMessages, setGuildMessages] = useState([])
+  const [guildHasGuild, setGuildHasGuild] = useState(true)
+  const [guildMyName, setGuildMyName] = useState('')
+  const [guildInput, setGuildInput] = useState('')
+  const guildLastIdRef = useRef(0)
+  const guildEchoRef = useRef(new Set())
+  const guildListRef = useRef(null)
   const [commentHighlightRequest, setCommentHighlightRequest] = useState({ tick: 0, fallbackLatest: false })
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [userLoaded, setUserLoaded] = useState(false)
@@ -1592,6 +1609,64 @@ function App() {
       await showAlert(error?.message || '알림 목록을 불러오지 못했습니다.')
     })
   }, [loadNotificationCenter, notificationCategory, notificationPage, notificationSearch, screen, showAlert, user])
+
+  // 길드 채팅: 로드(initial=최근 100/리셋, 그 외=증분 폴링)
+  const loadGuildChat = useCallback(async (initial) => {
+    try {
+      const after = initial ? 0 : guildLastIdRef.current
+      const data = await apiFetch(`/api/chat/guild/fetch?after=${after}${initial ? '&limit=100' : ''}`)
+      if (!data) return
+      setGuildHasGuild(!!data.guild)
+      if (data.myName) setGuildMyName(data.myName)
+      const newLast = Number(data.lastId) || 0
+      guildLastIdRef.current = initial ? newLast : Math.max(guildLastIdRef.current, newLast)
+      const items = asArray(data.items)
+      if (initial) {
+        guildEchoRef.current = new Set()
+        setGuildMessages(items)
+      } else if (items.length) {
+        const echo = guildEchoRef.current
+        const fresh = items.filter((it) => { const k = Number(it.id); if (echo.has(k)) { echo.delete(k); return false } return true })
+        if (fresh.length) setGuildMessages((prev) => [...prev, ...fresh])
+      }
+    } catch (e) { /* 폴링 실패 무시 */ }
+  }, [])
+
+  // 길드 채팅: 전송(대표 캐릭터, GM 아님) + 낙관적 echo
+  const sendGuildChat = useCallback(async () => {
+    const message = guildInput.trim()
+    if (!message) return
+    try {
+      const data = await apiFetch('/api/chat/guild/send', { method: 'POST', body: JSON.stringify({ message }) })
+      if (data && data.status === 'success') {
+        setGuildInput('')
+        if (data.sender) setGuildMyName(data.sender)
+        if (data.echoId) guildEchoRef.current.add(Number(data.echoId))
+        const sender = data.sender || guildMyName
+        setGuildMessages((prev) => [...prev, { id: `echo-${data.echoId || Date.now()}`, chat_type: 'guild', sender_name: sender, sender_gm: 0, message, created_at: '' }])
+      }
+    } catch (e) {
+      let msg = '전송에 실패했습니다.'
+      try { const j = JSON.parse(e?.message || '{}'); if (j.message) msg = j.message } catch (_) { /* keep */ }
+      await showAlert(msg)
+    }
+  }, [guildInput, guildMyName, showAlert])
+
+  // 길드 채팅 드로어 열림 시 초기 로드 + 4초 폴링
+  useEffect(() => {
+    if (!guildChatOpen || !user) return undefined
+    loadGuildChat(true)
+    const t = setInterval(() => loadGuildChat(false), 4000)
+    return () => clearInterval(t)
+  }, [guildChatOpen, user, loadGuildChat])
+
+  // 새 메시지 시 하단으로 스크롤
+  useEffect(() => {
+    if (guildChatOpen && guildListRef.current) {
+      const el = guildListRef.current
+      el.scrollTop = el.scrollHeight
+    }
+  }, [guildMessages, guildChatOpen])
 
   useEffect(() => {
     if (!userLoaded) return
@@ -2484,6 +2559,15 @@ function App() {
                   </div>
                 ) : null}
               </div>
+              <button
+                type="button"
+                className="nav-notification-btn button-reset"
+                aria-label="길드 채팅 열기"
+                aria-expanded={guildChatOpen}
+                onClick={() => { setNotificationOpen(false); setUserMenuOpen(false); setGuildChatOpen((prev) => !prev) }}
+              >
+                <span className="nav-notification-icon" aria-hidden="true"><ChatIcon /></span>
+              </button>
               <div className="nav-user-wrap" ref={userMenuRef}>
                 <button
                   type="button"
@@ -2508,6 +2592,45 @@ function App() {
           ) : null}
         </nav>
       </header>
+      {user && guildChatOpen ? (
+        <aside className="guild-chat-drawer">
+          <div className="guild-chat-head">
+            <strong>길드 채팅</strong>
+            <button type="button" className="button-reset guild-chat-close" aria-label="닫기" onClick={() => setGuildChatOpen(false)}>✕</button>
+          </div>
+          <div className="guild-chat-body" ref={guildListRef}>
+            {!guildHasGuild ? (
+              <div className="guild-chat-empty">가입된 길드가 없습니다.<br />대표 캐릭터가 길드에 가입하면 이용할 수 있어요.</div>
+            ) : (!guildMessages.length ? (
+              <div className="guild-chat-empty">아직 길드 대화가 없습니다.</div>
+            ) : guildMessages.map((m) => {
+              const mine = guildMyName && String(m.sender_name || '') === guildMyName
+              const time = String(m.created_at || '').slice(11, 16)
+              return (
+                <div key={`g-${m.id}`} className={`guild-msg${mine ? ' mine' : ''}`}>
+                  {!mine ? <span className="guild-msg-name">{m.sender_name}{Number(m.sender_gm) ? ' <GM>' : ''}</span> : null}
+                  <div className="guild-msg-row">
+                    <span className="guild-msg-bubble">{m.message}</span>
+                    {time ? <span className="guild-msg-time">{time}</span> : null}
+                  </div>
+                </div>
+              )
+            }))}
+          </div>
+          <div className="guild-chat-composer">
+            <input
+              type="text"
+              value={guildInput}
+              maxLength={512}
+              placeholder={guildHasGuild ? '길드 채팅 입력' : '길드 없음'}
+              disabled={!guildHasGuild}
+              onChange={(e) => setGuildInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); sendGuildChat() } }}
+            />
+            <button type="button" className="btn" disabled={!guildHasGuild} onClick={sendGuildChat}>전송</button>
+          </div>
+        </aside>
+      ) : null}
       {mobileNavOpen ? <button type="button" className="nav-mobile-overlay button-reset" aria-label="모바일 메뉴 닫기" onClick={() => setMobileNavOpen(false)} /> : null}
       <div id="mobile-nav-panel" className={`nav-mobile-panel${mobileNavOpen ? ' active' : ''}`}>
         <div className="nav-mobile-head">

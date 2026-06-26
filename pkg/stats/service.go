@@ -69,6 +69,10 @@ func RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/chat/ingame/fetch", handleWebChatFetch)
 	mux.HandleFunc("/api/chat/ingame/send", handleWebChatSend)
 
+	// 유저용 길드 채팅 (로그인 유저, 대표 캐릭터 기준)
+	mux.HandleFunc("/api/chat/guild/fetch", handleGuildChatFetch)
+	mux.HandleFunc("/api/chat/guild/send", handleGuildChatSend)
+
 	// Content - BlackMarket
 	mux.HandleFunc("/api/content/blackmarket/list", handleBlackMarketItemList)
 	mux.HandleFunc("/api/content/blackmarket/add", handleBlackMarketItemAdd)

@@ -286,3 +286,171 @@ func handleWebChatSend(w http.ResponseWriter, r *http.Request) {
 		"status": "success", "sender": sender, "gm": true, "chat_type": ctype, "echoId": echoID,
 	})
 }
+
+// ── 유저용 길드 채팅 (대표 캐릭터 기준, GM 아님) ──────────────────
+// 관리자 전용 API와 달리, 로그인 유저면 누구나(대표 캐릭터+길드 보유 시) 사용 가능.
+
+// 대표 캐릭터명 → 길드 id (없으면 0)
+func webChatUserGuildID(charDB *sql.DB, mainCharName string) int {
+	if charDB == nil || strings.TrimSpace(mainCharName) == "" {
+		return 0
+	}
+	var gid int
+	_ = charDB.QueryRow(
+		"SELECT gm.guildid FROM characters c JOIN guild_member gm ON gm.guid = c.guid WHERE c.name = ? LIMIT 1",
+		mainCharName).Scan(&gid)
+	return gid
+}
+
+// 길드 채팅 조회 — 내 길드(guildid)의 guild/officer 메시지만. before/after/limit 은 handleWebChatFetch 와 동일.
+func handleGuildChatFetch(w http.ResponseWriter, r *http.Request) {
+	acctID, _ := webChatSessionAccount(r)
+	if acctID <= 0 {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"status": "error", "message": "로그인이 필요합니다."})
+		return
+	}
+	mainChar := webChatMainChar(acctID)
+
+	db, err := sql.Open("mysql", config.CharactersDSN())
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "DB 연결 오류"})
+		return
+	}
+	defer db.Close()
+
+	guildID := webChatUserGuildID(db, mainChar)
+	if guildID <= 0 {
+		writeJSON(w, http.StatusOK, map[string]interface{}{
+			"status": "success", "items": []interface{}{}, "guild": false, "myName": mainChar,
+			"lastId": 0, "oldestId": 0, "hasMore": false,
+		})
+		return
+	}
+
+	after := atoiDefault(r.URL.Query().Get("after"), 0)
+	before := atoiDefault(r.URL.Query().Get("before"), 0)
+	limit := atoiDefault(r.URL.Query().Get("limit"), 100)
+	if limit < 1 || limit > 300 {
+		limit = 100
+	}
+
+	base := `SELECT w.id, w.chat_type, w.sender_name, w.sender_gm, w.message, w.created_at
+		FROM web_ingame_chat w
+		JOIN characters c ON c.name = w.sender_name
+		JOIN guild_member gm ON gm.guid = c.guid
+		WHERE w.chat_type IN ('guild','officer') AND gm.guildid = ?`
+	args := []interface{}{guildID}
+	reverse := false
+	var q string
+	if before > 0 {
+		q = base + " AND w.id < ? ORDER BY w.id DESC LIMIT ?"
+		args = append(args, before, limit)
+		reverse = true
+	} else if after > 0 {
+		q = base + " AND w.id > ? ORDER BY w.id ASC LIMIT ?"
+		args = append(args, after, limit)
+	} else {
+		q = base + " ORDER BY w.id DESC LIMIT ?"
+		args = append(args, limit)
+		reverse = true
+	}
+
+	rows, err := db.Query(q, args...)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "조회 오류: " + err.Error()})
+		return
+	}
+	defer rows.Close()
+
+	items := make([]map[string]interface{}, 0)
+	maxID, minID := after, 0
+	for rows.Next() {
+		var id, gm int
+		var ctypeV, sender, msg, created string
+		if rows.Scan(&id, &ctypeV, &sender, &gm, &msg, &created) != nil {
+			continue
+		}
+		if id > maxID {
+			maxID = id
+		}
+		if minID == 0 || id < minID {
+			minID = id
+		}
+		items = append(items, map[string]interface{}{
+			"id": id, "chat_type": ctypeV, "sender_name": sender, "sender_gm": gm,
+			"message": msg, "created_at": created,
+		})
+	}
+	if reverse {
+		for l, rgt := 0, len(items)-1; l < rgt; l, rgt = l+1, rgt-1 {
+			items[l], items[rgt] = items[rgt], items[l]
+		}
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"status": "success", "items": items, "guild": true, "myName": mainChar,
+		"lastId": maxID, "oldestId": minID, "hasMore": len(items) == limit,
+	})
+}
+
+// 길드 채팅 전송 — 대표 캐릭터로 guild 송신(GM 마크 없음).
+func handleGuildChatSend(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	acctID, _ := webChatSessionAccount(r)
+	if acctID <= 0 {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"status": "error", "message": "로그인이 필요합니다."})
+		return
+	}
+	var req struct {
+		Message string `json:"message"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&req)
+	msg := strings.TrimSpace(req.Message)
+	if msg == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "메시지를 입력해주세요."})
+		return
+	}
+	if len([]rune(msg)) > 512 {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "메시지가 너무 깁니다(최대 512자)."})
+		return
+	}
+
+	mainChar := webChatMainChar(acctID)
+	if mainChar == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "대표 캐릭터를 먼저 설정해주세요."})
+		return
+	}
+
+	db, err := sql.Open("mysql", config.CharactersDSN())
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "DB 연결 오류"})
+		return
+	}
+	defer db.Close()
+
+	if webChatUserGuildID(db, mainChar) <= 0 {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "가입된 길드가 없습니다."})
+		return
+	}
+
+	// 송신 큐(GM 마크 0) + 피드 영구화
+	if _, err := db.Exec(`
+		INSERT INTO web_outgoing_chat (chat_type, sender_acc, sender_name, gm_mark, message, status)
+		VALUES ('guild', ?, ?, 0, ?, 'pending')`, acctID, mainChar, msg); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "전송 실패: " + err.Error()})
+		return
+	}
+	var echoID int64
+	if res, e2 := db.Exec(`
+		INSERT INTO web_ingame_chat (chat_type, sender_name, sender_acc, sender_gm, message)
+		VALUES ('guild', ?, ?, 0, ?)`, mainChar, acctID, msg); e2 == nil {
+		echoID, _ = res.LastInsertId()
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"status": "success", "sender": mainChar, "echoId": echoID,
+	})
+}
