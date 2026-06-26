@@ -332,6 +332,16 @@ func handleWebChatSend(w http.ResponseWriter, r *http.Request) {
 // ── 유저용 길드 채팅 (대표 캐릭터 기준, GM 아님) ──────────────────
 // 관리자 전용 API와 달리, 로그인 유저면 누구나(대표 캐릭터+길드 보유 시) 사용 가능.
 
+// 계정에 캐릭터가 1개 이상 있는지 (첫 가입·캐릭터 미생성 판별)
+func webChatAccountHasChar(charDB *sql.DB, accountID int) bool {
+	if charDB == nil || accountID <= 0 {
+		return false
+	}
+	var cnt int
+	_ = charDB.QueryRow("SELECT COUNT(*) FROM characters WHERE account = ?", accountID).Scan(&cnt)
+	return cnt > 0
+}
+
 // 대표 캐릭터명 → 길드 id (없으면 0)
 func webChatUserGuildID(charDB *sql.DB, mainCharName string) int {
 	if charDB == nil || strings.TrimSpace(mainCharName) == "" {
@@ -360,10 +370,19 @@ func handleGuildChatFetch(w http.ResponseWriter, r *http.Request) {
 	}
 	defer db.Close()
 
+	// 첫 가입·캐릭터 미생성 → 캐릭터 생성 후 참가 안내(채팅 불가)
+	if !webChatAccountHasChar(db, acctID) {
+		writeJSON(w, http.StatusOK, map[string]interface{}{
+			"status": "success", "items": []interface{}{}, "guild": false, "hasChar": false, "myName": "",
+			"lastId": 0, "oldestId": 0, "hasMore": false,
+		})
+		return
+	}
+
 	guildID := webChatUserGuildID(db, mainChar)
 	if guildID <= 0 {
 		writeJSON(w, http.StatusOK, map[string]interface{}{
-			"status": "success", "items": []interface{}{}, "guild": false, "myName": mainChar,
+			"status": "success", "items": []interface{}{}, "guild": false, "hasChar": true, "myName": mainChar,
 			"lastId": 0, "oldestId": 0, "hasMore": false,
 		})
 		return
@@ -430,7 +449,7 @@ func handleGuildChatFetch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"status": "success", "items": items, "guild": true, "myName": mainChar,
+		"status": "success", "items": items, "guild": true, "hasChar": true, "myName": mainChar,
 		"lastId": maxID, "oldestId": minID, "hasMore": len(items) == limit,
 	})
 }
@@ -460,18 +479,24 @@ func handleGuildChatSend(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	mainChar := webChatMainChar(acctID)
-	if mainChar == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "대표 캐릭터를 먼저 설정해주세요."})
-		return
-	}
-
 	db, err := sql.Open("mysql", config.CharactersDSN())
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "DB 연결 오류"})
 		return
 	}
 	defer db.Close()
+
+	// 첫 가입·캐릭터 미생성 → 캐릭터 생성 후 참가
+	if !webChatAccountHasChar(db, acctID) {
+		writeJSON(w, http.StatusBadRequest, map[string]interface{}{"status": "error", "noChar": true, "message": "캐릭터 생성 후 채팅에 참가할 수 있습니다."})
+		return
+	}
+
+	mainChar := webChatMainChar(acctID)
+	if mainChar == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "대표 캐릭터를 먼저 설정해주세요."})
+		return
+	}
 
 	// 채팅 제재(뮤트/웹밴) 중이면 송신 차단 + 사유 안내.
 	if pen, ok := activeChatPenalty(db, acctID); ok {

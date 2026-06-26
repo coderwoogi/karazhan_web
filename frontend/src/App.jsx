@@ -1066,6 +1066,7 @@ function App() {
   const [guildChatOpen, setGuildChatOpen] = useState(() => typeof window !== 'undefined' && window.innerWidth > 560)
   const [guildMessages, setGuildMessages] = useState([])
   const [guildHasGuild, setGuildHasGuild] = useState(true)
+  const [guildHasChar, setGuildHasChar] = useState(true) // 캐릭터 보유 여부(첫 가입 시 false → 채팅 불가)
   const [guildMyName, setGuildMyName] = useState('')
   const [guildInput, setGuildInput] = useState('')
   const guildLastIdRef = useRef(0)
@@ -1623,6 +1624,7 @@ function App() {
       const data = await apiFetch(`/api/chat/guild/fetch?after=${after}${initial ? '&limit=100' : ''}`)
       if (!data) return
       setGuildHasGuild(!!data.guild)
+      setGuildHasChar(data.hasChar !== false)
       if (data.myName) setGuildMyName(data.myName)
       const newLast = Number(data.lastId) || 0
       guildLastIdRef.current = initial ? newLast : Math.max(guildLastIdRef.current, newLast)
@@ -1662,6 +1664,7 @@ function App() {
         const j = JSON.parse(e?.message || '{}')
         if (j.message) msg = j.message
         if (j.penalized) setGuildPenalty({ kind: j.kind, reason: j.reason, expiresAt: j.expiresAt, message: j.message }) // 제재 배너 갱신
+        if (j.noChar) setGuildHasChar(false)
       } catch (_) { /* keep */ }
       await showAlert(msg)
     } finally {
@@ -2662,7 +2665,9 @@ function App() {
             </div>
           ) : null}
           <div className="guild-chat-body" ref={guildListRef}>
-            {!guildHasGuild ? (
+            {!guildHasChar ? (
+              <div className="guild-chat-empty">아직 캐릭터가 없습니다.<br />인게임에서 캐릭터를 생성한 후 채팅에 참가할 수 있어요.</div>
+            ) : !guildHasGuild ? (
               <div className="guild-chat-empty">가입된 길드가 없습니다.<br />대표 캐릭터가 길드에 가입하면 이용할 수 있어요.</div>
             ) : (!guildMessages.length ? (
               <div className="guild-chat-empty">아직 길드 대화가 없습니다.</div>
@@ -2697,12 +2702,12 @@ function App() {
               type="text"
               value={guildInput}
               maxLength={512}
-              placeholder={guildPenalty ? '채팅이 정지되어 있습니다' : (guildHasGuild ? '길드 채팅 입력' : '길드 없음')}
-              disabled={!guildHasGuild || !!guildPenalty}
+              placeholder={!guildHasChar ? '캐릭터 생성 후 이용 가능' : (guildPenalty ? '채팅이 정지되어 있습니다' : (guildHasGuild ? '길드 채팅 입력' : '길드 없음'))}
+              disabled={!guildHasChar || !guildHasGuild || !!guildPenalty}
               onChange={(e) => setGuildInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); sendGuildChat() } }}
             />
-            <button type="button" className="btn" disabled={!guildHasGuild || !!guildPenalty} onClick={sendGuildChat}>전송</button>
+            <button type="button" className="btn" disabled={!guildHasChar || !guildHasGuild || !!guildPenalty} onClick={sendGuildChat}>전송</button>
           </div>
           {guildModTarget ? (
             <div className="guild-mod-overlay" onClick={() => { if (!guildModBusy) setGuildModTarget(null) }}>
