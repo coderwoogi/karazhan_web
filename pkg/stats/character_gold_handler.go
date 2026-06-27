@@ -56,7 +56,18 @@ func handleCharacterGold(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if online != 0 {
-		writeJSON(w, http.StatusConflict, map[string]string{"status": "error", "message": "캐릭터가 접속 중입니다. 접속 종료 후 변경해주세요."})
+		// 접속 중 — DB 직접 변경은 서버 저장 시 덮어써지므로, 작업 큐에 적재해
+		// mod-web-chat 모듈이 살아있는 플레이어 객체에 실시간 반영하도록 한다.
+		_, who := webChatSessionAccount(r)
+		if _, err := db.Exec(`INSERT INTO web_gold_ops (char_guid, char_name, mode, amount_copper, created_by, status)
+			VALUES (?, ?, ?, ?, ?, 'pending')`, req.GUID, name, req.Mode, req.Amount*10000, who); err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "작업 큐 적재 실패: " + err.Error()})
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]interface{}{
+			"status": "success", "queued": true,
+			"message": "캐릭터가 접속 중입니다. 잠시 후(수 초 내) 인게임에 반영됩니다.",
+		})
 		return
 	}
 

@@ -117,8 +117,14 @@ async function applyCharacterGold() {
         try { data = await res.json(); } catch (_) { /* 비-JSON 응답 */ }
 
         if (res.ok && data.status === 'success') {
-            alert(`골드를 변경했습니다. 현재 소지금: ${Number(data.gold || 0).toLocaleString()} G`);
-            openCharacterItemsModal(name, guid); // 모달 새로고침(버튼/표시 재생성)
+            if (data.queued) {
+                // 접속 중 — 모듈이 곧 적용. 폴링 주기 후 새로고침해 반영분 표시.
+                alert(data.message || '접속 중 — 수 초 내 인게임에 반영됩니다.');
+                setTimeout(() => openCharacterItemsModal(name, guid), 4500);
+            } else {
+                alert(`골드를 변경했습니다. 현재 소지금: ${Number(data.gold || 0).toLocaleString()} G`);
+                openCharacterItemsModal(name, guid); // 모달 새로고침(버튼/표시 재생성)
+            }
             return;
         }
         // 실패 — 서버 메시지(예: 접속 중) 또는 HTTP 상태를 그대로 안내

@@ -37,3 +37,23 @@ ALTER TABLE web_ingame_chat
 --     ADD COLUMN deleted    TINYINT      NOT NULL DEFAULT 0,
 --     ADD COLUMN del_by     VARCHAR(32)  NOT NULL DEFAULT '',
 --     ADD COLUMN del_reason VARCHAR(255) NOT NULL DEFAULT '';
+
+-- 3) 골드 변경 작업 큐 — 접속 중 캐릭터는 mod-web-chat 모듈이 폴링해 실시간 적용(SetMoney),
+--    오프라인은 웹이 즉시 DB 갱신(모듈도 안전망으로 처리). 단위: copper(1골드=10000).
+CREATE TABLE IF NOT EXISTS web_gold_ops (
+    id            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    char_guid     INT UNSIGNED    NOT NULL DEFAULT 0,
+    char_name     VARCHAR(24)     NOT NULL DEFAULT '',
+    mode          VARCHAR(8)      NOT NULL DEFAULT 'add',   -- set | add | sub
+    amount_copper BIGINT          NOT NULL DEFAULT 0,       -- 변경 크기(copper)
+    reason        VARCHAR(255)    NOT NULL DEFAULT '',
+    created_by    VARCHAR(32)     NOT NULL DEFAULT '',
+    status        ENUM('pending','done','failed') NOT NULL DEFAULT 'pending',
+    error         VARCHAR(255)    NOT NULL DEFAULT '',
+    result_money  BIGINT          NOT NULL DEFAULT 0,       -- 적용 후 잔액(copper)
+    created_at    DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    processed_at  DATETIME        NULL DEFAULT NULL,
+    PRIMARY KEY (id),
+    KEY idx_gold_status (status, id),
+    KEY idx_gold_guid (char_guid)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
