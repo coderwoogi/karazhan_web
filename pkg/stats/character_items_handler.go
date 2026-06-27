@@ -81,21 +81,24 @@ func handleCharacterItems(w http.ResponseWriter, r *http.Request) {
 		className = fmt.Sprintf("Class %d", charInfo.Class)
 	}
 
-	// Get character items
+	// Get character items — bag 컬럼 반영(가방 속 아이템이 장비 슬롯으로 오표기되지 않도록),
+	// 품질/아이템레벨 동봉(원본 enchantments 노출 제거).
 	itemsQuery := `
-		SELECT 
+		SELECT
+			ci.bag,
 			ci.slot,
 			ci.item as item_guid,
 			ii.itemEntry,
 			ii.count,
 			COALESCE(itl.Name, it.name, 'Unknown Item') as item_name,
-			ii.enchantments
+			COALESCE(it.Quality, 0) as quality,
+			COALESCE(it.ItemLevel, 0) as ilvl
 		FROM character_inventory ci
 		JOIN item_instance ii ON ci.item = ii.guid
 		LEFT JOIN acore_world.item_template it ON ii.itemEntry = it.entry
 		LEFT JOIN acore_world.item_template_locale itl ON ii.itemEntry = itl.ID AND itl.locale = 'koKR'
 		WHERE ci.guid = ?
-		ORDER BY ci.slot ASC
+		ORDER BY (ci.bag = 0 AND ci.slot < 19) DESC, ci.bag ASC, ci.slot ASC
 	`
 
 	rows, err := charDB.Query(itemsQuery, guid)
@@ -108,11 +111,10 @@ func handleCharacterItems(w http.ResponseWriter, r *http.Request) {
 
 	var items = make([]map[string]interface{}, 0)
 	for rows.Next() {
-		var slot, itemGuid, itemEntry, count int
+		var bag, slot, itemGuid, itemEntry, count, quality, ilvl int
 		var itemName sql.NullString
-		var enchantments sql.NullString
 
-		if err := rows.Scan(&slot, &itemGuid, &itemEntry, &count, &itemName, &enchantments); err != nil {
+		if err := rows.Scan(&bag, &slot, &itemGuid, &itemEntry, &count, &itemName, &quality, &ilvl); err != nil {
 			log.Printf("[CharacterItems] Scan error: %v", err)
 			continue
 		}
@@ -122,20 +124,19 @@ func handleCharacterItems(w http.ResponseWriter, r *http.Request) {
 			name = itemName.String
 		}
 
-		enchantsList := []string{}
-		if enchantments.Valid && enchantments.String != "" {
-			// Parse enchantments string (space-separated)
-			// Format is typically: "enchant1 enchant2 enchant3 ..."
-			enchantsList = []string{enchantments.String}
-		}
+		location, equipped := inventoryLocation(bag, slot)
 
 		items = append(items, map[string]interface{}{
-			"slot":         slot,
-			"guid":         itemGuid,
-			"entry":        itemEntry,
-			"name":         name,
-			"count":        count,
-			"enchantments": enchantsList,
+			"bag":      bag,
+			"slot":     slot,
+			"guid":     itemGuid,
+			"entry":    itemEntry,
+			"name":     name,
+			"count":    count,
+			"quality":  quality,
+			"ilvl":     ilvl,
+			"location": location,
+			"equipped": equipped,
 		})
 	}
 
@@ -150,4 +151,30 @@ func handleCharacterItems(w http.ResponseWriter, r *http.Request) {
 		},
 		"items": items,
 	})
+}
+
+// character_inventory 의 (bag, slot) → 사람이 읽는 위치 라벨 + 장착 여부.
+// bag!=0 은 컨테이너(가방) 내부. bag=0 일 때 slot 구간으로 장비/가방/은행/열쇠고리 구분.
+func inventoryLocation(bag, slot int) (string, bool) {
+	if bag != 0 {
+		return "가방 속", false
+	}
+	switch {
+	case slot >= 0 && slot <= 18:
+		eq := []string{"머리", "목", "어깨", "셔츠", "가슴", "허리", "다리", "발", "손목", "손",
+			"손가락1", "손가락2", "장신구1", "장신구2", "등", "주무기", "보조무기", "원거리", "휘장"}
+		return eq[slot], true
+	case slot >= 19 && slot <= 22:
+		return "장착 가방", false
+	case slot >= 23 && slot <= 38:
+		return "가방", false
+	case slot >= 39 && slot <= 66:
+		return "은행", false
+	case slot >= 67 && slot <= 74:
+		return "은행 가방", false
+	case slot >= 86 && slot <= 117:
+		return "열쇠고리", false
+	default:
+		return fmt.Sprintf("기타(%d)", slot), false
+	}
 }

@@ -14,7 +14,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap">
-    <link rel="stylesheet" href="style.css?v=1051">
+    <link rel="stylesheet" href="style.css?v=1052">
     <link rel="stylesheet" href="notification.css?v=4">
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
     <script>
@@ -4847,8 +4847,8 @@
                                 <thead style="position: sticky; top: 0; z-index: 10; background: var(--surface-2);">
                                     <tr>
                                         <th
-                                            style="padding:12px; border-bottom:2px solid var(--surface-2); text-align:left; font-size:0.8rem; text-transform:uppercase; color: var(--text-secondary); width:120px;">
-                                            슬롯 (Slot)</th>
+                                            style="padding:12px; border-bottom:2px solid var(--surface-2); text-align:left; font-size:0.8rem; text-transform:uppercase; color: var(--text-secondary); width:130px;">
+                                            위치</th>
                                         <th
                                             style="padding:12px; border-bottom:2px solid var(--surface-2); text-align:left; font-size:0.8rem; text-transform:uppercase; color: var(--text-secondary);">
                                             아이템명 (Item)</th>
@@ -4859,8 +4859,8 @@
                                             style="padding:12px; border-bottom:2px solid var(--surface-2); text-align:center; font-size:0.8rem; text-transform:uppercase; color: var(--text-secondary); width:60px;">
                                             수량</th>
                                         <th
-                                            style="padding:12px; border-bottom:2px solid var(--surface-2); text-align:center; font-size:0.8rem; text-transform:uppercase; color: var(--text-secondary); width:150px;">
-                                            강화/마법부여</th>
+                                            style="padding:12px; border-bottom:2px solid var(--surface-2); text-align:center; font-size:0.8rem; text-transform:uppercase; color: var(--text-secondary); width:110px;">
+                                            아이템 레벨</th>
                                     </tr>
                                 </thead>
                                 <tbody id="modal-items-list">
@@ -4872,7 +4872,7 @@
                 </div>
                 <div class="modal-footer-premium">
                     <button onclick="openSendMailTab(document.getElementById('modal-character-name').dataset.charName)"
-                        class="btn btn-start" style="flex:none; background:var(--success-color); border-radius:8px;">우편
+                        class="btn btn-start" style="flex:none; background:var(--success-color); color:#0e0d11; border-radius:8px;">우편
                         보내기</button>
                     <button onclick="closeCharacterItemsModal()" class="btn"
                         style="flex:none; background: var(--surface-2); color: var(--text-secondary); border-radius:8px;">닫기</button>
@@ -5100,7 +5100,7 @@
         <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.3/Sortable.min.js"></script>
         <script src="board.js?v=ds4"></script>
         <script src="account.js?v=34"></script>
-        <script src="char_items_modal.js?v=30"></script>
+        <script src="char_items_modal.js?v=31"></script>
         <script src="item_picker.js?v=30"></script>
         <script src="gm.js?v=36"></script>
         <script src="emoji-picker.js?v=2"></script>

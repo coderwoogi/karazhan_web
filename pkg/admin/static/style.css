@@ -8328,3 +8328,10 @@ body.admin-dark .ql-snow .ql-picker-label:hover { color: var(--primary-color); }
 
 /* 인게임 채팅 대화방: 메시지를 하단부터 쌓기(카카오톡식). 적을 땐 하단 정렬, 넘치면 정상 스크롤 */
 .ig-room-msgs::before { content: ''; margin-top: auto; }
+
+/* 캐릭터 아이템 모달 — 골드 관리 영역 */
+.char-gold-edit{margin-top:14px;padding-top:12px;border-top:1px solid var(--border-color,rgba(255,255,255,.09));display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
+.char-gold-edit-label{font-size:.85rem;color:var(--text-secondary);font-weight:700;}
+.char-gold-edit select.input-premium{width:auto;padding:6px 8px;}
+.char-gold-edit input.input-premium{width:140px;padding:6px 10px;}
+.char-gold-edit .char-gold-apply{padding:6px 16px;flex:none;}

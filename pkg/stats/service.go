@@ -51,6 +51,7 @@ func RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/characters/list", handleCharacterList)
 	mux.HandleFunc("/api/characters/sendmail", handleSendMail)
 	mux.HandleFunc("/api/characters/items", handleCharacterItems)
+	mux.HandleFunc("/api/characters/gold", handleCharacterGold)
 
 	// Menu Permissions (legacy - min_web_rank)
 	mux.HandleFunc("/api/admin/menus", handleMenuMetadata)
