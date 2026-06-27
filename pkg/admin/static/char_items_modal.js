@@ -95,38 +95,38 @@ async function openCharacterItemsModal(characterName, characterGuid) {
 }
 
 // 소지금(골드) 변경 — 설정/추가/차감
-function applyCharacterGold() {
+async function applyCharacterGold() {
     const title = document.getElementById('modal-character-name');
     const guid = Number((title && title.dataset.charGuid) || 0);
     const name = (title && title.dataset.charName) || '';
-    if (!guid) return;
+    const alert = (m) => { if (window.ModalUtils) ModalUtils.showAlert(m); else window.alert(m); };
+
+    if (!guid) { alert('대상 캐릭터를 확인할 수 없습니다.'); return; }
     const mode = (document.getElementById('char-gold-mode') || {}).value || 'add';
     const amount = Math.floor(Number((document.getElementById('char-gold-amount') || {}).value || 0));
-    if (!(amount >= 0)) { if (window.ModalUtils) ModalUtils.showAlert('골드 수량을 올바르게 입력해주세요.'); return; }
-    const label = mode === 'set' ? '설정' : (mode === 'sub' ? '차감' : '추가');
+    if (!(amount > 0)) { alert('변경할 골드 수량을 1 이상 입력해주세요.'); return; }
 
-    const run = async () => {
-        try {
-            const res = await fetch('/api/characters/gold', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ guid, mode, amount })
-            });
-            const data = await res.json().catch(() => ({}));
-            if (data.status === 'success') {
-                if (window.ModalUtils) ModalUtils.showAlert(`골드를 변경했습니다. 현재 소지금: ${Number(data.gold || 0).toLocaleString()} G`);
-                openCharacterItemsModal(name, guid); // 모달 새로고침
-            } else if (window.ModalUtils) {
-                ModalUtils.showAlert(data.message || '골드 변경에 실패했습니다.');
-            }
-        } catch (e) {
-            if (window.ModalUtils) ModalUtils.showAlert('처리 중 오류가 발생했습니다.');
+    const btn = document.querySelector('.char-gold-apply');
+    if (btn) { btn.disabled = true; btn.textContent = '적용 중...'; }
+    try {
+        const res = await fetch('/api/characters/gold', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ guid, mode, amount })
+        });
+        let data = {};
+        try { data = await res.json(); } catch (_) { /* 비-JSON 응답 */ }
+
+        if (res.ok && data.status === 'success') {
+            alert(`골드를 변경했습니다. 현재 소지금: ${Number(data.gold || 0).toLocaleString()} G`);
+            openCharacterItemsModal(name, guid); // 모달 새로고침(버튼/표시 재생성)
+            return;
         }
-    };
-
-    if (window.ModalUtils && ModalUtils.showConfirm) {
-        ModalUtils.showConfirm(`${name} 의 골드를 ${amount.toLocaleString()} G ${label}하시겠습니까?`, run);
-    } else {
-        run();
+        // 실패 — 서버 메시지(예: 접속 중) 또는 HTTP 상태를 그대로 안내
+        alert(data.message || `골드 변경 실패 (HTTP ${res.status})`);
+    } catch (e) {
+        alert('처리 중 오류가 발생했습니다: ' + ((e && e.message) || ''));
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = '적용'; }
     }
 }
 
