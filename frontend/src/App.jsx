@@ -1075,9 +1075,10 @@ function App() {
   const guildListRef = useRef(null)
   const [guildIsMod, setGuildIsMod] = useState(false)        // GM/관리자 여부(제재 메뉴 노출)
   const [guildPenalty, setGuildPenalty] = useState(null)     // 내 활성 제재 { kind, reason, expiresAt, message }
-  const [guildModTarget, setGuildModTarget] = useState(null) // 제재 대상 { name, msgId }
+  const [guildModTarget, setGuildModTarget] = useState(null) // 제재 대상 { name, msgId, self }
   const [guildModReason, setGuildModReason] = useState('')
   const [guildModBusy, setGuildModBusy] = useState(false)
+  const [guildReplyTo, setGuildReplyTo] = useState(null)     // 답글 대상 { name, message } — 모든 사용자
   const [commentHighlightRequest, setCommentHighlightRequest] = useState({ tick: 0, fallbackLatest: false })
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [userLoaded, setUserLoaded] = useState(false)
@@ -1645,13 +1646,21 @@ function App() {
   // 길드 채팅: 전송(대표 캐릭터, GM 아님) + 낙관적 echo + 재진입/제재 처리
   const sendGuildChat = useCallback(async () => {
     if (guildSendingRef.current) return // 더블 전송 방지
-    const message = guildInput.trim()
-    if (!message) return
+    const base = guildInput.trim()
+    if (!base) return
+    // 답글이면 원문 인용을 텍스트로 앞에 붙임(인게임에도 그대로 전달됨)
+    let message = base
+    if (guildReplyTo) {
+      const q = String(guildReplyTo.message || '').replace(/\s+/g, ' ').trim()
+      const short = q.length > 20 ? `${q.slice(0, 20)}…` : q
+      message = `[↳${guildReplyTo.name}: ${short}] ${base}`
+    }
     guildSendingRef.current = true
     try {
       const data = await apiFetch('/api/chat/guild/send', { method: 'POST', body: JSON.stringify({ message }) })
       if (data && data.status === 'success') {
         setGuildInput('')
+        setGuildReplyTo(null)
         if (data.sender) setGuildMyName(data.sender)
         const echoId = Number(data.echoId) || 0
         if (echoId) guildSeenRef.current.add(echoId) // 폴링 재수신 시 중복 방지
@@ -1670,7 +1679,7 @@ function App() {
     } finally {
       guildSendingRef.current = false
     }
-  }, [guildInput, guildMyName, showAlert, user])
+  }, [guildInput, guildReplyTo, guildMyName, showAlert, user])
 
   // 길드 채팅: 모더레이터 권한 + 내 제재상태 로드(드로어 열 때)
   const loadGuildModState = useCallback(async () => {
@@ -2674,7 +2683,7 @@ function App() {
             ) : guildMessages.map((m) => {
               const mine = guildMyName && String(m.sender_name || '') === guildMyName
               const time = String(m.created_at || '').slice(11, 16)
-              const canMod = guildIsMod && !mine && !!m.sender_name
+              const canMod = guildIsMod && !!m.sender_name // 본인(관리자) 메시지도 관리 가능
               return (
                 <div key={`g-${m.id}`} className={`guild-msg${mine ? ' mine' : ''}`}>
                   {!mine ? <span className="guild-msg-name">{m.sender_name}{Number(m.sender_gm) ? ' <GM>' : ''}</span> : null}
@@ -2683,20 +2692,32 @@ function App() {
                       className={`guild-msg-avatar${canMod ? ' mod-click' : ''}`}
                       role={canMod ? 'button' : undefined}
                       tabIndex={canMod ? 0 : undefined}
-                      aria-label={canMod ? `${m.sender_name} 제재 메뉴` : undefined}
+                      aria-label={canMod ? `${m.sender_name} 메시지 관리` : undefined}
                       aria-hidden={canMod ? undefined : true}
-                      title={canMod ? '제재 메뉴 열기' : undefined}
-                      onClick={canMod ? (() => { setGuildModReason(''); setGuildModTarget({ name: m.sender_name, msgId: m.id }) }) : undefined}
+                      title={canMod ? '메시지 관리 메뉴' : undefined}
+                      onClick={canMod ? (() => { setGuildModReason(''); setGuildModTarget({ name: m.sender_name, msgId: m.id, self: !!mine }) }) : undefined}
                     >
                       <img src={getRaceIcon(m.race, m.gender)} alt="" onError={(e) => { e.currentTarget.style.display = 'none' }} />
                     </span>
                     <span className="guild-msg-bubble">{m.message}</span>
                     {time ? <span className="guild-msg-time">{time}</span> : null}
+                    {!mine && m.sender_name ? (
+                      <button type="button" className="guild-msg-reply" title="답글" aria-label={`${m.sender_name}에게 답글`} onClick={() => setGuildReplyTo({ name: m.sender_name, message: m.message })}>↩</button>
+                    ) : null}
                   </div>
                 </div>
               )
             }))}
           </div>
+          {guildReplyTo ? (
+            <div className="guild-reply-preview">
+              <div className="guild-reply-preview-text">
+                <b>↳ {guildReplyTo.name}에게 답글</b>
+                <span>{guildReplyTo.message}</span>
+              </div>
+              <button type="button" aria-label="답글 취소" onClick={() => setGuildReplyTo(null)}>✕</button>
+            </div>
+          ) : null}
           <div className="guild-chat-composer">
             <input
               type="text"
@@ -2712,20 +2733,26 @@ function App() {
           {guildModTarget ? (
             <div className="guild-mod-overlay" onClick={() => { if (!guildModBusy) setGuildModTarget(null) }}>
               <div className="guild-mod-panel" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
-                <div className="guild-mod-title">제재 — <b>{guildModTarget.name}</b></div>
-                <textarea
-                  className="guild-mod-reason"
-                  placeholder="사유 (선택, 피제재자에게 표시됩니다)"
-                  maxLength={255}
-                  value={guildModReason}
-                  onChange={(e) => setGuildModReason(e.target.value)}
-                />
+                <div className="guild-mod-title">{guildModTarget.self ? '내 메시지' : '제재'} — <b>{guildModTarget.name}</b></div>
+                {!guildModTarget.self ? (
+                  <textarea
+                    className="guild-mod-reason"
+                    placeholder="사유 (선택, 피제재자에게 표시됩니다)"
+                    maxLength={255}
+                    value={guildModReason}
+                    onChange={(e) => setGuildModReason(e.target.value)}
+                  />
+                ) : null}
                 <div className="guild-mod-actions">
                   <button type="button" disabled={guildModBusy} onClick={() => runGuildModAction('delete')}>이 메시지 삭제</button>
-                  <button type="button" disabled={guildModBusy} onClick={() => runGuildModAction('mute5')}>5분 정지</button>
-                  <button type="button" disabled={guildModBusy} onClick={() => runGuildModAction('mute60')}>1시간 정지</button>
-                  <button type="button" disabled={guildModBusy} onClick={() => runGuildModAction('mute1440')}>1일 정지</button>
-                  <button type="button" className="danger" disabled={guildModBusy} onClick={() => runGuildModAction('webban')}>웹밴(영구)</button>
+                  {!guildModTarget.self ? (
+                    <>
+                      <button type="button" disabled={guildModBusy} onClick={() => runGuildModAction('mute5')}>5분 정지</button>
+                      <button type="button" disabled={guildModBusy} onClick={() => runGuildModAction('mute60')}>1시간 정지</button>
+                      <button type="button" disabled={guildModBusy} onClick={() => runGuildModAction('mute1440')}>1일 정지</button>
+                      <button type="button" className="danger" disabled={guildModBusy} onClick={() => runGuildModAction('webban')}>웹밴(영구)</button>
+                    </>
+                  ) : null}
                 </div>
                 <button type="button" className="guild-mod-cancel" disabled={guildModBusy} onClick={() => setGuildModTarget(null)}>닫기</button>
               </div>
