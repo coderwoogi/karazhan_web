@@ -5515,3 +5515,12 @@ select.public-board-select {
 .guild-reply-preview-text span{font-size:12px;color:var(--kz-muted,#6e7f96);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .guild-reply-preview button{flex:0 0 auto;border:0;background:none;color:var(--kz-muted,#6e7f96);font-size:14px;cursor:pointer;padding:2px 4px;}
 .guild-reply-preview button:hover{color:#d23b3b;}
+
+/* 길드 채팅 — 답글 표시(원글 블러 말풍선 + 내 답글 말풍선, 2개로 분리) */
+.guild-msg-reply-wrap{display:flex;flex-direction:column;gap:3px;min-width:0;max-width:100%;align-items:flex-start;}
+.guild-msg.mine .guild-msg-reply-wrap{align-items:flex-end;}
+.guild-msg-quote{max-width:100%;font-size:11px;line-height:1.4;padding:5px 9px;border-radius:11px 11px 11px 4px;background:rgba(110,127,150,.12);border:1px solid var(--kz-line,#d8e7fb);color:var(--kz-muted,#6e7f96);overflow:hidden;}
+.guild-msg.mine .guild-msg-quote{border-radius:11px 11px 4px 11px;}
+.guild-msg-quote b{display:block;color:var(--kz-blue,#075fd0);font-weight:700;font-size:10px;margin-bottom:1px;}
+.guild-msg-quote em{font-style:normal;display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;filter:blur(.8px);opacity:.65;transition:filter .15s,opacity .15s;}
+.guild-msg-quote:hover em{filter:none;opacity:1;}

@@ -2684,6 +2684,7 @@ function App() {
               const mine = guildMyName && String(m.sender_name || '') === guildMyName
               const time = String(m.created_at || '').slice(11, 16)
               const canMod = guildIsMod && !!m.sender_name // 본인(관리자) 메시지도 관리 가능
+              const rep = String(m.message || '').match(/^\[↳([^:\]]+): ([\s\S]*?)\] ([\s\S]+)$/) // 답글이면 원글/본문 분리
               return (
                 <div key={`g-${m.id}`} className={`guild-msg${mine ? ' mine' : ''}`}>
                   {!mine ? <span className="guild-msg-name">{m.sender_name}{Number(m.sender_gm) ? ' <GM>' : ''}</span> : null}
@@ -2699,7 +2700,14 @@ function App() {
                     >
                       <img src={getRaceIcon(m.race, m.gender)} alt="" onError={(e) => { e.currentTarget.style.display = 'none' }} />
                     </span>
-                    <span className="guild-msg-bubble">{m.message}</span>
+                    {rep ? (
+                      <span className="guild-msg-reply-wrap">
+                        <span className="guild-msg-quote"><b>↳ {rep[1]}</b><em>{rep[2]}</em></span>
+                        <span className="guild-msg-bubble">{rep[3]}</span>
+                      </span>
+                    ) : (
+                      <span className="guild-msg-bubble">{m.message}</span>
+                    )}
                     {time ? <span className="guild-msg-time">{time}</span> : null}
                     {!mine && m.sender_name ? (
                       <button type="button" className="guild-msg-reply" title="답글" aria-label={`${m.sender_name}에게 답글`} onClick={() => setGuildReplyTo({ name: m.sender_name, message: m.message })}>↩</button>
