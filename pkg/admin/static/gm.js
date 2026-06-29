@@ -1101,6 +1101,10 @@ var GMManager = {
             const imageEl = document.getElementById('gm-promotion-verify-image');
             if (textEl) textEl.value = String(data.required_text || '');
             if (imageEl) imageEl.value = String(data.required_image || '');
+            const roundEl = document.getElementById('gm-promotion-round');
+            const maxEl = document.getElementById('gm-promotion-max-per-round');
+            if (roundEl) roundEl.value = String(data.current_round || 1);
+            if (maxEl) maxEl.value = String(data.max_per_round || 0);
         } catch (e) {
             // ignore
         }
@@ -1109,13 +1113,17 @@ var GMManager = {
     async savePromotionVerifyConfig() {
         const requiredText = String(document.getElementById('gm-promotion-verify-text')?.value || '').trim();
         const requiredImage = String(document.getElementById('gm-promotion-verify-image')?.value || '').trim();
+        const currentRound = parseInt(document.getElementById('gm-promotion-round')?.value || '1', 10) || 1;
+        const maxPerRound = Math.max(0, parseInt(document.getElementById('gm-promotion-max-per-round')?.value || '0', 10) || 0);
         try {
             const res = await fetch('/api/board/promotion/verify/config', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     required_text: requiredText,
-                    required_image: requiredImage
+                    required_image: requiredImage,
+                    current_round: currentRound,
+                    max_per_round: maxPerRound
                 })
             });
             if (!res.ok) {
@@ -1247,12 +1255,29 @@ var GMManager = {
         });
     },
 
+    renderPromotionRoundOptions(currentRound, selected) {
+        const el = document.getElementById('gm-promotion-round-filter');
+        if (!el) return;
+        const cur = Math.max(1, Number(currentRound || 1));
+        const sel = (selected === 0 || selected === '0') ? 'all' : String(selected || cur);
+        let html = '<option value="all">전체 회차</option>';
+        for (let i = cur; i >= 1; i--) {
+            html += `<option value="${i}">${i}회차${i === cur ? ' (현재)' : ''}</option>`;
+        }
+        el.innerHTML = html;
+        el.value = sel;
+        this.promotionRoundReady = true;
+    },
+
     async loadPromotions(page = 1) {
         this.promotionPage = Math.max(1, Number(page || 1));
         const tbody = document.getElementById('gm-promotion-list');
         const pager = document.getElementById('gm-promotion-pagination');
         if (!tbody) return;
         const search = String(document.getElementById('gm-promotion-search')?.value || '').trim();
+        const roundEl = document.getElementById('gm-promotion-round-filter');
+        // 옵션이 채워지기 전(첫 로드)엔 회차를 보내지 않아 백엔드 기본(현재 회차)이 적용되게 함
+        const round = (this.promotionRoundReady && roundEl && roundEl.value) ? roundEl.value : '';
         tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding:20px; color:var(--text-secondary);">불러오는 중...</td></tr>';
         try {
             const params = new URLSearchParams({
@@ -1260,6 +1285,7 @@ var GMManager = {
                 limit: '10'
             });
             if (search) params.set('search', search);
+            if (round) params.set('round', round);
             const res = await fetch(`/api/board/promotion/admin/list?${params.toString()}`);
             if (!res.ok) {
                 tbody.innerHTML = `<tr><td colspan="11" style="text-align:center; padding:20px; color:var(--danger-color);">홍보 목록을 불러오지 못했습니다. (${res.status})</td></tr>`;
@@ -1267,6 +1293,7 @@ var GMManager = {
                 return;
             }
             const data = await res.json();
+            this.renderPromotionRoundOptions(data.current_round, data.round);
             const posts = Array.isArray(data.posts) ? data.posts : [];
             this.promotionRows = posts;
             const allChecked = posts.length > 0 && posts.every((p) => this.promotionSelectedIds.has(Number(p.id || 0)));
@@ -1638,9 +1665,12 @@ var GMManager = {
                     return;
                 }
                 const data = await res.json().catch(() => ({}));
-                if (data && data.verify_message) {
-                    ModalUtils.showAlert(String(data.verify_message));
-                }
+                let resultMsg = String((data && data.verify_message) || '검사가 완료되었습니다.');
+                const dupN = Number((data && data.duplicate_count) || 0);
+                resultMsg += dupN > 0
+                    ? `\n\n⚠ 동일 URL 중복: ${dupN}건 발견 (이전 회차 참여와 같은 URL) — 해당 링크는 검사 통과 안 함`
+                    : `\n\n✅ 동일 URL 중복: 없음`;
+                ModalUtils.showAlert(resultMsg);
                 if (this.promotionDetailPostId === pid) {
                     await this.loadPromotionDetail(pid, false);
                 }
@@ -1653,6 +1683,7 @@ var GMManager = {
             const total = queue.length;
             let done = 0;
             let pass = 0;
+            let dup = 0;
             if (!total) {
                 ModalUtils.showAlert('검사할 URL이 없습니다.');
                 return;
@@ -1673,6 +1704,7 @@ var GMManager = {
                         if (res.ok) {
                             const data = await res.json().catch(() => ({}));
                             if (data && data.verify_ok === true) pass++;
+                            if (data && data.duplicate === true) dup++;
                         }
                     } catch (e) {
                         // keep going
@@ -1690,7 +1722,8 @@ var GMManager = {
                 await this.loadPromotionDetail(pid, false);
             }
             this.loadPromotions(this.promotionPage || 1);
-            ModalUtils.showAlert(`검사가 완료되었습니다. (통과 ${pass}/${total})`);
+            const dupNote = dup > 0 ? `\n⚠ 동일 URL 중복: ${dup}건` : `\n✅ 동일 URL 중복: 없음`;
+            ModalUtils.showAlert(`검사가 완료되었습니다. (통과 ${pass}/${total})${dupNote}`);
         } catch (e) {
             ModalUtils.showAlert('홍보 URL 검사 중 오류가 발생했습니다.');
         } finally {

@@ -2231,7 +2231,16 @@ function App() {
 
     const endpoint = editingId ? '/api/board/post/update' : '/api/board/post/create'
     const requestBody = editingId ? { id: editingId, ...payload } : { board_id: currentBoard.id, ...payload }
-    await apiFetch(endpoint, { method: 'POST', body: JSON.stringify(requestBody) })
+    try {
+      await apiFetch(endpoint, { method: 'POST', body: JSON.stringify(requestBody) })
+    } catch (e) {
+      // 서버 거부 메시지(예: 홍보 회차 최대 참여 초과)를 그대로 안내
+      const raw = String(e?.message || '').trim()
+      let msg = raw || '저장에 실패했습니다.'
+      try { const j = JSON.parse(raw); if (j && j.message) msg = j.message } catch (_) { /* plain text */ }
+      await showAlert(msg)
+      return
+    }
 
     resetWriteState()
     setScreen('list')

@@ -248,6 +248,10 @@ func ensureBoardSchema(db *sql.DB) {
 		_, _ = db.Exec("ALTER TABLE web_promotion_reward_config ADD COLUMN reward_items TEXT")
 		_, _ = db.Exec("ALTER TABLE web_promotion_reward_log ADD COLUMN reward_gold BIGINT NOT NULL DEFAULT 0")
 		_, _ = db.Exec("ALTER TABLE web_promotion_reward_log ADD COLUMN reward_items TEXT")
+		// 홍보 회차/회차당 최대 참여 횟수 (max_per_round 0 = 무제한)
+		_, _ = db.Exec("ALTER TABLE web_promotion_verify_config ADD COLUMN current_round INT NOT NULL DEFAULT 1")
+		_, _ = db.Exec("ALTER TABLE web_promotion_verify_config ADD COLUMN max_per_round INT NOT NULL DEFAULT 0")
+		_, _ = db.Exec("ALTER TABLE web_posts ADD COLUMN promo_round INT NOT NULL DEFAULT 0")
 
 		_, _ = db.Exec("UPDATE web_boards SET min_web_read = IFNULL(min_gm_read, 0) WHERE min_web_read = 0")
 		_, _ = db.Exec("UPDATE web_boards SET min_web_write = IFNULL(min_gm_write, 0) WHERE min_web_write = 0")
@@ -1161,6 +1165,46 @@ func buildPromotionContent(urls []string) string {
 	return b.String()
 }
 
+// 동일 URL 비교용 정규화(공백·후행 슬래시 제거 + 소문자)
+func normURLForCompare(u string) string {
+	s := strings.TrimSpace(u)
+	if s == "" {
+		return ""
+	}
+	s = strings.TrimRight(s, "/")
+	return strings.ToLower(s)
+}
+
+// 같은 회차·같은 유저의 "이전(더 먼저 작성된)" 참여글에서 사용한 URL 집합. 동일 URL 재사용 검사용.
+func promotionPreviousRoundURLs(db *sql.DB, postID int) map[string]bool {
+	prev := map[string]bool{}
+	if db == nil || postID <= 0 {
+		return prev
+	}
+	var accID, round int
+	if db.QueryRow("SELECT IFNULL(account_id,0), IFNULL(promo_round,0) FROM web_posts WHERE id=?", postID).Scan(&accID, &round) != nil || accID <= 0 {
+		return prev
+	}
+	rows, e := db.Query(`
+		SELECT IFNULL(l.url,'') FROM web_promotion_links l
+		JOIN web_posts p2 ON p2.id = l.post_id
+		WHERE p2.board_id='promotion' AND p2.account_id=? AND IFNULL(p2.promo_round,0)=? AND p2.id < ?`,
+		accID, round, postID)
+	if e != nil {
+		return prev
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var u string
+		if rows.Scan(&u) == nil {
+			if k := normURLForCompare(u); k != "" {
+				prev[k] = true
+			}
+		}
+	}
+	return prev
+}
+
 func replacePromotionLinks(db *sql.DB, postID int64, urls []string) error {
 	if db == nil || postID <= 0 {
 		return nil
@@ -1228,6 +1272,7 @@ func CreatePostHandler(w http.ResponseWriter, r *http.Request) {
 		p.Category = ""
 		p.InquiryStatus = ""
 	}
+	promoRound := 0
 	if isPromotionBoard(p.BoardID) {
 		p.PromotionURLs = normalizePromotionURLs(p.PromotionURLs)
 		if len(p.PromotionURLs) == 0 {
@@ -1235,6 +1280,22 @@ func CreatePostHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		p.Content = buildPromotionContent(p.PromotionURLs)
+
+		// 현재 회차 + 회차당 최대 참여 횟수 확인(초과 시 참여 불가)
+		currentRound, maxPerRound := 1, 0
+		_ = db.QueryRow("SELECT IFNULL(current_round,1), IFNULL(max_per_round,0) FROM web_promotion_verify_config WHERE id=1").Scan(&currentRound, &maxPerRound)
+		if currentRound <= 0 {
+			currentRound = 1
+		}
+		promoRound = currentRound
+		if maxPerRound > 0 {
+			var cnt int
+			_ = db.QueryRow("SELECT COUNT(*) FROM web_posts WHERE board_id='promotion' AND account_id=? AND IFNULL(promo_round,0)=?", user.AccountID, currentRound).Scan(&cnt)
+			if cnt >= maxPerRound {
+				http.Error(w, fmt.Sprintf("이번 %d회차 최대 참여 횟수(%d회)를 초과하여 참여할 수 없습니다.", currentRound, maxPerRound), http.StatusBadRequest)
+				return
+			}
+		}
 	}
 
 	// Use timestamp as display_number for unique sorting
@@ -1255,9 +1316,9 @@ func CreatePostHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	res, err := db.Exec(`
-		INSERT INTO web_posts (board_id, account_id, author_name, title, category, inquiry_status, version, content, display_number) 
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		p.BoardID, user.AccountID, user.AuthorName, p.Title, p.Category, p.InquiryStatus, p.Version, p.Content, displayNumber)
+		INSERT INTO web_posts (board_id, account_id, author_name, title, category, inquiry_status, version, content, display_number, promo_round)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		p.BoardID, user.AccountID, user.AuthorName, p.Title, p.Category, p.InquiryStatus, p.Version, p.Content, displayNumber, promoRound)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -1719,14 +1780,35 @@ func GetPromotionAdminListHandler(w http.ResponseWriter, r *http.Request) {
 	offset := (page - 1) * limit
 	search := strings.TrimSpace(r.URL.Query().Get("search"))
 
+	// 회차 필터: 기본=현재 회차, "all"/0=전체, N=해당 회차
+	currentRound := 1
+	_ = db.QueryRow("SELECT IFNULL(current_round,1) FROM web_promotion_verify_config WHERE id=1").Scan(&currentRound)
+	if currentRound <= 0 {
+		currentRound = 1
+	}
+	roundParam := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("round")))
+	roundFilter := currentRound
+	if roundParam == "all" || roundParam == "0" {
+		roundFilter = 0
+	} else if roundParam != "" {
+		if n, e := strconv.Atoi(roundParam); e == nil && n > 0 {
+			roundFilter = n
+		}
+	}
+
+	like := "%" + search + "%"
 	countQ := "SELECT COUNT(*) FROM web_posts WHERE board_id='promotion'"
-	args := make([]interface{}, 0)
+	countArgs := make([]interface{}, 0)
 	if search != "" {
 		countQ += " AND (title LIKE ? OR author_name LIKE ?)"
-		args = append(args, "%"+search+"%", "%"+search+"%")
+		countArgs = append(countArgs, like, like)
+	}
+	if roundFilter > 0 {
+		countQ += " AND IFNULL(promo_round,0) = ?"
+		countArgs = append(countArgs, roundFilter)
 	}
 	total := 0
-	_ = db.QueryRow(countQ, args...).Scan(&total)
+	_ = db.QueryRow(countQ, countArgs...).Scan(&total)
 
 	listQ := `
 		SELECT p.id, p.account_id, p.author_name, p.title, p.created_at,
@@ -1755,15 +1837,18 @@ func GetPromotionAdminListHandler(w http.ResponseWriter, r *http.Request) {
 		LEFT JOIN web_promotion_reward_log rl ON rl.post_id = p.id
 		WHERE p.board_id='promotion'
 	`
+	listArgs := make([]interface{}, 0)
 	if search != "" {
 		listQ += " AND (p.title LIKE ? OR p.author_name LIKE ?)"
+		listArgs = append(listArgs, like, like)
+	}
+	if roundFilter > 0 {
+		listQ += " AND IFNULL(p.promo_round,0) = ?"
+		listArgs = append(listArgs, roundFilter)
 	}
 	listQ += " ORDER BY p.display_number DESC LIMIT ? OFFSET ?"
-	if search != "" {
-		args = append(args, "%"+search+"%", "%"+search+"%")
-	}
-	args = append(args, limit, offset)
-	rows, err := db.Query(listQ, args...)
+	listArgs = append(listArgs, limit, offset)
+	rows, err := db.Query(listQ, listArgs...)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -1809,10 +1894,12 @@ func GetPromotionAdminListHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{
-		"posts":      list,
-		"total":      total,
-		"page":       page,
-		"totalPages": (total + limit - 1) / limit,
+		"posts":         list,
+		"total":         total,
+		"page":          page,
+		"totalPages":    (total + limit - 1) / limit,
+		"current_round": currentRound,
+		"round":         roundFilter,
 	})
 }
 
@@ -2278,16 +2365,22 @@ func PromotionVerifyConfigHandler(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method == http.MethodGet {
 		var requiredText, requiredImage string
-		err := db.QueryRow("SELECT IFNULL(required_text,''), IFNULL(required_image,'') FROM web_promotion_verify_config WHERE id=1").
-			Scan(&requiredText, &requiredImage)
+		var currentRound, maxPerRound int
+		err := db.QueryRow("SELECT IFNULL(required_text,''), IFNULL(required_image,''), IFNULL(current_round,1), IFNULL(max_per_round,0) FROM web_promotion_verify_config WHERE id=1").
+			Scan(&requiredText, &requiredImage, &currentRound, &maxPerRound)
 		if err != nil {
 			http.Error(w, "寃??湲곗???遺덈윭?ㅼ? 紐삵뻽?듬땲??", http.StatusInternalServerError)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
+		if currentRound <= 0 {
+			currentRound = 1
+		}
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"required_text":  requiredText,
 			"required_image": requiredImage,
+			"current_round":  currentRound,
+			"max_per_round":  maxPerRound,
 		})
 		return
 	}
@@ -2300,14 +2393,22 @@ func PromotionVerifyConfigHandler(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		RequiredText  string `json:"required_text"`
 		RequiredImage string `json:"required_image"`
+		CurrentRound  int    `json:"current_round"`
+		MaxPerRound   int    `json:"max_per_round"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request", http.StatusBadRequest)
 		return
 	}
+	if req.CurrentRound <= 0 {
+		req.CurrentRound = 1
+	}
+	if req.MaxPerRound < 0 {
+		req.MaxPerRound = 0
+	}
 	_, err = db.Exec(`UPDATE web_promotion_verify_config
-		SET required_text=?, required_image=?, updated_by=?
-		WHERE id=1`, strings.TrimSpace(req.RequiredText), strings.TrimSpace(req.RequiredImage), user.AccountID)
+		SET required_text=?, required_image=?, current_round=?, max_per_round=?, updated_by=?
+		WHERE id=1`, strings.TrimSpace(req.RequiredText), strings.TrimSpace(req.RequiredImage), req.CurrentRound, req.MaxPerRound, user.AccountID)
 	if err != nil {
 		http.Error(w, "寃??湲곗? ??μ뿉 ?ㅽ뙣?덉뒿?덈떎.", http.StatusInternalServerError)
 		return
@@ -2875,19 +2976,32 @@ func PromotionVerifyHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		linkMap[linkID] = strings.TrimSpace(url)
 	}
+
+	// 같은 회차·같은 유저의 이전 참여글 URL 집합(동일 URL 재사용 검사용)
+	prevURLs := promotionPreviousRoundURLs(db, req.PostID)
+
 	checkResults := verifyPromotionLinksParallel(linkMap, title, author, requiredText, requiredImage)
 
 	updated := 0
-	for _, r := range checkResults {
+	dupCount := 0
+	for _, res := range checkResults {
+		ok := res.OK
+		msg := res.Msg
+		// 동일 URL 재사용 검사 — 이전 참여(같은 회차)와 같은 URL이면 검사 실패 처리
+		if k := normURLForCompare(linkMap[res.LinkID]); k != "" && prevURLs[k] {
+			ok = false
+			msg = "이전 참여(같은 회차)와 동일한 URL입니다. 새 홍보가 아닐 수 있어 검사를 통과시키지 않습니다."
+			dupCount++
+		}
 		okNum := 0
-		if r.OK {
+		if ok {
 			okNum = 1
 		}
 		if _, err := db.Exec(`
 			UPDATE web_promotion_links
 			SET verify_ok=?, verify_message=?, checked_at=NOW()
 			WHERE id=?
-		`, okNum, r.Msg, r.LinkID); err == nil {
+		`, okNum, msg, res.LinkID); err == nil {
 			updated++
 		}
 	}
@@ -2901,10 +3015,11 @@ func PromotionVerifyHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{
-		"status":         "success",
-		"verify_ok":      postVerifyOK == 1,
-		"verify_message": normalizePromotionVerifyMessage(postVerifyMessage),
-		"updated_links":  updated,
+		"status":          "success",
+		"verify_ok":       postVerifyOK == 1,
+		"verify_message":  normalizePromotionVerifyMessage(postVerifyMessage),
+		"updated_links":   updated,
+		"duplicate_count": dupCount,
 	})
 }
 
@@ -2969,6 +3084,15 @@ func PromotionVerifySingleLinkHandler(w http.ResponseWriter, r *http.Request) {
 
 	ok, msg := verifyPromotionURL(targetURL, title, author, requiredText, requiredImage)
 	msg = normalizePromotionVerifyMessage(msg)
+	// 동일 URL 재사용 검사 — 같은 회차·같은 유저의 이전 참여글과 같은 URL이면 검사 실패 처리
+	wasDup := false
+	if k := normURLForCompare(targetURL); k != "" {
+		if prev := promotionPreviousRoundURLs(db, req.PostID); prev[k] {
+			ok = false
+			wasDup = true
+			msg = "이전 참여(같은 회차)와 동일한 URL입니다. 새 홍보가 아닐 수 있어 검사를 통과시키지 않습니다."
+		}
+	}
 	okNum := 0
 	if ok {
 		okNum = 1
@@ -2991,6 +3115,7 @@ func PromotionVerifySingleLinkHandler(w http.ResponseWriter, r *http.Request) {
 		"link_id":        req.LinkID,
 		"verify_ok":      ok,
 		"verify_message": msg,
+		"duplicate":      wasDup,
 	})
 }
 
