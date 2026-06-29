@@ -434,6 +434,7 @@ func RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/board/promotion/verify/link", PromotionVerifySingleLinkHandler)
 	mux.HandleFunc("/api/board/promotion/review", PromotionReviewHandler)
 	mux.HandleFunc("/api/board/promotion/verify/config", PromotionVerifyConfigHandler)
+	mux.HandleFunc("/api/board/promotion/my-status", PromotionMyStatusHandler)
 	mux.HandleFunc("/api/board/promotion/verify/upload", PromotionVerifyImageUploadHandler)
 	mux.HandleFunc("/api/board/promotion/admin/detail", GetPromotionAdminDetailHandler)
 	mux.HandleFunc("/api/board/promotion/link/auto-verify", PromotionLinkAutoVerifyHandler)
@@ -2343,6 +2344,46 @@ func sendPromotionRewardMail(receiverName, subject, body string, items []promoRe
 	// (avoiding the duplicate-primary-key collisions that silently break player mail)
 	// and notifies online recipients immediately.
 	return utils.SendWorldMail(receiverName, subject, body, mailItems, goldCopper)
+}
+
+// 로그인 유저의 현재 회차/참여 현황 — 글쓰기 버튼 클릭 시 사전 차단 + 회차 표기용.
+func PromotionMyStatusHandler(w http.ResponseWriter, r *http.Request) {
+	user, err := getUserInfo(r)
+	if err != nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	db, err := openUpdateDB()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer db.Close()
+
+	currentRound, maxPerRound := 1, 0
+	_ = db.QueryRow("SELECT IFNULL(current_round,1), IFNULL(max_per_round,0) FROM web_promotion_verify_config WHERE id=1").
+		Scan(&currentRound, &maxPerRound)
+	if currentRound <= 0 {
+		currentRound = 1
+	}
+	used := 0
+	_ = db.QueryRow("SELECT COUNT(*) FROM web_posts WHERE board_id='promotion' AND account_id=? AND IFNULL(promo_round,0)=?",
+		user.AccountID, currentRound).Scan(&used)
+
+	canWrite := maxPerRound <= 0 || used < maxPerRound
+	message := ""
+	if !canWrite {
+		message = fmt.Sprintf("이번 %d회차 최대 참여 횟수(%d회)를 초과하여 참여할 수 없습니다.", currentRound, maxPerRound)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		"current_round": currentRound,
+		"max_per_round": maxPerRound,
+		"used":          used,
+		"can_write":     canWrite,
+		"message":       message,
+	})
 }
 
 func PromotionVerifyConfigHandler(w http.ResponseWriter, r *http.Request) {

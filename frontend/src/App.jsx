@@ -1047,6 +1047,7 @@ function App() {
   const [boardId, setBoardId] = useState('')
   const [inquiryCategory, setInquiryCategory] = useState('')
   const [promotionUrls, setPromotionUrls] = useState([''])
+  const [promotionStatus, setPromotionStatus] = useState(null) // 홍보 회차/참여 현황 { current_round, max_per_round, used, can_write, message }
   const [sponsorAgree, setSponsorAgree] = useState(false)
   const [sponsorName, setSponsorName] = useState('')
   const [sponsorAmount, setSponsorAmount] = useState('')
@@ -1156,6 +1157,10 @@ function App() {
   const isSupportBoard = isInquiryBoard || isBugReportBoard
   const isPromotionBoard = currentBoard?.id === 'promotion'
   const isUpdateBoard = currentBoard?.name?.includes('업데이트')
+  useEffect(() => {
+    if (!user || !isPromotionBoard) return
+    apiFetch('/api/board/promotion/my-status').then((st) => { if (st) setPromotionStatus(st) }).catch(() => {})
+  }, [isPromotionBoard, user, screen])
   const myPageMainCharacter = user?.mainCharacter && Number(user.mainCharacter.guid || 0) > 0 ? user.mainCharacter : null
   const auctionSelectedCharacter = auctionCharacters.find((character) => Number(character.guid) === Number(auctionCreateCharGuid)) || null
   const filteredAuctionCreateItems = useMemo(() => {
@@ -2095,6 +2100,19 @@ function App() {
     if (!isAdmin(user) && !hasRepresentativeCharacter(user)) {
       await showAlert('대표 캐릭터를 설정해야 글을 작성할 수 있습니다.')
       return
+    }
+    // 홍보 게시판: 글쓰기 진입 전 회차당 최대 참여 초과 여부 확인
+    if (currentBoard.id === 'promotion') {
+      try {
+        const st = await apiFetch('/api/board/promotion/my-status')
+        if (st) {
+          setPromotionStatus(st)
+          if (st.can_write === false) {
+            await showAlert(st.message || '이번 회차 최대 참여 횟수를 초과하여 참여할 수 없습니다.')
+            return
+          }
+        }
+      } catch (e) { /* 조회 실패 시 작성 제출 단계의 서버 차단으로 폴백 */ }
     }
     setUserMenuOpen(false)
     setMobileNavOpen(false)
@@ -3860,8 +3878,10 @@ function App() {
                   <>
                     <div className="public-board-head">
                       <div className="public-board-title-wrap">
-                        <h2>{currentBoard.name}</h2>
-                        <p className="public-board-sub">{currentBoard.description || `${currentBoard.name} 게시글을 확인할 수 있습니다.`}</p>
+                        <h2>{currentBoard.name}{isPromotionBoard && promotionStatus ? <span className="promo-round-badge">현재 {promotionStatus.current_round}회차</span> : null}</h2>
+                        <p className="public-board-sub">{isPromotionBoard && promotionStatus
+                          ? `현재 ${promotionStatus.current_round}회차 · 내 참여 ${promotionStatus.used}회${Number(promotionStatus.max_per_round) > 0 ? ` / 최대 ${promotionStatus.max_per_round}회` : ' (무제한)'}`
+                          : (currentBoard.description || `${currentBoard.name} 게시글을 확인할 수 있습니다.`)}</p>
                       </div>
                       <div className="public-board-toolbar">
                         <button className="btn public-board-home-btn" type="button" onClick={goHome}>{TEXT.home}</button>
