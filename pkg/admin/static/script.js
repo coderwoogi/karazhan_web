@@ -3993,6 +3993,7 @@ async function loadCarddrawIconByEntry(entry, containerId) {
 
 async function loadCarddrawContentItems(page = 1) {
     currentCarddrawContentPage = page;
+    if (page === 1) loadCarddrawEquipSettings(); // 장비 보상 설정 동기화
     const tbody = document.getElementById('carddraw-content-list');
     const pgContainer = document.getElementById('carddraw-content-pagination');
     if (!tbody) return;
@@ -4066,6 +4067,59 @@ async function loadCarddrawContentItems(page = 1) {
 
 function searchCarddrawContentItems() {
     loadCarddrawContentItems(1);
+}
+
+// ── 카드뽑기 직업별 랜덤 장비 보상 설정 ──
+async function loadCarddrawEquipSettings() {
+    try {
+        const res = await fetch('/api/content/carddraw/equip-settings');
+        if (!res.ok) return;
+        const d = await res.json();
+        if (!d || d.status !== 'success') return;
+        const setV = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+        const setC = (id, v) => { const el = document.getElementById(id); if (el) el.checked = !!v; };
+        setC('equip-enabled', Number(d.enabled) === 1);
+        setV('equip-chance', Number(d.chance || 0));
+        setV('equip-max-ilvl', Number(d.maxIlvl || 0));
+        setV('equip-min-ilvl', Number(d.minIlvl || 0));
+        setV('equip-q2', Number(d.gradeQ2 || 0));
+        setV('equip-q3', Number(d.gradeQ3 || 0));
+        setV('equip-q4', Number(d.gradeQ4 || 0));
+        setV('equip-q5', Number(d.gradeQ5 || 0));
+        setC('equip-cat-weapon', Number(d.catWeapon) === 1);
+        setC('equip-cat-armor', Number(d.catArmor) === 1);
+        setC('equip-cat-accessory', Number(d.catAccessory) === 1);
+    } catch (e) { /* 무시 */ }
+}
+
+async function saveCarddrawEquipSettings() {
+    const val = (id) => (document.getElementById(id) || {}).value || '';
+    const chk = (id) => ((document.getElementById(id) || {}).checked ? '1' : '0');
+    const body = new URLSearchParams();
+    body.set('enabled', chk('equip-enabled'));
+    body.set('chance', val('equip-chance'));
+    body.set('maxIlvl', val('equip-max-ilvl'));
+    body.set('minIlvl', val('equip-min-ilvl'));
+    body.set('gradeQ2', val('equip-q2'));
+    body.set('gradeQ3', val('equip-q3'));
+    body.set('gradeQ4', val('equip-q4'));
+    body.set('gradeQ5', val('equip-q5'));
+    body.set('catWeapon', chk('equip-cat-weapon'));
+    body.set('catArmor', chk('equip-cat-armor'));
+    body.set('catAccessory', chk('equip-cat-accessory'));
+    try {
+        const res = await fetch('/api/content/carddraw/equip-settings', {
+            method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body.toString()
+        });
+        if (res.ok) {
+            if (window.ModalUtils) ModalUtils.showAlert('장비 보상 설정을 저장했습니다.');
+            loadCarddrawEquipSettings();
+        } else if (window.ModalUtils) {
+            ModalUtils.showAlert('설정 저장에 실패했습니다.');
+        }
+    } catch (e) {
+        if (window.ModalUtils) ModalUtils.showAlert('설정 저장 중 오류가 발생했습니다.');
+    }
 }
 
 function resetCarddrawContentFilters() {
@@ -6796,14 +6850,21 @@ function renderDashMultiLine(canvasId, key, labels, datasets, valueFormatter) {
             datasets: (datasets || []).map(d => ({
                 label: d.label, data: d.values || [],
                 borderColor: d.color, backgroundColor: 'transparent',
-                borderWidth: 2, tension: 0.3, pointRadius: 0
+                borderWidth: 2, tension: 0.3, pointRadius: 0,
+                pointHoverRadius: 4, pointHitRadius: 12, pointHoverBackgroundColor: d.color
             }))
         },
         options: {
             responsive: true, maintainAspectRatio: false,
+            // 점이 안 보여도(point 0) 가로축 어디든 올리면 그 날짜의 모든 계열 값이 함께 표시됨
+            interaction: { mode: 'index', intersect: false },
             plugins: {
                 legend: { display: true, position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } },
-                tooltip: valueFormatter ? { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${valueFormatter(Number(ctx.raw || 0))}` } } : undefined
+                tooltip: {
+                    callbacks: {
+                        label: (ctx) => `${ctx.dataset.label}: ${valueFormatter ? valueFormatter(Number(ctx.raw || 0)) : Number(ctx.raw || 0).toLocaleString()}`
+                    }
+                }
             },
             scales: { y: { beginAtZero: true, ticks: { font: { size: 9 } } }, x: { ticks: { maxTicksLimit: 7, font: { size: 9 } } } }
         }

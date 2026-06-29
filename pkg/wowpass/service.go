@@ -916,7 +916,7 @@ func handleCardDrawPackCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rewards, err := loadCarddrawRandomRewards(req.DrawCount)
+	rewards, err := loadCarddrawRandomRewards(req.DrawCount, selected)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "카드뽑기 품목을 불러오지 못했습니다."})
 		return
@@ -1462,13 +1462,18 @@ func fillSingleCarddrawRewardMeta(reward *carddrawReward) {
 	}
 }
 
-func loadCarddrawRandomRewards(count int) ([]carddrawReward, error) {
+func loadCarddrawRandomRewards(count int, selected cardCharacter) ([]carddrawReward, error) {
 	if count <= 0 {
 		count = 1
 	}
 	if count > 5 {
 		count = 5
 	}
+
+	// 직업별 랜덤 장비 보상 설정
+	equip, equipOK := loadCarddrawEquipSettings()
+	equipOn := equipOK && equip.Enabled && equip.Chance > 0 && selected.Class > 0 &&
+		(equip.CatWeapon == 1 || equip.CatArmor == 1 || equip.CatAccessory == 1)
 
 	updateDB, err := sql.Open("mysql", updateDSN)
 	if err != nil {
@@ -1509,7 +1514,8 @@ func loadCarddrawRandomRewards(count int) ([]carddrawReward, error) {
 		item.MaxCount = normalizeCarddrawMaxCount(item.MaxCount)
 		all = append(all, item)
 	}
-	if len(all) == 0 {
+	// 풀이 비었어도 장비 보상이 켜져 있으면 장비만으로 진행 가능
+	if len(all) == 0 && !equipOn {
 		return nil, fmt.Errorf("활성 카드뽑기 아이템이 없습니다")
 	}
 
@@ -1517,11 +1523,29 @@ func loadCarddrawRandomRewards(count int) ([]carddrawReward, error) {
 	working := make([]carddrawPoolItem, len(all))
 	copy(working, all)
 	for i := 0; i < count; i++ {
+		// 1) 장비 카드 시도 — 설정 확률에 당첨되면 직업 착용 가능 랜덤 장비
+		if equipOn && rand.Float64()*100 < equip.Chance {
+			if rw, ok := pickRandomEquipReward(selected.Class, rollEquipQuality(equip), equip); ok {
+				rewards = append(rewards, rw)
+				continue
+			}
+			// 매칭 실패 → 아래 풀 추첨으로 폴백
+		}
+
+		// 2) 풀 추첨(직접 등록 아이템). 풀이 비었으면 장비 폴백 시도.
 		candidates := working
 		useWorking := true
 		if len(candidates) == 0 {
 			candidates = all
 			useWorking = false
+		}
+		if len(candidates) == 0 {
+			if equipOn {
+				if rw, ok := pickRandomEquipReward(selected.Class, rollEquipQuality(equip), equip); ok {
+					rewards = append(rewards, rw)
+				}
+			}
+			continue
 		}
 		pickIdx := weightedPickCarddrawIndex(candidates)
 		if pickIdx < 0 || pickIdx >= len(candidates) {
@@ -1548,6 +1572,9 @@ func loadCarddrawRandomRewards(count int) ([]carddrawReward, error) {
 		if useWorking {
 			working = append(working[:pickIdx], working[pickIdx+1:]...)
 		}
+	}
+	if len(rewards) == 0 {
+		return nil, fmt.Errorf("지급 가능한 보상이 없습니다")
 	}
 	return rewards, nil
 }

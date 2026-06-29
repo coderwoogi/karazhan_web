@@ -90,6 +90,13 @@ func RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/content/carddraw/add", handleCarddrawContentAdd)
 	mux.HandleFunc("/api/content/carddraw/update", handleCarddrawContentUpdate)
 	mux.HandleFunc("/api/content/carddraw/delete", handleCarddrawContentDelete)
+	mux.HandleFunc("/api/content/carddraw/equip-settings", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			handleCarddrawEquipSettingsSave(w, r)
+		} else {
+			handleCarddrawEquipSettingsGet(w, r)
+		}
+	})
 	mux.HandleFunc("/api/content/trial/stages", handleTrialStageList)
 	mux.HandleFunc("/api/content/trial/stage-detail", handleTrialStageDetail)
 	mux.HandleFunc("/api/content/trial/stage-save", handleTrialStageSave)
