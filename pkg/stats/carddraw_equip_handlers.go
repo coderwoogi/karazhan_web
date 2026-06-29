@@ -121,8 +121,12 @@ func handleCarddrawEquipSettingsSave(w http.ResponseWriter, r *http.Request) {
 		return 0
 	}
 
-	enabled := pb("enabled")
 	chance := clampFloat(pf("chance"), 0, 100)
+	// 확률>0 이면 자동 활성(별도 토글 제거 — 0%면 비활성)
+	enabled := 0
+	if chance > 0 {
+		enabled = 1
+	}
 	minIlvl := clampInt(pi("minIlvl"), 0, 1000)
 	maxIlvl := clampInt(pi("maxIlvl"), 1, 1000)
 	if maxIlvl < minIlvl {

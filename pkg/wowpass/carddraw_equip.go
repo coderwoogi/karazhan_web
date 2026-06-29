@@ -6,6 +6,7 @@ package wowpass
 
 import (
 	"database/sql"
+	"fmt"
 	"math/rand"
 	"strings"
 )
@@ -190,10 +191,19 @@ func pickRandomEquipReward(class, quality int, s carddrawEquipSettings) (carddra
 		return carddrawReward{}, false
 	}
 
-	query := `SELECT it.entry FROM item_template it
+	// item_template 엔 icon 컬럼이 없으므로 이름만 직접 조회(아이콘은 프런트가 itemEntry 로 해석).
+	// 서버 미적재/거부 가능성이 높은 정크(displayid 0·테스트/구버전/플레이스홀더) 배제.
+	query := `SELECT it.entry,
+			COALESCE(NULLIF(itl.Name,''), NULLIF(it.name,''), CONCAT('아이템 ', it.entry)) AS nm
+		FROM item_template it
+		LEFT JOIN item_template_locale itl ON itl.ID = it.entry AND itl.locale = 'koKR'
 		WHERE it.Quality = ?
 		  AND it.ItemLevel BETWEEN ? AND ?
 		  AND it.name <> ''
+		  AND it.displayid > 0
+		  AND it.name NOT LIKE 'OLD%' AND it.name NOT LIKE 'QA%' AND it.name NOT LIKE 'PH %'
+		  AND it.name NOT LIKE 'TEST%' AND it.name NOT LIKE '%(test)%'
+		  AND it.name NOT LIKE 'Monster %' AND it.name NOT LIKE 'ZZ%' AND it.name NOT LIKE '%DEPRECATED%'
 		  AND (it.AllowableClass = -1 OR (it.AllowableClass & ?) <> 0)
 		  AND (` + strings.Join(clauses, " OR ") + `)
 		ORDER BY RAND() LIMIT 1`
@@ -202,18 +212,16 @@ func pickRandomEquipReward(class, quality int, s carddrawEquipSettings) (carddra
 	args = append(args, subArgs...)
 
 	var entry int
-	if err := worldDB.QueryRow(query, args...).Scan(&entry); err != nil || entry <= 0 {
+	var name string
+	if err := worldDB.QueryRow(query, args...).Scan(&entry, &name); err != nil || entry <= 0 {
 		return carddrawReward{}, false
 	}
 
-	rarity, label := qualityToRarity(quality)
-	reward := carddrawReward{ItemEntry: entry, Rarity: rarity, RarityLabel: label, Quantity: 1}
-	fillSingleCarddrawRewardMeta(&reward)
-	if strings.TrimSpace(reward.Name) == "" {
-		reward.Name = "알 수 없는 아이템"
+	name = strings.TrimSpace(name)
+	if name == "" {
+		name = fmt.Sprintf("아이템 %d", entry)
 	}
-	// fill 이 라벨을 덮었을 수 있으니 장비 등급 라벨 재적용
-	reward.Rarity = rarity
-	reward.RarityLabel = label
-	return reward, true
+	rarity, label := qualityToRarity(quality)
+	// Icon/IconURL 은 비워둠 — 프런트가 itemEntry 기반으로 다른 보상과 동일하게 아이콘을 표시.
+	return carddrawReward{ItemEntry: entry, Name: name, Rarity: rarity, RarityLabel: label, Quantity: 1}, true
 }

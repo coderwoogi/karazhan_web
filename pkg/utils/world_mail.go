@@ -159,6 +159,9 @@ func worldSOAPConfigCandidatePaths() []string {
 		"/opt/homebrew/var/www/karazhan/configs/worldserver.conf",
 		"/opt/homebrew/etc/karazhan/worldserver.conf",
 		"/Users/choitaeuk/Desktop/karazhan/operate/configs/worldserver.conf",
+		// Windows dev (karazhandev) — AzerothCore 운영 디렉토리
+		"E:/server/operate/configs/worldserver.conf",
+		"E:/server/azerothcore-wotlk/env/dist/etc/worldserver.conf",
 	)
 	return candidates
 }

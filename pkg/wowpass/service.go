@@ -110,6 +110,7 @@ func RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/carddraw/history", handleCardDrawHistory)
 	mux.HandleFunc("/api/carddraw/pack/create", handleCardDrawPackCreate)
 	mux.HandleFunc("/api/carddraw/pack/open", handleCardDrawPackOpen)
+	mux.HandleFunc("/api/carddraw/mailbox-status", handleCardDrawMailboxStatus)
 	mux.HandleFunc("/api/carddraw/draw", handleCardDrawDraw)
 	mux.HandleFunc("/api/carddraw/pool/list", handleCarddrawPoolList)
 
@@ -846,20 +847,30 @@ func handleCardDrawPackCreate(w http.ResponseWriter, r *http.Request) {
 		if hasUnopened {
 			openable := append([]int(nil), existing.OpenableSlots...)
 			sort.Ints(openable)
+			sel := existing.SelectedChar
+			packID := existing.PackID
 			carddrawPackStoreMu.Unlock()
+			// 진행 중 팩 재개 시에도 우편함 가득참을 검사(버튼 누를 때 항상 확인)
+			if full, cnt := isCarddrawMailboxFull(sel.Guid); full {
+				writeJSON(w, http.StatusBadRequest, map[string]interface{}{
+					"status": "error", "mailboxFull": true, "mailCount": cnt,
+					"message": fmt.Sprintf("선택한 캐릭터 '%s'의 우편함이 가득 찼습니다(%d통). 게임 내 우편을 정리한 뒤 다시 시도해주세요.", sel.Name, cnt),
+				})
+				return
+			}
 			writeJSON(w, http.StatusOK, map[string]interface{}{
 				"status":        "success",
-				"packId":        existing.PackID,
+				"packId":        packID,
 				"drawCount":     req.DrawCount,
 				"remainingDraw": -1,
 				"openableSlots": openable,
 				"selectedCharacter": map[string]interface{}{
-					"guid":   existing.SelectedChar.Guid,
-					"name":   existing.SelectedChar.Name,
-					"race":   existing.SelectedChar.Race,
-					"class":  existing.SelectedChar.Class,
-					"gender": existing.SelectedChar.Gender,
-					"level":  existing.SelectedChar.Level,
+					"guid":   sel.Guid,
+					"name":   sel.Name,
+					"race":   sel.Race,
+					"class":  sel.Class,
+					"gender": sel.Gender,
+					"level":  sel.Level,
 				},
 			})
 			return
@@ -913,6 +924,15 @@ func handleCardDrawPackCreate(w http.ResponseWriter, r *http.Request) {
 	}
 	if drawCount < req.DrawCount {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "선택한 횟수만큼 카드 뽑기 가능 횟수가 없습니다."})
+		return
+	}
+
+	// 보상은 우편으로 지급되므로, 우편함이 가득 차 있으면 뽑기 전에 차단·안내한다.
+	if full, cnt := isCarddrawMailboxFull(selected.Guid); full {
+		writeJSON(w, http.StatusBadRequest, map[string]interface{}{
+			"status": "error", "mailboxFull": true, "mailCount": cnt,
+			"message": fmt.Sprintf("선택한 캐릭터 '%s'의 우편함이 가득 찼습니다(%d통). 게임 내 우편을 정리한 뒤 다시 시도해주세요.", selected.Name, cnt),
+		})
 		return
 	}
 
@@ -1134,7 +1154,25 @@ func sendCarddrawRewardBundleMail(selected cardCharacter, rewards []carddrawRewa
 	// (avoiding the duplicate-primary-key collisions that silently break player mail)
 	// and notifies online recipients immediately.
 	if err := utils.SendWorldItemMail(selected.Name, subject, body, mailItems); err != nil {
-		return err
+		// 배치 발송 실패 — 일부 엔트리가 서버 미적재/거부일 수 있으므로 아이템별 개별 발송으로 폴백.
+		// (.send items 는 원자적이라 배치 실패 시 아무것도 발송되지 않음 → 재발송 안전)
+		sentAny := false
+		var lastErr error
+		for i, mi := range mailItems {
+			subj := subject
+			if i < len(rewards) && strings.TrimSpace(rewards[i].Name) != "" {
+				subj = fmt.Sprintf("[카드뽑기] %s", rewards[i].Name)
+			}
+			if e := utils.SendWorldItemMail(selected.Name, subj, body, []utils.WorldMailItem{mi}); e != nil {
+				lastErr = e
+				log.Printf("[carddraw/mail] 개별 발송 실패 char=%s entry=%d err=%v", selected.Name, mi.Entry, e)
+				continue
+			}
+			sentAny = true
+		}
+		if !sentAny {
+			return fmt.Errorf("reward mail failed: %w", lastErr)
+		}
 	}
 
 	// Best-effort audit log (separate table, unrelated to mail-id allocation).
@@ -1165,6 +1203,49 @@ func sendCarddrawRewardBundleMail(selected cardCharacter, rewards []carddrawRewa
 	}
 
 	return nil
+}
+
+// AzerothCore 수신 한도: 우편 100통 초과 시 신규 우편을 받을 수 없다(MAIL_ERR_RECIPIENT_CAP_REACHED).
+const carddrawMailboxCap = 100
+
+// 선택 캐릭터의 우편함이 가득 찼는지(>= cap) — (가득참, 현재 통수)
+func isCarddrawMailboxFull(charGuid int) (bool, int) {
+	if charGuid <= 0 {
+		return false, 0
+	}
+	db, err := sql.Open("mysql", charDSN)
+	if err != nil {
+		return false, 0
+	}
+	defer db.Close()
+	var cnt int
+	if err := db.QueryRow("SELECT COUNT(*) FROM mail WHERE receiver = ?", charGuid).Scan(&cnt); err != nil {
+		return false, 0
+	}
+	return cnt >= carddrawMailboxCap, cnt
+}
+
+// GET /api/carddraw/mailbox-status — 선택 캐릭터 우편함이 가득 찼는지(버튼 클릭 시 사전 확인용)
+func handleCardDrawMailboxStatus(w http.ResponseWriter, r *http.Request) {
+	userID, _, err := getSessionUserID(r)
+	if err != nil {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"status": "error", "message": "로그인이 필요합니다."})
+		return
+	}
+	updateDB, err := sql.Open("mysql", updateDSN)
+	if err != nil {
+		writeJSON(w, http.StatusOK, map[string]interface{}{"status": "success", "full": false})
+		return
+	}
+	defer updateDB.Close()
+	var guid int
+	var name string
+	_ = updateDB.QueryRow(`SELECT IFNULL(carddraw_selected_char_guid,0), IFNULL(carddraw_selected_char_name,'')
+		FROM user_profiles WHERE user_id = ?`, userID).Scan(&guid, &name)
+	full, cnt := isCarddrawMailboxFull(guid)
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"status": "success", "full": full, "count": cnt, "name": name, "cap": carddrawMailboxCap,
+	})
 }
 
 func handleCardDrawDraw(w http.ResponseWriter, r *http.Request) {
@@ -1472,7 +1553,8 @@ func loadCarddrawRandomRewards(count int, selected cardCharacter) ([]carddrawRew
 
 	// 직업별 랜덤 장비 보상 설정
 	equip, equipOK := loadCarddrawEquipSettings()
-	equipOn := equipOK && equip.Enabled && equip.Chance > 0 && selected.Class > 0 &&
+	// 확률>0 이면 활성(별도 토글 불필요). 0%면 비활성.
+	equipOn := equipOK && equip.Chance > 0 && selected.Class > 0 &&
 		(equip.CatWeapon == 1 || equip.CatArmor == 1 || equip.CatAccessory == 1)
 
 	updateDB, err := sql.Open("mysql", updateDSN)

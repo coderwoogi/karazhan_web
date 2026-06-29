@@ -1396,6 +1396,16 @@
             await showCarddrawNotice(`선택한 카드 오픈 수량(${openCount}회)보다 보유 횟수가 부족합니다.`, "경고");
             return;
         }
+        // 우편함 가득참 사전 확인 — 보상은 우편으로 지급되므로, 가득 차 있으면 진행 차단
+        try {
+            const mres = await fetch("/api/carddraw/mailbox-status", { credentials: "same-origin" });
+            const mdata = await mres.json().catch(() => ({}));
+            if (mdata && mdata.full) {
+                const nm = mdata.name ? ` '${mdata.name}'` : "";
+                await showCarddrawNotice(`선택한 캐릭터${nm}의 우편함이 가득 찼습니다(${Number(mdata.count || 0)}통). 게임 내 우편을 정리한 뒤 다시 시도해주세요.`, "우편함 가득참");
+                return;
+            }
+        } catch (e) { /* 상태 확인 실패 시 서버측 차단으로 폴백 */ }
         await openNextPack(openCount);
     };
 
