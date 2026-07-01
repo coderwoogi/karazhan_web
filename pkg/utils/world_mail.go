@@ -97,13 +97,18 @@ func SendWorldItemMail(receiverName, subject, body string, items []WorldMailItem
 }
 
 // sanitizeMailArg makes a string safe to embed inside a double-quoted ".send"
-// command argument. AzerothCore's QuotedString parser ends an argument at the next
-// double quote, so embedded quotes must be removed; newlines/tabs are flattened to
-// keep the command on a single line.
+// command argument. AzerothCore's QuotedString parser reads until the next double
+// quote and PRESERVES embedded newlines, so line breaks are kept for mail formatting;
+// only characters that break parsing are neutralized:
+//   - backslash: QuotedString treats '\' as an escape that swallows the next char → remove
+//   - double quote: would end the quoted argument early → replace with single quote
+//   - carriage return: normalize to '\n'; tab → space
 func sanitizeMailArg(s string) string {
+	s = strings.ReplaceAll(s, "\\", "")
 	s = strings.ReplaceAll(s, "\"", "'")
-	replacer := strings.NewReplacer("\r", " ", "\n", " ", "\t", " ")
-	s = replacer.Replace(s)
+	s = strings.ReplaceAll(s, "\r\n", "\n")
+	s = strings.ReplaceAll(s, "\r", "\n")
+	s = strings.ReplaceAll(s, "\t", " ")
 	return strings.TrimSpace(s)
 }
 
