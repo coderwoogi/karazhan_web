@@ -788,13 +788,17 @@ func sendShopItemMail(receiverName, subject, body string, itemEntry, itemCount i
 		return err
 	}
 
-	// 월드서버 가동 중이면 SOAP(.send items)로 발송 — 서버가 item guid를 원자적으로 할당해,
-	// 직접 INSERT 시 발생하던 item_instance guid 충돌(우편이 엉뚱한 기존 아이템을 가리켜
-	// 껍질 조각·호박석 머리보호구 등 다른 아이템이 지급되던 현상)을 방지한다.
-	// 오프라인이면 서버가 guid를 생성하지 않으므로 직접 INSERT가 안전(다음 접속 시 수령).
+	// 우편 발송 전략:
+	//  - 월드서버 가동 중: SOAP(.send items) 우선 — 서버가 item guid를 원자적으로 할당해
+	//    직접 INSERT 시의 guid 충돌(우편이 엉뚱한 기존 아이템을 가리켜 다른 아이템이 지급되던
+	//    현상)을 방지. SOAP가 미구성/도달 불가로 실패하면 직접 INSERT로 폴백해 메일 유실 방지.
+	//  - 오프라인: 서버가 guid를 생성하지 않으므로 직접 INSERT가 안전(다음 접속 시 수령).
 	if isShopWorldServerRunning() {
-		if err := utils.SendWorldItemMail(receiverName, subject, body, []utils.WorldMailItem{{Entry: itemEntry, Count: itemCount}}); err != nil {
-			return err
+		if soapErr := utils.SendWorldItemMail(receiverName, subject, body, []utils.WorldMailItem{{Entry: itemEntry, Count: itemCount}}); soapErr != nil {
+			log.Printf("[shop/mail] SOAP 발송 실패 → 직접 INSERT 폴백 receiver=%s entry=%d count=%d err=%v", receiverName, itemEntry, itemCount, soapErr)
+			if err := sendShopItemMailDirect(charDB, charGUID, receiverName, subject, body, itemEntry, itemCount); err != nil {
+				return err
+			}
 		}
 	} else if err := sendShopItemMailDirect(charDB, charGUID, receiverName, subject, body, itemEntry, itemCount); err != nil {
 		return err
