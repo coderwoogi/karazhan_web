@@ -1976,8 +1976,25 @@ func handleCarddrawPoolList(w http.ResponseWriter, r *http.Request) {
 
 	fillCarddrawPoolMetaFromWorld(items)
 
+	// 직업별 랜덤 장비 보상 설정 — 보상 목록에 "랜덤 장비" 항목/룰로 표기하기 위함
+	equip, _ := loadCarddrawEquipSettings()
+	equipOn := equip.Chance > 0 && (equip.CatWeapon == 1 || equip.CatArmor == 1 || equip.CatAccessory == 1)
+
 	writeJSON(w, http.StatusOK, map[string]interface{}{
 		"status": "success",
 		"items":  items,
+		"equip": map[string]interface{}{
+			"enabled":   equipOn,
+			"chance":    equip.Chance,
+			"minIlvl":   equip.MinIlvl,
+			"maxIlvl":   equip.MaxIlvl,
+			"gradeQ2":   equip.GradeQ2,
+			"gradeQ3":   equip.GradeQ3,
+			"gradeQ4":   equip.GradeQ4,
+			"gradeQ5":   equip.GradeQ5,
+			"weapon":    equip.CatWeapon == 1,
+			"armor":     equip.CatArmor == 1,
+			"accessory": equip.CatAccessory == 1,
+		},
 	})
 }

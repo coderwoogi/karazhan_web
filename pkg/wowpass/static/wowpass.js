@@ -490,14 +490,45 @@
         `;
     }
 
-    function renderRegisteredItemListModal(items) {
+    function buildEquipRuleCardHtml(equip) {
+        if (!equip || !equip.enabled) return "";
+        const chance = Number(equip.chance || 0);
+        const q2 = Number(equip.gradeQ2 || 0), q3 = Number(equip.gradeQ3 || 0), q4 = Number(equip.gradeQ4 || 0), q5 = Number(equip.gradeQ5 || 0);
+        const tot = q2 + q3 + q4 + q5;
+        const pct = (v) => (tot > 0 ? Math.round((v / tot) * 100) : 0);
+        const grades = [];
+        if (q2 > 0) grades.push(`<b style="color:#1eff00;">고급 ${pct(q2)}%</b>`);
+        if (q3 > 0) grades.push(`<b style="color:#3b9dff;">희귀 ${pct(q3)}%</b>`);
+        if (q4 > 0) grades.push(`<b style="color:#c77dff;">영웅 ${pct(q4)}%</b>`);
+        if (q5 > 0) grades.push(`<b style="color:#ff8000;">전설 ${pct(q5)}%</b>`);
+        const cats = [];
+        if (equip.weapon) cats.push("무기");
+        if (equip.armor) cats.push("방어구");
+        if (equip.accessory) cats.push("장신구");
+        const minI = Number(equip.minIlvl || 0), maxI = Number(equip.maxIlvl || 0);
+        const ilvlText = minI > 0 ? `아이템 레벨 ${minI} ~ ${maxI}` : `아이템 레벨 ${maxI} 이하`;
+        return `
+            <div class="obtained-list-equip-rule">
+                <div class="obtained-list-equip-title">🎲 랜덤 장비 보상 <span class="equip-rule-chance">확률 ${chance}%</span></div>
+                <p class="equip-rule-desc">카드 1장당 <b>${chance}%</b> 확률로, <b>대표 캐릭터가 착용할 수 있는 랜덤 장비</b>가 나옵니다. (아래 등록 아이템과 별개로 뽑힐 수 있어요)</p>
+                <ul class="equip-rule-list">
+                    <li>등급 비율 &nbsp; ${grades.length ? grades.join(" · ") : "-"}</li>
+                    <li>${ilvlText}</li>
+                    <li>종류 &nbsp; ${cats.length ? cats.join(" · ") : "-"} <span class="equip-rule-note">(내 직업이 착용 가능한 것만)</span></li>
+                </ul>
+            </div>
+        `;
+    }
+
+    function renderRegisteredItemListModal(items, equip) {
         const bodyEl = document.getElementById("obtained-list-body");
         if (!bodyEl) return;
+        const ruleHtml = buildEquipRuleCardHtml(equip);
         if (!Array.isArray(items) || !items.length) {
-            bodyEl.innerHTML = `<p class="char-picker-empty">등록된 카드뽑기 품목이 없습니다.</p>`;
+            bodyEl.innerHTML = ruleHtml + `<p class="char-picker-empty">등록된 카드뽑기 품목이 없습니다.</p>`;
             return;
         }
-        bodyEl.innerHTML = items.map((row) => {
+        bodyEl.innerHTML = ruleHtml + items.map((row) => {
             const entry = Number(row && row.itemEntry ? row.itemEntry : 0);
             const name = String(row && row.name ? row.name : "").trim() || "알 수 없는 아이템";
             const rarityLabel = String(row && row.rarityLabel ? row.rarityLabel : "일반").trim() || "일반";
@@ -542,7 +573,7 @@
                 throw new Error((data && data.message) || "목록을 불러오지 못했습니다.");
             }
             registeredRewardItems = data.items;
-            renderRegisteredItemListModal(registeredRewardItems);
+            renderRegisteredItemListModal(registeredRewardItems, data.equip);
         } catch (e) {
             bodyEl.innerHTML = `<p class="char-picker-empty">${esc((e && e.message) || "목록을 불러오지 못했습니다.")}</p>`;
         }

@@ -2293,3 +2293,12 @@ body {
     padding: 5px 10px;
     white-space: nowrap;
 }
+
+/* 카드뽑기 보상 목록 — 랜덤 장비 룰 카드(등록 아이템과 구분되는 골드 하이라이트) */
+.obtained-list-equip-rule{border:1px solid rgba(231,193,112,.5);background:rgba(50,40,12,.5);border-radius:10px;padding:12px 14px;margin-bottom:12px;}
+.obtained-list-equip-title{font-size:1rem;font-weight:800;color:#f0d99a;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.obtained-list-equip-title .equip-rule-chance{font-size:.78rem;font-weight:700;background:#e7c170;color:#2a2008;border-radius:999px;padding:3px 10px;}
+.equip-rule-desc{margin:8px 0 6px;font-size:.86rem;line-height:1.55;color:#e8f7ff;}
+.equip-rule-list{margin:0;padding-left:18px;font-size:.85rem;line-height:1.75;color:#cfe9fb;}
+.equip-rule-list li{margin:0;}
+.equip-rule-note{opacity:.75;font-size:.78rem;}
