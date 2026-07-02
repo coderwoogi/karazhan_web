@@ -511,6 +511,10 @@ async function openShopItemDetailModal(itemID) {
     const itemDesc = escShop(item.description || '상품 설명이 없습니다.');
     const stockText = Number(item.stock_qty) < 0 ? '무제한' : `${Number(item.stock_qty).toLocaleString()}개`;
     const typeText = item.item_type === 'function' ? '기능 상품' : '인게임 아이템';
+    const grantQty = Number(item.grant_qty || 1);
+    const grantNoteHtml = (item.item_type === 'game' && grantQty > 1)
+        ? `<div style="display:inline-flex; align-items:center; gap:6px; align-self:flex-start; padding:6px 12px; border-radius:999px; background:rgba(201,162,39,0.16); border:1px solid rgba(201,162,39,0.4); color:#e7c170; font-size:13px; font-weight:800;"><i class="fas fa-gift"></i> 1개 구매 시 ${grantQty}개 지급</div>`
+        : '';
     const imageHtml = imageUrl
         ? `<img src="${escShop(imageUrl)}" alt="shop-detail-icon" style="width:100%; height:100%; object-fit:cover; display:block;">`
         : `<div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:rgba(244,236,220,0.78); font-size:3rem;"><i class="fas fa-box-open"></i></div>`;
@@ -538,6 +542,7 @@ async function openShopItemDetailModal(itemID) {
                             <span style="color:var(--surface-2); font-size:1.05rem; font-weight:800;">${shopPointWithIcon(item.price_points || 0)}</span>
                         </div>
                         <div style="font-size:1.5rem; line-height:1.3; color:#f6efdf; font-weight:900;">${itemName}</div>
+                        ${grantNoteHtml}
                     </div>
                     <div style="padding:16px 18px; border-radius:16px; background:rgba(7,10,21,0.72); border:1px solid rgba(173,162,146,0.14); color:#ddd6ca; line-height:1.75; font-size:0.96rem;">
                         ${itemDesc}
@@ -978,7 +983,7 @@ function renderShopAdminItemsTable(items, startIndex = 0) {
             <td>${item.item_type === 'game' ? wrapShopItemName(item.item_entry, item.name) : escShop(item.name)}</td>
             <td>${escShop(codeText)}</td>
             <td>${shopPointWithIcon(item.price_points || 0)}</td>
-            <td>${Number(item.stock_qty) < 0 ? '무제한' : item.stock_qty}</td>
+            <td>${Number(item.stock_qty) < 0 ? '무제한' : item.stock_qty}${Number(item.grant_qty) > 1 ? ` <span style="display:inline-block; margin-left:4px; padding:1px 6px; border-radius:999px; background:var(--accent-color, #c9a227); color:#1b1b1b; font-size:11px; font-weight:700;">지급 ${Number(item.grant_qty)}개</span>` : ''}</td>
             <td>${item.is_visible ? 'Y' : 'N'}</td>
             <td style="text-align:center;">
                 <div style="display:flex; justify-content:center; gap:6px;">
@@ -1058,6 +1063,8 @@ function openShopItemModal(item = null) {
     document.getElementById('shop-admin-item-name').value = item ? (item.name || '') : '';
     document.getElementById('shop-admin-item-price').value = item ? (item.price_points || 0) : '';
     document.getElementById('shop-admin-item-stock').value = item ? (item.stock_qty ?? -1) : -1;
+    const grantEl = document.getElementById('shop-admin-item-grant');
+    if (grantEl) grantEl.value = item ? (item.grant_qty ?? 1) : 1;
     document.getElementById('shop-admin-item-desc').value = item ? (item.description || '') : '';
     document.getElementById('shop-admin-item-entry').value = item ? (item.item_entry || '') : '';
     document.getElementById('shop-admin-function-code').value = item ? (item.function_code || '') : '';
@@ -1301,6 +1308,7 @@ async function saveShopAdminItem() {
         name: document.getElementById('shop-admin-item-name').value.trim(),
         price_points: parseInt(document.getElementById('shop-admin-item-price').value || '0', 10),
         stock_qty: parseInt(document.getElementById('shop-admin-item-stock').value || '-1', 10),
+        grant_qty: Math.max(1, parseInt((document.getElementById('shop-admin-item-grant') || {}).value || '1', 10) || 1),
         description: document.getElementById('shop-admin-item-desc').value.trim(),
         is_visible: !!document.getElementById('shop-admin-item-visible').checked
     };

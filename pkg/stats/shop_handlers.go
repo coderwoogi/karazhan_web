@@ -152,6 +152,7 @@ func ensurePointShopTables(db *sql.DB) {
 			description TEXT NULL,
 			price_points INT NOT NULL DEFAULT 0,
 			stock_qty INT NOT NULL DEFAULT -1,
+			grant_qty INT NOT NULL DEFAULT 1,
 			is_visible TINYINT(1) NOT NULL DEFAULT 1,
 			is_deleted TINYINT(1) NOT NULL DEFAULT 0,
 			created_by INT NULL,
@@ -226,6 +227,7 @@ func ensurePointShopTables(db *sql.DB) {
 	_, _ = db.Exec("ALTER TABLE point_shop_items ADD COLUMN item_entry INT NULL")
 	_, _ = db.Exec("ALTER TABLE point_shop_items ADD COLUMN function_code VARCHAR(50) NULL")
 	_, _ = db.Exec("ALTER TABLE point_shop_items ADD COLUMN icon_path VARCHAR(255) NULL")
+	_, _ = db.Exec("ALTER TABLE point_shop_items ADD COLUMN grant_qty INT NOT NULL DEFAULT 1")
 	_, _ = db.Exec("ALTER TABLE point_shop_orders ADD COLUMN is_refunded TINYINT(1) NOT NULL DEFAULT 0")
 	_, _ = db.Exec("ALTER TABLE point_shop_orders ADD COLUMN is_deleted TINYINT(1) NOT NULL DEFAULT 0")
 	_, _ = db.Exec("ALTER TABLE point_shop_orders ADD COLUMN target_character VARCHAR(20) NULL")
@@ -1000,7 +1002,7 @@ func handleShopItems(w http.ResponseWriter, r *http.Request) {
 	q := strings.TrimSpace(r.URL.Query().Get("q"))
 	args := []interface{}{}
 	sqlQuery := `
-		SELECT id, name, IFNULL(item_type,'game'), IFNULL(item_entry,0), IFNULL(function_code,''), IFNULL(icon_path,''), IFNULL(description,''), price_points, stock_qty, is_visible, created_at
+		SELECT id, name, IFNULL(item_type,'game'), IFNULL(item_entry,0), IFNULL(function_code,''), IFNULL(icon_path,''), IFNULL(description,''), price_points, stock_qty, IFNULL(grant_qty,1), is_visible, created_at
 		FROM point_shop_items
 		WHERE is_deleted = 0 AND is_visible = 1
 	`
@@ -1025,9 +1027,9 @@ func handleShopItems(w http.ResponseWriter, r *http.Request) {
 
 	var items []map[string]interface{}
 	for rows.Next() {
-		var id, price, stock, isVisible, itemEntry int
+		var id, price, stock, grant, isVisible, itemEntry int
 		var name, itemType, functionCode, iconPath, desc, createdAt string
-		if err := rows.Scan(&id, &name, &itemType, &itemEntry, &functionCode, &iconPath, &desc, &price, &stock, &isVisible, &createdAt); err == nil {
+		if err := rows.Scan(&id, &name, &itemType, &itemEntry, &functionCode, &iconPath, &desc, &price, &stock, &grant, &isVisible, &createdAt); err == nil {
 			iconPath = normalizeShopIconPath(iconPath)
 			items = append(items, map[string]interface{}{
 				"id":            id,
@@ -1039,6 +1041,7 @@ func handleShopItems(w http.ResponseWriter, r *http.Request) {
 				"description":   desc,
 				"price_points":  price,
 				"stock_qty":     stock,
+				"grant_qty":     grant,
 				"is_visible":    isVisible == 1,
 				"created_at":    createdAt,
 			})
@@ -1462,11 +1465,11 @@ func handleShopCreateOrder(w http.ResponseWriter, r *http.Request) {
 	defer tx.Rollback()
 
 	var itemName, itemDesc, itemType, functionCode string
-	var unitPrice, stock, isVisible, isDeleted, itemEntry int
+	var unitPrice, stock, grantQty, isVisible, isDeleted, itemEntry int
 	err = tx.QueryRow(`
-		SELECT name, IFNULL(description,''), IFNULL(item_type,'game'), IFNULL(item_entry,0), IFNULL(function_code,''), price_points, stock_qty, is_visible, is_deleted
+		SELECT name, IFNULL(description,''), IFNULL(item_type,'game'), IFNULL(item_entry,0), IFNULL(function_code,''), price_points, stock_qty, IFNULL(grant_qty,1), is_visible, is_deleted
 		FROM point_shop_items WHERE id = ? FOR UPDATE
-	`, req.ItemID).Scan(&itemName, &itemDesc, &itemType, &itemEntry, &functionCode, &unitPrice, &stock, &isVisible, &isDeleted)
+	`, req.ItemID).Scan(&itemName, &itemDesc, &itemType, &itemEntry, &functionCode, &unitPrice, &stock, &grantQty, &isVisible, &isDeleted)
 	if err != nil {
 		log.Printf("[shop/order] item not found user_id=%d item_id=%d err=%v", userID, req.ItemID, err)
 		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "구매할 상품을 찾을 수 없습니다."})
@@ -1610,13 +1613,22 @@ func handleShopCreateOrder(w http.ResponseWriter, r *http.Request) {
     `, orderID, userID, orderStatus, "\uc0ac\uc6a9\uc790 \uc8fc\ubb38 \uc0dd\uc131")
 
 	if itemType == "game" {
+		// \uc9c0\uae09 \uc218\ub7c9: \uc0c1\ud488 1\uac1c\ub2f9 \uc9c0\uae09 \uac1c\uc218(grantQty). \ucd1d \uc9c0\uae09 = \uad6c\ub9e4\uc218\ub7c9 x \uc9c0\uae09\uc218\ub7c9.
+		if grantQty < 1 {
+			grantQty = 1
+		}
+		deliverQty := req.Qty * grantQty
 		mailSubject := fmt.Sprintf("[\uc120\uc220\uc9d1] %s", itemName)
+		itemLine := fmt.Sprintf("\uad6c\ub9e4 \uc544\uc774\ud15c: %s x%d", itemName, req.Qty)
+		if grantQty > 1 {
+			itemLine = fmt.Sprintf("\uad6c\ub9e4 \uc544\uc774\ud15c: %s x%d (\uac1c\ub2f9 %d\uac1c, \ucd1d %d\uac1c \uc9c0\uae09)", itemName, req.Qty, grantQty, deliverQty)
+		}
 		mailBody := strings.Join([]string{
 			"\uc120\uc220\uc9d1 \uad6c\ub9e4 \uc544\uc774\ud15c\uc774 \ub3c4\ucc29\ud588\uc2b5\ub2c8\ub2e4.",
 			"",
 			"[구매 정보]",
 			fmt.Sprintf("구매 일시: %s", time.Now().Format("2006-01-02 15:04:05")),
-			fmt.Sprintf("구매 아이템: %s x%d", itemName, req.Qty),
+			itemLine,
 			fmt.Sprintf("사용 포인트: %s 포인트", formatShopPointAmount(total)),
 			fmt.Sprintf("잔여 포인트: %s 포인트", formatShopPointAmount(pointsAfter)),
 			fmt.Sprintf("수령 캐릭터: %s", strings.TrimSpace(req.Character)),
@@ -1626,7 +1638,7 @@ func handleShopCreateOrder(w http.ResponseWriter, r *http.Request) {
 		if strings.TrimSpace(req.Note) != "" {
 			mailBody += "\n\n[요청 메모]\n" + strings.TrimSpace(req.Note)
 		}
-		if err := sendShopItemMail(strings.TrimSpace(req.Character), mailSubject, mailBody, itemEntry, req.Qty, userID, username, r); err != nil {
+		if err := sendShopItemMail(strings.TrimSpace(req.Character), mailSubject, mailBody, itemEntry, deliverQty, userID, username, r); err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "\uc694\uccad \ucc98\ub9ac \uc911 \uc624\ub958\uac00 \ubc1c\uc0dd\ud588\uc2b5\ub2c8\ub2e4." + err.Error()})
 			return
 		}
@@ -1915,7 +1927,7 @@ func handleAdminShopItems(w http.ResponseWriter, r *http.Request) {
 	ensurePointShopTables(db)
 
 	rows, err := db.Query(`
-		SELECT id, name, IFNULL(item_type,'game'), IFNULL(item_entry,0), IFNULL(function_code,''), IFNULL(icon_path,''), IFNULL(description,''), price_points, stock_qty, is_visible, is_deleted, created_at, updated_at
+		SELECT id, name, IFNULL(item_type,'game'), IFNULL(item_entry,0), IFNULL(function_code,''), IFNULL(icon_path,''), IFNULL(description,''), price_points, stock_qty, IFNULL(grant_qty,1), is_visible, is_deleted, created_at, updated_at
 		FROM point_shop_items
 		ORDER BY id DESC
 	`)
@@ -1927,9 +1939,9 @@ func handleAdminShopItems(w http.ResponseWriter, r *http.Request) {
 
 	var items []map[string]interface{}
 	for rows.Next() {
-		var id, price, stock, isVisible, isDeleted, itemEntry int
+		var id, price, stock, grant, isVisible, isDeleted, itemEntry int
 		var name, itemType, functionCode, iconPath, desc, createdAt, updatedAt string
-		if err := rows.Scan(&id, &name, &itemType, &itemEntry, &functionCode, &iconPath, &desc, &price, &stock, &isVisible, &isDeleted, &createdAt, &updatedAt); err == nil {
+		if err := rows.Scan(&id, &name, &itemType, &itemEntry, &functionCode, &iconPath, &desc, &price, &stock, &grant, &isVisible, &isDeleted, &createdAt, &updatedAt); err == nil {
 			iconPath = normalizeShopIconPath(iconPath)
 			items = append(items, map[string]interface{}{
 				"id":            id,
@@ -1941,6 +1953,7 @@ func handleAdminShopItems(w http.ResponseWriter, r *http.Request) {
 				"description":   desc,
 				"price_points":  price,
 				"stock_qty":     stock,
+				"grant_qty":     grant,
 				"is_visible":    isVisible == 1,
 				"is_deleted":    isDeleted == 1,
 				"created_at":    createdAt,
@@ -1976,6 +1989,7 @@ func handleAdminShopItemSave(w http.ResponseWriter, r *http.Request) {
 		Description  string `json:"description"`
 		PricePoints  int    `json:"price_points"`
 		StockQty     int    `json:"stock_qty"`
+		GrantQty     int    `json:"grant_qty"`
 		IsVisible    bool   `json:"is_visible"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -2014,6 +2028,10 @@ func handleAdminShopItemSave(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "\uc694\uccad \ucc98\ub9ac \uc911 \uc624\ub958\uac00 \ubc1c\uc0dd\ud588\uc2b5\ub2c8\ub2e4."})
 		return
 	}
+	// \uc9c0\uae09 \uc218\ub7c9: \uc0c1\ud488 1\uac1c \uad6c\ub9e4 \uc2dc \uc9c0\uae09\ub418\ub294 \uc544\uc774\ud15c \uac1c\uc218. \ucd5c\uc18c 1\uac1c.
+	if req.GrantQty < 1 {
+		req.GrantQty = 1
+	}
 
 	db, err := sql.Open("mysql", updateDSN)
 	if err != nil {
@@ -2031,14 +2049,14 @@ func handleAdminShopItemSave(w http.ResponseWriter, r *http.Request) {
 	if req.ID > 0 {
 		_, err = db.Exec(`
 			UPDATE point_shop_items
-			SET name = ?, item_type = ?, item_entry = ?, function_code = ?, icon_path = ?, description = ?, price_points = ?, stock_qty = ?, is_visible = ?, updated_by = ?
+			SET name = ?, item_type = ?, item_entry = ?, function_code = ?, icon_path = ?, description = ?, price_points = ?, stock_qty = ?, grant_qty = ?, is_visible = ?, updated_by = ?
 			WHERE id = ?
-		`, req.Name, req.ItemType, req.ItemEntry, req.FunctionCode, req.IconPath, req.Description, req.PricePoints, req.StockQty, visible, adminID, req.ID)
+		`, req.Name, req.ItemType, req.ItemEntry, req.FunctionCode, req.IconPath, req.Description, req.PricePoints, req.StockQty, req.GrantQty, visible, adminID, req.ID)
 	} else {
 		_, err = db.Exec(`
-			INSERT INTO point_shop_items (name, item_type, item_entry, function_code, icon_path, description, price_points, stock_qty, is_visible, is_deleted, created_by, updated_by)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
-		`, req.Name, req.ItemType, req.ItemEntry, req.FunctionCode, req.IconPath, req.Description, req.PricePoints, req.StockQty, visible, adminID, adminID)
+			INSERT INTO point_shop_items (name, item_type, item_entry, function_code, icon_path, description, price_points, stock_qty, grant_qty, is_visible, is_deleted, created_by, updated_by)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
+		`, req.Name, req.ItemType, req.ItemEntry, req.FunctionCode, req.IconPath, req.Description, req.PricePoints, req.StockQty, req.GrantQty, visible, adminID, adminID)
 	}
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "\uc694\uccad \ucc98\ub9ac \uc911 \uc624\ub958\uac00 \ubc1c\uc0dd\ud588\uc2b5\ub2c8\ub2e4."})
@@ -2415,11 +2433,11 @@ func handleAdminShopGiftItem(w http.ResponseWriter, r *http.Request) {
 	defer tx.Rollback()
 
 	var itemName, itemType, functionCode string
-	var itemEntry, stock, isDeleted int
+	var itemEntry, stock, grantQty, isDeleted int
 	if err := tx.QueryRow(`
-		SELECT name, IFNULL(item_type,'game'), IFNULL(item_entry,0), IFNULL(function_code,''), stock_qty, is_deleted
+		SELECT name, IFNULL(item_type,'game'), IFNULL(item_entry,0), IFNULL(function_code,''), stock_qty, IFNULL(grant_qty,1), is_deleted
 		FROM point_shop_items WHERE id = ? FOR UPDATE
-	`, req.ItemID).Scan(&itemName, &itemType, &itemEntry, &functionCode, &stock, &isDeleted); err != nil {
+	`, req.ItemID).Scan(&itemName, &itemType, &itemEntry, &functionCode, &stock, &grantQty, &isDeleted); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "선물할 상품을 찾을 수 없습니다."})
 		return
 	}
@@ -2497,11 +2515,20 @@ func handleAdminShopGiftItem(w http.ResponseWriter, r *http.Request) {
 	var enhancedExp time.Time
 	switch {
 	case itemType == "game":
+		// 지급 수량: 상품 1개당 지급 개수(grantQty). 총 지급 = 선물수량 x 지급수량.
+		if grantQty < 1 {
+			grantQty = 1
+		}
+		deliverQty := req.Qty * grantQty
 		subject := fmt.Sprintf("[선술집] 선물: %s", itemName)
+		giftItemLine := fmt.Sprintf("상품: %s x%d", itemName, req.Qty)
+		if grantQty > 1 {
+			giftItemLine = fmt.Sprintf("상품: %s x%d (개당 %d개, 총 %d개 지급)", itemName, req.Qty, grantQty, deliverQty)
+		}
 		body := strings.Join([]string{
 			"운영자가 보낸 선술집 상품 선물이 도착했습니다.",
 			"",
-			fmt.Sprintf("상품: %s x%d", itemName, req.Qty),
+			giftItemLine,
 			fmt.Sprintf("수령 캐릭터: %s", req.Character),
 			"",
 			"재접속 후 우편함을 확인해주세요.",
@@ -2510,8 +2537,8 @@ func handleAdminShopGiftItem(w http.ResponseWriter, r *http.Request) {
 			body += "\n\n[메시지]\n" + req.Note
 		}
 		// sendShopItemMail은 name=? AND account=? 로 캐릭터를 찾으므로 senderUserID에 수령 계정을 넘긴다.
-		if err := sendShopItemMail(req.Character, subject, body, itemEntry, req.Qty, targetAccount, adminUsername, r); err != nil {
-			log.Printf("[shop/gift] mail failed admin=%s receiver=%s entry=%d qty=%d err=%v", adminUsername, req.Character, itemEntry, req.Qty, err)
+		if err := sendShopItemMail(req.Character, subject, body, itemEntry, deliverQty, targetAccount, adminUsername, r); err != nil {
+			log.Printf("[shop/gift] mail failed admin=%s receiver=%s entry=%d qty=%d err=%v", adminUsername, req.Character, itemEntry, deliverQty, err)
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "선물 우편 발송에 실패했습니다: " + err.Error()})
 			return
 		}

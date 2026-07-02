@@ -5136,6 +5136,10 @@
                             <label>재고(-1 무제한)</label>
                             <input id="shop-admin-item-stock" type="number" class="input-premium" value="-1">
                         </div>
+                        <div class="filter-group" style="min-width:140px;">
+                            <label>지급 수량(1개 구매 시)</label>
+                            <input id="shop-admin-item-grant" type="number" min="1" class="input-premium" value="1" title="이 상품을 1개 구매하면 아이템을 몇 개 지급할지 (게임 아이템 전용)">
+                        </div>
                     </div>
                     <div class="filter-group" style="margin-bottom:0.75rem;">
                         <label>설명</label>
@@ -5156,7 +5160,7 @@
         <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
         <script src="script.js?v=admin_carddraw_equip_v75"></script>
         <script src="notification.js?v=7"></script>
-        <script src="shop.js?v=9"></script>
+        <script src="shop.js?v=10"></script>
         <script src="auction.js?v=8"></script>
         <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.3/Sortable.min.js"></script>
         <script src="board.js?v=ds4"></script>
