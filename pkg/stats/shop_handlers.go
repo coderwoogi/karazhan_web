@@ -2094,7 +2094,8 @@ func handleAdminShopIconUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	targetDir := filepath.Join(".", "img", "shop")
+	// 로컬/운영 앱 루트가 달라도 항상 karazhan/img/shop 아래에 저장되도록 해석.
+	targetDir := filepath.Join(config.ImageRootDir(), "shop")
 	if err := os.MkdirAll(targetDir, 0755); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "업로드 경로를 생성하지 못했습니다."})
 		return

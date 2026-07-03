@@ -21,6 +21,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"path/filepath"
 )
 
 func main() {
@@ -56,10 +57,12 @@ func main() {
 		themeDir := auth.ThemeForRequest(r)
 		http.StripPrefix("/theme/", http.FileServer(http.Dir("./themes/"+themeDir))).ServeHTTP(w, r)
 	})))
-	mux.Handle("/img/", http.StripPrefix("/img/", http.FileServer(http.Dir("./img"))))
+	// 업로드(선술집 아이콘 등)와 서빙이 항상 동일한 karazhan/img 를 가리키도록 해석된 경로 사용.
+	imgRoot := config.ImageRootDir()
+	mux.Handle("/img/", http.StripPrefix("/img/", http.FileServer(http.Dir(imgRoot))))
 	mux.Handle("/sounds/", http.StripPrefix("/sounds/", http.FileServer(http.Dir("./sounds"))))
 	mux.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "./img/favicon.ico")
+		http.ServeFile(w, r, filepath.Join(imgRoot, "favicon.ico"))
 	})
 
 	// PHP Proxy for /work/ (Assuming Apache is on port 80)

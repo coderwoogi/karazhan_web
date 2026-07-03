@@ -216,6 +216,36 @@ func get(key string) string {
 	return strings.TrimSpace(loadEnvMap()[key])
 }
 
+// ImageRootDir returns the absolute (or working-dir-relative) path to the web
+// `img` directory where uploaded assets (e.g. shop icons) are stored and from
+// which they are served under the /img/ URL prefix.
+//
+// Local(Windows XAMPP)와 운영(macOS)의 앱 루트가 다르므로 다음 순서로 해석한다:
+//  1. KARAZHAN_IMG_DIR 환경변수/설정 (img 디렉토리의 절대경로 override)
+//  2. 알려진 배포 경로 중 실제 존재하는 첫 후보 (운영 → 로컬)
+//  3. 프로세스 작업디렉토리의 ./img (최종 폴백)
+//
+// 이렇게 하면 프로세스 cwd와 무관하게 항상 karazhan/img 아래에 저장·서빙되어
+// 업로드한 이미지가 정상적으로 로드된다.
+func ImageRootDir() string {
+	if v := strings.TrimSpace(get("KARAZHAN_IMG_DIR")); v != "" {
+		return v
+	}
+	candidates := []string{
+		"/opt/homebrew/var/www/karazhan/img",
+		"E:/xampp/htdocs/karazhan/img",
+	}
+	if wd, err := os.Getwd(); err == nil && wd != "" {
+		candidates = append(candidates, filepath.Join(wd, "img"))
+	}
+	for _, c := range candidates {
+		if st, err := os.Stat(c); err == nil && st.IsDir() {
+			return c
+		}
+	}
+	return filepath.Join(".", "img")
+}
+
 func withParams(base, params string) string {
 	base = strings.TrimSpace(base)
 	params = strings.TrimSpace(params)
