@@ -2966,7 +2966,7 @@ function App() {
               <h2 className="section-title"><span>게임 다운로드</span></h2>
               <div className="download-grid">
                 <article className="download-card"><div className="download-icon">🛡</div><div><h3>풀 클라이언트</h3><p>전체 파일 다운로드</p><a className="blue-btn" href={CONNECT_CLIENT_DOWNLOAD_URL} target="_blank" rel="noreferrer noopener">다운로드 ↓</a></div></article>
-                <article className="download-card"><div className="download-icon">💬</div><div><h3>디스코드</h3><p>공식 디스코드 참여</p><a className="blue-btn" href="https://discord.gg/2ZqqwW9QVw" target="_blank" rel="noreferrer noopener">바로가기 →</a></div></article>
+                <article className="download-card"><div className="download-icon">💬</div><div><h3>디스코드</h3><p>공식 디스코드 참여</p><a className="blue-btn" href="https://discord.gg/YUgRQ56BRE" target="_blank" rel="noreferrer noopener">바로가기 →</a></div></article>
                 <article className="download-card"><div className="download-icon">🔭</div><div><h3>접속기 다운로드</h3><p>게임 접속 프로그램</p><a className="blue-btn" href={CONNECT_LAUNCHER_DOWNLOAD_URL} target="_blank" rel="noreferrer noopener">다운로드 ↓</a></div></article>
               </div>
             </section>
