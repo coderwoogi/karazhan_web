@@ -7452,6 +7452,127 @@ function chatRaceIcon(race, gender) {
     return `/img/icons/race_${slug}_${g}.gif`;
 }
 
+// ── 인게임 아이템 링크(WoW 하이퍼링크) 표현: 등급색 + 툴팁 ──────────────
+// 인게임에서 링크한 아이템은 채팅 원문에 |cAARRGGBB|Hitem:ID:...|h[이름]|h|r 형태로 온다.
+var g_igItemMetaCache = {};
+function igFetchItemMeta(entry) {
+    var id = Number(entry || 0);
+    if (id <= 0) return Promise.resolve(null);
+    if (g_igItemMetaCache[id]) return g_igItemMetaCache[id];
+    var p = (async function () {
+        var data = null, iconUrl = '';
+        try {
+            var r1 = await fetch('/api/content/item/tooltip?entry=' + id, { credentials: 'same-origin', cache: 'no-store' });
+            if (r1.ok) { var j1 = await r1.json().catch(function () { return null; }); if (j1 && j1.status === 'success') data = j1; }
+        } catch (e) { /* ignore */ }
+        try {
+            var r2 = await fetch('/api/external/item_icon?entry=' + id, { credentials: 'same-origin' });
+            if (r2.ok) { var j2 = await r2.json().catch(function () { return null; }); if (j2 && j2.url) iconUrl = String(j2.url); }
+        } catch (e) { /* ignore */ }
+        return { data: data, iconUrl: iconUrl };
+    })();
+    g_igItemMetaCache[id] = p;
+    p.then(function (r) { if (!r || !r.data) delete g_igItemMetaCache[id]; }).catch(function () { delete g_igItemMetaCache[id]; });
+    return p;
+}
+function igEscHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; });
+}
+function igCleanWowPlain(s) {
+    return String(s == null ? '' : s)
+        .replace(/\|c[0-9a-fA-F]{8}/g, '')
+        .replace(/\|r/g, '')
+        .replace(/\|T[^|]*\|t/g, '')
+        .replace(/\|n/g, '\n');
+}
+// 채팅 원문 → HTML(아이템 링크는 어두운 칩 위 등급색 span, 그 외는 이스케이프)
+function renderIngameChatMessageHtml(raw) {
+    var text = String(raw == null ? '' : raw);
+    if (text.indexOf('|H') < 0 && text.indexOf('|c') < 0) return igEscHtml(text);
+    var re = /(?:\|c([0-9a-fA-F]{8}))?\|H([^|]+)\|h([\s\S]*?)\|h(?:\|r)?/g;
+    var chip = 'background:rgba(17,22,35,.92);padding:1px 6px;border-radius:5px;font-weight:700;cursor:pointer;text-shadow:0 1px 1px rgba(0,0,0,.6);';
+    var out = '', last = 0, m;
+    while ((m = re.exec(text)) !== null) {
+        if (m.index > last) out += igEscHtml(igCleanWowPlain(text.slice(last, m.index)));
+        var colorHex = m[1] ? ('#' + m[1].slice(2)) : '';
+        var payload = m[2] || '';
+        var display = igEscHtml(igCleanWowPlain(m[3] || ''));
+        var im = /^item:(\d+)/i.exec(payload);
+        if (im) {
+            var colorStyle = colorHex ? ('color:' + colorHex + ';') : 'color:#fff;';
+            out += '<span class="ig-chat-item-link" role="button" tabindex="0" data-entry="' + Number(im[1]) + '" style="' + colorStyle + chip + '">' + display + '</span>';
+        } else if (colorHex) {
+            out += '<span style="color:' + colorHex + ';">' + display + '</span>';
+        } else {
+            out += display;
+        }
+        last = re.lastIndex;
+    }
+    if (last < text.length) out += igEscHtml(igCleanWowPlain(text.slice(last)));
+    return out;
+}
+var g_igTooltipEl = null;
+var WOW_QUALITY_COLORS_IG = ['#9d9d9d', '#ffffff', '#1eff00', '#0070dd', '#a335ee', '#ff8000', '#e6cc80', '#00ccff'];
+function igEnsureTooltip() {
+    if (g_igTooltipEl && document.body.contains(g_igTooltipEl)) return g_igTooltipEl;
+    var el = document.createElement('div');
+    el.style.cssText = 'position:fixed;display:none;z-index:30000;max-width:320px;background:rgba(9,16,30,.97);border:1px solid rgba(148,163,184,.38);border-radius:10px;padding:10px 12px;box-shadow:0 14px 30px rgba(0,0,0,.5);color:#e2e8f0;font-size:12px;line-height:1.5;pointer-events:none;';
+    document.body.appendChild(el);
+    g_igTooltipEl = el;
+    return el;
+}
+function igPositionTooltip(ev) {
+    var el = igEnsureTooltip();
+    var x = (ev.clientX || 0) + 14, y = (ev.clientY || 0) + 14;
+    if (x + el.offsetWidth > window.innerWidth - 8) x = window.innerWidth - el.offsetWidth - 8;
+    if (y + el.offsetHeight > window.innerHeight - 8) y = window.innerHeight - el.offsetHeight - 8;
+    if (x < 8) x = 8; if (y < 8) y = 8;
+    el.style.left = x + 'px'; el.style.top = y + 'px';
+}
+function igRenderTooltipHtml(data, iconUrl) {
+    var d = data || {};
+    var q = Number(d.quality);
+    var nameColor = (isFinite(q) && WOW_QUALITY_COLORS_IG[q]) ? WOW_QUALITY_COLORS_IG[q] : '#fff';
+    var stats = Array.isArray(d.stats) ? d.stats : [];
+    var spells = Array.isArray(d.spells) ? d.spells : [];
+    var sub = [d.class_name, d.subclass_name].filter(Boolean).join(' · ');
+    return ''
+        + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;">'
+        + (iconUrl ? '<img src="' + igEscHtml(iconUrl) + '" alt="" style="width:36px;height:36px;border-radius:6px;border:1px solid rgba(255,255,255,.28);object-fit:cover;background:rgba(0,0,0,.35);">' : '')
+        + '<div style="font-weight:800;font-size:13px;color:' + nameColor + ';">' + igEscHtml(d.name || '아이템') + '</div></div>'
+        + '<div style="color:#94a3b8;margin-bottom:3px;">아이템 레벨 ' + Number(d.item_level || 0) + ' · 요구 레벨 ' + Number(d.required_level || 0) + '</div>'
+        + (sub ? '<div style="color:#94a3b8;margin-bottom:3px;">' + igEscHtml(sub) + '</div>' : '')
+        + (stats.length ? '<div style="margin-top:4px;color:#cbd5e1;">' + stats.map(function (s) { return '<div>' + igEscHtml(s) + '</div>'; }).join('') + '</div>' : '')
+        + (spells.length ? '<div style="margin-top:5px;color:#fde68a;">' + spells.map(function (s) { return '<div>' + igEscHtml(s) + '</div>'; }).join('') + '</div>' : '');
+}
+async function igShowItemTooltip(ev, entry) {
+    var el = igEnsureTooltip();
+    el.style.display = 'block';
+    el.innerHTML = '<div style="color:#93c5fd;">아이템 정보를 불러오는 중...</div>';
+    igPositionTooltip(ev);
+    var meta = await igFetchItemMeta(entry);
+    if (el.style.display === 'none') return;
+    if (meta && meta.data) el.innerHTML = igRenderTooltipHtml(meta.data, meta.iconUrl);
+    else el.innerHTML = '<div style="color:#fca5a5;">아이템 정보를 불러오지 못했습니다.</div>';
+    igPositionTooltip(ev);
+}
+function igHideItemTooltip() { if (g_igTooltipEl) g_igTooltipEl.style.display = 'none'; }
+function attachIngameItemTooltips(container) {
+    if (!container) return;
+    var links = container.querySelectorAll('.ig-chat-item-link');
+    for (var i = 0; i < links.length; i++) {
+        (function (el) {
+            var entry = Number(el.getAttribute('data-entry') || 0);
+            if (entry <= 0) return;
+            el.addEventListener('mouseenter', function (ev) { igShowItemTooltip(ev, entry); });
+            el.addEventListener('mousemove', function (ev) { if (g_igTooltipEl && g_igTooltipEl.style.display !== 'none') igPositionTooltip(ev); });
+            el.addEventListener('mouseleave', igHideItemTooltip);
+            el.addEventListener('click', function (ev) { ev.preventDefault(); ev.stopPropagation(); igShowItemTooltip(ev, entry); });
+            el.addEventListener('keydown', function (ev) { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); igShowItemTooltip(ev, entry); } });
+        })(links[i]);
+    }
+}
+
 // 말풍선 1개의 DOM(row)을 생성해 반환(append/prepend 공용)
 function buildBubbleRow(m) {
     const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -7480,7 +7601,8 @@ function buildBubbleRow(m) {
     const bubbleStyle = mine
         ? 'background:var(--primary-color); color:#0e0d11; border-radius:14px 14px 4px 14px;'
         : 'background:var(--surface); color:var(--text-primary); border:1px solid var(--border-color); border-radius:14px 14px 14px 4px;';
-    wrap.innerHTML = `${head}<div style="${bubbleStyle} padding:7px 10px; font-size:0.88rem; line-height:1.45; word-break:break-word; white-space:pre-wrap;">${esc(m.message)}</div>`;
+    wrap.innerHTML = `${head}<div style="${bubbleStyle} padding:7px 10px; font-size:0.88rem; line-height:1.45; word-break:break-word; white-space:pre-wrap;">${renderIngameChatMessageHtml(m.message)}</div>`;
+    attachIngameItemTooltips(wrap); // 인게임 아이템 링크 툴팁 연결
 
     const timeEl = document.createElement('div');
     timeEl.style.cssText = 'font-size:0.62rem; color:var(--text-dim); white-space:nowrap; padding-bottom:3px;';

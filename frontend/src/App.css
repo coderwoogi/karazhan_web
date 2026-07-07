@@ -5414,10 +5414,10 @@ select.public-board-select {
 .guild-msg.mine .guild-msg-row{flex-direction:row-reverse;}
 .guild-msg-bubble{background:#fff;border:1px solid var(--kz-line);color:var(--kz-text);border-radius:14px 14px 14px 4px;padding:8px 11px;font-size:14px;line-height:1.45;word-break:break-word;white-space:pre-wrap;}
 .guild-msg.mine .guild-msg-bubble{background:var(--kz-blue);border-color:var(--kz-blue);color:#fff;border-radius:14px 14px 4px 14px;}
-/* 인게임 아이템 링크(WoW 하이퍼링크) — 등급색 표기 + 클릭/호버 툴팁 */
-.chat-item-link{font-weight:700;cursor:pointer;text-shadow:0 1px 1px rgba(0,0,0,.25);border-radius:3px;padding:0 1px;transition:filter .12s,background .12s;}
-.chat-item-link:hover,.chat-item-link:focus-visible{filter:brightness(1.18);background:rgba(255,255,255,.10);outline:none;}
-.guild-msg.mine .chat-item-link{text-shadow:0 1px 1px rgba(0,0,0,.45);}
+/* 인게임 아이템 링크(WoW 하이퍼링크) — 인게임처럼 어두운 칩 위 등급색 표기(밝은 색도 가독) + 클릭/호버 툴팁 */
+.chat-item-link{display:inline;font-weight:700;cursor:pointer;background:rgba(17,22,35,.92);padding:1px 6px;border-radius:5px;text-shadow:0 1px 1px rgba(0,0,0,.55);box-shadow:0 1px 2px rgba(0,0,0,.18);transition:filter .12s,box-shadow .12s;}
+.chat-item-link:hover,.chat-item-link:focus-visible{filter:brightness(1.15);box-shadow:0 0 0 1px rgba(255,255,255,.16),0 2px 6px rgba(0,0,0,.3);outline:none;}
+.guild-msg.mine .chat-item-link{background:rgba(6,11,24,.94);}
 .chat-item-tooltip{position:fixed;z-index:30000;max-width:320px;background:rgba(9,16,30,.97);border:1px solid rgba(148,163,184,.38);border-radius:10px;padding:10px 12px;box-shadow:0 14px 30px rgba(0,0,0,.5);color:#e2e8f0;font-size:12px;line-height:1.5;pointer-events:none;}
 .chat-item-tt-head{display:flex;align-items:center;gap:8px;margin-bottom:5px;}
 .chat-item-tt-icon{width:36px;height:36px;border-radius:6px;border:1px solid rgba(255,255,255,.28);object-fit:cover;background:rgba(0,0,0,.35);flex:0 0 auto;}
