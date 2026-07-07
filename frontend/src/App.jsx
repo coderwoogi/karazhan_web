@@ -1004,6 +1004,12 @@ function getLoadingMessageByUrl(url) {
 // 정보/아이콘을 조회해 인게임처럼 툴팁을 띄운다.
 const WOW_QUALITY_COLORS = ['#9d9d9d', '#ffffff', '#1eff00', '#0070dd', '#a335ee', '#ff8000', '#e6cc80', '#00ccff']
 
+// 미획득(초록) 등급색 #1eff00 은 밝아서 흰 말풍선에서 잘 안 보여 더 진한 초록으로 표기(글자색만).
+// 툴팁(어두운 배경)에는 원래 밝은 색을 그대로 쓴다.
+function chatItemTextColor(hex) {
+  return String(hex || '').toLowerCase() === '#1eff00' ? '#1a8c00' : (hex || '#ffffff')
+}
+
 // 아이템 메타(이름/등급/아이콘 등) 캐시 — 같은 아이템 반복 조회 방지. 실패는 캐시하지 않음.
 const chatItemMetaCache = new Map()
 function fetchChatItemMeta(itemId) {
@@ -1123,7 +1129,8 @@ function ChatItemLink({ itemId, color, text }) {
     setTip((prev) => (prev ? { ...prev, loading: false, data: (meta && meta.data) || null, iconUrl: (meta && meta.iconUrl) || '' } : prev))
   }, [itemId])
   const closeTip = useCallback(() => setTip(null), [])
-  const linkColor = color || '#ffffff'
+  const rawColor = color || '#ffffff'
+  const linkColor = chatItemTextColor(rawColor)
   return (
     <span
       ref={ref}
@@ -1139,7 +1146,7 @@ function ChatItemLink({ itemId, color, text }) {
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (tip) { closeTip() } else { void openTip() } } }}
     >
       {text || '[아이템]'}
-      {tip ? <ChatItemTooltip {...tip} fallbackColor={linkColor} /> : null}
+      {tip ? <ChatItemTooltip {...tip} fallbackColor={rawColor} /> : null}
     </span>
   )
 }

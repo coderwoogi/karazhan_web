@@ -7485,12 +7485,16 @@ function igCleanWowPlain(s) {
         .replace(/\|T[^|]*\|t/g, '')
         .replace(/\|n/g, '\n');
 }
+// 미획득(초록) 등급색 #1eff00 은 밝아서 잘 안 보여 더 진한 초록으로 표기(글자색만).
+function igChatLinkColor(hex) {
+    return String(hex || '').toLowerCase() === '#1eff00' ? '#1a8c00' : (hex || '#fff');
+}
 // 채팅 원문 → HTML(아이템 링크는 어두운 칩 위 등급색 span, 그 외는 이스케이프)
 function renderIngameChatMessageHtml(raw) {
     var text = String(raw == null ? '' : raw);
     if (text.indexOf('|H') < 0 && text.indexOf('|c') < 0) return igEscHtml(text);
     var re = /(?:\|c([0-9a-fA-F]{8}))?\|H([^|]+)\|h([\s\S]*?)\|h(?:\|r)?/g;
-    var chip = 'background:rgba(17,22,35,.92);padding:1px 6px;border-radius:5px;font-weight:700;cursor:pointer;text-shadow:0 1px 1px rgba(0,0,0,.6);';
+    var linkStyle = 'font-weight:700;cursor:pointer;text-shadow:0 1px 1px rgba(0,0,0,.25);';
     var out = '', last = 0, m;
     while ((m = re.exec(text)) !== null) {
         if (m.index > last) out += igEscHtml(igCleanWowPlain(text.slice(last, m.index)));
@@ -7499,10 +7503,9 @@ function renderIngameChatMessageHtml(raw) {
         var display = igEscHtml(igCleanWowPlain(m[3] || ''));
         var im = /^item:(\d+)/i.exec(payload);
         if (im) {
-            var colorStyle = colorHex ? ('color:' + colorHex + ';') : 'color:#fff;';
-            out += '<span class="ig-chat-item-link" role="button" tabindex="0" data-entry="' + Number(im[1]) + '" style="' + colorStyle + chip + '">' + display + '</span>';
+            out += '<span class="ig-chat-item-link" role="button" tabindex="0" data-entry="' + Number(im[1]) + '" style="color:' + igChatLinkColor(colorHex) + ';' + linkStyle + '">' + display + '</span>';
         } else if (colorHex) {
-            out += '<span style="color:' + colorHex + ';">' + display + '</span>';
+            out += '<span style="color:' + igChatLinkColor(colorHex) + ';">' + display + '</span>';
         } else {
             out += display;
         }
