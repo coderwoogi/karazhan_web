@@ -1,5 +1,6 @@
 ﻿
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
@@ -997,6 +998,165 @@ function getLoadingMessageByUrl(url) {
   return '데이터를 불러오는 중입니다.'
 }
 
+// ── 인게임 아이템 링크(WoW 하이퍼링크) 표현 ──────────────────────────
+// 인게임에서 링크한 아이템은 채팅 원문에 `|cAARRGGBB|Hitem:ID:...|h[이름]|h|r`
+// 형태로 들어온다. 색상은 코드에 내장돼 있으므로 그대로 쓰고, 아이템 ID로
+// 정보/아이콘을 조회해 인게임처럼 툴팁을 띄운다.
+const WOW_QUALITY_COLORS = ['#9d9d9d', '#ffffff', '#1eff00', '#0070dd', '#a335ee', '#ff8000', '#e6cc80', '#00ccff']
+
+// 아이템 메타(이름/등급/아이콘 등) 캐시 — 같은 아이템 반복 조회 방지. 실패는 캐시하지 않음.
+const chatItemMetaCache = new Map()
+function fetchChatItemMeta(itemId) {
+  const id = Number(itemId || 0)
+  if (id <= 0) return Promise.resolve(null)
+  if (chatItemMetaCache.has(id)) return chatItemMetaCache.get(id)
+  const p = (async () => {
+    const [metaRes, iconRes] = await Promise.allSettled([
+      fetch(`/api/content/item/tooltip?entry=${id}`, { credentials: 'same-origin', cache: 'no-store' }),
+      fetch(`/api/external/item_icon?entry=${id}`, { credentials: 'same-origin' }),
+    ])
+    let data = null
+    let iconUrl = ''
+    if (metaRes.status === 'fulfilled' && metaRes.value.ok) {
+      const j = await metaRes.value.json().catch(() => null)
+      if (j && j.status === 'success') data = j
+    }
+    if (iconRes.status === 'fulfilled' && iconRes.value.ok) {
+      const j = await iconRes.value.json().catch(() => null)
+      if (j && j.url) iconUrl = String(j.url)
+    }
+    return { data, iconUrl }
+  })()
+  chatItemMetaCache.set(id, p)
+  p.then((r) => { if (!r || !r.data) chatItemMetaCache.delete(id) }).catch(() => chatItemMetaCache.delete(id))
+  return p
+}
+
+// 링크가 아닌 구간에 남은 WoW 이스케이프 코드 제거(색/텍스처/줄바꿈 등).
+function cleanWowPlain(s) {
+  return String(s || '')
+    .replace(/\|c[0-9a-fA-F]{8}/g, '')
+    .replace(/\|r/g, '')
+    .replace(/\|T[^|]*\|t/g, '')
+    .replace(/\|n/g, '\n')
+}
+
+// 미리보기(답글 인용 등)용 — 링크는 표시 텍스트만 남기고 코드 전부 제거.
+function stripWowCodes(raw) {
+  return String(raw || '')
+    .replace(/\|H[^|]*\|h([\s\S]*?)\|h(?:\|r)?/g, '$1')
+    .replace(/\|c[0-9a-fA-F]{8}/g, '')
+    .replace(/\|r/g, '')
+    .replace(/\|T[^|]*\|t/g, '')
+    .replace(/\|n/g, ' ')
+    .trim()
+}
+
+// 채팅 원문 → 토큰 배열(text | item | colored).
+function parseWowChat(raw) {
+  const text = String(raw || '')
+  const tokens = []
+  const re = /(?:\|c([0-9a-fA-F]{8}))?\|H([^|]+)\|h([\s\S]*?)\|h(?:\|r)?/g
+  let last = 0
+  let m
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > last) tokens.push({ type: 'text', value: cleanWowPlain(text.slice(last, m.index)) })
+    const colorHex = m[1] ? `#${m[1].slice(2)}` : ''
+    const payload = m[2] || ''
+    const display = cleanWowPlain(m[3] || '')
+    const itemMatch = /^item:(\d+)/i.exec(payload)
+    if (itemMatch) {
+      tokens.push({ type: 'item', itemId: Number(itemMatch[1]), color: colorHex, text: display })
+    } else {
+      tokens.push({ type: 'colored', color: colorHex, value: display })
+    }
+    last = re.lastIndex
+  }
+  if (last < text.length) tokens.push({ type: 'text', value: cleanWowPlain(text.slice(last)) })
+  return tokens
+}
+
+function ChatItemTooltip({ x, y, loading, data, iconUrl, fallbackColor }) {
+  const d = data || {}
+  const q = Number(d.quality)
+  const nameColor = (Number.isFinite(q) && WOW_QUALITY_COLORS[q]) ? WOW_QUALITY_COLORS[q] : (fallbackColor || '#ffffff')
+  const stats = Array.isArray(d.stats) ? d.stats : []
+  const spells = Array.isArray(d.spells) ? d.spells : []
+  const sub = [d.class_name, d.subclass_name].filter(Boolean).join(' · ')
+  return createPortal(
+    <div className="chat-item-tooltip" style={{ left: `${x}px`, top: `${y}px` }}>
+      {loading ? (
+        <div className="chat-item-tt-loading">아이템 정보를 불러오는 중...</div>
+      ) : !data ? (
+        <div className="chat-item-tt-error">아이템 정보를 불러오지 못했습니다.</div>
+      ) : (
+        <>
+          <div className="chat-item-tt-head">
+            {iconUrl ? <img src={iconUrl} alt="" className="chat-item-tt-icon" /> : null}
+            <div className="chat-item-tt-title" style={{ color: nameColor }}>{d.name || '아이템'}</div>
+          </div>
+          <div className="chat-item-tt-sub">아이템 레벨 {Number(d.item_level || 0)} · 요구 레벨 {Number(d.required_level || 0)}</div>
+          {sub ? <div className="chat-item-tt-sub">{sub}</div> : null}
+          {stats.length ? <div className="chat-item-tt-stats">{stats.map((s, i) => <div key={i}>{s}</div>)}</div> : null}
+          {spells.length ? <div className="chat-item-tt-spells">{spells.map((s, i) => <div key={i}>{s}</div>)}</div> : null}
+        </>
+      )}
+    </div>,
+    document.body,
+  )
+}
+
+function ChatItemLink({ itemId, color, text }) {
+  const ref = useRef(null)
+  const [tip, setTip] = useState(null) // { x, y, loading, data, iconUrl } | null
+  const openTip = useCallback(async () => {
+    let x = 20
+    let y = 20
+    const el = ref.current
+    if (el) {
+      const r = el.getBoundingClientRect()
+      x = Math.max(8, Math.min(r.left, window.innerWidth - 340))
+      y = r.bottom + 6
+    }
+    setTip({ x, y, loading: true, data: null, iconUrl: '' })
+    const meta = await fetchChatItemMeta(itemId)
+    setTip((prev) => (prev ? { ...prev, loading: false, data: (meta && meta.data) || null, iconUrl: (meta && meta.iconUrl) || '' } : prev))
+  }, [itemId])
+  const closeTip = useCallback(() => setTip(null), [])
+  const linkColor = color || '#ffffff'
+  return (
+    <span
+      ref={ref}
+      className="chat-item-link"
+      style={{ color: linkColor }}
+      role="button"
+      tabIndex={0}
+      onMouseEnter={openTip}
+      onMouseLeave={closeTip}
+      onFocus={openTip}
+      onBlur={closeTip}
+      onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (tip) { closeTip() } else { void openTip() } }}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (tip) { closeTip() } else { void openTip() } } }}
+    >
+      {text || '[아이템]'}
+      {tip ? <ChatItemTooltip {...tip} fallbackColor={linkColor} /> : null}
+    </span>
+  )
+}
+
+// 채팅 원문을 렌더 노드로 변환(아이템 링크는 색상+툴팁 처리).
+function renderChatContent(text) {
+  const raw = String(text || '')
+  if (!raw.includes('|H') && !raw.includes('|c')) return raw
+  const tokens = parseWowChat(raw)
+  if (!tokens.length) return raw
+  return tokens.map((t, i) => {
+    if (t.type === 'item') return <ChatItemLink key={i} itemId={t.itemId} color={t.color} text={t.text} />
+    if (t.type === 'colored') return <span key={i} style={t.color ? { color: t.color } : undefined}>{t.value}</span>
+    return <span key={i}>{t.value}</span>
+  })
+}
+
 function GlobalLoadingOverlay({ visible, message }) {
   return (
     <div className={`global-loading-overlay${visible ? ' active' : ''}`} aria-hidden={visible ? 'false' : 'true'}>
@@ -1656,7 +1816,7 @@ function App() {
     // 답글이면 원문 인용을 텍스트로 앞에 붙임(인게임에도 그대로 전달됨)
     let message = base
     if (guildReplyTo) {
-      const q = String(guildReplyTo.message || '').replace(/\s+/g, ' ').trim()
+      const q = stripWowCodes(guildReplyTo.message).replace(/\s+/g, ' ').trim()
       const short = q.length > 20 ? `${q.slice(0, 20)}…` : q
       message = `[↳${guildReplyTo.name}: ${short}] ${base}`
     }
@@ -2729,11 +2889,11 @@ function App() {
                     </span>
                     {rep ? (
                       <span className="guild-msg-reply-wrap">
-                        <span className="guild-msg-quote"><b>↳ {rep[1]}</b><em>{rep[2]}</em></span>
-                        <span className="guild-msg-bubble">{rep[3]}</span>
+                        <span className="guild-msg-quote"><b>↳ {rep[1]}</b><em>{stripWowCodes(rep[2])}</em></span>
+                        <span className="guild-msg-bubble">{renderChatContent(rep[3])}</span>
                       </span>
                     ) : (
-                      <span className="guild-msg-bubble">{m.message}</span>
+                      <span className="guild-msg-bubble">{renderChatContent(m.message)}</span>
                     )}
                     {time ? <span className="guild-msg-time">{time}</span> : null}
                     {!mine && m.sender_name ? (
@@ -2748,7 +2908,7 @@ function App() {
             <div className="guild-reply-preview">
               <div className="guild-reply-preview-text">
                 <b>↳ {guildReplyTo.name}에게 답글</b>
-                <span>{guildReplyTo.message}</span>
+                <span>{stripWowCodes(guildReplyTo.message)}</span>
               </div>
               <button type="button" aria-label="답글 취소" onClick={() => setGuildReplyTo(null)}>✕</button>
             </div>
