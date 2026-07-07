@@ -994,7 +994,7 @@ function renderNormalBoard(container, posts, total) {
                             <td style="padding: 12px; text-align:center; color:var(--text-dim);">${virtualNum}</td>
                             ${isInquiry ? `<td style="padding: 12px; text-align:center; color:var(--text-primary);">${renderInquiryCategoryBadge(post.category)}</td>` : ''}
                             ${isInquiry ? `<td style="padding: 12px; text-align:center; color:var(--text-primary);">${renderInquiryStatusBadge(post.inquiry_status)}</td>` : ''}
-                            <td style="padding: 12px; font-weight:500; color:var(--text-primary);">${renderPostTitleWithCommentCount(post.title, post.comment_count)}</td>
+                            <td style="padding: 12px; font-weight:500; color:var(--text-primary);">${post.is_hidden ? '<span class="badge" style="background:#6b7280; color:#fff; margin-right:6px;">숨김</span>' : ''}${renderPostTitleWithCommentCount(post.title, post.comment_count)}</td>
                             <td style="padding: 12px; text-align:center; color:var(--text-secondary);">${renderBoardAuthor(post.author_name, post.is_staff_author === true, post.has_enhanced_stone === true)}</td>
                             ${isPromotion ? `<td style="padding: 12px; text-align:center;">${renderPromotionReviewBadge(post.review_status)}</td>` : ''}
                             ${isPromotion ? `<td style="padding: 12px; text-align:center;">${renderPromotionRewardBadge(post.reward_paid)}</td>` : ''}
@@ -1209,6 +1209,7 @@ async function viewPost(id, pushHistory) {
                 <div style="display: flex; gap: 0.5rem;">
                     <button onclick="copyBoardPostUrl(${id})" class="btn" style="background: var(--surface-2); color: var(--text-primary); padding: 8px 16px; border-radius: 8px;">주소복사</button>
                     ${canEdit ? `<button onclick="openPostEdit(${id})" class="btn" style="background: var(--primary-color); color: white; padding: 8px 16px; border-radius: 8px;">수정</button>` : ''}
+                    ${isAdmin ? `<button onclick="toggleHidePost(${id}, ${post.is_hidden ? 'false' : 'true'})" class="btn" style="background: var(--surface-2); color: var(--text-primary); padding: 8px 16px; border-radius: 8px;">${post.is_hidden ? '숨김 해제' : '숨기기'}</button>` : ''}
                     ${canDelete ? `<button onclick="deletePost(${id})" class="btn btn-stop" style="padding: 8px 16px; border-radius: 8px;">삭제</button>` : ''}
                 </div>
             </div>
@@ -1781,6 +1782,31 @@ async function deletePost(id) {
             }
         } catch (e) {
             console.error('Failed to delete post:', e);
+            ModalUtils.showAlert('오류가 발생했습니다');
+        }
+    });
+}
+
+// 글 숨기기/해제 (관리자 전용). hidden=true면 숨김, false면 해제.
+async function toggleHidePost(id, hidden) {
+    const willHide = hidden === true || hidden === 'true';
+    const msg = willHide
+        ? '이 글을 숨기시겠습니까? 일반 사용자에게는 보이지 않고, 관리자에게만 표시됩니다.'
+        : '이 글의 숨김을 해제하시겠습니까?';
+    ModalUtils.showConfirm(msg, async () => {
+        try {
+            const res = await fetch('/api/board/post/hide', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: Number(id), hidden: willHide })
+            });
+            if (res.ok) {
+                viewPost(id);
+            } else {
+                ModalUtils.showAlert('숨김 처리에 실패했습니다');
+            }
+        } catch (e) {
+            console.error('Failed to toggle hide post:', e);
             ModalUtils.showAlert('오류가 발생했습니다');
         }
     });

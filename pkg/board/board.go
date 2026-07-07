@@ -80,6 +80,7 @@ type Post struct {
 	DisplayNumber    int      `json:"display_number"`
 	CreatedAt        string   `json:"created_at"`
 	UpdatedAt        string   `json:"updated_at"`
+	IsHidden         bool     `json:"is_hidden"`
 	PromotionURLs    []string `json:"promotion_urls,omitempty"`
 }
 
@@ -161,6 +162,9 @@ func ensureBoardSchema(db *sql.DB) {
 			display_number BIGINT DEFAULT 0,
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			is_hidden TINYINT(1) NOT NULL DEFAULT 0,
+			hidden_by INT DEFAULT NULL,
+			hidden_at DATETIME DEFAULT NULL,
 			INDEX (board_id)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`)
 		_, _ = db.Exec(`CREATE TABLE IF NOT EXISTS web_inquiry_messages (
@@ -252,6 +256,10 @@ func ensureBoardSchema(db *sql.DB) {
 		_, _ = db.Exec("ALTER TABLE web_promotion_verify_config ADD COLUMN current_round INT NOT NULL DEFAULT 1")
 		_, _ = db.Exec("ALTER TABLE web_promotion_verify_config ADD COLUMN max_per_round INT NOT NULL DEFAULT 0")
 		_, _ = db.Exec("ALTER TABLE web_posts ADD COLUMN promo_round INT NOT NULL DEFAULT 0")
+		// 글 숨기기(관리자 전용): 일반 유저 목록·상세에서 숨김, 관리자에겐 '숨김' 표시로 노출
+		_, _ = db.Exec("ALTER TABLE web_posts ADD COLUMN is_hidden TINYINT(1) NOT NULL DEFAULT 0")
+		_, _ = db.Exec("ALTER TABLE web_posts ADD COLUMN hidden_by INT DEFAULT NULL")
+		_, _ = db.Exec("ALTER TABLE web_posts ADD COLUMN hidden_at DATETIME DEFAULT NULL")
 
 		_, _ = db.Exec("UPDATE web_boards SET min_web_read = IFNULL(min_gm_read, 0) WHERE min_web_read = 0")
 		_, _ = db.Exec("UPDATE web_boards SET min_web_write = IFNULL(min_gm_write, 0) WHERE min_web_write = 0")
@@ -418,6 +426,7 @@ func RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/board/post/create", CreatePostHandler)
 	mux.HandleFunc("/api/board/post/update", UpdatePostHandler)
 	mux.HandleFunc("/api/board/post/delete", DeletePostHandler)
+	mux.HandleFunc("/api/board/post/hide", HidePostHandler)
 	mux.HandleFunc("/api/board/inquiry/status", UpdateInquiryStatusHandler)
 	mux.HandleFunc("/api/board/next-version", GetNextVersionHandler)
 
@@ -674,9 +683,15 @@ func GetPostsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// 글 숨기기: 관리자(WebRank>=2)만 숨긴 글을 볼 수 있고, 일반 유저에겐 목록에서 제외
+	isAdminViewer := userErr == nil && user.WebRank >= 2
+
 	var total int
 	countQuery := "SELECT COUNT(*) FROM web_posts WHERE board_id = ?"
 	countArgs := []interface{}{boardID}
+	if !isAdminViewer {
+		countQuery += " AND is_hidden = 0"
+	}
 	if (isInquiryBoard(boardID) && !canViewAllSupportPosts(boardID, user)) || (isPromotionBoard(boardID) && !isStaffUser(user)) {
 		countQuery += " AND account_id = ?"
 		countArgs = append(countArgs, user.AccountID)
@@ -694,12 +709,15 @@ func GetPostsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Query posts
-	sqlQuery := "SELECT id, board_id, account_id, author_name, title, IFNULL(category,''), IFNULL(inquiry_status,''), IFNULL(inquiry_memo,''), IFNULL(version,''), views, display_number, created_at, IFNULL(content,'')"
+	sqlQuery := "SELECT id, board_id, account_id, author_name, title, IFNULL(category,''), IFNULL(inquiry_status,''), IFNULL(inquiry_memo,''), IFNULL(version,''), views, display_number, created_at, IFNULL(content,''), IFNULL(is_hidden,0)"
 	if isPromotionBoard(boardID) {
 		sqlQuery += ", IFNULL(promo_review_status,'pending'), IFNULL((SELECT IFNULL(id,0) FROM web_promotion_reward_log rl WHERE rl.post_id = web_posts.id LIMIT 1),0)"
 	}
 	sqlQuery += " FROM web_posts WHERE board_id = ?"
 	queryArgs := []interface{}{boardID}
+	if !isAdminViewer {
+		sqlQuery += " AND is_hidden = 0"
+	}
 	if (isInquiryBoard(boardID) && !canViewAllSupportPosts(boardID, user)) || (isPromotionBoard(boardID) && !isStaffUser(user)) {
 		sqlQuery += " AND account_id = ?"
 		queryArgs = append(queryArgs, user.AccountID)
@@ -731,12 +749,13 @@ func GetPostsHandler(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var p Post
 		var content string
+		var isHidden int
 		promoReviewStatus := "pending"
 		promoRewardLogID := 0
 		if isPromotionBoard(boardID) {
-			rows.Scan(&p.ID, &p.BoardID, &p.AccountID, &p.AuthorName, &p.Title, &p.Category, &p.InquiryStatus, &p.InquiryMemo, &p.Version, &p.Views, &p.DisplayNumber, &p.CreatedAt, &content, &promoReviewStatus, &promoRewardLogID)
+			rows.Scan(&p.ID, &p.BoardID, &p.AccountID, &p.AuthorName, &p.Title, &p.Category, &p.InquiryStatus, &p.InquiryMemo, &p.Version, &p.Views, &p.DisplayNumber, &p.CreatedAt, &content, &isHidden, &promoReviewStatus, &promoRewardLogID)
 		} else {
-			rows.Scan(&p.ID, &p.BoardID, &p.AccountID, &p.AuthorName, &p.Title, &p.Category, &p.InquiryStatus, &p.InquiryMemo, &p.Version, &p.Views, &p.DisplayNumber, &p.CreatedAt, &content)
+			rows.Scan(&p.ID, &p.BoardID, &p.AccountID, &p.AuthorName, &p.Title, &p.Category, &p.InquiryStatus, &p.InquiryMemo, &p.Version, &p.Views, &p.DisplayNumber, &p.CreatedAt, &content, &isHidden)
 		}
 		thumbnail := extractFirstImageSrc(content)
 		authorIDs = append(authorIDs, p.AccountID)
@@ -754,6 +773,7 @@ func GetPostsHandler(w http.ResponseWriter, r *http.Request) {
 			"views":          p.Views,
 			"display_number": p.DisplayNumber,
 			"created_at":     p.CreatedAt,
+			"is_hidden":      isHidden == 1,
 			"review_status":  promoReviewStatus,
 			"reward_paid":    promoRewardLogID > 0,
 		})
@@ -799,9 +819,16 @@ func GetPostDetailHandler(w http.ResponseWriter, r *http.Request) {
 	// Get Board ID and check permissions
 	var boardID string
 	var postAuthorID int
-	err = db.QueryRow("SELECT board_id, account_id FROM web_posts WHERE id = ?", id).Scan(&boardID, &postAuthorID)
+	var postHidden int
+	err = db.QueryRow("SELECT board_id, account_id, IFNULL(is_hidden,0) FROM web_posts WHERE id = ?", id).Scan(&boardID, &postAuthorID, &postHidden)
 	if err != nil {
 		log.Printf("[Board] GetPostDetailHandler: Post %s not found in DB: %v", id, err)
+		http.Error(w, "Post not found", http.StatusNotFound)
+		return
+	}
+
+	// 글 숨기기: 숨김 처리된 글은 관리자(WebRank>=2)만 열람 가능(조회수 증가 전에 차단)
+	if postHidden == 1 && !(userErr == nil && user.WebRank >= 2) {
 		http.Error(w, "Post not found", http.StatusNotFound)
 		return
 	}
@@ -863,6 +890,7 @@ func GetPostDetailHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Post not found", http.StatusNotFound)
 		return
 	}
+	p.IsHidden = postHidden == 1
 
 	authorIDs := []int{p.AccountID}
 	var comments []Comment
@@ -1421,6 +1449,54 @@ func DeletePostHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprint(w, `{"status":"success"}`)
+}
+
+// HidePostHandler은 글의 숨김 상태를 토글한다. 관리자(WebRank>=2) 전용.
+// 숨김 글은 일반 유저 목록/상세에서 제외되고, 관리자에겐 '숨김' 표시로 계속 보이며 해제 가능.
+func HidePostHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	user, err := getUserInfo(r)
+	if err != nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	if user.WebRank < 2 {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+	var req struct {
+		ID     int  `json:"id"`
+		Hidden bool `json:"hidden"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.ID <= 0 {
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+	db, err := openUpdateDB()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer db.Close()
+	var exists int
+	if db.QueryRow("SELECT 1 FROM web_posts WHERE id = ?", req.ID).Scan(&exists) != nil {
+		http.Error(w, "Post not found", http.StatusNotFound)
+		return
+	}
+	if req.Hidden {
+		_, err = db.Exec("UPDATE web_posts SET is_hidden = 1, hidden_by = ?, hidden_at = NOW() WHERE id = ?", user.AccountID, req.ID)
+	} else {
+		_, err = db.Exec("UPDATE web_posts SET is_hidden = 0, hidden_by = NULL, hidden_at = NULL WHERE id = ?", req.ID)
+	}
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	fmt.Fprintf(w, `{"status":"success","is_hidden":%v}`, req.Hidden)
 }
 
 func UpdatePostHandler(w http.ResponseWriter, r *http.Request) {

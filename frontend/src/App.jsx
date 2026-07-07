@@ -2447,6 +2447,27 @@ function App() {
     if (currentBoard?.id) await loadPosts(currentBoard.id, page, search)
   }, [currentBoard, detail, loadPosts, navigate, page, search, showConfirm])
 
+  // 글 숨기기/해제 (관리자 전용): 숨기면 일반 사용자 목록·상세에서 보이지 않음
+  const toggleHidePost = useCallback(async () => {
+    if (!detail?.post?.id) return
+    const willHide = !detail.post.is_hidden
+    const confirmed = await showConfirm(willHide
+      ? '이 글을 숨기시겠습니까? 일반 사용자에게는 보이지 않고, 관리자에게만 표시됩니다.'
+      : '이 글의 숨김을 해제하시겠습니까?')
+    if (!confirmed) return
+    try {
+      await apiFetch('/api/board/post/hide', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ id: Number(detail.post.id), hidden: willHide }),
+      })
+      setDetail((prev) => (prev && prev.post ? { ...prev, post: { ...prev.post, is_hidden: willHide } } : prev))
+      if (currentBoard?.id) await loadPosts(currentBoard.id, page, search)
+    } catch (error) {
+      await showAlert(error?.message || '숨김 처리에 실패했습니다.')
+    }
+  }, [currentBoard, detail, loadPosts, page, search, showAlert, showConfirm])
+
   const comments = isSupportBoard ? asArray(detail?.inquiry_messages) : asArray(detail?.comments)
   const latestSupportMessage = comments.length ? comments[comments.length - 1] : null
   const canUserReplyBugReport = isBugReportBoard && String(detail?.post?.inquiry_status || '').toLowerCase() !== 'done' && String(latestSupportMessage?.role || '').toLowerCase() === 'staff'
@@ -4111,6 +4132,7 @@ function App() {
                                 <span className="public-mobile-post-main">
                                   <span className="public-mobile-post-title">
                                     {renderVersionBadge(post.version)}
+                                    {post.is_hidden ? <span className="tag post-hidden-badge">숨김</span> : null}
                                     {!post.version ? (isBugReportBoard && post.category ? <span className="tag bug">{post.category}</span> : <span className={`tag ${tag.className}`}>{tag.label}</span>) : null}
                                     <span>{post.title}</span>
                                     {Number(post.comment_count || 0) > 0 ? <b>[{post.comment_count}]</b> : null}
@@ -4136,7 +4158,7 @@ function App() {
                 )}
                 {screen === 'detail' && detail?.post ? (
                   <>
-                    <div className={`public-board-head public-detail-head${isUpdateBoard ? ' public-update-hero' : ''}`}><div><h2><span className="public-detail-title">{renderVersionBadge(detail.post.version)}<span>{detail.post.title}</span></span></h2></div><div className="public-board-toolbar"><button className="btn" type="button" onClick={() => navigate(`/?board=${encodeURIComponent(currentBoard.id)}`)}>{TEXT.back}</button></div></div>
+                    <div className={`public-board-head public-detail-head${isUpdateBoard ? ' public-update-hero' : ''}`}><div><h2><span className="public-detail-title">{renderVersionBadge(detail.post.version)}{detail.post.is_hidden ? <span className="tag post-hidden-badge">숨김</span> : null}<span>{detail.post.title}</span></span></h2></div><div className="public-board-toolbar"><button className="btn" type="button" onClick={() => navigate(`/?board=${encodeURIComponent(currentBoard.id)}`)}>{TEXT.back}</button></div></div>
                     <div className="public-comment-meta public-detail-meta">
                       {detail.post.category ? <span className="public-detail-cat">{detail.post.category}</span> : null}
                       <span className="public-detail-author">{renderAuthor(detail.post.author_name, detail.post.is_staff_author, detail.post.has_enhanced_stone)}</span>
@@ -4156,6 +4178,9 @@ function App() {
                           <button className="btn" type="button" onClick={copyPostUrl}>주소복사</button>
                           <button className="btn btn-danger" type="button" onClick={deletePost}>삭제하기</button>
                         </>
+                      ) : null}
+                      {isAdmin(user) ? (
+                        <button className="btn" type="button" onClick={toggleHidePost}>{detail.post.is_hidden ? '숨김 해제' : '숨기기'}</button>
                       ) : null}
                     </div>
 
