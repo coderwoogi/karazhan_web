@@ -493,11 +493,11 @@
     function buildEquipRuleCardHtml(equip) {
         if (!equip || !equip.enabled) return "";
         const chance = Number(equip.chance || 0);
-        const q2 = Number(equip.gradeQ2 || 0), q3 = Number(equip.gradeQ3 || 0), q4 = Number(equip.gradeQ4 || 0), q5 = Number(equip.gradeQ5 || 0);
-        const tot = q2 + q3 + q4 + q5;
+        // 고급(초록, q2)은 드랍하지 않음 — 최저 등급은 희귀(파랑). q2는 무시.
+        const q3 = Number(equip.gradeQ3 || 0), q4 = Number(equip.gradeQ4 || 0), q5 = Number(equip.gradeQ5 || 0);
+        const tot = q3 + q4 + q5;
         const pct = (v) => (tot > 0 ? Math.round((v / tot) * 100) : 0);
         const grades = [];
-        if (q2 > 0) grades.push(`<b style="color:#1eff00;">고급 ${pct(q2)}%</b>`);
         if (q3 > 0) grades.push(`<b style="color:#3b9dff;">희귀 ${pct(q3)}%</b>`);
         if (q4 > 0) grades.push(`<b style="color:#c77dff;">영웅 ${pct(q4)}%</b>`);
         if (q5 > 0) grades.push(`<b style="color:#ff8000;">전설 ${pct(q5)}%</b>`);
@@ -512,8 +512,8 @@
                 <div class="obtained-list-equip-title">🎲 랜덤 장비 보상 <span class="equip-rule-chance">확률 ${chance}%</span></div>
                 <p class="equip-rule-desc">카드 1장당 <b>${chance}%</b> 확률로, <b>대표 캐릭터가 착용할 수 있는 랜덤 장비</b>가 나옵니다. (아래 등록 아이템과 별개로 뽑힐 수 있어요)</p>
                 <ul class="equip-rule-list">
-                    <li>등급 비율 &nbsp; ${grades.length ? grades.join(" · ") : "-"}</li>
-                    <li>${ilvlText}</li>
+                    <li>등급 비율 &nbsp; ${grades.length ? grades.join(" · ") : "-"} <span class="equip-rule-note">(희귀~전설)</span></li>
+                    <li>${ilvlText} <span class="equip-rule-note">(만렙 80레벨 착용 장비)</span></li>
                     <li>종류 &nbsp; ${cats.length ? cats.join(" · ") : "-"} <span class="equip-rule-note">(내 직업이 착용 가능한 것만)</span></li>
                 </ul>
             </div>

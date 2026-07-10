@@ -11,6 +11,9 @@ import (
 	"strings"
 )
 
+// 만렙(WotLK 레벨 캡). 카드뽑기 장비는 만렙 이후 착용 장비(요구 레벨 >= 이 값)만 드랍한다.
+const carddrawMinRequiredLevel = 80
+
 type carddrawEquipSettings struct {
 	Enabled                            bool
 	Chance                             float64 // 카드 1장당 장비 출현 확률(%)
@@ -110,13 +113,13 @@ func qualityToRarity(q int) (string, string) {
 	return "common", "일반"
 }
 
-// 등급% 가중으로 품질(2~5) 추첨.
+// 등급% 가중으로 품질 추첨. 최저 등급은 희귀(파랑, q3) — 고급(초록, q2)은 드랍하지 않는다.
 func rollEquipQuality(s carddrawEquipSettings) int {
 	type qw struct {
 		q int
 		w float64
 	}
-	weights := []qw{{2, s.GradeQ2}, {3, s.GradeQ3}, {4, s.GradeQ4}, {5, s.GradeQ5}}
+	weights := []qw{{3, s.GradeQ3}, {4, s.GradeQ4}, {5, s.GradeQ5}}
 	total := 0.0
 	for _, x := range weights {
 		if x.w > 0 {
@@ -199,6 +202,7 @@ func pickRandomEquipReward(class, quality int, s carddrawEquipSettings) (carddra
 		LEFT JOIN item_template_locale itl ON itl.ID = it.entry AND itl.locale = 'koKR'
 		WHERE it.Quality = ?
 		  AND it.ItemLevel BETWEEN ? AND ?
+		  AND it.RequiredLevel >= ` + fmt.Sprintf("%d", carddrawMinRequiredLevel) + `
 		  AND it.name <> ''
 		  AND it.displayid > 0
 		  AND it.name NOT LIKE 'OLD%' AND it.name NOT LIKE 'QA%' AND it.name NOT LIKE 'PH %'

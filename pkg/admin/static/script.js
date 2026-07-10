@@ -4082,7 +4082,6 @@ async function loadCarddrawEquipSettings() {
         setV('equip-chance', Number(d.chance || 0));
         setV('equip-max-ilvl', Number(d.maxIlvl || 0));
         setV('equip-min-ilvl', Number(d.minIlvl || 0));
-        setV('equip-q2', Number(d.gradeQ2 || 0));
         setV('equip-q3', Number(d.gradeQ3 || 0));
         setV('equip-q4', Number(d.gradeQ4 || 0));
         setV('equip-q5', Number(d.gradeQ5 || 0));
@@ -4100,7 +4099,7 @@ async function saveCarddrawEquipSettings() {
     body.set('chance', val('equip-chance'));
     body.set('maxIlvl', val('equip-max-ilvl'));
     body.set('minIlvl', val('equip-min-ilvl'));
-    body.set('gradeQ2', val('equip-q2'));
+    body.set('gradeQ2', '0'); // 고급(초록)은 드랍하지 않음 — 항상 0
     body.set('gradeQ3', val('equip-q3'));
     body.set('gradeQ4', val('equip-q4'));
     body.set('gradeQ5', val('equip-q5'));
