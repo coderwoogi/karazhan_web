@@ -1837,16 +1837,35 @@ var GMManager = {
             }
 
             this.inquiryReplyPostId = Number(postID) || 0;
+            const escFn = (s) => (window.escapeHtml ? window.escapeHtml(String(s == null ? '' : s)) : String(s == null ? '' : s));
+            // 문의자 메시지 + 관리자(스태프) 답변 전체 대화 내역 렌더
+            const threadHtml = comments.length ? comments.map((m) => {
+                const isStaff = String(m.role || '').toLowerCase() === 'staff';
+                const who = isStaff ? '관리자 답변' : '문의자';
+                const whoColor = isStaff ? 'var(--primary-color)' : 'var(--text-secondary)';
+                const bg = isStaff ? 'rgba(59,157,255,0.10)' : 'var(--surface-2)';
+                const body = String(m.content || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+                const name = String(m.author_name || '').trim();
+                return `
+                    <div style="padding:8px 10px; border-radius:8px; margin-bottom:6px; background:${bg}; border:1px solid var(--border-color);">
+                        <div style="display:flex; justify-content:space-between; gap:8px; margin-bottom:4px; font-size:0.74rem; font-weight:700; color:${whoColor};">
+                            <span>${who}${name ? ' · ' + escFn(name) : ''}</span>
+                            <span style="color:var(--text-dim); font-weight:400;">${escFn(m.created_at)}</span>
+                        </div>
+                        <div style="color:var(--text-primary); font-size:0.85rem; white-space:pre-wrap; word-break:break-word;">${escFn(body) || '(내용 없음)'}</div>
+                    </div>`;
+            }).join('') : '<div style="color:var(--text-dim); font-size:0.82rem; padding:6px 2px;">아직 등록된 답변/대화가 없습니다.</div>';
             meta.innerHTML = `
                 <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;">
                     ${this.renderInquiryCategoryBadge(post.category)}
                     ${this.renderInquiryStatusBadge(post.inquiry_status)}
                 </div>
-                <div style="margin-bottom:8px;"><b>제목:</b> ${window.escapeHtml ? window.escapeHtml(post.title || '') : (post.title || '')}</div>
-                <div style="margin-bottom:8px;"><b>기존 답변:</b> ${comments.length}개</div>
-                <div style="background:var(--surface-2); border:1px solid var(--border-color); border-radius:8px; padding:10px; color:var(--text-primary); max-height:140px; overflow:auto;">
-                    <b>문의 내용</b><br>${window.escapeHtml ? window.escapeHtml(plainContent || '') : (plainContent || '')}
+                <div style="margin-bottom:8px;"><b>제목:</b> ${escFn(post.title)}</div>
+                <div style="background:var(--surface-2); border:1px solid var(--border-color); border-radius:8px; padding:10px; color:var(--text-primary); max-height:140px; overflow:auto; margin-bottom:12px;">
+                    <b>문의 내용</b><br>${escFn(plainContent)}
                 </div>
+                <div style="margin-bottom:6px; font-weight:700; color:var(--text-secondary); font-size:0.82rem;">기존 답변/대화 내역 (${comments.length}개)</div>
+                <div style="max-height:230px; overflow:auto;">${threadHtml}</div>
             `;
             input.value = '';
             modal.style.display = 'flex';
