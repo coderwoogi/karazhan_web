@@ -482,6 +482,22 @@ func runShopFunctionCommand(functionCode, characterName string, r *http.Request)
 	}
 
 	code := strings.ToLower(strings.TrimSpace(functionCode))
+
+	// 프리미엄 퀘스트 완료: questclear:<questId>
+	// 대상 캐릭터가 접속 중이어야 하며(오프라인이면 실패 → 상위에서 롤백/환불),
+	// 커스텀 명령 .karazhan questclear 로 미수락 시 강제 추가 후 완료 처리한다.
+	if strings.HasPrefix(code, "questclear:") {
+		qid := strings.TrimSpace(strings.TrimPrefix(code, "questclear:"))
+		if n, convErr := strconv.Atoi(qid); convErr != nil || n <= 0 {
+			return fmt.Errorf("잘못된 퀘스트 ID 설정입니다: %s", qid)
+		}
+		if !isShopCharacterOnline(character) {
+			return fmt.Errorf("캐릭터가 접속 중이어야 퀘스트를 완료할 수 있습니다. 인게임 접속 후 다시 구매해주세요.")
+		}
+		cmd := ".karazhan questclear " + quoteShopWorldCommandArg(character) + " " + qid
+		return runShopWorldCommand(cmd, r)
+	}
+
 	var cmd string
 	switch code {
 	case "level_up", "level80", "level_80":
@@ -497,6 +513,25 @@ func runShopFunctionCommand(functionCode, characterName string, r *http.Request)
 	}
 
 	return runShopWorldCommand(cmd, r)
+}
+
+// isShopCharacterOnline: 캐릭터가 현재 인게임 접속 중인지(characters.online=1) 확인.
+// 프리미엄 퀘스트 완료 기능은 온라인 캐릭터에만 적용되므로 구매 전 검사에 사용한다.
+func isShopCharacterOnline(name string) bool {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return false
+	}
+	db, err := sql.Open("mysql", config.CharactersDSN())
+	if err != nil {
+		return false
+	}
+	defer db.Close()
+	var online int
+	if err := db.QueryRow("SELECT online FROM characters WHERE name = ? LIMIT 1", name).Scan(&online); err != nil {
+		return false
+	}
+	return online == 1
 }
 
 func sendShopPurchaseWhisper(characterName, itemName string, r *http.Request) error {
@@ -1532,7 +1567,15 @@ func handleShopCreateOrder(w http.ResponseWriter, r *http.Request) {
 			"enhanced_enchant_stone":     true,
 			"enhanced_enchant_stone_15d": true,
 		}
-		if !allowed[funcCode] {
+		isQuestClear := strings.HasPrefix(funcCode, "questclear:")
+		if isQuestClear {
+			qid := strings.TrimSpace(strings.TrimPrefix(funcCode, "questclear:"))
+			if n, convErr := strconv.Atoi(qid); convErr != nil || n <= 0 {
+				writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "프리미엄 퀘스트 상품의 퀘스트 ID 설정이 올바르지 않습니다."})
+				return
+			}
+		}
+		if !allowed[funcCode] && !isQuestClear {
 			log.Printf("[shop/order] unsupported function code user_id=%d item_id=%d func=%s", userID, req.ItemID, funcCode)
 			writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "지원하지 않는 기능 상품입니다."})
 			return
