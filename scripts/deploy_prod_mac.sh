@@ -27,26 +27,17 @@ rollback() {
 trap 'echo "[deploy] failed"; rollback' ERR
 
 echo "[deploy] pulling latest code"
+# 프론트 dist는 dev 머신에서 빌드·커밋되어 커밋에 포함된다. 이 서버는 빌드하지 않으므로
+# 작업트리가 더러워지지 않지만, 과거 빌드 잔재가 남아 pull을 막는 일이 없도록 방어적으로 정리한다.
+git checkout -- frontend/dist 2>/dev/null || true
 git pull --ff-only
 
 echo "[deploy] checking forbidden secrets"
 bash scripts/check_no_dev_secrets.sh
 
-echo "[deploy] installing frontend dependencies"
-(
-  cd frontend
-  if [[ -f package-lock.json ]]; then
-    npm ci
-  else
-    npm install
-  fi
-)
-
-echo "[deploy] building react frontend"
-(
-  cd frontend
-  npm run build
-)
+# NOTE: 프론트엔드(frontend/dist)는 개발 머신에서 빌드·커밋한 산출물을 그대로 사용한다.
+# 이 서버에서 npm run build 를 돌리면 커밋된 dist/index.html 이 새 타임스탬프로 덮어써져
+# 작업트리가 더러워지고 다음 git pull 이 실패하므로, 여기서는 프론트를 빌드하지 않는다.
 
 echo "[deploy] building new binary"
 go build -o "$TEMP_OUTPUT" main.go
