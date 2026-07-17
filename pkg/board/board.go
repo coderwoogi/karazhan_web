@@ -435,6 +435,7 @@ func RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/board/comment/update", UpdateCommentHandler)
 	mux.HandleFunc("/api/board/comment/delete", DeleteCommentHandler)
 	mux.HandleFunc("/api/board/inquiry/message/create", CreateInquiryMessageHandler)
+	mux.HandleFunc("/api/board/inquiry/message/update", UpdateInquiryMessageHandler)
 	mux.HandleFunc("/api/board/inquiry/memo", UpdateInquiryMemoHandler)
 	mux.HandleFunc("/api/board/promotion/admin/list", GetPromotionAdminListHandler)
 	mux.HandleFunc("/api/board/promotion/reward/config", PromotionRewardConfigHandler)
@@ -1826,6 +1827,70 @@ func CreateInquiryMessageHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{
 		"status": "success",
 	})
+}
+
+// UpdateInquiryMessageHandler은 관리자(스태프)가 남긴 문의 답변 내용을 수정한다.
+// 관리 권한(canManageSupportPost)이 있어야 하며, role='staff' 답변만 수정 가능.
+func UpdateInquiryMessageHandler(w http.ResponseWriter, r *http.Request) {
+	user, err := getUserInfo(r)
+	if err != nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req struct {
+		ID      int    `json:"id"`
+		Content string `json:"content"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+	content := strings.TrimSpace(req.Content)
+	if req.ID <= 0 || content == "" {
+		http.Error(w, "Invalid inquiry message payload", http.StatusBadRequest)
+		return
+	}
+
+	db, err := openUpdateDB()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer db.Close()
+
+	var boardID, role string
+	if err := db.QueryRow(`
+		SELECT IFNULL(p.board_id,''), IFNULL(m.role,'')
+		FROM web_inquiry_messages m JOIN web_posts p ON p.id = m.post_id
+		WHERE m.id = ?`, req.ID).Scan(&boardID, &role); err != nil {
+		http.Error(w, "Message not found", http.StatusNotFound)
+		return
+	}
+	if !isInquiryBoard(boardID) {
+		http.Error(w, "Not an inquiry message", http.StatusBadRequest)
+		return
+	}
+	if !canManageSupportPost(boardID, user) {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+	if !strings.EqualFold(role, "staff") {
+		http.Error(w, "관리자 답변만 수정할 수 있습니다.", http.StatusBadRequest)
+		return
+	}
+
+	if _, err := db.Exec("UPDATE web_inquiry_messages SET content = ? WHERE id = ?", content, req.ID); err != nil {
+		http.Error(w, "Failed to update inquiry message", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"status": "success"})
 }
 
 func GetPromotionAdminListHandler(w http.ResponseWriter, r *http.Request) {

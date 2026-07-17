@@ -1837,6 +1837,7 @@ var GMManager = {
             }
 
             this.inquiryReplyPostId = Number(postID) || 0;
+            this.inquiryThreadMsgs = comments; // 답변 수정 시 원문 조회용
             const escFn = (s) => (window.escapeHtml ? window.escapeHtml(String(s == null ? '' : s)) : String(s == null ? '' : s));
             // 문의자 메시지 + 관리자(스태프) 답변 전체 대화 내역 렌더
             const threadHtml = comments.length ? comments.map((m) => {
@@ -1846,11 +1847,13 @@ var GMManager = {
                 const bg = isStaff ? 'rgba(59,157,255,0.10)' : 'var(--surface-2)';
                 const body = String(m.content || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
                 const name = String(m.author_name || '').trim();
+                // 관리자 답변만 수정 버튼 노출
+                const editBtn = isStaff ? `<button type="button" onclick="GMManager.editInquiryReply(${Number(m.id) || 0})" style="margin-left:8px; padding:1px 8px; font-size:0.7rem; font-weight:600; border:1px solid var(--border-color); background:var(--surface-2); color:var(--text-primary); border-radius:6px; cursor:pointer;">수정</button>` : '';
                 return `
                     <div style="padding:8px 10px; border-radius:8px; margin-bottom:6px; background:${bg}; border:1px solid var(--border-color);">
                         <div style="display:flex; justify-content:space-between; gap:8px; margin-bottom:4px; font-size:0.74rem; font-weight:700; color:${whoColor};">
                             <span>${who}${name ? ' · ' + escFn(name) : ''}</span>
-                            <span style="color:var(--text-dim); font-weight:400;">${escFn(m.created_at)}</span>
+                            <span style="color:var(--text-dim); font-weight:400;">${escFn(m.created_at)}${editBtn}</span>
                         </div>
                         <div style="color:var(--text-primary); font-size:0.85rem; white-space:pre-wrap; word-break:break-word;">${escFn(body) || '(내용 없음)'}</div>
                     </div>`;
@@ -1881,6 +1884,53 @@ var GMManager = {
         if (input) input.value = '';
         if (modal) modal.style.display = 'none';
         this.inquiryReplyPostId = 0;
+    },
+
+    // 관리자 답변(role=staff) 수정
+    async editInquiryReply(msgId) {
+        const id = Number(msgId) || 0;
+        if (!id) return;
+        const list = Array.isArray(this.inquiryThreadMsgs) ? this.inquiryThreadMsgs : [];
+        const msg = list.find((x) => Number(x.id) === id);
+        if (!msg) {
+            ModalUtils.showAlert('수정할 답변을 찾을 수 없습니다.');
+            return;
+        }
+        if (!ModalUtils.hasSwal()) {
+            ModalUtils.showAlert('수정 UI를 사용할 수 없습니다.');
+            return;
+        }
+        const { value: newContent } = await Swal.fire({
+            title: '관리자 답변 수정',
+            input: 'textarea',
+            inputValue: String(msg.content || ''),
+            inputAttributes: { style: 'min-height:150px;' },
+            showCancelButton: true,
+            confirmButtonText: '저장',
+            cancelButtonText: '취소'
+        });
+        if (newContent === undefined) return; // 취소
+        const content = String(newContent || '').trim();
+        if (!content) {
+            ModalUtils.showAlert('답변 내용을 입력하세요.');
+            return;
+        }
+        try {
+            const res = await fetch('/api/board/inquiry/message/update', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, content })
+            });
+            if (!res.ok) {
+                const t = await res.text();
+                ModalUtils.handleError(t || '답변 수정에 실패했습니다.', '답변 수정 실패');
+                return;
+            }
+            ModalUtils.showAlert('답변을 수정했습니다.');
+            this.replyInquiry(this.inquiryReplyPostId); // 모달 새로고침
+        } catch (e) {
+            ModalUtils.showAlert('답변 수정 중 오류가 발생했습니다.');
+        }
     },
 
     async submitInquiryReplyModal() {
