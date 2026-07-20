@@ -3733,6 +3733,26 @@ select.public-board-select {
   font-size: 15px;
   line-height: 1.9;
 }
+/* 마크다운/에디터 표 — 테두리 있는 표로 표시(패치노트 .md 반영 대응) */
+.public-post-content table {
+  border-collapse: collapse;
+  width: auto;
+  max-width: 100%;
+  margin: 16px 0;
+  overflow-x: auto;
+  display: block;
+}
+.public-post-content th,
+.public-post-content td {
+  border: 1px solid var(--kz-line, #d8e7fb);
+  padding: 8px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+.public-post-content th {
+  background: rgba(0, 0, 0, 0.05);
+  font-weight: 700;
+}
 .public-post-content img {
   max-width: 100%;
   height: auto;

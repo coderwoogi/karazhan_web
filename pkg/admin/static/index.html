@@ -14,7 +14,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap">
-    <link rel="stylesheet" href="style.css?v=1052">
+    <link rel="stylesheet" href="style.css?v=1053">
     <link rel="stylesheet" href="notification.css?v=4">
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
     <script>
@@ -1453,8 +1453,9 @@
                                 </div>
                             </div>
                             <div id="board-content-field" class="form-group-premium">
-                                <label>내용 <button type="button" id="board-update-template-btn" onclick="loadUpdateTemplateToEditor(false)" style="display:none; margin-left:8px; padding:3px 10px; font-size:12px; border:1px solid var(--text-dim); border-radius:6px; background:#eef4ff; color: var(--link-color); cursor:pointer;"><i class="fas fa-clipboard-list"></i> 양식 불러오기</button><button type="button" id="board-md-attach-btn" onclick="document.getElementById('board-md-file-input').click()" style="display:none; margin-left:6px; padding:3px 10px; font-size:12px; border:1px solid var(--text-dim); border-radius:6px; background:#eafaf0; color:#137333; cursor:pointer;"><i class="fas fa-file-arrow-up"></i> .md 첨부</button><input type="file" id="board-md-file-input" accept=".md,.markdown,text/markdown,text/plain" style="display:none;" onchange="importMarkdownToEditor(this)"></label>
+                                <label>내용 <button type="button" id="board-update-template-btn" onclick="loadUpdateTemplateToEditor(false)" style="display:none; margin-left:8px; padding:3px 10px; font-size:12px; border:1px solid var(--text-dim); border-radius:6px; background:#eef4ff; color: var(--link-color); cursor:pointer;"><i class="fas fa-clipboard-list"></i> 양식 불러오기</button><button type="button" id="board-md-attach-btn" onclick="document.getElementById('board-md-file-input').click()" style="display:none; margin-left:6px; padding:3px 10px; font-size:12px; border:1px solid var(--text-dim); border-radius:6px; background:#eafaf0; color:#137333; cursor:pointer;"><i class="fas fa-file-arrow-up"></i> .md 첨부</button><input type="file" id="board-md-file-input" accept=".md,.markdown,text/markdown,text/plain" style="display:none;" onchange="importMarkdownToEditor(this)"><button type="button" id="board-md-reset-btn" onclick="resetBoardMdOverride()" style="display:none; margin-left:6px; padding:3px 10px; font-size:12px; border:1px solid var(--text-dim); border-radius:6px; background:#fdeaea; color:#b3261e; cursor:pointer;"><i class="fas fa-rotate-left"></i> MD 초기화(에디터로)</button></label>
                                 <div id="editor-container" style="height: 400px; background:var(--surface);"></div>
+                                <div id="board-md-preview" style="display:none; min-height:200px; max-height:520px; overflow:auto; border:1px solid var(--border-color); border-radius:8px; padding:16px; background:var(--surface); color:var(--text-primary);"></div>
                             </div>
                             <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 1rem;">
                                 <button onclick="submitPost()" class="btn btn-primary">등록</button>
@@ -5163,7 +5164,8 @@
         <script src="shop.js?v=10"></script>
         <script src="auction.js?v=8"></script>
         <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.3/Sortable.min.js"></script>
-        <script src="board.js?v=mdimport1"></script>
+        <script src="marked.min.js?v=12"></script>
+        <script src="board.js?v=mdimport2"></script>
         <script src="account.js?v=34"></script>
         <script src="char_items_modal.js?v=33"></script>
         <script src="item_picker.js?v=30"></script>

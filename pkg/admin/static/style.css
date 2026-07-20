@@ -8335,3 +8335,25 @@ body.admin-dark .ql-snow .ql-picker-label:hover { color: var(--primary-color); }
 .char-gold-edit select.input-premium{width:auto;padding:6px 8px;}
 .char-gold-edit input.input-premium{width:140px;padding:6px 10px;}
 .char-gold-edit .char-gold-apply{padding:6px 16px;flex:none;}
+
+/* 업데이트 게시판 .md 미리보기 / 게시글 상세의 표 스타일 */
+#board-md-preview table,
+#board-detail-view table {
+    border-collapse: collapse;
+    max-width: 100%;
+    margin: 14px 0;
+}
+#board-md-preview th, #board-md-preview td,
+#board-detail-view th, #board-detail-view td {
+    border: 1px solid var(--border-color, #ccc);
+    padding: 8px 12px;
+    text-align: left;
+    vertical-align: top;
+}
+#board-md-preview th, #board-detail-view th {
+    background: var(--surface-2, rgba(0,0,0,0.05));
+    font-weight: 700;
+}
+#board-md-preview pre, #board-detail-view pre {
+    background: #0d1117; color: #e6edf3; padding: 12px; border-radius: 8px; overflow: auto;
+}
