@@ -595,6 +595,12 @@ func runShopWorldCommand(cmd string, r *http.Request) error {
 		return fmt.Errorf("world command is empty")
 	}
 
+	// 한글 등 non-ASCII가 포함된 명령(예: 한글 캐릭터명 대상)은 launcher가 거부하므로
+	// SOAP 콘솔로 직접 전송한다. (프리미엄 퀘스트 questclear·귓속말 등)
+	if hasShopNonASCII(cmd) {
+		return runShopWorldCommandSOAP(cmd)
+	}
+
 	baseURL := config.LauncherBaseURL(r)
 
 	payload := map[string]string{"command": cmd}
