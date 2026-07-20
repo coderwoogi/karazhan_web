@@ -1,8 +1,5 @@
 node_modules/
-dist/*
-!dist/index.html
-!dist/favicon.svg
-!dist/icons.svg
-!dist/assets/
-!dist/assets/*.js
-!dist/assets/*.css
+# 빌드 산출물은 git에 커밋하지 않는다. 각 머신(dev/prod)이 npm run build 로 직접 생성한다.
+# (과거 dist/index.html 등을 커밋하다가, prod에서 재빌드될 때마다 커밋본이 더러워져
+#  git pull 이 반복 실패하던 문제를 근본 해결하기 위해 추적 제외)
+dist/
