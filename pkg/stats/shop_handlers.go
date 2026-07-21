@@ -475,6 +475,32 @@ func sendShopSOAPCommand(cfg shopWorldSOAPConfig, user, pass, cmd string) error 
 	return nil
 }
 
+// parseShopRewardCode는 "reward:<spellId>:<titleId>" 형식을 파싱한다(칭호 생략 시 0).
+// 스펠/칭호가 모두 0이면 오류.
+func parseShopRewardCode(code string) (int, int, error) {
+	rest := strings.TrimPrefix(strings.ToLower(strings.TrimSpace(code)), "reward:")
+	parts := strings.Split(rest, ":")
+	spellID, titleID := 0, 0
+	if len(parts) >= 1 && strings.TrimSpace(parts[0]) != "" {
+		n, err := strconv.Atoi(strings.TrimSpace(parts[0]))
+		if err != nil || n < 0 {
+			return 0, 0, fmt.Errorf("잘못된 보상 스펠 ID 설정입니다: %s", parts[0])
+		}
+		spellID = n
+	}
+	if len(parts) >= 2 && strings.TrimSpace(parts[1]) != "" {
+		n, err := strconv.Atoi(strings.TrimSpace(parts[1]))
+		if err != nil || n < 0 {
+			return 0, 0, fmt.Errorf("잘못된 보상 칭호 ID 설정입니다: %s", parts[1])
+		}
+		titleID = n
+	}
+	if spellID <= 0 && titleID <= 0 {
+		return 0, 0, fmt.Errorf("보상 설정이 비어 있습니다(스펠/칭호 모두 0): %s", code)
+	}
+	return spellID, titleID, nil
+}
+
 func runShopFunctionCommand(functionCode, characterName string, r *http.Request) error {
 	character := strings.TrimSpace(characterName)
 	if character == "" {
@@ -483,18 +509,18 @@ func runShopFunctionCommand(functionCode, characterName string, r *http.Request)
 
 	code := strings.ToLower(strings.TrimSpace(functionCode))
 
-	// 프리미엄 퀘스트 완료: questclear:<questId>
+	// 프리미엄 퀘스트 보상: reward:<spellId>:<titleId> (없는 항목은 0)
 	// 대상 캐릭터가 접속 중이어야 하며(오프라인이면 실패 → 상위에서 롤백/환불),
-	// 커스텀 명령 .karazhan questclear 로 미수락 시 강제 추가 후 완료 처리한다.
-	if strings.HasPrefix(code, "questclear:") {
-		qid := strings.TrimSpace(strings.TrimPrefix(code, "questclear:"))
-		if n, convErr := strconv.Atoi(qid); convErr != nil || n <= 0 {
-			return fmt.Errorf("잘못된 퀘스트 ID 설정입니다: %s", qid)
+	// 커스텀 명령 .karazhan reward 로 스펠 영구 학습 / 칭호 영구 부여한다.
+	if strings.HasPrefix(code, "reward:") {
+		spellID, titleID, perr := parseShopRewardCode(code)
+		if perr != nil {
+			return perr
 		}
 		if !isShopCharacterOnline(character) {
-			return fmt.Errorf("캐릭터가 접속 중이어야 퀘스트를 완료할 수 있습니다. 인게임 접속 후 다시 구매해주세요.")
+			return fmt.Errorf("캐릭터가 접속 중이어야 보상을 받을 수 있습니다. 인게임 접속 후 다시 구매해주세요.")
 		}
-		cmd := ".karazhan questclear " + quoteShopWorldCommandArg(character) + " " + qid
+		cmd := fmt.Sprintf(".karazhan reward %s %d %d", quoteShopWorldCommandArg(character), spellID, titleID)
 		return runShopWorldCommand(cmd, r)
 	}
 
@@ -1573,15 +1599,14 @@ func handleShopCreateOrder(w http.ResponseWriter, r *http.Request) {
 			"enhanced_enchant_stone":     true,
 			"enhanced_enchant_stone_15d": true,
 		}
-		isQuestClear := strings.HasPrefix(funcCode, "questclear:")
-		if isQuestClear {
-			qid := strings.TrimSpace(strings.TrimPrefix(funcCode, "questclear:"))
-			if n, convErr := strconv.Atoi(qid); convErr != nil || n <= 0 {
-				writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "프리미엄 퀘스트 상품의 퀘스트 ID 설정이 올바르지 않습니다."})
+		isReward := strings.HasPrefix(funcCode, "reward:")
+		if isReward {
+			if _, _, perr := parseShopRewardCode(funcCode); perr != nil {
+				writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "프리미엄 퀘스트 상품의 보상 설정(reward:스펠:칭호)이 올바르지 않습니다."})
 				return
 			}
 		}
-		if !allowed[funcCode] && !isQuestClear {
+		if !allowed[funcCode] && !isReward {
 			log.Printf("[shop/order] unsupported function code user_id=%d item_id=%d func=%s", userID, req.ItemID, funcCode)
 			writeJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "지원하지 않는 기능 상품입니다."})
 			return
